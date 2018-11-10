@@ -1,0 +1,9 @@
+# Add any directories, files, or patterns you don't want to be tracked by version control
+build
+__pycache__
+pydelta/__pycache__
+.cache
+tests/results
+debug.exr
+fit_ltc/fitLTC
+fit_ltc/results
