@@ -1,7 +1,7 @@
 # redner
 
-redner is a differentiable Monte Carlo renderer that can differentiate the rendering output with respect to arbitrary scene parameters.
-One of the major use of redner is for inverse rendering (hence the name redner) through gradient descent.
+redner is a differentiable Monte Carlo renderer that can take the derivatives of rendering output with respect to arbitrary 
+scene parameters. One of the major use of redner is for inverse rendering (hence the name redner) through gradient descent.
 
 For more detail of the renderer, what it can do, and the techniques it used for computing the derivatives, please
 look at the paper:
