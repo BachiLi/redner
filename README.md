@@ -81,3 +81,5 @@ The current development plan is to enhance the renderer. Following features will
 - Distribution effects: depth of field/motion blur
 - Documentation
 
+If you have any questions/comments/bug reports, feel free to open a github issue or e-mail to the author
+Tzu-Mao Li (tzumao@mit.edu)
