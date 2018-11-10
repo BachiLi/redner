@@ -12,9 +12,9 @@ the continuous derivatives significantly by replacing automatic differentiation 
 
 redner is expected to use with [PyTorch](https://pytorch.org/), and can be used seamlessly with PyTorch operators.
 While the documentation is work in progress, you can take a look at the [tests directory](tests) to have a basic sense.
-A good starting point is to look at (tests/test_single_triangle.py)[https://github.com/BachiLi/redner/blob/master/tests/test_single_triangle.py] where we optimize for the vertex positions of a single triangle.
+A good starting point is to look at [tests/test_single_triangle.py](https://github.com/BachiLi/redner/blob/master/tests/test_single_triangle.py) where we optimize for the vertex positions of a single triangle.
 redner inherits a subset of [Mitsuba](http://www.mitsuba-renderer.org) scene format,
-see (tests/test_teapot_reflectance.py)[https://github.com/BachiLi/redner/blob/master/tests/test_teapot_reflectance.py] and (tests/test_teapot_specular.py)[https://github.com/BachiLi/redner/blob/master/tests/test_teapot_specular.py] for examples of loading a Mitsuba scene file.
+see [tests/test_teapot_reflectance.py](https://github.com/BachiLi/redner/blob/master/tests/test_teapot_reflectance.py) and [tests/test_teapot_specular.py](https://github.com/BachiLi/redner/blob/master/tests/test_teapot_specular.py) for examples of loading a Mitsuba scene file.
 
 redner depends on a few libraries/systems:
 - [Python 3.6 or above](https://www.python.org) (required)
@@ -72,7 +72,7 @@ The current development plan is to enhance the renderer. Following features will
 - More BSDFs e.g. glass/GGX
 - A properer secondary edge sampling strategy 
   (to make the renderer computation friendlier to GPU, we temporarily dropped the hierarchical edge sampling algorithm described in the paper, and instead used a resampling importance sample strategy.
-   see (edge.cpp)[https://github.com/BachiLi/redner/blob/master/edge.cpp])
+   see [edge.cpp](https://github.com/BachiLi/redner/blob/master/edge.cpp) )
 - Support for edge shared by more than two triangles
   (The code currently assumes every triangle edge is shared by at most two triangles.
    If your mesh doesn't satisfy this, you can preprocess it in other mesh processing software such as [MeshLab](http://www.meshlab.net))
