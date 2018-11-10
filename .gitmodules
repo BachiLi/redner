@@ -1,0 +1,3 @@
+[submodule "thrust"]
+	path = thrust
+	url = https://github.com/thrust/thrust.git
