@@ -10,7 +10,7 @@ look at the paper:
 Since the submission we have improved the renderer a bit. In particular we implemented a CUDA backend and accelerated
 the continuous derivatives significantly by replacing automatic differentiation with hand derivatives.
 
-redner is expected to use with [PyTorch](https://pytorch.org/), and can be used seamlessly with PyTorch operators.
+redner is expected to be used with [PyTorch](https://pytorch.org/), and can be used seamlessly with PyTorch operators.
 While the documentation is work in progress, you can take a look at the [tests directory](tests) to have a basic sense.
 A good starting point is to look at [tests/test_single_triangle.py](https://github.com/BachiLi/redner/blob/master/tests/test_single_triangle.py) where we optimize for the vertex positions of a single triangle.
 redner inherits a subset of [Mitsuba](http://www.mitsuba-renderer.org) scene format,
