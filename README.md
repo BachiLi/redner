@@ -81,6 +81,7 @@ The current development plan is to enhance the renderer. Following features will
 - Russian roulette
 - Distribution effects: depth of field/motion blur
 - Proper pixel filter (currently only support 1x1 box filter)
+- Mini-batching
 - Documentation
 
 If you have any questions/comments/bug reports, feel free to open a github issue or e-mail to the author
