@@ -1,10 +1,10 @@
 # redner
 
 redner is a differentiable Monte Carlo renderer that can take the derivatives of rendering output with respect to arbitrary 
-scene parameters. One of the major use of redner is for inverse rendering (hence the name redner) through gradient descent.
+scene parameters, that is, you can backpropagate from the image to your 3D scene. One of the major usages of redner is inverse rendering (hence the name redner) through gradient descent. A distinct feature of redner is that it is physically-based -- which means it simulates photons and produce realistic lighting phenomena, such as shadow and global illumination.
 
 For more details on the renderer, what it can do, and the techniques it used for computing the derivatives, please
-look at the paper:
+take a look at the paper:
 "Differentiable Monte Carlo Ray Tracing through Edge Sampling", Tzu-Mao Li, Miika Aittala, Fredo Durand, Jaakko Lehtinen
 [https://people.csail.mit.edu/tzumao/diffrt/]
 Since the submission we have improved the renderer a bit. In particular we implemented a CUDA backend and accelerated
@@ -14,7 +14,7 @@ redner is expected to be used with [PyTorch](https://pytorch.org/), and can be u
 While the documentation is work in progress, you can take a look at the [tests directory](tests) to have a basic sense.
 A good starting point is to look at [tests/test_single_triangle.py](https://github.com/BachiLi/redner/blob/master/tests/test_single_triangle.py) where we optimize for the vertex positions of a single triangle.
 redner inherits a subset of [Mitsuba](http://www.mitsuba-renderer.org) scene format,
-see [tests/test_teapot_reflectance.py](https://github.com/BachiLi/redner/blob/master/tests/test_teapot_reflectance.py) and [tests/test_teapot_specular.py](https://github.com/BachiLi/redner/blob/master/tests/test_teapot_specular.py) for examples of loading a Mitsuba scene file.
+see [tests/test_teapot_reflectance.py](https://github.com/BachiLi/redner/blob/master/tests/test_teapot_reflectance.py) and [tests/test_teapot_specular.py](https://github.com/BachiLi/redner/blob/master/tests/test_teapot_specular.py) for examples of loading a Mitsuba scene file. There is also a Wavefront obj file loader for individual meshes, take a look at [pyredner/load_obj.py](https://github.com/BachiLi/redner/blob/master/pyredner/load_obj.py).
 
 redner depends on a few libraries/systems:
 - [Python 3.6 or above](https://www.python.org) (required)
