@@ -17,7 +17,7 @@ endif()
 find_package(Embree REQUIRED)
 
 include_directories(${Python_INCLUDE_DIRS})
-include_directories(${EMBREE_INCLUDE_DIRS})
+include_directories(${EMBREE_INCLUDE_PATH})
 if(CMAKE_CUDA_COMPILER)
     include_directories(${OptiX_INCLUDE})
     link_directories(${CUDA_LIBRARIES})
