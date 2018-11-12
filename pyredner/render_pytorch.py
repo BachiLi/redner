@@ -256,7 +256,7 @@ class RenderFunction(torch.autograd.Function):
                         torch.zeros(diffuse_size[1], diffuse_size[0], 3, device = pyredner.get_device())
             d_specular = torch.zeros(3, device = pyredner.get_device()) if specular_size[0] == 0 else \
                          torch.zeros(specular_size[1], specular_size[0], 3, device = pyredner.get_device())
-            d_roughness = torch.zeros(3, device = pyredner.get_device()) if roughness_size[0] == 0 else \
+            d_roughness = torch.zeros(1, device = pyredner.get_device()) if roughness_size[0] == 0 else \
                           torch.zeros(roughness_size[1], roughness_size[0], device = pyredner.get_device())
             d_diffuse_list.append(d_diffuse)
             d_specular_list.append(d_specular)
