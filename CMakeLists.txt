@@ -25,6 +25,7 @@ else()
     include_directories(${THRUST_INCLUDE_DIR})
 endif()
 
+set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -Wall -g -O3 -fvisibility=hidden")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14 -Wall -g -O3 -fvisibility=hidden")
 if(NOT CMAKE_CUDA_COMPILER)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DTHRUST_DEVICE_SYSTEM=THRUST_DEVICE_SYSTEM_CPP")
