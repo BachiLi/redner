@@ -32,10 +32,8 @@ redner depends on a few libraries/systems:
 
 I recommend using conda to setup the Python related dependencies, e.g.:
 ```
-conda install -c conda-forge pybind11
+conda install pybind11
 conda install pytorch-nightly -c pytorch
-(for some reason Mac OS users have to use conda-forge's Python, see [https://github.com/pybind/pybind11/issues/1579]).
-conda install -c conda-forge python
 ```
 
 redner uses [CMake](https://cmake.org) as its build system. You need CMake 3.12 or above to build redner.
