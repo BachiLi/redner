@@ -2,14 +2,11 @@ cmake_minimum_required(VERSION 3.12)
 
 project(redner VERSION 0.0.1 DESCRIPTION "Differentiable Path Tracer")
 
-include(CheckLanguage)
-
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/")
 
 find_package(Python 3.6 COMPONENTS Development REQUIRED)
-check_language(CUDA)
-if(CMAKE_CUDA_COMPILER)
-    find_package(CUDA REQUIRED)
+find_package(CUDA 10)
+if(CUDA_FOUND)
     find_package(OptiX REQUIRED)
 else()
     find_package(Thrust REQUIRED)
@@ -18,7 +15,7 @@ find_package(Embree REQUIRED)
 
 include_directories(${Python_INCLUDE_DIRS})
 include_directories(${EMBREE_INCLUDE_PATH})
-if(CMAKE_CUDA_COMPILER)
+if(CUDA_FOUND)
     include_directories(${OptiX_INCLUDE})
     link_directories(${CUDA_LIBRARIES})
 else()
@@ -27,7 +24,7 @@ endif()
 
 set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -Wall -g -O3 -fvisibility=hidden")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14 -Wall -g -O3 -fvisibility=hidden")
-if(NOT CMAKE_CUDA_COMPILER)
+if(NOT CUDA_FOUND)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DTHRUST_DEVICE_SYSTEM=THRUST_DEVICE_SYSTEM_CPP")
 endif()
 
@@ -70,7 +67,7 @@ set(SRCS active_pixels.h
          scene.cpp
          shape.cpp)
 
-if(CMAKE_CUDA_COMPILER)
+if(CUDA_FOUND)
     add_compile_definitions(COMPILE_WITH_CUDA)
     set_source_files_properties(
         active_pixels.cpp
