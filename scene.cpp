@@ -69,7 +69,7 @@ Scene::Scene(const Camera &camera,
             optix_models[shape_id]->setTriangles(
                 shape->num_triangles, RTP_BUFFER_TYPE_CUDA_LINEAR, shape->indices,
                 shape->num_vertices, RTP_BUFFER_TYPE_CUDA_LINEAR, shape->vertices);
-            optix_models[shape_id]->update(0);
+            optix_models[shape_id]->update(RTP_MODEL_HINT_ASYNC);
             optix_instances[shape_id] = optix_models[shape_id]->getRTPmodel();
         }
 
@@ -77,7 +77,8 @@ Scene::Scene(const Camera &camera,
         optix_scene->setInstances(
             (int)shapes.size(), RTP_BUFFER_TYPE_HOST, &optix_instances[0], 
             RTP_BUFFER_FORMAT_TRANSFORM_FLOAT4x4, RTP_BUFFER_TYPE_HOST, &transforms[0]);
-        optix_scene->update(0);
+        // This update is blocking
+        optix_scene->update(RTP_MODEL_HINT_NONE);
 #else
         assert(false);
 #endif
@@ -153,10 +154,6 @@ Scene::Scene(const Camera &camera,
         light_cdf[0] = 0;
         for (int i = 1; i < (int)lights.size(); i++) {
             light_cdf[i] = light_cdf[i - 1] + light_pmf[i - 1];
-        }
-    } else {
-        if (use_gpu) {
-            cuda_synchronize();
         }
     }
 
