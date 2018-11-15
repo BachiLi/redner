@@ -154,6 +154,10 @@ Scene::Scene(const Camera &camera,
         for (int i = 1; i < (int)lights.size(); i++) {
             light_cdf[i] = light_cdf[i - 1] + light_pmf[i - 1];
         }
+    } else {
+        if (use_gpu) {
+            cuda_synchronize();
+        }
     }
 
     // Flatten the scene into array
@@ -194,6 +198,9 @@ DScene::DScene(const DCamera &camera,
                const std::vector<DMaterial*> &materials,
                const std::vector<DLight*> &lights,
                bool use_gpu) {
+    if (use_gpu) {
+        cuda_synchronize();
+    }
     // Flatten the scene into array
     this->camera = camera;
     if (shapes.size() > 0) {
