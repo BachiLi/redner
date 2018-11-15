@@ -44,6 +44,9 @@ Real compute_area_cdf(const Shape &shape, Real *cdf, bool use_gpu) {
              cdf, cdf + shape.num_triangles,
              thrust::make_constant_iterator(total_area),
              cdf, thrust::divides<Real>());
+    if (use_gpu) {
+        cuda_synchronize();
+    }
     return total_area;
 }
 
