@@ -67,6 +67,18 @@ set(SRCS active_pixels.h
          scene.cpp
          shape.cpp)
 
+if(APPLE)
+    # The "-undefined dynamic_lookup" is a hack for systems with
+    # multiple Python installed. If we link a particular Python version
+    # here, and we import it with a different Python version later.
+    # likely a segmentation fault.
+    # The solution for Linux Mac OS machines, as mentioned in 
+    # https://github.com/pybind/pybind11/blob/master/tools/pybind11Tools.cmake
+    # is to not link against Python library at all and resolve the symbols
+    # at compile time.
+    set(DYNAMIC_LOOKUP "-undefined dynamic_lookup")
+endif()
+
 if(CUDA_FOUND)
     add_compile_definitions(COMPILE_WITH_CUDA)
     set_source_files_properties(
@@ -84,19 +96,11 @@ if(CUDA_FOUND)
     set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -std=c++14")
 
     cuda_add_library(redner MODULE ${SRCS})
-    # The "-undefined dynamic_lookup" is a hack for systems with
-    # multiple Python installed. If we link a particular Python version
-    # here, and we import it with a different Python version later.
-    # likely a segmentation fault.
-    # The solution for Linux/Mac OS machines, as mentioned in 
-    # https://github.com/pybind/pybind11/blob/master/tools/pybind11Tools.cmake
-    # is to not link against Python library at all and resolve the symbols
-    # at compile time.
     target_link_libraries(redner
         ${EMBREE_LIBRARY}
         ${optix_prime_LIBRARY}
         ${CUDA_curand_LIBRARY}
-        "-undefined dynamic_lookup")
+        ${DYNAMIC_LOOKUP})
 else()
     add_library(redner MODULE ${SRCS})
     # The "-undefined dynamic_lookup" is a hack for systems with
@@ -109,7 +113,7 @@ else()
     # at compile time.
     target_link_libraries(redner
         ${EMBREE_LIBRARY}
-        "-undefined dynamic_lookup")
+        ${DYNAMIC_LOOKUP})
 endif()
 
 set_target_properties(redner PROPERTIES PREFIX "")
