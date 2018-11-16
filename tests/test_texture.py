@@ -111,5 +111,5 @@ pyredner.imwrite(torch.abs(target - img).cpu(), 'results/test_texture/final_diff
 
 from subprocess import call
 call(["ffmpeg", "-framerate", "24", "-i",
-    "results/test_single_triangle/iter_%d.png", "-vb", "20M",
-    "results/test_single_triangle/out.mp4"])
+    "results/test_texture/iter_%d.png", "-vb", "20M",
+    "results/test_texture/out.mp4"])
