@@ -1,11 +1,18 @@
 import pyredner
+import torch
 
 class Shape:
     def __init__(self, vertices, indices, uvs, normals, mat_id):
+        assert(vertices.dtype == torch.float32)
+        assert(indices.dtype == torch.int32)
         assert(vertices.is_contiguous())
         assert(indices.is_contiguous())
-        assert(uvs is None or uvs.is_contiguous())
-        assert(normals is None or normals.is_contiguous())
+        if (uvs is not None):
+            assert(uvs.dtype == torch.float32)
+            assert(uvs.is_contiguous())
+        if (normals is not None):
+            assert(normals.dtype == torch.float32)
+            assert(normals.is_contiguous())
         if pyredner.get_use_gpu():
             assert(vertices.is_cuda)
             assert(indices.is_cuda)        
