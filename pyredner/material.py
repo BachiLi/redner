@@ -38,6 +38,6 @@ class Material:
         self.specular_reflectance = specular_reflectance
         self.roughness = roughness
         self.diffuse_uv_scale = diffuse_uv_scale
-        self.specular_uv_scale = diffuse_uv_scale
-        self.roughness_uv_scale = diffuse_uv_scale
+        self.specular_uv_scale = specular_uv_scale
+        self.roughness_uv_scale = roughness_uv_scale
         self.two_sided = two_sided
