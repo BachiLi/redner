@@ -1,6 +1,6 @@
 import torch
 
-use_gpu = True
+use_gpu = torch.cuda.is_available()
 
 def set_use_gpu(v):
     global use_gpu
