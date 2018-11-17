@@ -54,7 +54,7 @@ class RenderFunction(torch.autograd.Function):
             args.append(shape.indices)
             args.append(shape.uvs)
             args.append(shape.normals)
-            args.append(shape.mat_id)
+            args.append(shape.material_id)
             args.append(shape.light_id)
         for material in scene.materials:
             args.append(material.diffuse_reflectance)
