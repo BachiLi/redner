@@ -2,7 +2,7 @@ import pyredner
 import torch
 
 class Shape:
-    def __init__(self, vertices, indices, uvs, normals, mat_id):
+    def __init__(self, vertices, indices, uvs, normals, material_id):
         assert(vertices.dtype == torch.float32)
         assert(indices.dtype == torch.int32)
         assert(vertices.is_contiguous())
@@ -28,5 +28,5 @@ class Shape:
         self.indices = indices
         self.uvs = uvs
         self.normals = normals
-        self.mat_id = mat_id
+        self.material_id = material_id
         self.light_id = -1
