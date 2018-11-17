@@ -135,7 +135,7 @@ for t in range(200):
         max_bounces = 1)
     # Important to use a different seed every iteration, otherwise the result
     # would be biased.
-    img = render(t+1, *args)
+    img = render(t+1, *scene_args)
     # Save the intermediate render.
     pyredner.imwrite(img.cpu(), 'results/test_single_triangle/iter_{}.png'.format(t))
     # Compute the loss function. Here it is L2.
