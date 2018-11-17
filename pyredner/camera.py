@@ -3,6 +3,24 @@ import torch
 import pyredner.transform as transform
 
 class Camera:
+    """
+        redner supports a perspective camera and a fisheye camera.
+        Both of them employ a look at transform.
+
+        Note:
+            Currently we assume all the camera variables are stored in CPU,
+            no matter whether redner is operating under CPU or GPU mode.
+
+        Args:
+            position (length 3 float tensor): the origin of the camera
+            look_at (length 3 float tensor): the point camera is looking at
+            up (length 3 float tensor): the up vector of the camera
+            fov (length 1 float tensor): the field of view of the camera in angle, 
+                                         no effect if the camera is a fisheye camera
+            clip_near (float): the near clipping plane of the camera, need to > 0
+            resolution (length 2 tuple): the size of the output image in (width, height)
+            fisheye (bool): whether the camera is a fisheye camera.
+    """
     def __init__(self,
                  position,
                  look_at,
