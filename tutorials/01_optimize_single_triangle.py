@@ -97,10 +97,10 @@ render = pyredner.RenderFunction.apply
 img = render(0, *scene_args)
 # Save the images.
 # The output image is in the GPU memory if you are using GPU.
-pyredner.imwrite(img.cpu(), 'results/test_single_triangle/target.exr')
-pyredner.imwrite(img.cpu(), 'results/test_single_triangle/target.png')
+pyredner.imwrite(img.cpu(), 'results/optimize_single_triangle/target.exr')
+pyredner.imwrite(img.cpu(), 'results/optimize_single_triangle/target.png')
 # Read the target image we just saved.
-target = pyredner.imread('results/test_single_triangle/target.exr')
+target = pyredner.imread('results/optimize_single_triangle/target.exr')
 if pyredner.get_use_gpu():
     target = target.cuda()
 
@@ -117,10 +117,10 @@ scene_args = pyredner.RenderFunction.serialize_scene(\
 # Render the initial guess.
 img = render(1, *scene_args)
 # Save the images.
-pyredner.imwrite(img.cpu(), 'results/test_single_triangle/init.png')
+pyredner.imwrite(img.cpu(), 'results/optimize_single_triangle/init.png')
 # Compute the difference and save the images.
 diff = torch.abs(target - img)
-pyredner.imwrite(diff.cpu(), 'results/test_single_triangle/init_diff.png')
+pyredner.imwrite(diff.cpu(), 'results/optimize_single_triangle/init_diff.png')
 
 # Optimize for triangle vertices.
 optimizer = torch.optim.Adam([shape_triangle.vertices], lr=5e-2)
@@ -137,7 +137,7 @@ for t in range(200):
     # would be biased.
     img = render(t+1, *scene_args)
     # Save the intermediate render.
-    pyredner.imwrite(img.cpu(), 'results/test_single_triangle/iter_{}.png'.format(t))
+    pyredner.imwrite(img.cpu(), 'results/optimize_single_triangle/iter_{}.png'.format(t))
     # Compute the loss function. Here it is L2.
     loss = (img - target).pow(2).sum()
     print('loss:', loss.item())
@@ -159,12 +159,12 @@ scene_args = pyredner.RenderFunction.serialize_scene(\
     max_bounces = 1)
 img = render(202, *scene_args)
 # Save the images and differences.
-pyredner.imwrite(img.cpu(), 'results/test_single_triangle/final.exr')
-pyredner.imwrite(img.cpu(), 'results/test_single_triangle/final.png')
-pyredner.imwrite(torch.abs(target - img).cpu(), 'results/test_single_triangle/final_diff.png')
+pyredner.imwrite(img.cpu(), 'results/optimize_single_triangle/final.exr')
+pyredner.imwrite(img.cpu(), 'results/optimize_single_triangle/final.png')
+pyredner.imwrite(torch.abs(target - img).cpu(), 'results/optimize_single_triangle/final_diff.png')
 
 # Convert the intermediate renderings to a video.
 from subprocess import call
 call(["ffmpeg", "-framerate", "24", "-i",
-    "results/test_single_triangle/iter_%d.png", "-vb", "20M",
-    "results/test_single_triangle/out.mp4"])
+    "results/optimize_single_triangle/iter_%d.png", "-vb", "20M",
+    "results/optimize_single_triangle/out.mp4"])
