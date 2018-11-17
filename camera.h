@@ -13,6 +13,7 @@ struct Camera {
     Camera(int width,
            int height,
            ptr<float> cam_to_world,
+           ptr<float> world_to_cam,
            float fov_factor,
            float clip_near,
            bool fisheye)
