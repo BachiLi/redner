@@ -26,7 +26,7 @@ class Camera:
         self.up = up
         self.fov = fov
         self.cam_to_world = transform.gen_look_at_matrix(position, look_at, up)
-        self.world_to_cam = torch.inverse(self.cam_to_world)
+        self.world_to_cam = torch.inverse(self.cam_to_world).contiguous()
         self.fov_factor = torch.tan(transform.radians(0.5 * fov))
         self.clip_near = clip_near
         self.resolution = resolution

@@ -99,6 +99,8 @@ class RenderFunction(torch.autograd.Function):
         current_index += 1
         fisheye = args[current_index]
         current_index += 1
+        assert(cam_to_world.is_contiguous())
+        assert(world_to_cam.is_contiguous())
         camera = redner.Camera(resolution[1],
                                resolution[0],
                                redner.float_ptr(cam_to_world.data_ptr()),
@@ -120,6 +122,12 @@ class RenderFunction(torch.autograd.Function):
             current_index += 1
             light_id = args[current_index]
             current_index += 1
+            assert(vertices.is_contiguous())
+            assert(indices.is_contiguous())
+            if uvs is not None:
+                assert(uvs.is_contiguous())
+            if normals is not None:
+                assert(normals.is_contiguous())
             shapes.append(redner.Shape(redner.float_ptr(vertices.data_ptr()),
                                        redner.int_ptr(indices.data_ptr()),
                                        redner.float_ptr(uvs.data_ptr() if uvs is not None else 0),
@@ -144,6 +152,7 @@ class RenderFunction(torch.autograd.Function):
             current_index += 1
             two_sided = args[current_index]
             current_index += 1
+            assert(diffuse_reflectance.is_contiguous())
             if diffuse_reflectance.dim() == 1:
                 diffuse_reflectance = redner.Texture3(\
                     redner.float_ptr(diffuse_reflectance.data_ptr()), 0, 0)
@@ -152,6 +161,7 @@ class RenderFunction(torch.autograd.Function):
                     redner.float_ptr(diffuse_reflectance.data_ptr()),
                     int(diffuse_reflectance.shape[1]),
                     int(diffuse_reflectance.shape[0]))
+            assert(specular_reflectance.is_contiguous())
             if specular_reflectance.dim() == 1:
                 specular_reflectance = redner.Texture3(\
                     redner.float_ptr(specular_reflectance.data_ptr()), 0, 0)
@@ -160,6 +170,7 @@ class RenderFunction(torch.autograd.Function):
                     redner.float_ptr(specular_reflectance.data_ptr()),
                     int(specular_reflectance.shape[1]),
                     int(specular_reflectance.shape[0]))
+            assert(roughness.is_contiguous())
             if roughness.dim() == 1:
                 roughness = redner.Texture1(\
                     redner.float_ptr(roughness.data_ptr()), 0, 0)
