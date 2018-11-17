@@ -4,6 +4,7 @@ __pycache__
 pydelta/__pycache__
 .cache
 tests/results
+tutorials/results
 debug.exr
 fit_ltc/fitLTC
 fit_ltc/results
