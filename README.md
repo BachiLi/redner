@@ -12,7 +12,7 @@ the continuous derivatives significantly by replacing automatic differentiation 
 
 redner is expected to be used with [PyTorch](https://pytorch.org/), and can be used seamlessly with PyTorch operators.
 While the documentation is work in progress, you can take a look at the [tests directory](tests) to have a basic sense.
-A series of tutorials are appearing now.
+A series of tutorials is appearing now.
 A good starting point is to look at [tutorials/01_optimize_single_triangle.py](https://github.com/BachiLi/redner/blob/master/tutorials/01_optimize_single_triangle.py) where we optimize for the vertex positions of a single triangle.
 redner inherits a subset of [Mitsuba](http://www.mitsuba-renderer.org) scene format,
 see [tests/test_teapot_reflectance.py](https://github.com/BachiLi/redner/blob/master/tests/test_teapot_reflectance.py) and [tests/test_teapot_specular.py](https://github.com/BachiLi/redner/blob/master/tests/test_teapot_specular.py) for examples of loading Mitsuba scene files. There is also a Wavefront obj file loader for individual meshes, take a look at [pyredner/load_obj.py](https://github.com/BachiLi/redner/blob/master/pyredner/load_obj.py).
