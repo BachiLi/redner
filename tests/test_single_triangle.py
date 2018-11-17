@@ -71,7 +71,7 @@ shape_light = pyredner.Shape(\
 shapes = [shape_triangle, shape_light]
 
 # Now we assign some of the shapes in the scene as light sources.
-# Again, all light sources in the scene is stored in a Python list.
+# Again, all light sources in the scene are stored in a Python list.
 # Each light is attached to a shape using shape id, additionally we need to
 # assign the intensity of the light, which is a length 3 float tensor in CPU. 
 light = pyredner.Light(shape_id = 1, 
