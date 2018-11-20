@@ -226,6 +226,8 @@ class RenderFunction(torch.autograd.Function):
     @staticmethod
     def backward(ctx,
                  grad_img):
+        if not grad_img.is_contiguous():
+            grad_img = grad_img.contiguous()
         scene = ctx.scene
         options = ctx.options
 
