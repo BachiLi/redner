@@ -51,6 +51,7 @@ set(SRCS active_pixels.h
          scene.h
          shape.h
          test_utils.h
+         texture.h
          transform.h
          vector.h
          active_pixels.cpp

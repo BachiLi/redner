@@ -113,11 +113,10 @@ def parse_material(node, two_sided = False):
             diffuse_reflectance = diffuse_reflectance.cuda()
             specular_reflectance = specular_reflectance.cuda()
             roughness = roughness.cuda()
-        return (node_id, pyredner.Material(diffuse_reflectance,
-                diffuse_uv_scale = diffuse_uv_scale,
-                specular_reflectance = specular_reflectance,
-                specular_uv_scale = specular_uv_scale,
-                roughness = roughness,
+        return (node_id, pyredner.Material(\
+                diffuse_reflectance = pyredner.Texture(diffuse_reflectance, diffuse_uv_scale),
+                specular_reflectance = pyredner.Texture(specular_reflectance, specular_uv_scale),
+                roughness = pyredner.Texture(roughness),
                 two_sided = two_sided))
     elif node.attrib['type'] == 'twosided':
         ret = parse_material(node[0], True)
