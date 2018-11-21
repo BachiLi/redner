@@ -2,6 +2,7 @@ from .device import *
 from .camera import *
 from .shape import *
 from .material import *
+from .texture import *
 from .light import *
 from .scene import *
 from .render_pytorch import *

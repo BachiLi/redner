@@ -10,13 +10,16 @@ struct Texture1 {
     Texture1() {}
     Texture1(ptr<float> texels,
              int width,
-             int height)
+             int height,
+             ptr<float> uv_scale)
         : texels(texels.get()),
-          width(width), height(height) {}
+          width(width), height(height),
+          uv_scale(Vector2f{uv_scale[0], uv_scale[1]}) {}
 
     float *texels;
     int width;
     int height;
+    Vector2f uv_scale;
 };
 
 struct DTexture1 {
@@ -50,13 +53,16 @@ struct Texture3 {
     Texture3() {}
     Texture3(ptr<float> texels,
              int width,
-             int height)
+             int height,
+             ptr<float> uv_scale)
         : texels(texels.get()),
-          width(width), height(height) {}
+          width(width), height(height),
+          uv_scale(Vector2{uv_scale[0], uv_scale[1]}) {}
 
     float *texels;
     int width;
     int height;
+    Vector2f uv_scale;
 };
 
 struct DTexture3 {
@@ -95,16 +101,10 @@ struct Material {
     Material(Texture3 diffuse_reflectance,
              Texture3 specular_reflectance,
              Texture1 roughness,
-             ptr<float> diffuse_uv_scale,
-             ptr<float> specular_uv_scale,
-             ptr<float> roughness_uv_scale,
              bool two_sided)
         : diffuse_reflectance(diffuse_reflectance),
           specular_reflectance(specular_reflectance),
           roughness(roughness),
-          diffuse_uv_scale(Vector2f{diffuse_uv_scale[0], diffuse_uv_scale[1]}),
-          specular_uv_scale(Vector2f{specular_uv_scale[0], specular_uv_scale[1]}),
-          roughness_uv_scale(Vector2f{roughness_uv_scale[0], roughness_uv_scale[1]}),
           two_sided(two_sided) {}
 
     inline std::pair<int, int> get_diffuse_size() const {
@@ -122,9 +122,6 @@ struct Material {
     Texture3 diffuse_reflectance;
     Texture3 specular_reflectance;
     Texture1 roughness;
-    Vector2f diffuse_uv_scale;
-    Vector2f specular_uv_scale;
-    Vector2f roughness_uv_scale;
     bool two_sided;
 };
 
@@ -337,7 +334,7 @@ inline void d_get_texture_value(const Texture1 &tex, const Vector2 &uv, Real d_o
 DEVICE
 inline Vector3 get_diffuse_reflectance(const Material &material,
                                        const Vector2 &uv) {
-    auto uv_scale = material.diffuse_uv_scale;
+    auto uv_scale = material.diffuse_reflectance.uv_scale;
     return get_texture_value(material.diffuse_reflectance, uv * uv_scale);
 }
 
@@ -345,7 +342,7 @@ DEVICE
 inline void d_get_diffuse_reflectance(const Material &material,
                                       const Vector2 &uv, const Vector3 &d_output,
                                       DTexture3 &d_texture, Vector2 &d_uv) {
-    auto uv_scale = material.diffuse_uv_scale;
+    auto uv_scale = material.diffuse_reflectance.uv_scale;
     auto d_scaled_uv = Vector2{0, 0};
     d_get_texture_value(material.diffuse_reflectance, uv * uv_scale, d_output,
                         d_texture, d_scaled_uv);
@@ -357,7 +354,7 @@ inline void d_get_diffuse_reflectance(const Material &material,
 DEVICE
 inline Vector3 get_specular_reflectance(const Material &material,
                                         const Vector2 &uv) {
-    auto uv_scale = material.specular_uv_scale;
+    auto uv_scale = material.specular_reflectance.uv_scale;
     return get_texture_value(material.specular_reflectance, uv * uv_scale);
 }
 
@@ -365,7 +362,7 @@ DEVICE
 inline void d_get_specular_reflectance(const Material &material,
                                        const Vector2 &uv, const Vector3 &d_output,
                                        DTexture3 &d_texture, Vector2 &d_uv) {
-    auto uv_scale = material.specular_uv_scale;
+    auto uv_scale = material.specular_reflectance.uv_scale;
     auto d_scaled_uv = Vector2{0, 0};
     d_get_texture_value(material.specular_reflectance, uv * uv_scale, d_output,
                         d_texture, d_scaled_uv);
@@ -376,7 +373,7 @@ inline void d_get_specular_reflectance(const Material &material,
 
 DEVICE
 inline Real get_roughness(const Material &material, const Vector2 &uv) {
-    auto uv_scale = material.roughness_uv_scale;
+    auto uv_scale = material.roughness.uv_scale;
     return get_texture_value(material.roughness, uv * uv_scale);
 }
 
@@ -384,7 +381,7 @@ DEVICE
 inline void d_get_roughness(const Material &material, const Vector2 &uv,
                             Real d_output,
                             DTexture1 &d_texture, Vector2 &d_uv) {
-    auto uv_scale = material.roughness_uv_scale;
+    auto uv_scale = material.roughness.uv_scale;
     auto d_scaled_uv = Vector2{0, 0};
     d_get_texture_value(material.roughness, uv * uv_scale, d_output,
                         d_texture, d_scaled_uv);

@@ -8,36 +8,38 @@ class Material:
                  diffuse_reflectance,
                  specular_reflectance = None,
                  roughness = None,
-                 diffuse_uv_scale = torch.tensor([1.0, 1.0]),
-                 specular_uv_scale = torch.tensor([1.0, 1.0]),
-                 roughness_uv_scale = torch.tensor([1.0, 1.0]),
                  two_sided = False):
-        assert(diffuse_reflectance.is_contiguous())
-        assert(diffuse_reflectance.dtype == torch.float32)
         if specular_reflectance is None:
-            specular_reflectance = torch.tensor([0.0,0.0,0.0],
-                device = pyredner.get_device())
-        else:
-            assert(specular_reflectance.is_contiguous())
-            assert(specular_reflectance.dtype == torch.float32)
+            specular_reflectance = pyredner.Texture(\
+                torch.tensor([0.0,0.0,0.0], device = pyredner.get_device()))
         if roughness is None:
-            roughness = torch.tensor([1.0], device = pyredner.get_device())
-        else:
-            assert(roughness.is_contiguous())
-            assert(roughness.dtype == torch.float32)
+            roughness = pyredner.Texture(\
+                torch.tensor([1.0], device = pyredner.get_device()))
+
+        # Convert to constant texture if necessary
+        if isinstance(diffuse_reflectance, torch.Tensor):
+            diffuse_reflectance = pyredner.Texture(diffuse_reflectance)
+        if isinstance(specular_reflectance, torch.Tensor):
+            specular_reflectance = pyredner.Texture(specular_reflectance)
+        if isinstance(roughness, torch.Tensor):
+            roughness = pyredner.Texture(roughness)
+
+        assert(diffuse_reflectance.texels.is_contiguous())
+        assert(diffuse_reflectance.texels.dtype == torch.float32)
+        assert(specular_reflectance.texels.is_contiguous())
+        assert(specular_reflectance.texels.dtype == torch.float32)
+        assert(roughness.texels.is_contiguous())
+        assert(roughness.texels.dtype == torch.float32)
         if pyredner.get_use_gpu():
-            assert(diffuse_reflectance.is_cuda)
-            assert(specular_reflectance.is_cuda)
-            assert(roughness.is_cuda)
+            assert(diffuse_reflectance.texels.is_cuda)
+            assert(specular_reflectance.texels.is_cuda)
+            assert(roughness.texels.is_cuda)
         else:
-            assert(not diffuse_reflectance.is_cuda)
-            assert(not specular_reflectance.is_cuda)
-            assert(not roughness.is_cuda)
+            assert(not diffuse_reflectance.texels.is_cuda)
+            assert(not specular_reflectance.texels.is_cuda)
+            assert(not roughness.texels.is_cuda)
 
         self.diffuse_reflectance = diffuse_reflectance
         self.specular_reflectance = specular_reflectance
         self.roughness = roughness
-        self.diffuse_uv_scale = diffuse_uv_scale
-        self.specular_uv_scale = specular_uv_scale
-        self.roughness_uv_scale = roughness_uv_scale
         self.two_sided = two_sided

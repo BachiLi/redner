@@ -57,12 +57,12 @@ class RenderFunction(torch.autograd.Function):
             args.append(shape.material_id)
             args.append(shape.light_id)
         for material in scene.materials:
-            args.append(material.diffuse_reflectance)
-            args.append(material.specular_reflectance)
-            args.append(material.roughness)
-            args.append(material.diffuse_uv_scale)
-            args.append(material.specular_uv_scale)
-            args.append(material.roughness_uv_scale)
+            args.append(material.diffuse_reflectance.texels)
+            args.append(material.diffuse_reflectance.uv_scale)
+            args.append(material.specular_reflectance.texels)
+            args.append(material.specular_reflectance.uv_scale)
+            args.append(material.roughness.texels)
+            args.append(material.roughness.uv_scale)
             args.append(material.two_sided)
         for light in scene.lights:
             args.append(light.shape_id)
@@ -140,13 +140,13 @@ class RenderFunction(torch.autograd.Function):
         for i in range(num_materials):
             diffuse_reflectance = args[current_index]
             current_index += 1
-            specular_reflectance = args[current_index]
-            current_index += 1
-            roughness = args[current_index]
-            current_index += 1
             diffuse_uv_scale = args[current_index]
             current_index += 1
+            specular_reflectance = args[current_index]
+            current_index += 1
             specular_uv_scale = args[current_index]
+            current_index += 1
+            roughness = args[current_index]
             current_index += 1
             roughness_uv_scale = args[current_index]
             current_index += 1
@@ -155,37 +155,40 @@ class RenderFunction(torch.autograd.Function):
             assert(diffuse_reflectance.is_contiguous())
             if diffuse_reflectance.dim() == 1:
                 diffuse_reflectance = redner.Texture3(\
-                    redner.float_ptr(diffuse_reflectance.data_ptr()), 0, 0)
+                    redner.float_ptr(diffuse_reflectance.data_ptr()), 0, 0,
+                    redner.float_ptr(diffuse_uv_scale.data_ptr()))
             else:
                 diffuse_reflectance = redner.Texture3(\
                     redner.float_ptr(diffuse_reflectance.data_ptr()),
                     int(diffuse_reflectance.shape[1]),
-                    int(diffuse_reflectance.shape[0]))
+                    int(diffuse_reflectance.shape[0]),
+                    redner.float_ptr(diffuse_uv_scale.data_ptr()))
             assert(specular_reflectance.is_contiguous())
             if specular_reflectance.dim() == 1:
                 specular_reflectance = redner.Texture3(\
-                    redner.float_ptr(specular_reflectance.data_ptr()), 0, 0)
+                    redner.float_ptr(specular_reflectance.data_ptr()), 0, 0,
+                    redner.float_ptr(specular_uv_scale.data_ptr()))
             else:
                 specular_reflectance = redner.Texture3(\
                     redner.float_ptr(specular_reflectance.data_ptr()),
                     int(specular_reflectance.shape[1]),
-                    int(specular_reflectance.shape[0]))
+                    int(specular_reflectance.shape[0]),
+                    redner.float_ptr(specular_uv_scale.data_ptr()))
             assert(roughness.is_contiguous())
             if roughness.dim() == 1:
                 roughness = redner.Texture1(\
-                    redner.float_ptr(roughness.data_ptr()), 0, 0)
+                    redner.float_ptr(roughness.data_ptr()), 0, 0,
+                    redner.float_ptr(roughness_uv_scale.data_ptr()))
             else:
                 roughness = redner.Texture1(\
                     redner.float_ptr(roughness.data_ptr()),
                     int(roughness.shape[1]),
-                    int(roughness.shape[0]))
+                    int(roughness.shape[0]),
+                    redner.float_ptr(roughness_uv_scale.data_ptr()))
             materials.append(redner.Material(\
                 diffuse_reflectance,
                 specular_reflectance,
                 roughness,
-                redner.float_ptr(diffuse_uv_scale.data_ptr()),
-                redner.float_ptr(specular_uv_scale.data_ptr()),
-                redner.float_ptr(roughness_uv_scale.data_ptr()),
                 two_sided))
 
         lights = []
@@ -274,12 +277,18 @@ class RenderFunction(torch.autograd.Function):
             d_diffuse_list.append(d_diffuse)
             d_specular_list.append(d_specular)
             d_roughness_list.append(d_roughness)
+            d_diffuse_uv_scale = torch.zeros(2)
+            d_specular_uv_scale = torch.zeros(2)
+            d_roughness_uv_scale = torch.zeros(2)
             d_diffuse_tex = redner.Texture3(\
-                redner.float_ptr(d_diffuse.data_ptr()), diffuse_size[0], diffuse_size[1])
+                redner.float_ptr(d_diffuse.data_ptr()), diffuse_size[0], diffuse_size[1],
+                redner.float_ptr(d_diffuse_uv_scale.data_ptr()))
             d_specular_tex = redner.Texture3(\
-                redner.float_ptr(d_specular.data_ptr()), specular_size[0], specular_size[1])
+                redner.float_ptr(d_specular.data_ptr()), specular_size[0], specular_size[1],
+                redner.float_ptr(d_specular_uv_scale.data_ptr()))
             d_roughness_tex = redner.Texture1(\
-                redner.float_ptr(d_roughness.data_ptr()), roughness_size[0], roughness_size[1])
+                redner.float_ptr(d_roughness.data_ptr()), roughness_size[0], roughness_size[1],
+                redner.float_ptr(d_roughness_uv_scale.data_ptr()))
             d_materials.append(redner.DMaterial(d_diffuse_tex, d_specular_tex, d_roughness_tex))
 
         d_intensity_list = []
@@ -338,10 +347,10 @@ class RenderFunction(torch.autograd.Function):
         num_materials = len(ctx.materials)
         for i in range(num_materials):
             ret_list.append(d_diffuse_list[i])
-            ret_list.append(d_specular_list[i])
-            ret_list.append(d_roughness_list[i])
             ret_list.append(None) # diffuse_uv_scale
+            ret_list.append(d_specular_list[i])
             ret_list.append(None) # specular_uv_scale
+            ret_list.append(d_roughness_list[i])
             ret_list.append(None) # roughness_uv_scale
             ret_list.append(None) # two sided
 

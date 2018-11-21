@@ -67,20 +67,19 @@ PYBIND11_MODULE(redner, m) {
     py::class_<Texture1>(m, "Texture1")
         .def(py::init<ptr<float>,
                       int,
-                      int>());
+                      int,
+                      ptr<float>>());
 
     py::class_<Texture3>(m, "Texture3")
         .def(py::init<ptr<float>,
                       int,
-                      int>());
+                      int,
+                      ptr<float>>());
 
     py::class_<Material>(m, "Material")
         .def(py::init<Texture3,
                       Texture3,
                       Texture1,
-                      ptr<float>,
-                      ptr<float>,
-                      ptr<float>,
                       bool>())
         .def("get_diffuse_size", &Material::get_diffuse_size)
         .def("get_specular_size", &Material::get_specular_size)

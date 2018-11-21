@@ -189,17 +189,13 @@ void accumulate_roughness(const Scene &scene,
 
 void test_d_bsdf() {
     Vector3f d{0.5, 0.4, 0.3};
-    Texture3 diffuse{&d[0], -1, -1};
+    Vector2f uv_scale{1, 1};
+    Texture3 diffuse{&d[0], -1, -1, &uv_scale[0]};
     Vector3f s{0.2, 0.3, 0.4};
-    Texture3 specular{&s[0], -1, -1};
+    Texture3 specular{&s[0], -1, -1, &uv_scale[0]};
     float r = 0.5;
-    Texture1 roughness{&r, -1, -1};
-    Vector2f uv_scale = Vector2f{1, 1};
-    Material m{diffuse, specular, roughness,
-               &uv_scale[0],
-               &uv_scale[0],
-               &uv_scale[0],
-               false};
+    Texture1 roughness{&r, -1, -1, &uv_scale[0]};
+    Material m{diffuse, specular, roughness,false};
     DTexture3 d_diffuse_tex;
     DTexture3 d_specular_tex;
     DTexture1 d_roughness_tex;
@@ -318,18 +314,14 @@ void test_d_bsdf() {
 }
 
 void test_d_bsdf_sample() {
-    Vector3f d{0.5, 0.4, 0.3};
-    Texture3 diffuse{&d[0], -1, -1};
-    Vector3f s{0.2, 0.3, 0.4};
-    Texture3 specular{&s[0], -1, -1};
-    float r = 0.5;
-    Texture1 roughness{&r, -1, -1};
     Vector2f uv_scale = Vector2f{1, 1};
-    Material m{diffuse, specular, roughness,
-               &uv_scale[0],
-               &uv_scale[0],
-               &uv_scale[0],
-               false};
+    Vector3f d{0.5, 0.4, 0.3};
+    Texture3 diffuse{&d[0], -1, -1, &uv_scale[0]};
+    Vector3f s{0.2, 0.3, 0.4};
+    Texture3 specular{&s[0], -1, -1, &uv_scale[0]};
+    float r = 0.5;
+    Texture1 roughness{&r, -1, -1, &uv_scale[0]};
+    Material m{diffuse, specular, roughness, false};
     DTexture1 d_roughness_tex;
     SurfacePoint p{Vector3{0, 0, 0},
                    Vector3{0, 1, 0},
@@ -420,18 +412,14 @@ void test_d_bsdf_sample() {
 }
 
 void test_d_bsdf_pdf() {
-    Vector3f d{0.5, 0.4, 0.3};
-    Texture3 diffuse{&d[0], -1, -1};
-    Vector3f s{0.2, 0.3, 0.4};
-    Texture3 specular{&s[0], -1, -1};
-    float r = 0.5;
-    Texture1 roughness{&r, -1, -1};
     Vector2f uv_scale = Vector2f{1, 1};
-    Material m{diffuse, specular, roughness,
-               &uv_scale[0],
-               &uv_scale[0],
-               &uv_scale[0],
-               false};
+    Vector3f d{0.5, 0.4, 0.3};
+    Texture3 diffuse{&d[0], -1, -1, &uv_scale[0]};
+    Vector3f s{0.2, 0.3, 0.4};
+    Texture3 specular{&s[0], -1, -1, &uv_scale[0]};
+    float r = 0.5;
+    Texture1 roughness{&r, -1, -1, &uv_scale[0]};
+    Material m{diffuse, specular, roughness, false};
     DTexture1 d_roughness_tex;
     SurfacePoint p{Vector3{0, 0, 0},
                    Vector3{0, 1, 0},
