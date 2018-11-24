@@ -19,16 +19,22 @@ struct Material {
           roughness(roughness),
           two_sided(two_sided) {}
 
-    inline std::pair<int, int> get_diffuse_size() const {
-        return {diffuse_reflectance.width, diffuse_reflectance.height};
+    inline std::tuple<int, int, int> get_diffuse_size() const {
+        return {diffuse_reflectance.width,
+                diffuse_reflectance.height,
+                diffuse_reflectance.num_levels};
     }
 
-    inline std::pair<int, int> get_specular_size() const {
-        return {specular_reflectance.width, specular_reflectance.height};
+    inline std::tuple<int, int, int> get_specular_size() const {
+        return {specular_reflectance.width,
+                specular_reflectance.height,
+                specular_reflectance.num_levels};
     }
 
-    inline std::pair<int, int> get_roughness_size() const {
-        return {roughness.width, roughness.height};
+    inline std::tuple<int, int, int> get_roughness_size() const {
+        return {roughness.width,
+                roughness.height,
+                roughness.num_levels};
     }
 
     Texture3 diffuse_reflectance;
@@ -53,60 +59,109 @@ using BSDFSample = TBSDFSample<Real>;
 
 DEVICE
 inline Vector3 get_diffuse_reflectance(const Material &material,
-                                       const Vector2 &uv) {
+                                       const SurfacePoint &shading_point) {
     auto uv_scale = material.diffuse_reflectance.uv_scale;
-    return get_texture_value(material.diffuse_reflectance, uv * uv_scale);
+    return get_texture_value(material.diffuse_reflectance,
+        shading_point.uv * uv_scale,
+        shading_point.du_dxy * uv_scale[0],
+        shading_point.dv_dxy * uv_scale[1]);
 }
 
 DEVICE
 inline void d_get_diffuse_reflectance(const Material &material,
-                                      const Vector2 &uv, const Vector3 &d_output,
-                                      DTexture3 &d_texture, Vector2 &d_uv) {
+                                      const SurfacePoint &shading_point,
+                                      const Vector3 &d_output,
+                                      DTexture3 &d_texture,
+                                      SurfacePoint &d_shading_point) {
     auto uv_scale = material.diffuse_reflectance.uv_scale;
     auto d_scaled_uv = Vector2{0, 0};
-    d_get_texture_value(material.diffuse_reflectance, uv * uv_scale, d_output,
-                        d_texture, d_scaled_uv);
+    auto d_scaled_du_dxy = Vector2{0, 0};
+    auto d_scaled_dv_dxy = Vector2{0, 0};
+    d_get_texture_value(material.diffuse_reflectance,
+                        shading_point.uv * uv_scale,
+                        shading_point.du_dxy * uv_scale[0],
+                        shading_point.dv_dxy * uv_scale[1],
+                        d_output,
+                        d_texture,
+                        d_scaled_uv,
+                        d_scaled_du_dxy,
+                        d_scaled_dv_dxy);
     // scaled_uv = uv * uv_scale
-    d_uv += d_scaled_uv * uv_scale;
+    d_shading_point.uv += d_scaled_uv * uv_scale;
+    d_shading_point.du_dxy += d_scaled_du_dxy * uv_scale[0];
+    d_shading_point.dv_dxy += d_scaled_dv_dxy * uv_scale[1];
     // d_material.d_diffuse_uv_scale += d_scaled_uv * uv;
 }
 
 DEVICE
 inline Vector3 get_specular_reflectance(const Material &material,
-                                        const Vector2 &uv) {
+                                        const SurfacePoint &shading_point) {
     auto uv_scale = material.specular_reflectance.uv_scale;
-    return get_texture_value(material.specular_reflectance, uv * uv_scale);
+    return get_texture_value(material.specular_reflectance,
+        shading_point.uv * uv_scale,
+        shading_point.du_dxy * uv_scale[0],
+        shading_point.dv_dxy * uv_scale[1]);
 }
 
 DEVICE
 inline void d_get_specular_reflectance(const Material &material,
-                                       const Vector2 &uv, const Vector3 &d_output,
-                                       DTexture3 &d_texture, Vector2 &d_uv) {
+                                       const SurfacePoint &shading_point,
+                                       const Vector3 &d_output,
+                                       DTexture3 &d_texture,
+                                       SurfacePoint &d_shading_point) {
     auto uv_scale = material.specular_reflectance.uv_scale;
     auto d_scaled_uv = Vector2{0, 0};
-    d_get_texture_value(material.specular_reflectance, uv * uv_scale, d_output,
-                        d_texture, d_scaled_uv);
+    auto d_scaled_du_dxy = Vector2{0, 0};
+    auto d_scaled_dv_dxy = Vector2{0, 0};
+    d_get_texture_value(material.specular_reflectance,
+                        shading_point.uv * uv_scale,
+                        shading_point.du_dxy * uv_scale[0],
+                        shading_point.dv_dxy * uv_scale[1],
+                        d_output,
+                        d_texture,
+                        d_scaled_uv,
+                        d_scaled_du_dxy,
+                        d_scaled_dv_dxy);
     // scaled_uv = uv * uv_scale
-    d_uv += d_scaled_uv * uv_scale;
+    d_shading_point.uv += d_scaled_uv * uv_scale;
+    d_shading_point.du_dxy += d_scaled_du_dxy * uv_scale[0];
+    d_shading_point.dv_dxy += d_scaled_dv_dxy * uv_scale[1];
     // d_material.d_specular_uv_scale += d_scaled_uv * uv;
 }
 
 DEVICE
-inline Real get_roughness(const Material &material, const Vector2 &uv) {
+inline Real get_roughness(const Material &material,
+                          const SurfacePoint &shading_point) {
     auto uv_scale = material.roughness.uv_scale;
-    return get_texture_value(material.roughness, uv * uv_scale);
+    return get_texture_value(material.roughness,
+        shading_point.uv * uv_scale,
+        shading_point.du_dxy * uv_scale[0],
+        shading_point.dv_dxy * uv_scale[1]);
 }
 
 DEVICE
-inline void d_get_roughness(const Material &material, const Vector2 &uv,
-                            Real d_output,
-                            DTexture1 &d_texture, Vector2 &d_uv) {
+inline void d_get_roughness(const Material &material,
+                            const SurfacePoint &shading_point,
+                            const Real d_output,
+                            DTexture1 &d_texture,
+                            SurfacePoint &d_shading_point) {
     auto uv_scale = material.roughness.uv_scale;
     auto d_scaled_uv = Vector2{0, 0};
-    d_get_texture_value(material.roughness, uv * uv_scale, d_output,
-                        d_texture, d_scaled_uv);
+    auto d_scaled_du_dxy = Vector2{0, 0};
+    auto d_scaled_dv_dxy = Vector2{0, 0};
+    d_get_texture_value(material.roughness,
+                        shading_point.uv * uv_scale,
+                        shading_point.du_dxy * uv_scale[0],
+                        shading_point.dv_dxy * uv_scale[1],
+                        d_output,
+                        d_texture,
+                        d_scaled_uv,
+                        d_scaled_du_dxy,
+                        d_scaled_dv_dxy);
     // scaled_uv = uv * uv_scale
-    d_uv += d_scaled_uv * uv_scale;
+    d_shading_point.uv += d_scaled_uv * uv_scale;
+    d_shading_point.du_dxy += d_scaled_du_dxy * uv_scale[0];
+    d_shading_point.dv_dxy += d_scaled_dv_dxy * uv_scale[1];
     // d_material.d_roughness_uv_scale += d_scaled_uv * uv;
 }
 
@@ -125,12 +180,12 @@ inline Real d_roughness_to_phong(Real roughness, Real d_exponent) {
 DEVICE
 inline
 Vector3 bsdf(const Material &material,
-             const SurfacePoint &surface_point,
+             const SurfacePoint &shading_point,
              const Vector3 &wi,
              const Vector3 &wo,
              const Real min_roughness) {
-    auto shading_frame = surface_point.shading_frame;
-    auto geom_n = surface_point.geom_normal;
+    auto shading_frame = shading_point.shading_frame;
+    auto geom_n = shading_point.geom_normal;
     if (material.two_sided) {
         if (dot(wi, shading_frame.n) < 0.f) {
             shading_frame = -shading_frame;
@@ -145,9 +200,9 @@ Vector3 bsdf(const Material &material,
         return Vector3{0, 0, 0};
     }
 
-    auto diffuse_reflectance = get_diffuse_reflectance(material, surface_point.uv);
-    auto specular_reflectance = get_specular_reflectance(material, surface_point.uv);
-    auto roughness = max(get_roughness(material, surface_point.uv), min_roughness);
+    auto diffuse_reflectance = get_diffuse_reflectance(material, shading_point);
+    auto specular_reflectance = get_specular_reflectance(material, shading_point);
+    auto roughness = max(get_roughness(material, shading_point), min_roughness);
     assert(roughness > 0.f);
     auto diffuse_contrib = diffuse_reflectance * bsdf_cos / Real(M_PI);
     auto specular_contrib = Vector3{0, 0, 0};
@@ -197,7 +252,7 @@ Vector3 bsdf(const Material &material,
 DEVICE
 inline
 void d_bsdf(const Material &material,
-            const SurfacePoint &surface_point,
+            const SurfacePoint &shading_point,
             const Vector3 &wi,
             const Vector3 &wo,
             const Real min_roughness,
@@ -205,11 +260,11 @@ void d_bsdf(const Material &material,
             DTexture3 &d_diffuse_tex,
             DTexture3 &d_specular_tex,
             DTexture1 &d_roughness_tex,
-            SurfacePoint &d_surface_point,
+            SurfacePoint &d_shading_point,
             Vector3 &d_wi,
             Vector3 &d_wo) {
-    auto shading_frame = surface_point.shading_frame;
-    auto geom_n = surface_point.geom_normal;
+    auto shading_frame = shading_point.shading_frame;
+    auto geom_n = shading_point.geom_normal;
     auto d_n = Vector3{0, 0, 0};
     bool flipped_normal = false;
     if (material.two_sided) {
@@ -227,18 +282,18 @@ void d_bsdf(const Material &material,
         return;
     }
 
-    auto diffuse_reflectance = get_diffuse_reflectance(material, surface_point.uv);
+    auto diffuse_reflectance = get_diffuse_reflectance(material, shading_point);
     // diffuse_contrib = diffuse_reflectance * bsdf_cos / Real(M_PI)
     auto d_diffuse_reflectance = d_output * (bsdf_cos / Real(M_PI));
-    d_get_diffuse_reflectance(material, surface_point.uv, d_diffuse_reflectance,
-                              d_diffuse_tex, d_surface_point.uv);
+    d_get_diffuse_reflectance(material, shading_point, d_diffuse_reflectance,
+                              d_diffuse_tex, d_shading_point);
     auto d_bsdf_cos = d_output * sum(diffuse_reflectance) / Real(M_PI);
     // bsdf_cos = dot(shading_frame.n, wo)
     d_wo += shading_frame.n * d_bsdf_cos;
     d_n += wo * d_bsdf_cos;
 
-    auto specular_reflectance = get_specular_reflectance(material, surface_point.uv);
-    auto roughness = max(get_roughness(material, surface_point.uv), min_roughness);
+    auto specular_reflectance = get_specular_reflectance(material, shading_point);
+    auto roughness = max(get_roughness(material, shading_point), min_roughness);
     assert(roughness > 0.f);
     if (sum(specular_reflectance) > 0.f) {
         // blinn-phong
@@ -360,13 +415,17 @@ void d_bsdf(const Material &material,
                 auto d_wi_wo = d_normalize(wi + wo, d_m);
                 d_wi += d_wi_wo;
                 d_wo += d_wi_wo;
-                // specular_reflectance = get_specular_reflectance(material, surface_point.uv)
-                d_get_specular_reflectance(material, surface_point.uv, d_specular_reflectance,
-                    d_specular_tex, d_surface_point.uv);
-                // roughness = get_roughness(material, surface_point.uv)
+                // specular_reflectance = get_specular_reflectance(material, shading_point)
+                d_get_specular_reflectance(
+                    material, shading_point, d_specular_reflectance,
+                    d_specular_tex, d_shading_point);
+                // roughness = get_roughness(material, shading_point.uv)
                 if (roughness >= min_roughness) {
-                    d_get_roughness(material, surface_point.uv, d_roughness,
-                        d_roughness_tex, d_surface_point.uv);
+                    d_get_roughness(material,
+                                    shading_point,
+                                    d_roughness,
+                                    d_roughness_tex,
+                                    d_shading_point);
                 }
             }
         }
@@ -375,7 +434,7 @@ void d_bsdf(const Material &material,
     if (flipped_normal) {
         d_n = -d_n;
     }
-    d_surface_point.shading_frame.n += d_n;
+    d_shading_point.shading_frame.n += d_n;
 }
 
 DEVICE
@@ -383,23 +442,23 @@ inline
 Vector3 cos_hemisphere(const Vector2 &sample) {
     auto phi = 2.f * float(M_PI) * sample[0];
     auto tmp = sqrt(max(1.f - sample[1], Real(0)));
-    return Vector3{
-        cos(phi) * tmp, sin(phi) * tmp, sqrt(sample[1])
-    };
+    return Vector3{cos(phi) * tmp, sin(phi) * tmp, sqrt(sample[1])};
 }
 
 DEVICE
 inline
 Vector3 bsdf_sample(const Material &material,
-                    const SurfacePoint &surface_point,
+                    const SurfacePoint &shading_point,
                     const Vector3 &wi,
                     const BSDFSample &bsdf_sample,
                     const Real min_roughness,
+                    const RayDifferential &wi_differential,
+                    RayDifferential &wo_differential,
                     Real *next_min_roughness = nullptr) {
     if (next_min_roughness != nullptr) {
         *next_min_roughness = min_roughness;
     }
-    auto shading_frame = surface_point.shading_frame;
+    auto shading_frame = shading_point.shading_frame;
     auto cos_wi = dot(shading_frame.n, wi);
     if (material.two_sided && cos_wi < 0.f) {
         shading_frame = -shading_frame;
@@ -409,8 +468,8 @@ Vector3 bsdf_sample(const Material &material,
         return Vector3{0, 0, 0};
     }
 
-    auto diffuse_reflectance = get_diffuse_reflectance(material, surface_point.uv);
-    auto specular_reflectance = get_specular_reflectance(material, surface_point.uv);
+    auto diffuse_reflectance = get_diffuse_reflectance(material, shading_point);
+    auto specular_reflectance = get_specular_reflectance(material, shading_point);
     // TODO: this is wrong for black materials
     auto diffuse_weight = luminance(diffuse_reflectance);
     auto specular_weight = luminance(specular_reflectance);
@@ -429,13 +488,21 @@ Vector3 bsdf_sample(const Material &material,
             *next_min_roughness = Real(1);
         }
         auto local_dir = cos_hemisphere(bsdf_sample.uv);
+        // Propagate ray differentials
+        wo_differential.org_dx = wi_differential.org_dx;
+        wo_differential.org_dy = wi_differential.org_dy;
+        // HACK: Output direction has no dependencies w.r.t. input
+        // However, since the diffuse BRDF serves as a low pass filter,
+        // we want to assign a larger prefilter.
+        wo_differential.dir_dx = Vector3{0.03f, 0.03f, 0.03f};
+        wo_differential.dir_dy = Vector3{0.03f, 0.03f, 0.03f};
         return to_world(shading_frame, local_dir);
     } else {
         if (specular_weight <= 0.f) {
             return Vector3{0, 0, 0};
         }
         // Blinn-phong
-        auto roughness = max(get_roughness(material, surface_point.uv), min_roughness);
+        auto roughness = max(get_roughness(material, shading_point), min_roughness);
         if (next_min_roughness != nullptr) {
             *next_min_roughness = max(roughness, min_roughness);
         }
@@ -452,6 +519,23 @@ Vector3 bsdf_sample(const Material &material,
         auto m_local = Vector3{sin_theta * cos_phi, sin_theta * sin_phi, cos_theta};
         auto m = to_world(shading_frame, m_local);
         auto dir = 2.f * dot(wi, m) * m - wi;
+        // Propagate ray differentials
+        wo_differential.org_dx = wi_differential.org_dx;
+        wo_differential.org_dy = wi_differential.org_dy;
+        // HACK: we approximate the directional derivative dmdx using dndx * m_local[2]
+        // i.e. we ignore the derivatives on the tangent plane
+        auto dmdx = shading_point.dn_dx * m_local[2];
+        auto dmdy = shading_point.dn_dy * m_local[2];
+        auto dir_dx = wi_differential.dir_dx;
+        auto dir_dy = wi_differential.dir_dy;
+        // Igehy 1999, Equation 15
+        auto ddotn_dx = dir_dx * m - wi * dmdx;
+        auto ddotn_dy = dir_dy * m - wi * dmdy;
+        // Igehy 1999, Equation 14
+        wo_differential.dir_dx =
+            dir_dx - 2 * (-dot(wi, m) * shading_point.dn_dx + ddotn_dx * m);
+        wo_differential.dir_dy =
+            dir_dy - 2 * (-dot(wi, m) * shading_point.dn_dy + ddotn_dy * m);
         return dir;
     }
 }
@@ -459,15 +543,18 @@ Vector3 bsdf_sample(const Material &material,
 DEVICE
 inline
 void d_bsdf_sample(const Material &material,
-                   const SurfacePoint &surface_point,
+                   const SurfacePoint &shading_point,
                    const Vector3 &wi,
                    const BSDFSample &bsdf_sample,
                    const Real min_roughness,
+                   const RayDifferential &wi_differential,
                    const Vector3 &d_wo,
+                   const RayDifferential &d_wo_differential,
                    DTexture1 &d_roughness_tex,
-                   SurfacePoint &d_surface_point,
-                   Vector3 &d_wi) {
-    auto shading_frame = surface_point.shading_frame;
+                   SurfacePoint &d_shading_point,
+                   Vector3 &d_wi,
+                   RayDifferential &d_wi_differential) {
+    auto shading_frame = shading_point.shading_frame;
     auto cos_wi = dot(shading_frame.n, wi);
     bool normal_flipped = false;
     if (material.two_sided && cos_wi < 0.f) {
@@ -479,8 +566,8 @@ void d_bsdf_sample(const Material &material,
         return;
     }
 
-    auto diffuse_reflectance = get_diffuse_reflectance(material, surface_point.uv);
-    auto specular_reflectance = get_specular_reflectance(material, surface_point.uv);
+    auto diffuse_reflectance = get_diffuse_reflectance(material, shading_point);
+    auto specular_reflectance = get_specular_reflectance(material, shading_point);
     // TODO: this is wrong for black materials
     auto diffuse_weight = luminance(diffuse_reflectance);
     auto specular_weight = luminance(specular_reflectance);
@@ -503,12 +590,21 @@ void d_bsdf_sample(const Material &material,
         auto d_local_dir = Vector3{0, 0, 0};
         d_to_world(shading_frame, local_dir, d_wo, d_shading_frame, d_local_dir);
         // No need to propagate to bsdf_sample
+
+        // Propagate ray differentials
+        // wo_differential.org_dx = wi_differential.org_dx;
+        // wo_differential.org_dy = wi_differential.org_dy;
+        // // Output direction has no dependencies w.r.t. input
+        // wo_differential.dir_dx = Vector3{0, 0, 0};
+        // wo_differential.dir_dy = Vector3{0, 0, 0};
+        d_wi_differential.org_dx += d_wo_differential.org_dx;
+        d_wi_differential.org_dy += d_wo_differential.org_dy;
     } else {
         if (specular_weight <= 0.f) {
             return;
         }
         // Blinn-phong
-        auto roughness = max(get_roughness(material, surface_point.uv), min_roughness);
+        auto roughness = max(get_roughness(material, shading_point), min_roughness);
         auto phong_exponent = roughness_to_phong(roughness);
         // Sample phi
         auto phi = 2.f * Real(M_PI) * bsdf_sample.uv[1];
@@ -522,15 +618,62 @@ void d_bsdf_sample(const Material &material,
         auto m_local = Vector3{sin_theta * cos_phi, sin_theta * sin_phi, cos_theta};
         auto m = to_world(shading_frame, m_local);
 
+        // Propagate ray differentials
+        // wo_differential.org_dx = wi_differential.org_dx;
+        // wo_differential.org_dy = wi_differential.org_dy;
+        auto dmdx = shading_point.dn_dx * m_local[2];
+        auto dmdy = shading_point.dn_dy * m_local[2];
+        auto dir_dx = wi_differential.dir_dx;
+        auto dir_dy = wi_differential.dir_dy;
+        // Igehy 1999, Equation 15
+        auto ddotn_dx = dir_dx * m - wi * dmdx;
+        auto ddotn_dy = dir_dy * m - wi * dmdy;
+        // Igehy 1999, Equation 14
+        // wo_differential.dir_dx =
+        //     dir_dx - 2 * (-dot(wi, m) * shading_point.dn_dx + ddotn_dx * m);
+        // wo_differential.dir_dx =
+        //     dir_dy - 2 * (-dot(wi, m) * shading_point.dn_dy + ddotn_dy * m);
+
+        d_wi_differential.org_dx += d_wo_differential.org_dx;
+        d_wi_differential.org_dy += d_wo_differential.org_dy;
+        d_wi_differential.dir_dx += d_wo_differential.dir_dx;
+        d_wi_differential.dir_dy += d_wo_differential.dir_dy;
+        auto d_dot_wi_m = d_wo_differential.dir_dx * 2 * shading_point.dn_dx +
+                          d_wo_differential.dir_dy * 2 * shading_point.dn_dy;
+        d_shading_point.dn_dx += d_wo_differential.dir_dx * 2 * dot(wi, m);
+        d_shading_point.dn_dy += d_wo_differential.dir_dy * 2 * dot(wi, m);
+        auto d_ddotn_dx = sum(d_wo_differential.dir_dx * (-2 * m));
+        auto d_ddotn_dy = sum(d_wo_differential.dir_dy * (-2 * m));
+        auto d_m = d_wo_differential.dir_dx * (-2) * (ddotn_dx + ddotn_dy);
+        // dot(wi, m)
+        d_wi += d_dot_wi_m * m;
+        d_m += d_dot_wi_m * wi;
+        // ddotn_dx = dir_dx * m - wi * dmdx
+        d_wi_differential.dir_dx += d_ddotn_dx * m;
+        d_m += d_ddotn_dx * dir_dx;
+        d_wi += d_ddotn_dx * dmdx;
+        auto d_dmdx = d_ddotn_dx * wi;
+        // ddotn_dy = dir_dy * m - wi * dmdy
+        d_wi_differential.dir_dy += d_ddotn_dy * m;
+        d_m += d_ddotn_dy * dir_dy;
+        d_wi += d_ddotn_dy * dmdy;
+        auto d_dmdy = d_ddotn_dy * wi;
+        auto d_m_local = Vector3{0, 0, 0};
+        // dmdx = shading_point.dn_dx * m_local[2]
+        d_shading_point.dn_dx += d_dmdx * m_local[2];
+        d_m_local[2] += sum(d_dmdx * shading_point.dn_dx);
+        // dmdy = shading_point.dn_dy * m_local[2]
+        d_shading_point.dn_dy += d_dmdy * m_local[2];
+        d_m_local[2] += sum(d_dmdy * shading_point.dn_dy);
+
         // wo = 2.f * dot(wi, m) * m - wi
-        auto d_dot_wi_m = 2.f * sum(d_wo * m);
-        auto d_m = d_wo * (2.f * dot(wi, m));
+        d_dot_wi_m += 2.f * sum(d_wo * m);
+        d_m += d_wo * (2.f * dot(wi, m));
         d_wi += -d_wo;
         // dot_wi_m = dot(wi, m)
         d_wi += d_dot_wi_m * m;
         d_m += d_dot_wi_m * wi;
         // m = to_world(shading_frame, m_local)
-        auto d_m_local = Vector3{0, 0, 0};
         d_to_world(shading_frame, m_local, d_m, d_shading_frame, d_m_local);
         // No need to propagate to phi
         // m_local[0] = sin_theta * cos_phi
@@ -550,29 +693,29 @@ void d_bsdf_sample(const Material &material,
         auto d_phong_exponent = -d_one_over_phong_exponent_plus_2 / square(phong_exponent + 2.0f);
         // phong_exponent = roughness_to_phong(roughness)
         auto d_roughness = d_roughness_to_phong(roughness, d_phong_exponent);
-        // roughness = get_roughness(material, surface_point.uv)
+        // roughness = get_roughness(material, shading_point)
         if (roughness >= min_roughness) {
             d_get_roughness(material,
-                            surface_point.uv,
+                            shading_point,
                             d_roughness,
                             d_roughness_tex,
-                            d_surface_point.uv);
+                            d_shading_point);
         }
     }
 
     if (normal_flipped) {
         d_shading_frame = - d_shading_frame;
     }
-    d_surface_point.shading_frame += d_shading_frame;
+    d_shading_point.shading_frame += d_shading_frame;
 }
 
 DEVICE
 inline Real bsdf_pdf(const Material &material,
-                     const SurfacePoint &surface_point,
+                     const SurfacePoint &shading_point,
                      const Vector3 &wi,
                      const Vector3 &wo,
                      const Real min_roughness) {
-    auto shading_frame = surface_point.shading_frame;
+    auto shading_frame = shading_point.shading_frame;
     auto cos_wi = dot(shading_frame.n, wi);
     if (material.two_sided) {
         if (cos_wi < 0) {
@@ -583,8 +726,8 @@ inline Real bsdf_pdf(const Material &material,
     if (cos_wi <= 0) {
         return 0;
     }
-    auto diffuse_reflectance = get_diffuse_reflectance(material, surface_point.uv);
-    auto specular_reflectance = get_specular_reflectance(material, surface_point.uv);
+    auto diffuse_reflectance = get_diffuse_reflectance(material, shading_point);
+    auto specular_reflectance = get_specular_reflectance(material, shading_point);
     // TODO: this is wrong for black materials
     auto diffuse_weight = luminance(diffuse_reflectance);
     auto specular_weight = luminance(specular_reflectance);
@@ -607,9 +750,9 @@ inline Real bsdf_pdf(const Material &material,
     auto specular_pdf = Real(0);
     if (specular_pmf > 0.f) {
         auto m = normalize(wi + wo);
-        auto m_local = to_local(surface_point.shading_frame, m);
+        auto m_local = to_local(shading_point.shading_frame, m);
         if (m_local[2] > 0.f) {
-            auto roughness = max(get_roughness(material, surface_point.uv), min_roughness);
+            auto roughness = max(get_roughness(material, shading_point), min_roughness);
             auto phong_exponent = roughness_to_phong(roughness);
             auto D = pow(m_local[2], phong_exponent) * (phong_exponent + 2.f) / Real(2 * M_PI);
             specular_pdf = specular_pmf * D * m_local[2] / (4.f * fabs(dot(m, wo)));
@@ -620,16 +763,16 @@ inline Real bsdf_pdf(const Material &material,
 
 DEVICE
 inline void d_bsdf_pdf(const Material &material,
-                       const SurfacePoint &surface_point,
+                       const SurfacePoint &shading_point,
                        const Vector3 &wi,
                        const Vector3 &wo,
                        const Real min_roughness,
                        const Real d_pdf,
                        DTexture1 &d_roughness_tex,
-                       SurfacePoint &d_surface_point,
+                       SurfacePoint &d_shading_point,
                        Vector3 &d_wi,
                        Vector3 &d_wo) {
-    auto shading_frame = surface_point.shading_frame;
+    auto shading_frame = shading_point.shading_frame;
     auto cos_wi = dot(shading_frame.n, wi);
     bool normal_flipped = false;
     if (material.two_sided) {
@@ -642,8 +785,8 @@ inline void d_bsdf_pdf(const Material &material,
     if (cos_wi <= 0) {
         return;
     }
-    auto diffuse_reflectance = get_diffuse_reflectance(material, surface_point.uv);
-    auto specular_reflectance = get_specular_reflectance(material, surface_point.uv);
+    auto diffuse_reflectance = get_diffuse_reflectance(material, shading_point);
+    auto specular_reflectance = get_specular_reflectance(material, shading_point);
     // TODO: this is wrong for black materials
     auto diffuse_weight = luminance(diffuse_reflectance);
     auto specular_weight = luminance(specular_reflectance);
@@ -653,7 +796,7 @@ inline void d_bsdf_pdf(const Material &material,
     }
     auto diffuse_pmf = diffuse_weight / weight_sum;
     auto specular_pmf = specular_weight / weight_sum;
-    auto bsdf_cos = dot(surface_point.shading_frame.n, wo);
+    auto bsdf_cos = dot(shading_point.shading_frame.n, wo);
     // auto unsigned_bsdf_cos = bsdf_cos;
     // if (!material.two_sided) {
     //     unsigned_bsdf_cos = max(bsdf_cos, Real(0));
@@ -685,9 +828,9 @@ inline void d_bsdf_pdf(const Material &material,
 
     if (specular_weight > 0) {
         auto m = normalize(wi + wo);
-        auto m_local = to_local(surface_point.shading_frame, m);
+        auto m_local = to_local(shading_point.shading_frame, m);
         if (m_local[2] > 0.f) {
-            auto roughness = max(get_roughness(material, surface_point.uv), min_roughness);
+            auto roughness = max(get_roughness(material, shading_point), min_roughness);
             auto phong_exponent = roughness_to_phong(roughness);
             auto D = pow(m_local[2], phong_exponent) * (phong_exponent + 2.f) / Real(2 * M_PI);
             // specular_pdf = specular_pmf * D * m_local[2] / (4.f * fabs(dot(m, wo)));
@@ -716,7 +859,7 @@ inline void d_bsdf_pdf(const Material &material,
             d_phong_exponent += d_D_factor / Real(2 * M_PI);
             // phong_exponent = roughness_to_phong(roughness)
             auto d_roughness = d_roughness_to_phong(roughness, d_phong_exponent);
-            // m_local = to_local(surface_point.shading_frame, m)
+            // m_local = to_local(shading_point.shading_frame, m)
             // This is an isotropic BRDF so only normal is affected
             d_m += d_m_local2 * shading_frame.n;
             d_n += d_m_local2 * m;
@@ -724,13 +867,13 @@ inline void d_bsdf_pdf(const Material &material,
             auto d_wi_wo = d_normalize(wi + wo, d_m);
             d_wi += d_wi_wo;
             d_wo += d_wi_wo;
-            // roughness = get_roughness(material, surface_point.uv)
+            // roughness = get_roughness(material, shading_point)
             if (roughness >= min_roughness) {
                 d_get_roughness(material,
-                                surface_point.uv,
+                                shading_point,
                                 d_roughness,
                                 d_roughness_tex,
-                                d_surface_point.uv);
+                                d_shading_point);
             }
         }
     }
@@ -738,7 +881,7 @@ inline void d_bsdf_pdf(const Material &material,
     if (normal_flipped) {
         d_n = -d_n;
     }
-    d_surface_point.shading_frame.n += d_n;
+    d_shading_point.shading_frame.n += d_n;
 }
 
 struct Scene;

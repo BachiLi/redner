@@ -267,8 +267,11 @@ __global__ void intersect_shape_kernel(
         const int *active_pixels,
         const OptiXHit *hits,
         const Ray *rays,
+        const RayDifferential *ray_differentials,
+        const Real *min_roughness,
         Intersection *out_isects,
-        SurfacePoint *out_points) {
+        SurfacePoint *out_points,
+        RayDifferential *new_ray_differentials) {
     auto idx = threadIdx.x + blockIdx.x * blockDim.x;
     if (idx >= N) {
         return;
@@ -281,8 +284,11 @@ __global__ void intersect_shape_kernel(
         out_isects[pixel_id].shape_id = shape_id;
         out_isects[pixel_id].tri_id = tri_id;
         const auto &shape = shapes[shape_id];
+        const auto &ray = rays[pixel_id];
+        const auto &ray_differential = ray_differentials[pixel_id];
         out_points[pixel_id] =
-            intersect_shape(shape, tri_id, rays[pixel_id]);
+            intersect_shape(shape, tri_id, ray, ray_differential,
+                new_ray_differentials[pixel_id]);
     } else {
         out_isects[pixel_id].shape_id = -1;
         out_isects[pixel_id].tri_id = -1;
@@ -293,8 +299,11 @@ void intersect_shape(const Shape *shapes,
                      const BufferView<int> &active_pixels,
                      const BufferView<OptiXHit> &optix_hits,
                      const BufferView<Ray> &rays,
+                     const BufferView<RayDifferential> &ray_differentials,
+                     const BufferView<Real> &min_roughness,
                      BufferView<Intersection> isects,
-                     BufferView<SurfacePoint> points) {
+                     BufferView<SurfacePoint> points,
+                     BufferView<RayDifferential> new_ray_differentials) {
     auto block_size = 256;
     auto block_count = idiv_ceil(active_pixels.size(), block_size);
     intersect_shape_kernel<<<block_count, block_size>>>(
@@ -303,16 +312,22 @@ void intersect_shape(const Shape *shapes,
         active_pixels.begin(),
         optix_hits.begin(),
         rays.begin(),
+        ray_differentials.begin(),
+        min_roughness.begin(),
         isects.begin(),
-        points.begin());
+        points.begin(),
+        new_ray_differentials.begin());
 }
 #endif
 
 void intersect(const Scene &scene,
                const BufferView<int> &active_pixels,
                const BufferView<Ray> &rays,
+               const BufferView<RayDifferential> &ray_differentials,
+               const BufferView<Real> &min_roughness,
                BufferView<Intersection> intersections,
-               BufferView<SurfacePoint> points) {
+               BufferView<SurfacePoint> points,
+               BufferView<RayDifferential> new_ray_differentials) {
     if (scene.use_gpu) {
 #ifdef __NVCC__
         // OptiX prime query
@@ -337,8 +352,10 @@ void intersect(const Scene &scene,
                         active_pixels,
                         optix_hits.view(0, optix_hits.size()),
                         rays,
+                        ray_differentials,
                         intersections,
-                        points);
+                        points,
+                        new_ray_differentials);
 #else
         assert(false);
 #endif
@@ -380,8 +397,15 @@ void intersect(const Scene &scene,
                     auto tri_id = (int)rtc_ray_hit.hit.primID;
                     intersections[pixel_id] =
                         Intersection{shape_id, tri_id};
-                    points[pixel_id] = intersect_shape(
-                        scene.shapes[shape_id], tri_id, rays[pixel_id]);
+                    const auto &shape = scene.shapes[shape_id];
+                    const auto &ray = rays[pixel_id];
+                    const auto &ray_differential = ray_differentials[pixel_id];
+                    points[pixel_id] =
+                        intersect_shape(shape,
+                                        tri_id,
+                                        ray,
+                                        ray_differential,
+                                        new_ray_differentials[pixel_id]);
                 }
             }
         }, num_threads);
@@ -554,9 +578,18 @@ void test_scene_intersect(bool use_gpu) {
 
     Ray ray0{Vector3{0, 0, 0}, Vector3{0, 0, 1}};
     Ray ray1{Vector3{0, 0, 0}, Vector3{0, 0, -1}};
+    RayDifferential ray_diff0{
+        Vector3{0, 0, 0}, Vector3{0, 0, 0},
+        Vector3{0, 0, 0}, Vector3{0, 0, 0}};
+    RayDifferential ray_diff1{
+        Vector3{0, 0, 0}, Vector3{0, 0, 0},
+        Vector3{0, 0, 0}, Vector3{0, 0, 0}};
     Buffer<Ray> rays(use_gpu, 2);
     rays[0] = ray0;
     rays[1] = ray1;
+    Buffer<RayDifferential> ray_diffs(use_gpu, 2);
+    ray_diffs[0] = ray_diff0;
+    ray_diffs[1] = ray_diff1;
     Shape triangle{(float*)vertices.data,
                    (int*)indices.data,
                    nullptr,
@@ -576,16 +609,24 @@ void test_scene_intersect(bool use_gpu) {
     intersect(scene,
               active_pixels.view(0, active_pixels.size()), 
               rays.view(0, rays.size()),
+              ray_diffs.view(0, rays.size()),
               isects.view(0, rays.size()),
-              surface_points.view(0, rays.size()));
+              surface_points.view(0, rays.size()),
+              ray_diffs.view(0, rays.size()));
     cuda_synchronize();
     equal_or_error(__FILE__, __LINE__, isects[0].shape_id, 0);
     equal_or_error(__FILE__, __LINE__, isects[0].tri_id, 0);
     equal_or_error(__FILE__, __LINE__, isects[1].shape_id, -1);
     equal_or_error(__FILE__, __LINE__, isects[1].tri_id, -1);
-    equal_or_error(__FILE__, __LINE__, surface_points[0].position,
-                                       Vector3{0, 0, 1});
-
+    equal_or_error(__FILE__, __LINE__, surface_points[0].position, Vector3{0, 0, 1});
+    equal_or_error(__FILE__, __LINE__, ray_diffs[0].org_dx, Vector3{0, 0, 0});
+    equal_or_error(__FILE__, __LINE__, ray_diffs[0].org_dy, Vector3{0, 0, 0});
+    equal_or_error(__FILE__, __LINE__, ray_diffs[0].dir_dx, Vector3{0, 0, 0});
+    equal_or_error(__FILE__, __LINE__, ray_diffs[0].dir_dy, Vector3{0, 0, 0});
+    equal_or_error(__FILE__, __LINE__, ray_diffs[1].org_dx, Vector3{0, 0, 0});
+    equal_or_error(__FILE__, __LINE__, ray_diffs[1].org_dy, Vector3{0, 0, 0});
+    equal_or_error(__FILE__, __LINE__, ray_diffs[1].dir_dx, Vector3{0, 0, 0});
+    equal_or_error(__FILE__, __LINE__, ray_diffs[1].dir_dy, Vector3{0, 0, 0});
     parallel_cleanup();
 }
 

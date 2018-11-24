@@ -95,8 +95,10 @@ FlattenScene get_flatten_scene(const Scene &scene);
 void intersect(const Scene &scene,
                const BufferView<int> &active_pixels,
                const BufferView<Ray> &rays,
+               const BufferView<RayDifferential> &ray_differentials,
                BufferView<Intersection> intersections,
-               BufferView<SurfacePoint> surface_points);
+               BufferView<SurfacePoint> surface_points,
+               BufferView<RayDifferential> new_ray_differentials);
 // Set intersection to invalid if occluded
 void occluded(const Scene &scene,
               const BufferView<int> &active_pixels,

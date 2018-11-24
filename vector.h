@@ -284,7 +284,7 @@ inline T length_squared(const TVector2<T> &v0) {
 
 template <typename T>
 DEVICE
-inline TVector3<T> d_length_squared(const TVector2<T> &v0, const T &d_l_sq) {
+inline TVector2<T> d_length_squared(const TVector2<T> &v0, const T &d_l_sq) {
     //l_sq = square(v0[0]) + square(v0[1])
     return 2 * d_l_sq * v0;
 }
@@ -293,6 +293,15 @@ template <typename T>
 DEVICE
 inline T length(const TVector2<T> &v0) {
     return sqrt(length_squared(v0));
+}
+
+template <typename T>
+DEVICE
+inline TVector2<T> d_length(const TVector2<T> &v0, const T &d_l) {
+    auto l_sq = length_squared(v0);
+    auto l = sqrt(l_sq);
+    auto d_l_sq = 0.5f * d_l / l;
+    return d_length_squared(v0, d_l_sq);
 }
 
 template <typename T>
@@ -335,6 +344,18 @@ DEVICE
 inline auto distance(const TVector3<T0> &v0,
                      const TVector3<T1> &v1) {
     return length(v1 - v0);
+}
+
+template <typename T>
+DEVICE
+inline void d_distance(const TVector3<T> &v0,
+                       const TVector3<T> &v1,
+                       const T &d_output,
+                       TVector3<T> &d_v0,
+                       TVector3<T> &d_v1) {
+    auto d_v1_v0 = d_length(v1 - v0, d_output);
+    d_v0 -= d_v1_v0;
+    d_v1 += d_v1_v0;
 }
 
 template <typename T0, typename T1>
@@ -401,13 +422,19 @@ inline auto luminance(const TVector3<T> &v) {
 
 template <typename T>
 DEVICE
-inline auto sum(const TVector2<T> &v) {
+inline T sum(const T &v) {
+    return v;
+}
+
+template <typename T>
+DEVICE
+inline T sum(const TVector2<T> &v) {
     return v[0] + v[1];
 }
 
 template <typename T>
 DEVICE
-inline auto sum(const TVector3<T> &v) {
+inline T sum(const TVector3<T> &v) {
     return v[0] + v[1] + v[2];
 }
 

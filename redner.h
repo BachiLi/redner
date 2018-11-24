@@ -86,3 +86,7 @@ inline void swap(T &a, T &b) {
     a = b;
     b = tmp;
 }
+
+inline Real log2(Real x) {
+    return log(x) / log(Real(2));
+}

@@ -22,6 +22,10 @@ struct TSurfacePoint {
     TFrame<T> shading_frame;
     TVector2<T> uv;
 
+    // Ray differential information
+    TVector2<T> du_dxy, dv_dxy;
+    TVector3<T> dn_dx, dn_dy;
+
     DEVICE static TSurfacePoint<T> zero() {
         return TSurfacePoint<T>{
             TVector3<T>{0, 0, 0},
@@ -29,7 +33,9 @@ struct TSurfacePoint {
             TFrame<T>{TVector3<T>{0, 0, 0},
                       TVector3<T>{0, 0, 0},
                       TVector3<T>{0, 0, 0}},
-            TVector2<T>{0, 0}
+            TVector2<T>{0, 0},
+            TVector2<T>{0, 0}, TVector2<T>{0, 0},
+            TVector3<T>{0, 0, 0}, TVector3<T>{0, 0, 0}
         };
     }
 };

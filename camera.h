@@ -74,15 +74,15 @@ Ray sample_primary(const Camera &camera,
         // Equi-angular projection
         auto org = xfm_point(camera.cam_to_world, Vector3{0, 0, 0});
         // x, y to polar coordinate
-        auto x = 2.f * (screen_pos[0] - 0.5f);
-        auto y = 2.f * (screen_pos[1] - 0.5f);
+        auto x = 2.f * (screen_pos.x - 0.5f);
+        auto y = 2.f * (screen_pos.y - 0.5f);
         if (x * x + y * y > 1.f) {
-            return Ray{org, Vector3{0, 0, 0}};
+            return Ray{Vector3{0, 0, 0}, Vector3{0, 0, 0}};
         }
         auto r = sqrt(x*x + y*y);
         auto phi = atan2(y, x);
         // polar coordinate to spherical, map r to angle through polynomial
-        auto theta = r * Real(M_PI) / 2.f;
+        auto theta = r * Real(M_PI / 2);
         auto sin_phi = sin(phi);
         auto cos_phi = cos(phi);
         auto sin_theta = sin(theta);
@@ -105,11 +105,6 @@ Ray sample_primary(const Camera &camera,
         return Ray{org, world_dir};
     }
 }
-
-void sample_primary_rays(const Camera &cam,
-                         const BufferView<CameraSample> &samples,
-                         BufferView<Ray> rays,
-                         bool use_gpu);
 
 DEVICE
 inline void d_sample_primary_ray(const Camera &camera,
@@ -183,6 +178,12 @@ inline void d_sample_primary_ray(const Camera &camera,
                     d_camera.cam_to_world, d_cam_org);
     }
 }
+
+void sample_primary_rays(const Camera &cam,
+                         const BufferView<CameraSample> &samples,
+                         BufferView<Ray> rays,
+                         BufferView<RayDifferential> ray_differentials,
+                         bool use_gpu);
 
 template <typename T>
 DEVICE
@@ -294,8 +295,7 @@ inline void d_project(const Camera &camera,
                       Real dp1x, Real dp1y,
                       DCameraInst &d_camera,
                       Vector3 &d_p0,
-                      Vector3 &d_p1,
-                      bool debug = false) {
+                      Vector3 &d_p1) {
     auto p0_local = xfm_point(camera.world_to_cam, p0);
     auto p1_local = xfm_point(camera.world_to_cam, p1);
     if (p0_local[2] < camera.clip_near && p1_local[2] < camera.clip_near) {

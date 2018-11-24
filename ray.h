@@ -18,11 +18,17 @@ struct TRay {
     TRay(const TRay<T2> &ray)
         : org(ray.org), tmin(ray.tmin), dir(ray.dir), tmax(ray.tmax) {}
 
-    // if T == float this exactly matches OptiX prime's ray format
+    // When T == float, this exactly matches Optix prime's ray format
     TVector3<T> org;
     T tmin;
     TVector3<T> dir;
     T tmax;
+};
+
+template <typename T>
+struct TRayDifferential {
+    TVector3<T> org_dx, org_dy;
+    TVector3<T> dir_dx, dir_dy;
 };
 
 template <typename T>
@@ -32,5 +38,6 @@ struct DTRay {
 };
 
 using Ray = TRay<Real>;
+using RayDifferential = TRayDifferential<Real>;
 using DRay = DTRay<Real>;
 using OptiXRay = TRay<float>;

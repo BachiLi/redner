@@ -388,6 +388,22 @@ struct primary_edge_sampler {
             throughputs[2 * idx + 0] = upper_weight;
             throughputs[2 * idx + 1] = lower_weight;
         }
+
+        // Ray differential computation
+        auto screen_pos = edge_records[idx].edge_pt;
+        auto ray = sample_primary(camera, screen_pos);
+        auto delta = Real(1e-3);
+        auto screen_pos_dx = screen_pos + Vector2{delta, Real(0)};
+        auto ray_dx = sample_primary(camera, screen_pos_dx);
+        auto screen_pos_dy = screen_pos + Vector2{Real(0), delta};
+        auto ray_dy = sample_primary(camera, screen_pos_dy);
+        auto pixel_size_x = Real(0.5) / camera.width;
+        auto pixel_size_y = Real(0.5) / camera.height;
+        auto org_dx = pixel_size_x * (ray_dx.org - ray.org) / delta;
+        auto org_dy = pixel_size_y * (ray_dy.org - ray.org) / delta;
+        auto dir_dx = pixel_size_x * (ray_dx.dir - ray.dir) / delta;
+        auto dir_dy = pixel_size_y * (ray_dy.dir - ray.dir) / delta;
+        primary_ray_differentials[idx] = RayDifferential{org_dx, org_dy, dir_dx, dir_dy};
     }
 
     const Camera camera;
@@ -400,6 +416,7 @@ struct primary_edge_sampler {
     const float *d_rendered_image;
     PrimaryEdgeRecord *edge_records;
     Ray *rays;
+    RayDifferential *primary_ray_differentials;
     Vector3 *throughputs;
 };
 
@@ -408,6 +425,7 @@ void sample_primary_edges(const Scene &scene,
                           const float *d_rendered_image,
                           BufferView<PrimaryEdgeRecord> edge_records,
                           BufferView<Ray> rays,
+                          BufferView<RayDifferential> primary_ray_differentials,
                           BufferView<Vector3> throughputs) {
     parallel_for(primary_edge_sampler{
         scene.camera,
@@ -420,6 +438,7 @@ void sample_primary_edges(const Scene &scene,
         d_rendered_image,
         edge_records.begin(),
         rays.begin(),
+        primary_ray_differentials.begin(),
         throughputs.begin()
     }, samples.size(), scene.use_gpu);
 }
@@ -521,7 +540,7 @@ inline Matrix3x3 get_ltc_matrix(const Material &material,
                                 const SurfacePoint &surface_point,
                                 const Vector3 &wi,
                                 Real min_rough) {
-    auto roughness = max(get_roughness(material, surface_point.uv), min_rough);
+    auto roughness = max(get_roughness(material, surface_point), min_rough);
     auto cos_theta = dot(wi, surface_point.shading_frame.n);
     auto theta = acos(cos_theta);
     // search lookup table
@@ -561,8 +580,8 @@ struct secondary_edge_sampler {
         const Shape &shape = shapes[shading_isect.shape_id];
         const Material &material = materials[shape.material_id];
         // First decide which component of BRDF to sample
-        auto diffuse_reflectance = get_diffuse_reflectance(material, shading_point.uv);
-        auto specular_reflectance = get_specular_reflectance(material, shading_point.uv);
+        auto diffuse_reflectance = get_diffuse_reflectance(material, shading_point);
+        auto specular_reflectance = get_specular_reflectance(material, shading_point);
         auto diffuse_weight = luminance(diffuse_reflectance);
         auto specular_weight = luminance(specular_reflectance);
         auto weight_sum = diffuse_weight + specular_weight;
@@ -773,9 +792,39 @@ struct secondary_edge_sampler {
         edge_records[idx].mwt = m * wt; // for Jacobian computation
         rays[2 * idx + 0] = Ray(shading_point.position, v_upper_dir, 1e-3f * length(sample_p));
         rays[2 * idx + 1] = Ray(shading_point.position, v_lower_dir, 1e-3f * length(sample_p));
+        const auto &incoming_ray_differential = incoming_ray_differentials[pixel_id];
+        // Propagate ray differentials
+        auto bsdf_ray_differential = RayDifferential{};
+        bsdf_ray_differential.org_dx = incoming_ray_differential.org_dx;
+        bsdf_ray_differential.org_dy = incoming_ray_differential.org_dy;
+        if (edge_sample.bsdf_component <= diffuse_pmf) {
+            // HACK: Output direction has no dependencies w.r.t. input
+            // However, since the diffuse BRDF serves as a low pass filter,
+            // we want to assign a larger prefilter.
+            bsdf_ray_differential.dir_dx = Vector3{0.03f, 0.03f, 0.03f};
+            bsdf_ray_differential.dir_dy = Vector3{0.03f, 0.03f, 0.03f};
+        } else {
+            // HACK: we compute the half vector as the micronormal,
+            // and use dndx/dndy to approximate the micronormal screen derivatives
+            auto m = normalize(wi + sample_dir);
+            auto m_local2 = dot(m, shading_point.shading_frame.n);
+            auto dmdx = shading_point.dn_dx * m_local2;
+            auto dmdy = shading_point.dn_dy * m_local2;
+            auto dir_dx = incoming_ray_differential.dir_dx;
+            auto dir_dy = incoming_ray_differential.dir_dy;
+            // Igehy 1999, Equation 15
+            auto ddotn_dx = dir_dx * m - wi * dmdx;
+            auto ddotn_dy = dir_dy * m - wi * dmdy;
+            // Igehy 1999, Equation 14
+            bsdf_ray_differential.dir_dx =
+                dir_dx - 2 * (-dot(wi, m) * shading_point.dn_dx + ddotn_dx * m);
+            bsdf_ray_differential.dir_dy =
+                dir_dy - 2 * (-dot(wi, m) * shading_point.dn_dy + ddotn_dy * m);
+        }
+        bsdf_differentials[2 * idx + 0] = bsdf_ray_differential;
+        bsdf_differentials[2 * idx + 1] = bsdf_ray_differential;
         // edge_weight doesn't take the Jacobian between the shading point
-        // and the ray intersection into account. We'll compute this
-        // later
+        // and the ray intersection into account. We'll compute this later
         auto edge_weight = resample_weight / (m_pmf * line_pdf(l));
         auto nt = throughput * eval_bsdf * d_color * edge_weight;
         new_throughputs[2 * idx + 0] = nt;
@@ -791,6 +840,7 @@ struct secondary_edge_sampler {
     const int *active_pixels;
     const SecondaryEdgeSample *edge_samples;
     const Ray *incoming_rays;
+    const RayDifferential *incoming_ray_differentials;
     const Intersection *shading_isects;
     const SurfacePoint *shading_points;
     const Vector3 *throughputs;
@@ -798,6 +848,7 @@ struct secondary_edge_sampler {
     const float *d_rendered_image;
     SecondaryEdgeRecord *edge_records;
     Ray *rays;
+    RayDifferential *bsdf_differentials;
     Vector3 *new_throughputs;
     Real *edge_min_roughness;
 };
@@ -806,6 +857,7 @@ void sample_secondary_edges(const Scene &scene,
                             const BufferView<int> &active_pixels,
                             const BufferView<SecondaryEdgeSample> &samples,
                             const BufferView<Ray> &incoming_rays,
+                            const BufferView<RayDifferential> &incoming_ray_differentials,
                             const BufferView<Intersection> &shading_isects,
                             const BufferView<SurfacePoint> &shading_points,
                             const BufferView<Vector3> &throughputs,
@@ -813,6 +865,7 @@ void sample_secondary_edges(const Scene &scene,
                             const float *d_rendered_image,
                             BufferView<SecondaryEdgeRecord> edge_records,
                             BufferView<Ray> rays,
+                            BufferView<RayDifferential> &bsdf_differentials,
                             BufferView<Vector3> new_throughputs,
                             BufferView<Real> edge_min_roughness) {
     parallel_for(secondary_edge_sampler{
@@ -825,6 +878,7 @@ void sample_secondary_edges(const Scene &scene,
         active_pixels.begin(),
         samples.begin(),
         incoming_rays.begin(),
+        incoming_ray_differentials.begin(),
         shading_isects.begin(),
         shading_points.begin(),
         throughputs.begin(),
@@ -832,13 +886,13 @@ void sample_secondary_edges(const Scene &scene,
         d_rendered_image,
         edge_records.begin(),
         rays.begin(),
+        bsdf_differentials.begin(),
         new_throughputs.begin(),
         edge_min_roughness.begin()},
         active_pixels.size(), scene.use_gpu);
 }
 
-// The derivative of the intersection point w.r.t.
-// a line parameter t
+// The derivative of the intersection point w.r.t. a line parameter t
 DEVICE
 inline Vector3 intersect_jacobian(const Vector3 &org,
                                   const Vector3 &dir,

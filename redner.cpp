@@ -68,10 +68,12 @@ PYBIND11_MODULE(redner, m) {
         .def(py::init<ptr<float>,
                       int,
                       int,
+                      int,
                       ptr<float>>());
 
     py::class_<Texture3>(m, "Texture3")
         .def(py::init<ptr<float>,
+                      int,
                       int,
                       int,
                       ptr<float>>());

@@ -15,19 +15,36 @@ struct primary_ray_sampler {
             (pixel_y + sample[1]) / Real(camera.height)
         };
 
-        rays[idx] = sample_primary(camera, screen_pos);
+        auto ray = sample_primary(camera, screen_pos);
+        rays[idx] = ray;
+        // Ray differential computation
+        auto delta = Real(1e-3);
+        auto screen_pos_dx = screen_pos + Vector2{delta, Real(0)};
+        auto ray_dx = sample_primary(camera, screen_pos_dx);
+        auto screen_pos_dy = screen_pos + Vector2{Real(0), delta};
+        auto ray_dy = sample_primary(camera, screen_pos_dy);
+        auto pixel_size_x = Real(0.5) / camera.width;
+        auto pixel_size_y = Real(0.5) / camera.height;
+        auto org_dx = pixel_size_x * (ray_dx.org - ray.org) / delta;
+        auto org_dy = pixel_size_y * (ray_dy.org - ray.org) / delta;
+        auto dir_dx = pixel_size_x * (ray_dx.dir - ray.dir) / delta;
+        auto dir_dy = pixel_size_y * (ray_dy.dir - ray.dir) / delta;
+        ray_differentials[idx] = RayDifferential{org_dx, org_dy, dir_dx, dir_dy};
     }
 
-    const Camera camera = Camera{};
-    const CameraSample *samples = nullptr;
-    Ray *rays = nullptr;
+    const Camera camera;
+    const CameraSample *samples;
+    Ray *rays;
+    RayDifferential *ray_differentials;
 };
 
 void sample_primary_rays(const Camera &camera,
                          const BufferView<CameraSample> &samples,
                          BufferView<Ray> rays,
+                         BufferView<RayDifferential> ray_differentials,
                          bool use_gpu) {
-    parallel_for(primary_ray_sampler{camera, samples.begin(), rays.begin()},
+    parallel_for(primary_ray_sampler{
+        camera, samples.begin(), rays.begin(), ray_differentials.begin()},
         samples.size(), use_gpu);
 }
 
@@ -67,11 +84,17 @@ void test_sample_primary_rays(bool use_gpu) {
     Buffer<CameraSample> samples(use_gpu, 1);
     samples[0].xy = Vector2{0.5f, 0.5f};
     Buffer<Ray> rays(use_gpu, 1);
-    sample_primary_rays(camera, samples.view(0, 1), rays.view(0, 1), use_gpu);
+    Buffer<RayDifferential> ray_differentials(use_gpu, 1);
+    sample_primary_rays(camera,
+                        samples.view(0, 1),
+                        rays.view(0, 1),
+                        ray_differentials.view(0, 1),
+                        use_gpu);
     cuda_synchronize();
 
     equal_or_error(__FILE__, __LINE__, rays[0].org, Vector3{0, 0, 0});
     equal_or_error(__FILE__, __LINE__, rays[0].dir, Vector3{0, 0, 1});
+    // TODO: test ray differentials
 
     parallel_cleanup();
 }

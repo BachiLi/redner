@@ -134,6 +134,7 @@ void sample_primary_edges(const Scene &scene,
                           const float *d_rendered_image,
                           BufferView<PrimaryEdgeRecord> edge_records,
                           BufferView<Ray> rays,
+                          BufferView<RayDifferential> primary_ray_differentials,
                           BufferView<Vector3> throughputs);
 
 void compute_primary_edge_derivatives(const Scene &scene,
@@ -146,6 +147,7 @@ void sample_secondary_edges(const Scene &scene,
                             const BufferView<int> &active_pixels,
                             const BufferView<SecondaryEdgeSample> &samples,
                             const BufferView<Ray> &incoming_rays,
+                            const BufferView<RayDifferential> &incoming_ray_differentials,
                             const BufferView<Intersection> &shading_isects,
                             const BufferView<SurfacePoint> &shading_points,
                             const BufferView<Vector3> &throughputs,
@@ -153,6 +155,7 @@ void sample_secondary_edges(const Scene &scene,
                             const float *d_rendered_image,
                             BufferView<SecondaryEdgeRecord> edge_records,
                             BufferView<Ray> rays,
+                            BufferView<RayDifferential> &bsdf_ray_differentials,
                             BufferView<Vector3> new_throughputs,
                             BufferView<Real> edge_min_roughness);
 
