@@ -289,18 +289,20 @@ void d_barycentric(const Vector3 &p0,
     auto inv_denom = Real(1) / (d11 * d22 - d12 * d12);
     // auto b0 = (d22 * d01 - d12 * d02) * inv_denom;
     // auto b1 = (d11 * d02 - d12 * d01) * inv_denom;
-    // d_b0_d_p = (d22 * d01_dp - d12 * d02_dp) * inv_denom;
-    // d_b1_d_p = (d11 * d02_dp - d12 * d01_dp) * inv_denom;
+
+    // Backprop
+    // d_b0_d_p = (d22 * d01_dp - d12 * d02_dp) * inv_denom
     auto d_d22 = d_d_b0_d_p * d01_dp * inv_denom;
     auto d_d01_dp = d_d_b0_d_p * d22 * inv_denom;
     auto d_d12 = -d_d_b0_d_p * d02_dp * inv_denom;
     auto d_d02_dp = -d_d_b0_d_p * d12 * inv_denom;
+    auto d_inv_denom = d_d_b0_d_p * (d22 * d01_dp - d12 * d02_dp);
+    // d_b1_d_p = (d11 * d02_dp - d12 * d01_dp) * inv_denom
     auto d_d11 = d_d_b1_d_p * d02_dp * inv_denom;
     d_d02_dp += d_d_b1_d_p * d11 * inv_denom;
     d_d12 += (-d_d_b1_d_p * d01_dp * inv_denom);
     d_d01_dp += (-d_d_b1_d_p * d12 * inv_denom);
-    auto d_inv_denom = d_d_b0_d_p * (d22 * d01_dp - d12 * d02_dp) +
-                       d_d_b1_d_p * (d11 * d02_dp - d12 * d01_dp);
+    d_inv_denom += d_d_b1_d_p * (d11 * d02_dp - d12 * d01_dp);
     // inv_denom = 1 / (d11 * d22 - d12 * d12)
     d_d11 += d_inv_denom * (-square(inv_denom) * d22);
     d_d22 += d_inv_denom * (-square(inv_denom) * d11);
@@ -459,13 +461,13 @@ inline void d_intersect_shape(
     auto duv_dpx = (1.f - dudp[0] - dvdp[0]) * uvs0 + dudp[0] * uvs1 + dvdp[0] * uvs2;
     auto duv_dpy = (1.f - dudp[1] - dvdp[1]) * uvs0 + dudp[1] * uvs1 + dvdp[1] * uvs2;
     auto duv_dpz = (1.f - dudp[2] - dvdp[2]) * uvs0 + dudp[2] * uvs1 + dvdp[2] * uvs2;
-    // Ighey 1999 Eq. 10
     auto org_dx = ray_differential.org_dx;
     auto dir_dx = ray_differential.dir_dx;
-    auto dtdx = -dot((org_dx + t * dir_dx), geom_normal) / dot(ray.dir, geom_normal);
-    auto dpdx = (org_dx + t * dir_dx) + dtdx * ray.dir;
     auto org_dy = ray_differential.org_dy;
     auto dir_dy = ray_differential.dir_dy;
+    // Ighey 1999 Eq. 10
+    auto dtdx = -dot((org_dx + t * dir_dx), geom_normal) / dot(ray.dir, geom_normal);
+    auto dpdx = (org_dx + t * dir_dx) + dtdx * ray.dir;
     auto dtdy = -dot((org_dy + t * dir_dy), geom_normal) / dot(ray.dir, geom_normal);
     auto dpdy = (org_dy + t * dir_dy) + dtdy * ray.dir;
     // auto du_dxy = Vector2{duv_dpx[0] * dpdx.x + duv_dpy[0] * dpdx.y + duv_dpz[0] * dpdx.z,
@@ -617,18 +619,18 @@ inline void d_intersect_shape(
     //                  duv_dpx[1] * dpdy.x + duv_dpy[1] * dpdy.y + duv_dpz[1] * dpdy.z}
     auto d_du_dxy = d_point.du_dxy;
     auto d_dv_dxy = d_point.dv_dxy;
-    auto d_duv_dpx = Vector2{d_du_dxy[0] * dpdx.x + d_du_dxy[1] * dpdy.x,
-                             d_dv_dxy[0] * dpdx.x + d_du_dxy[1] * dpdy.x};
-    auto d_duv_dpy = Vector2{d_du_dxy[0] * dpdx.y + d_du_dxy[1] * dpdy.y,
-                             d_dv_dxy[0] * dpdx.y + d_du_dxy[1] * dpdy.y};
-    auto d_duv_dpz = Vector2{d_du_dxy[0] * dpdx.z + d_du_dxy[1] * dpdy.z,
-                             d_dv_dxy[0] * dpdx.z + d_du_dxy[1] * dpdy.z};
-    d_dpdx += Vector3{d_du_dxy[0] * duv_dpx[0] + d_dv_dxy[0] * duv_dpx[1],
-                      d_du_dxy[0] * duv_dpy[0] + d_dv_dxy[0] * duv_dpy[1],
-                      d_du_dxy[0] * duv_dpz[0] + d_dv_dxy[0] * duv_dpz[1]};
-    d_dpdy += Vector3{d_du_dxy[1] * duv_dpx[0] + d_dv_dxy[1] * duv_dpx[1],
-                      d_du_dxy[1] * duv_dpy[0] + d_dv_dxy[1] * duv_dpy[1],
-                      d_du_dxy[1] * duv_dpz[0] + d_dv_dxy[1] * duv_dpz[1]};
+    auto d_duv_dpx = Vector2{d_du_dxy.x * dpdx.x + d_du_dxy.y * dpdy.x,
+                             d_dv_dxy.x * dpdx.x + d_dv_dxy.y * dpdy.x};
+    auto d_duv_dpy = Vector2{d_du_dxy.x * dpdx.y + d_du_dxy.y * dpdy.y,
+                             d_dv_dxy.x * dpdx.y + d_dv_dxy.y * dpdy.y};
+    auto d_duv_dpz = Vector2{d_du_dxy.x * dpdx.z + d_du_dxy.y * dpdy.z,
+                             d_dv_dxy.x * dpdx.z + d_dv_dxy.y * dpdy.z};
+    d_dpdx += Vector3{d_du_dxy.x * duv_dpx[0] + d_dv_dxy.x * duv_dpx[1],
+                      d_du_dxy.x * duv_dpy[0] + d_dv_dxy.x * duv_dpy[1],
+                      d_du_dxy.x * duv_dpz[0] + d_dv_dxy.x * duv_dpz[1]};
+    d_dpdy += Vector3{d_du_dxy.y * duv_dpx[0] + d_dv_dxy.y * duv_dpx[1],
+                      d_du_dxy.y * duv_dpy[0] + d_dv_dxy.y * duv_dpy[1],
+                      d_du_dxy.y * duv_dpz[0] + d_dv_dxy.y * duv_dpz[1]};
     // dpdy = (org_dy + t * dir_dy) + dtdy * ray.dir
     d_ray_differential.org_dy += d_dpdy;
     auto d_t = sum(d_dpdy * dir_dy);
@@ -676,6 +678,13 @@ inline void d_intersect_shape(
     d_dvdp[0] += sum(d_duv_dpx * (uvs2 - uvs0));
     d_dvdp[1] += sum(d_duv_dpy * (uvs2 - uvs0));
     d_dvdp[2] += sum(d_duv_dpz * (uvs2 - uvs0));
+    auto d_uvs0 = d_duv_dpx * (1.f - dudp[0] - dvdp[0]) +
+                  d_duv_dpy * (1.f - dudp[1] - dvdp[1]) +
+                  d_duv_dpz * (1.f - dudp[2] - dvdp[2]);
+    auto d_uvs1 = d_duv_dpx * dudp[0] + d_duv_dpy * dudp[1] * d_duv_dpz * dudp[2];
+    auto d_uvs2 = d_duv_dpx * dvdp[0] + d_duv_dpy * dvdp[1] * d_duv_dpz * dvdp[2];
+
+    // barycentric(v0, v1, v2, dudp, dvdp)
     auto d_v0 = Vector3{0, 0, 0};
     auto d_v1 = Vector3{0, 0, 0};
     auto d_v2 = Vector3{0, 0, 0};
@@ -700,9 +709,9 @@ inline void d_intersect_shape(
     d_w += sum(d_uv * uvs0);
     d_u += sum(d_uv * uvs1);
     d_v += sum(d_uv * uvs2);
-    auto d_uvs0 = d_uv * w;
-    auto d_uvs1 = d_uv * u;
-    auto d_uvs2 = d_uv * v;
+    d_uvs0 += d_uv * w;
+    d_uvs1 += d_uv * u;
+    d_uvs2 += d_uv * v;
     // auto t = uvt[2];
     auto d_uvt = Vector3{0, 0, 0};
     d_uvt[2] += d_t;

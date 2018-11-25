@@ -430,8 +430,8 @@ void test_d_bsdf_sample() {
         auto d_p = SurfacePoint::zero();
         auto d_wi = Vector3{0, 0, 0};
         auto d_wo_differential = RayDifferential{
-            Vector3{1, 1, 1}, Vector3{1, 1, 1},
-            Vector3{1, 1, 1}, Vector3{1, 1, 1}};
+            Vector3{0, 0, 0}, Vector3{0, 0, 0},
+            Vector3{0, 0, 0}, Vector3{0, 0, 0}};
         auto d_wi_differential = RayDifferential{
             Vector3{0, 0, 0}, Vector3{0, 0, 0},
             Vector3{0, 0, 0}, Vector3{0, 0, 0}};
@@ -528,11 +528,6 @@ void test_d_bsdf_sample() {
             auto diff = sum(positive - negative) / (2 * finite_delta);
             equal_or_error(__FILE__, __LINE__, diff, d_wi[i]);
         }
-
-        equal_or_error(__FILE__, __LINE__, Vector3{0, 0, 0}, d_wi_differential.org_dx);
-        equal_or_error(__FILE__, __LINE__, Vector3{0, 0, 0}, d_wi_differential.org_dy);
-        equal_or_error(__FILE__, __LINE__, Vector3{0, 0, 0}, d_wi_differential.dir_dx);
-        equal_or_error(__FILE__, __LINE__, Vector3{0, 0, 0}, d_wi_differential.dir_dy);
     }
 }
 

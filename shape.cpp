@@ -84,7 +84,7 @@ void test_d_intersect() {
                       d_ray_diff,
                       d_v);
     // Check ray derivatives
-    auto finite_delta = Real(1e-5);
+    auto finite_delta = Real(1e-4);
     for (int i = 0; i < 3; i++) {
         auto ray_diff_pos = RayDifferential{
             Vector3{0, 0, 0}, Vector3{0, 0, 0},
@@ -103,6 +103,10 @@ void test_d_intersect() {
                      sum(positive.shading_frame.y - negative.shading_frame.y) +
                      sum(positive.shading_frame.n - negative.shading_frame.n) +
                      sum(positive.uv - negative.uv) +
+                     sum(positive.du_dxy - negative.du_dxy) +
+                     sum(positive.dv_dxy - negative.dv_dxy) +
+                     sum(positive.dn_dx - negative.dn_dx) +
+                     sum(positive.dn_dy - negative.dn_dy) +
                      sum(ray_diff_pos.org_dx - ray_diff_neg.org_dx) +
                      sum(ray_diff_pos.org_dy - ray_diff_neg.org_dy) +
                      sum(ray_diff_pos.dir_dx - ray_diff_neg.dir_dx) +
@@ -127,6 +131,10 @@ void test_d_intersect() {
                      sum(positive.shading_frame.y - negative.shading_frame.y) +
                      sum(positive.shading_frame.n - negative.shading_frame.n) +
                      sum(positive.uv - negative.uv) +
+                     sum(positive.du_dxy - negative.du_dxy) +
+                     sum(positive.dv_dxy - negative.dv_dxy) +
+                     sum(positive.dn_dx - negative.dn_dx) +
+                     sum(positive.dn_dy - negative.dn_dy) +
                      sum(ray_diff_pos.org_dx - ray_diff_neg.org_dx) +
                      sum(ray_diff_pos.org_dy - ray_diff_neg.org_dy) +
                      sum(ray_diff_pos.dir_dx - ray_diff_neg.dir_dx) +
@@ -153,6 +161,10 @@ void test_d_intersect() {
                      sum(positive.shading_frame.y - negative.shading_frame.y) +
                      sum(positive.shading_frame.n - negative.shading_frame.n) +
                      sum(positive.uv - negative.uv) +
+                     sum(positive.du_dxy - negative.du_dxy) +
+                     sum(positive.dv_dxy - negative.dv_dxy) +
+                     sum(positive.dn_dx - negative.dn_dx) +
+                     sum(positive.dn_dy - negative.dn_dy) +
                      sum(ray_diff_pos.org_dx - ray_diff_neg.org_dx) +
                      sum(ray_diff_pos.org_dy - ray_diff_neg.org_dy) +
                      sum(ray_diff_pos.dir_dx - ray_diff_neg.dir_dx) +
@@ -177,6 +189,10 @@ void test_d_intersect() {
                      sum(positive.shading_frame.y - negative.shading_frame.y) +
                      sum(positive.shading_frame.n - negative.shading_frame.n) +
                      sum(positive.uv - negative.uv) +
+                     sum(positive.du_dxy - negative.du_dxy) +
+                     sum(positive.dv_dxy - negative.dv_dxy) +
+                     sum(positive.dn_dx - negative.dn_dx) +
+                     sum(positive.dn_dy - negative.dn_dy) +
                      sum(ray_diff_pos.org_dx - ray_diff_neg.org_dx) +
                      sum(ray_diff_pos.org_dy - ray_diff_neg.org_dy) +
                      sum(ray_diff_pos.dir_dx - ray_diff_neg.dir_dx) +
@@ -201,6 +217,10 @@ void test_d_intersect() {
                      sum(positive.shading_frame.y - negative.shading_frame.y) +
                      sum(positive.shading_frame.n - negative.shading_frame.n) +
                      sum(positive.uv - negative.uv) +
+                     sum(positive.du_dxy - negative.du_dxy) +
+                     sum(positive.dv_dxy - negative.dv_dxy) +
+                     sum(positive.dn_dx - negative.dn_dx) +
+                     sum(positive.dn_dy - negative.dn_dy) +
                      sum(ray_diff_pos.org_dx - ray_diff_neg.org_dx) +
                      sum(ray_diff_pos.org_dy - ray_diff_neg.org_dy) +
                      sum(ray_diff_pos.dir_dx - ray_diff_neg.dir_dx) +
@@ -225,6 +245,10 @@ void test_d_intersect() {
                      sum(positive.shading_frame.y - negative.shading_frame.y) +
                      sum(positive.shading_frame.n - negative.shading_frame.n) +
                      sum(positive.uv - negative.uv) +
+                     sum(positive.du_dxy - negative.du_dxy) +
+                     sum(positive.dv_dxy - negative.dv_dxy) +
+                     sum(positive.dn_dx - negative.dn_dx) +
+                     sum(positive.dn_dy - negative.dn_dy) +
                      sum(ray_diff_pos.org_dx - ray_diff_neg.org_dx) +
                      sum(ray_diff_pos.org_dy - ray_diff_neg.org_dy) +
                      sum(ray_diff_pos.dir_dx - ray_diff_neg.dir_dx) +
@@ -254,6 +278,10 @@ void test_d_intersect() {
                          sum(positive.shading_frame.y - negative.shading_frame.y) +
                          sum(positive.shading_frame.n - negative.shading_frame.n) +
                          sum(positive.uv - negative.uv) +
+                         sum(positive.du_dxy - negative.du_dxy) +
+                         sum(positive.dv_dxy - negative.dv_dxy) +
+                         sum(positive.dn_dx - negative.dn_dx) +
+                         sum(positive.dn_dy - negative.dn_dy) +
                          sum(ray_diff_pos.org_dx - ray_diff_neg.org_dx) +
                          sum(ray_diff_pos.org_dy - ray_diff_neg.org_dy) +
                          sum(ray_diff_pos.dir_dx - ray_diff_neg.dir_dx) +
