@@ -19,10 +19,12 @@ class Texture:
             num_channels = mipmap.shape[-1]
             box_filter = torch.ones(num_channels, 1, 2, 2,
                 device = texels.device) / 4.0
-            # Convert from NHWC to NCHW
-            mipmap = mipmap.permute(0, 3, 1, 2)
+
+            # Convert from HWC to NCHW
+            base_level = texels.unsqueeze(0).permute(0, 3, 1, 2)
+            mipmap = [base_level]
+            prev_lvl = base_level
             for l in range(1, num_levels):
-                prev_lvl = mipmap[l-1:l, ...]
                 dilation_size = 2 ** (l - 1)
                 # Pad for circular boundary condition
                 # This is slow. The hope is at some point PyTorch will support
@@ -31,8 +33,12 @@ class Texture:
                 prev_lvl = torch.cat([prev_lvl, prev_lvl[:,:,:,0:dilation_size]], dim=3)
                 current_lvl = torch.nn.functional.conv2d(\
                     prev_lvl, box_filter,
-                    dilation = dilation_size, groups = num_channels)
-                mipmap[l:l+1, ...] = current_lvl
+                    dilation = dilation_size,
+                    groups = num_channels)
+                mipmap.append(current_lvl)
+                prev_lvl = current_lvl
+
+            mipmap = torch.cat(mipmap, 0)
             # Convert from NCHW to NHWC
             mipmap = mipmap.permute(0, 2, 3, 1)
             texels = mipmap.contiguous()

@@ -270,12 +270,12 @@ inline auto get_texture_value(const TextureType &tex,
         auto yfi = modulo(yf, tex.height);
         auto xci = modulo(xc, tex.width);
         auto yci = modulo(yc, tex.height);
-        auto max_footprint = max(length(du_dxy), length(dv_dxy));
-        auto level = tex.num_levels - 1 + log2(fmax(max_footprint, Real(1e-8f)));
+        auto max_footprint = max(length(du_dxy) * tex.width, length(dv_dxy) * tex.height);
+        auto level = log2(fmax(max_footprint, Real(1e-8f)));
         if (level <= 0) {
             return bilinear_interp(tex, xfi, yfi, xci, yci, u, v, 0);
         } else if (level >= tex.num_levels - 1) {
-            return bilinear_interp(tex, xfi, yfi, xci, yci, u, v, tex.num_levels);
+            return bilinear_interp(tex, xfi, yfi, xci, yci, u, v, tex.num_levels - 1);
         } else {
             auto li = (int)floor(level);
             auto ld = level - li;
@@ -314,8 +314,8 @@ inline void d_get_texture_value(const TextureType &tex,
         auto yfi = modulo(yf, tex.height);
         auto xci = modulo(xc, tex.width);
         auto yci = modulo(yc, tex.height);
-        auto u_footprint = Real(length(du_dxy));
-        auto v_footprint = Real(length(dv_dxy));
+        auto u_footprint = length(du_dxy) * tex.width;
+        auto v_footprint = length(dv_dxy) * tex.height;
         bool is_u_max = true;
         auto max_footprint = u_footprint;
         if (v_footprint > u_footprint) {
@@ -354,11 +354,11 @@ inline void d_get_texture_value(const TextureType &tex,
                 d_u, d_v);
             d_max_footprint += sum(d_output * (l1 - l0));
         }
-        // max_footprint = max(length(du_dxy), length(dv_dxy))
+        // max_footprint = max(length(du_dxy) * tex.width, length(dv_dxy) * tex.height)
         if (is_u_max) {
-            d_du_dxy += d_length(du_dxy, d_max_footprint);
+            d_du_dxy += d_length(du_dxy, d_max_footprint) * tex.width;
         } else {
-            d_dv_dxy += d_length(dv_dxy, d_max_footprint);
+            d_dv_dxy += d_length(dv_dxy, d_max_footprint) * tex.height;
         }
 
         // du = dx, dv = dy
