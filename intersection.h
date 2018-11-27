@@ -60,9 +60,13 @@ inline TVector3<T> intersect(const TVector3<T> &v0,
     auto divisor = dot(pvec, e1);
     auto divisor_dx = dot(pvec_dx, e1);
     auto divisor_dy = dot(pvec_dy, e1);
-    if (divisor == 0.f) {
+    if (fabs(divisor) < Real(1e-6f)) {
         // XXX HACK!!! XXX
-        divisor = 1e-8f;
+        if (divisor > 0) {
+            divisor = 1e-6f;
+        } else {
+            divisor = -1e-6f;
+        }
     }
     auto s = ray.org - v0;
     auto s_dx = ray_differential.org_dx;
@@ -118,9 +122,13 @@ inline void d_intersect(const TVector3<T> &v0,
     auto divisor = dot(pvec, e1);
     auto divisor_dx = dot(pvec_dx, e1);
     auto divisor_dy = dot(pvec_dy, e1);
-    if (divisor == 0.f) {
+    if (fabs(divisor) < Real(1e-6f)) {
         // XXX HACK!!! XXX
-        divisor = 1e-8f;
+        if (divisor > 0) {
+            divisor = 1e-6f;
+        } else {
+            divisor = -1e-6f;
+        }
     }
     auto s = ray.org - v0;
     auto s_dx = ray_differential.org_dx;
@@ -146,20 +154,22 @@ inline void d_intersect(const TVector3<T> &v0,
     auto t = dot_e2_qvec / divisor;
     // auto t_dx = (dot_e2_qvec_dx * divisor - dot_e2_qvec * divisor_dx) / square(divisor);
     // auto t_dy = (dot_e2_qvec_dy * divisor - dot_e2_qvec * divisor_dy) / square(divisor);
+    auto divisor_sq = square(divisor);
+    auto divisor_cu = divisor_sq * divisor;
 
     // Backprop
     // t_dx = (dot_e2_qvec_dx * divisor - dot_e2_qvec * divisor_dx) / square(divisor)
     auto d_dot_e2_qvec_dx = d_t_dxy.x / divisor;
-    auto d_divisor = -d_t_dxy.x * (dot_e2_qvec_dx / square(divisor) -
-                     (2 * dot_e2_qvec * divisor_dx / (square(divisor) * divisor)));
-    auto d_dot_e2_qvec = -d_t_dxy.x * divisor_dx / square(divisor);
-    auto d_divisor_dx = -d_t_dxy.x * dot_e2_qvec / square(divisor);
+    auto d_divisor = -d_t_dxy.x * (dot_e2_qvec_dx / divisor_sq -
+                     (2 * dot_e2_qvec * divisor_dx / divisor_cu));
+    auto d_dot_e2_qvec = -d_t_dxy.x * divisor_dx / divisor_sq;
+    auto d_divisor_dx = -d_t_dxy.x * dot_e2_qvec / divisor_sq;
     // t_dy = (dot_e2_qvec_dy * divisor - dot_e2_qvec * divisor_dy) / square(divisor)
     auto d_dot_e2_qvec_dy = d_t_dxy.y / divisor;
-    d_divisor += (-d_t_dxy.y * (dot_e2_qvec_dy / square(divisor) -
-                  (2 * dot_e2_qvec * divisor_dy / (square(divisor) * divisor))));
-    d_dot_e2_qvec += (-d_t_dxy.y * divisor_dy / square(divisor));
-    auto d_divisor_dy = -d_t_dxy.y * dot_e2_qvec / square(divisor);
+    d_divisor += (-d_t_dxy.y * (dot_e2_qvec_dy / divisor_sq -
+                  (2 * dot_e2_qvec * divisor_dy / divisor_cu)));
+    d_dot_e2_qvec += (-d_t_dxy.y * divisor_dy / divisor_sq);
+    auto d_divisor_dy = -d_t_dxy.y * dot_e2_qvec / divisor_sq;
     // t = dot_e2_qvec / divisor
     d_dot_e2_qvec += d_uvt[2] / divisor;
     d_divisor += (-d_uvt[2] * t / divisor);
@@ -174,16 +184,16 @@ inline void d_intersect(const TVector3<T> &v0,
     auto d_qvec = d_dot_e2_qvec * e2;
     // v_dx = (dot_dir_qvec_dx * divisor - dot_dir_qvec * divisor_dx) / square(divisor)
     auto d_dot_dir_qvec_dx = d_v_dxy.x / divisor;
-    d_divisor += (-d_v_dxy.x * (dot_dir_qvec_dx / square(divisor) -
-                  (2 * dot_dir_qvec * divisor_dx) / (square(divisor) * divisor)));
-    auto d_dot_dir_qvec = -d_v_dxy.x * divisor_dx / square(divisor);
-    d_divisor_dx += (-d_v_dxy.x * dot_dir_qvec / square(divisor));
+    d_divisor += (-d_v_dxy.x * (dot_dir_qvec_dx / divisor_sq -
+                  (2 * dot_dir_qvec * divisor_dx) / divisor_cu));
+    auto d_dot_dir_qvec = -d_v_dxy.x * divisor_dx / divisor_sq;
+    d_divisor_dx += (-d_v_dxy.x * dot_dir_qvec / divisor_sq);
     // v_dy = (dot_dir_qvec_dy * divisor - dot_dir_qvec * divisor_dy) / square(divisor)
     auto d_dot_dir_qvec_dy = d_v_dxy.y / divisor;
-    d_divisor += (-d_v_dxy.y * (dot_dir_qvec_dy / square(divisor) -
-                  (2 * dot_dir_qvec * divisor_dy) / (square(divisor) * divisor)));
-    d_dot_dir_qvec += (-d_v_dxy.y * divisor_dy / square(divisor));
-    d_divisor_dy += (-d_v_dxy.y * dot_dir_qvec / square(divisor));
+    d_divisor += (-d_v_dxy.y * (dot_dir_qvec_dy / divisor_sq -
+                  (2 * dot_dir_qvec * divisor_dy) / divisor_cu));
+    d_dot_dir_qvec += (-d_v_dxy.y * divisor_dy / divisor_sq);
+    d_divisor_dy += (-d_v_dxy.y * dot_dir_qvec / divisor_sq);
     // v = dot_dir_qvec / divisor
     d_dot_dir_qvec += d_uvt[1] / divisor;
     d_divisor -= d_uvt[1] * v / divisor;
@@ -212,16 +222,16 @@ inline void d_intersect(const TVector3<T> &v0,
     d_cross(s, e1, d_qvec, d_s, d_e1);
     // u_dx = (dot_s_pvec_dx * divisor - dot_s_pvec * divisor_dx) / square(divisor)
     auto d_dot_s_pvec_dx = d_u_dxy.x / divisor;
-    d_divisor += (-d_u_dxy.x * (dot_s_pvec_dx / square(divisor) -
-                  (2 * dot_s_pvec * divisor_dx) / (square(divisor) * divisor)));
-    auto d_dot_s_pvec = -d_u_dxy.x * divisor_dx / square(divisor);
-    d_divisor_dx += (-d_u_dxy.x * dot_s_pvec / square(divisor));
+    d_divisor += (-d_u_dxy.x * (dot_s_pvec_dx / divisor_sq -
+                  (2 * dot_s_pvec * divisor_dx) / divisor_cu));
+    auto d_dot_s_pvec = -d_u_dxy.x * divisor_dx / divisor_sq;
+    d_divisor_dx += (-d_u_dxy.x * dot_s_pvec / divisor_sq);
     // u_dy = (dot_s_pvec_dy * divisor - dot_s_pvec * divisor_dy) / square(divisor)
     auto d_dot_s_pvec_dy = d_u_dxy.y / divisor;
-    d_divisor += (-d_u_dxy.y * (dot_s_pvec_dy / square(divisor) -
-                  (2 * dot_s_pvec * divisor_dy) / (square(divisor) * divisor)));
-    d_dot_s_pvec += (-d_u_dxy.y * divisor_dy / square(divisor));
-    d_divisor_dy += (-d_u_dxy.y * dot_s_pvec / square(divisor));
+    d_divisor += (-d_u_dxy.y * (dot_s_pvec_dy / divisor_sq -
+                  (2 * dot_s_pvec * divisor_dy) / divisor_cu));
+    d_dot_s_pvec += (-d_u_dxy.y * divisor_dy / divisor_sq);
+    d_divisor_dy += (-d_u_dxy.y * dot_s_pvec / divisor_sq);
     // u = dot_s_pvec / divisor
     d_dot_s_pvec += d_uvt[0] / divisor;
     d_divisor -= d_uvt[0] * u / divisor;

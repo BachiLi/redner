@@ -1129,8 +1129,7 @@ void render(const Scene &scene,
     PathBuffer path_buffer(max_bounces, num_pixels, scene.use_gpu);
     auto num_active_pixels = std::vector<int>((max_bounces + 1) * num_pixels, 0);
     auto sampler = Sampler(scene.use_gpu, options.seed, num_pixels);
-    auto edge_sampler = Sampler(scene.use_gpu,
-        options.seed + 131071U, num_pixels);
+    auto edge_sampler = Sampler(scene.use_gpu, options.seed + 131071U, num_pixels);
 
     // For each sample
     for (int sample_id = 0; sample_id < options.num_samples; sample_id++) {
