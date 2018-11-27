@@ -76,7 +76,7 @@ The current development plan is to enhance the renderer. Following features will
   (The code currently assumes every triangle edge is shared by at most two triangles.
    If your mesh doesn't satisfy this, you can preprocess it in other mesh processing softwares such as [MeshLab](http://www.meshlab.net))
 - Source-to-source automatic differentiation
-- Mipmapping
+- Improve mipmapping memory usage, EWA filtering, covariance tracing
 - Russian roulette
 - Distribution effects: depth of field/motion blur
 - Proper pixel filter (currently only support 1x1 box filter)
