@@ -526,16 +526,14 @@ Vector3 bsdf_sample(const Material &material,
         // i.e. we ignore the derivatives on the tangent plane
         auto dmdx = shading_point.dn_dx * m_local[2];
         auto dmdy = shading_point.dn_dy * m_local[2];
-        auto dir_dx = wi_differential.dir_dx;
-        auto dir_dy = wi_differential.dir_dy;
+        auto wi_dx = -wi_differential.dir_dx;
+        auto wi_dy = -wi_differential.dir_dy;
         // Igehy 1999, Equation 15
-        auto ddotn_dx = dir_dx * m - wi * dmdx;
-        auto ddotn_dy = dir_dy * m - wi * dmdy;
+        auto widotm_dx = sum(wi_dx * m) + sum(wi * dmdx);
+        auto widotm_dy = sum(wi_dy * m) + sum(wi * dmdy);
         // Igehy 1999, Equation 14
-        wo_differential.dir_dx =
-            dir_dx - 2 * (-dot(wi, m) * shading_point.dn_dx + ddotn_dx * m);
-        wo_differential.dir_dy =
-            dir_dy - 2 * (-dot(wi, m) * shading_point.dn_dy + ddotn_dy * m);
+        wo_differential.dir_dx = 2 * (dot(wi, m) * dmdx + widotm_dx * m) - wi_dx;
+        wo_differential.dir_dy = 2 * (dot(wi, m) * dmdy + widotm_dy * m) - wi_dy;
         return dir;
     }
 }
@@ -621,43 +619,51 @@ void d_bsdf_sample(const Material &material,
         // Propagate ray differentials
         // wo_differential.org_dx = wi_differential.org_dx;
         // wo_differential.org_dy = wi_differential.org_dy;
+        // HACK: we approximate the directional derivative dmdx using dndx * m_local[2]
+        // i.e. we ignore the derivatives on the tangent plane
         auto dmdx = shading_point.dn_dx * m_local[2];
         auto dmdy = shading_point.dn_dy * m_local[2];
-        auto dir_dx = wi_differential.dir_dx;
-        auto dir_dy = wi_differential.dir_dy;
+        auto wi_dx = -wi_differential.dir_dx;
+        auto wi_dy = -wi_differential.dir_dy;
         // Igehy 1999, Equation 15
-        auto ddotn_dx = dir_dx * m - wi * dmdx;
-        auto ddotn_dy = dir_dy * m - wi * dmdy;
+        auto widotm_dx = sum(wi_dx * m) + sum(wi * dmdx);
+        auto widotm_dy = sum(wi_dy * m) + sum(wi * dmdy);
         // Igehy 1999, Equation 14
-        // wo_differential.dir_dx =
-        //     dir_dx - 2 * (-dot(wi, m) * shading_point.dn_dx + ddotn_dx * m);
-        // wo_differential.dir_dx =
-        //     dir_dy - 2 * (-dot(wi, m) * shading_point.dn_dy + ddotn_dy * m);
+        // wo_differential.dir_dx = 2 * (dot(wi, m) * dmdx + widotm_dx * m) - wi_dx;
+        // wo_differential.dir_dy = 2 * (dot(wi, m) * dmdy + widotm_dy * m) - wi_dy;
 
         d_wi_differential.org_dx += d_wo_differential.org_dx;
         d_wi_differential.org_dy += d_wo_differential.org_dy;
         d_wi_differential.dir_dx += d_wo_differential.dir_dx;
         d_wi_differential.dir_dy += d_wo_differential.dir_dy;
-        auto d_dot_wi_m = d_wo_differential.dir_dx * 2 * shading_point.dn_dx +
-                          d_wo_differential.dir_dy * 2 * shading_point.dn_dy;
-        d_shading_point.dn_dx += d_wo_differential.dir_dx * 2 * dot(wi, m);
-        d_shading_point.dn_dy += d_wo_differential.dir_dy * 2 * dot(wi, m);
-        auto d_ddotn_dx = sum(d_wo_differential.dir_dx * (-2 * m));
-        auto d_ddotn_dy = sum(d_wo_differential.dir_dy * (-2 * m));
-        auto d_m = d_wo_differential.dir_dx * (-2) * (ddotn_dx + ddotn_dy);
+        auto d_dot_wi_m = d_wo_differential.dir_dx * 2 * dmdx +
+                          d_wo_differential.dir_dy * 2 * dmdy;
+        auto d_dmdx = d_wo_differential.dir_dx * 2 * dot(wi, m);
+        auto d_dmdy = d_wo_differential.dir_dy * 2 * dot(wi, m);
+        auto d_widotm_dx = 2 * sum(d_wo_differential.dir_dx * m);
+        auto d_widotm_dy = 2 * sum(d_wo_differential.dir_dy * m);
+        auto d_m = d_wo_differential.dir_dx * 2 * (widotm_dx + widotm_dy);
         // dot(wi, m)
         d_wi += d_dot_wi_m * m;
         d_m += d_dot_wi_m * wi;
-        // ddotn_dx = dir_dx * m - wi * dmdx
-        d_wi_differential.dir_dx += d_ddotn_dx * m;
-        d_m += d_ddotn_dx * dir_dx;
-        d_wi += d_ddotn_dx * dmdx;
-        auto d_dmdx = d_ddotn_dx * wi;
-        // ddotn_dy = dir_dy * m - wi * dmdy
-        d_wi_differential.dir_dy += d_ddotn_dy * m;
-        d_m += d_ddotn_dy * dir_dy;
-        d_wi += d_ddotn_dy * dmdy;
-        auto d_dmdy = d_ddotn_dy * wi;
+        // widotm_dx = sum(wi_dx * m) + sum(wi * dmdx)
+        auto d_wi_dx = d_widotm_dx * m;
+        d_m += d_widotm_dx * wi_dx;
+        d_wi += d_widotm_dx * dmdx;
+        d_dmdx += d_widotm_dx * wi;
+        // widotm_dy = sum(wi_dy * m) + sum(wi * dmdy)
+        auto d_wi_dy = d_widotm_dy * m;
+        d_m += d_widotm_dy * wi_dy;
+        d_wi += d_widotm_dy * dmdy;
+        d_dmdy += d_widotm_dy * wi;
+        // wi_dx = -wi_differential.dir_dx
+        // wi_dy = -wi_differential.dir_dy
+        d_wi_differential.dir_dx -= d_wi_dx;
+        d_wi_differential.dir_dy -= d_wi_dy;
+        // dmdx = shading_point.dn_dx * m_local[2]
+        // dmdy = shading_point.dn_dy * m_local[2]
+        d_shading_point.dn_dx += d_dmdx * m_local[2];
+        d_shading_point.dn_dy += d_dmdy * m_local[2];
         auto d_m_local = Vector3{0, 0, 0};
         // dmdx = shading_point.dn_dx * m_local[2]
         d_shading_point.dn_dx += d_dmdx * m_local[2];

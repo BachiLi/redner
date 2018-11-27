@@ -1625,9 +1625,9 @@ void render(const Scene &scene,
                 //     auto pixel_id = active_pixels[i];
                 //     auto d_roughness_tex = d_roughness_texs[i];
                 //     if (d_roughness_tex.material_id == 4) {
-                //         debug_image[3 * pixel_id + 0] += d_roughness_tex.t00;
-                //         debug_image[3 * pixel_id + 1] += d_roughness_tex.t00;
-                //         debug_image[3 * pixel_id + 2] += d_roughness_tex.t00;
+                //         debug_image[3 * pixel_id + 0] += d_roughness_tex.t000;
+                //         debug_image[3 * pixel_id + 1] += d_roughness_tex.t000;
+                //         debug_image[3 * pixel_id + 2] += d_roughness_tex.t000;
                 //     }
                 // }
                 accumulate_roughness(
@@ -1649,6 +1649,7 @@ void render(const Scene &scene,
                 // Previous become next
                 std::swap(path_buffer.d_next_throughputs, path_buffer.d_throughputs);
                 std::swap(path_buffer.d_next_rays, path_buffer.d_rays);
+                std::swap(path_buffer.d_next_ray_differentials, path_buffer.d_ray_differentials);
                 std::swap(path_buffer.d_next_points, path_buffer.d_points);
             }
             

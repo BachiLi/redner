@@ -271,7 +271,7 @@ inline auto get_texture_value(const TextureType &tex,
         auto xci = modulo(xc, tex.width);
         auto yci = modulo(yc, tex.height);
         auto max_footprint = max(length(du_dxy) * tex.width, length(dv_dxy) * tex.height);
-        auto level = log2(fmax(max_footprint, Real(1e-8f)));
+        auto level = log2(max(max_footprint, Real(1e-8f)));
         if (level <= 0) {
             return bilinear_interp(tex, xfi, yfi, xci, yci, u, v, 0);
         } else if (level >= tex.num_levels - 1) {
@@ -322,7 +322,7 @@ inline void d_get_texture_value(const TextureType &tex,
             is_u_max = false;
             max_footprint = v_footprint;
         }
-        auto level = tex.num_levels - 1 + log2(max(max_footprint, Real(1e-8f)));
+        auto level = log2(max(max_footprint, Real(1e-8f)));
         d_tex.xi = xfi;
         d_tex.yi = yfi;
         auto d_u = Real(0);
@@ -347,12 +347,12 @@ inline void d_get_texture_value(const TextureType &tex,
             auto d_l0 = (1 - ld) * d_output;
             auto d_l1 = ld * d_output;
             d_bilinear_interp(tex, xfi, yfi, xci, yci, u, v, li, d_l0,
-                d_tex.t000, d_tex.t100, d_tex.t010, d_tex.t110,
-                d_u, d_v);
+                d_tex.t000, d_tex.t100, d_tex.t010, d_tex.t110, d_u, d_v);
             d_bilinear_interp(tex, xfi, yfi, xci, yci, u, v, li + 1, d_l1,
-                d_tex.t001, d_tex.t101, d_tex.t011, d_tex.t111,
-                d_u, d_v);
-            d_max_footprint += sum(d_output * (l1 - l0));
+                d_tex.t001, d_tex.t101, d_tex.t011, d_tex.t111, d_u, d_v);
+            auto d_ld = sum(d_output * (l1 - l0));
+            // level = log2(max(max_footprint, Real(1e-8f)))
+            d_max_footprint += d_ld / (max_footprint * log(Real(2)));
         }
         // max_footprint = max(length(du_dxy) * tex.width, length(dv_dxy) * tex.height)
         if (is_u_max) {

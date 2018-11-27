@@ -224,6 +224,17 @@ class RenderFunction(torch.autograd.Function):
                       None,
                       redner.float_ptr(0))
 
+        # # For debugging
+        # debug_img = torch.zeros(256, 256, 3)
+        # redner.render(scene,
+        #               options,
+        #               redner.float_ptr(rendered_image.data_ptr()),
+        #               redner.float_ptr(0),
+        #               None,
+        #               redner.float_ptr(debug_img.data_ptr()))
+        # pyredner.imwrite(debug_img, 'debug.exr')
+        # exit()
+
         ctx.shapes = shapes
         ctx.materials = materials
         ctx.lights = lights

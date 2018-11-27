@@ -191,12 +191,12 @@ inline SurfacePoint sample_shape(const Shape &shape, int index, const Vector2 &s
         Frame(normalized_n), // TODO: phong interpolate this
         sample, // TODO: give true light source uv
         Vector2{0, 0}, // TODO: inherit derivatives from previous path vertex
-    	Vector2{0, 0}}; 
+        Vector2{0, 0}}; 
 }
 
 DEVICE
 inline void d_sample_shape(const Shape &shape, int index, const Vector2 &sample,
-        				   const SurfacePoint &d_point, DVertex *d_vertices) {
+                           const SurfacePoint &d_point, DVertex *d_vertices) {
     auto ind = get_indices(shape, index);
     auto v0 = Vector3{get_vertex(shape, ind[0])};
     auto v1 = Vector3{get_vertex(shape, ind[1])};
@@ -213,8 +213,8 @@ inline void d_sample_shape(const Shape &shape, int index, const Vector2 &sample,
     //     normalized_n,
     //     Frame(normalized_n),
     //     sample,
-	//     Vector2{0, 0},
-	//     Vector2{0, 0}};
+    //     Vector2{0, 0},
+    //     Vector2{0, 0}};
     // No need to propagate to b1 b2
     auto d_v0 = d_point.position;
     auto d_e1 = d_point.position * b1;
@@ -222,7 +222,7 @@ inline void d_sample_shape(const Shape &shape, int index, const Vector2 &sample,
     auto d_normalized_n = d_point.geom_normal;
     d_normalized_n += d_point.shading_frame[2];
     d_coordinate_system(
-    	normalized_n, d_point.shading_frame[0], d_point.shading_frame[1], d_normalized_n);
+        normalized_n, d_point.shading_frame[0], d_point.shading_frame[1], d_normalized_n);
     // auto normalized_n = normalize(n);
     auto d_n = d_normalize(n, d_normalized_n);
     // n = cross(e1, e2)
@@ -347,7 +347,10 @@ inline SurfacePoint intersect_shape(const Shape &shape,
         uvs1 = Vector2{1.f, 0.f};
         uvs2 = Vector2{1.f, 1.f};
     }
-    auto uvt = intersect(v0, v1, v2, ray);
+    auto u_dxy = Vector2{0, 0};
+    auto v_dxy = Vector2{0, 0};
+    auto t_dxy = Vector2{0, 0};
+    auto uvt = intersect(v0, v1, v2, ray, ray_differential, u_dxy, v_dxy, t_dxy);
     auto u = uvt[0];
     auto v = uvt[1];
     auto w = 1.f - (u + v);
@@ -357,28 +360,10 @@ inline SurfacePoint intersect_shape(const Shape &shape,
     auto geom_normal = normalize(cross(v1 - v0, v2 - v0));
 
     // Surface derivative for ray differentials
-    // Want to know duv/dx through duv/dp * dp/dx
-    // We project p to barycentric coordinate, then reconstruct
-    // p -> u, v -> uv
-    auto dudp = Vector3{0, 0, 0};
-    auto dvdp = Vector3{0, 0, 0};
-    barycentric(v0, v1, v2, dudp, dvdp);
-    auto duv_dpx = (1.f - dudp[0] - dvdp[0]) * uvs0 + dudp[0] * uvs1 + dvdp[0] * uvs2;
-    auto duv_dpy = (1.f - dudp[1] - dvdp[1]) * uvs0 + dudp[1] * uvs1 + dvdp[1] * uvs2;
-    auto duv_dpz = (1.f - dudp[2] - dvdp[2]) * uvs0 + dudp[2] * uvs1 + dvdp[2] * uvs2;
-    // Igehy 1999 Eq. 10
-    auto org_dx = ray_differential.org_dx;
-    auto dir_dx = ray_differential.dir_dx;
-    auto dtdx = -dot((org_dx + t * dir_dx), geom_normal) / dot(ray.dir, geom_normal);
-    auto dpdx = (org_dx + t * dir_dx) + dtdx * ray.dir;
-    auto org_dy = ray_differential.org_dy;
-    auto dir_dy = ray_differential.dir_dy;
-    auto dtdy = -dot((org_dy + t * dir_dy), geom_normal) / dot(ray.dir, geom_normal);
-    auto dpdy = (org_dy + t * dir_dy) + dtdy * ray.dir;
-    auto du_dxy = Vector2{duv_dpx[0] * dpdx.x + duv_dpy[0] * dpdx.y + duv_dpz[0] * dpdx.z,
-                          duv_dpx[0] * dpdy.x + duv_dpy[0] * dpdy.y + duv_dpz[0] * dpdy.z};
-    auto dv_dxy = Vector2{duv_dpx[1] * dpdx.x + duv_dpy[1] * dpdx.y + duv_dpz[1] * dpdx.z,
-                          duv_dpx[1] * dpdy.x + duv_dpy[1] * dpdy.y + duv_dpz[1] * dpdy.z};
+    auto du_dxy = (- u_dxy - v_dxy) * uvs0[0] + u_dxy * uvs1[0] + v_dxy * uvs2[0];
+    auto dv_dxy = (- u_dxy - v_dxy) * uvs0[1] + u_dxy * uvs1[1] + v_dxy * uvs2[1];
+    auto dpdx = ray_differential.org_dx + ray.dir * t_dxy.x + ray_differential.dir_dx * t;
+    auto dpdy = ray_differential.org_dy + ray.dir * t_dxy.y + ray_differential.dir_dy * t;
     auto shading_normal = geom_normal;
     auto dn_dx = Vector3{0, 0, 0};
     auto dn_dy = Vector3{0, 0, 0};
@@ -390,16 +375,13 @@ inline SurfacePoint intersect_shape(const Shape &shape,
         auto nn = w * n0 + u * n1 + v * n2;
 
         // Compute dndx & dndy
-        auto dnn_dpx = (1.f - dudp[0] - dvdp[0]) * n0 + dudp[0] * n1 + dvdp[0] * n2;
-        auto dnn_dpy = (1.f - dudp[1] - dvdp[1]) * n0 + dudp[1] * n1 + dvdp[1] * n2;
-        auto dnn_dpz = (1.f - dudp[2] - dvdp[2]) * n0 + dudp[2] * n1 + dvdp[2] * n2;
-        auto dnn_dx = dnn_dpx * dpdx.x + dnn_dpy * dpdx.y + dnn_dpz * dpdx.z;
-        auto dnn_dy = dnn_dpx * dpdy.x + dnn_dpy * dpdy.y + dnn_dpz * dpdy.z;
-        // normalization derivative
+        auto dnn_dx = (- u_dxy.x - v_dxy.x) * n0 + u_dxy.x * n1 + v_dxy.x * n2;
+        auto dnn_dy = (- u_dxy.y - v_dxy.y) * n0 + u_dxy.y * n1 + v_dxy.y * n2;
+        // normalization derivatives
         auto nn_len_sq = dot(nn, nn);
-        auto nn_denom = pow(nn_len_sq, Real(3.0/2.0));
-        dn_dx = (nn_len_sq * dnn_dx - dot(nn, dnn_dx) * nn) / nn_denom;
-        dn_dy = (nn_len_sq * dnn_dy - dot(nn, dnn_dy) * nn) / nn_denom;
+        auto nn_len = sqrt(nn_len_sq);
+        dn_dx = (nn_len_sq * dnn_dx - dot(nn, dnn_dx) * nn) / (nn_len_sq * nn_len);
+        dn_dy = (nn_len_sq * dnn_dy - dot(nn, dnn_dy) * nn) / (nn_len_sq * nn_len);
 
         // Shading normal computation
         shading_normal = normalize(nn);
@@ -411,8 +393,8 @@ inline SurfacePoint intersect_shape(const Shape &shape,
     // Update ray differential
     new_ray_differential.org_dx = dpdx;
     new_ray_differential.org_dy = dpdy;
-    new_ray_differential.dir_dx = dir_dx;
-    new_ray_differential.dir_dy = dir_dy;
+    new_ray_differential.dir_dx = ray_differential.dir_dx;
+    new_ray_differential.dir_dy = ray_differential.dir_dy;
     return SurfacePoint{hit_pos, geom_normal, Frame(shading_normal), uv,
         du_dxy, dv_dxy, dn_dx, dn_dy};
 }
@@ -442,7 +424,10 @@ inline void d_intersect_shape(
         uvs1 = Vector2{1.f, 0.f};
         uvs2 = Vector2{1.f, 1.f};
     }
-    auto uvt = intersect(v0, v1, v2, ray);
+    auto u_dxy = Vector2{0, 0};
+    auto v_dxy = Vector2{0, 0};
+    auto t_dxy = Vector2{0, 0};
+    auto uvt = intersect(v0, v1, v2, ray, ray_differential, u_dxy, v_dxy, t_dxy);
     auto u = uvt[0];
     auto v = uvt[1];
     auto w = 1.f - (u + v);
@@ -451,29 +436,13 @@ inline void d_intersect_shape(
     // hit_pos = ray.org + ray.dir * t
     auto unnormalized_geom_normal = cross(v1 - v0, v2 - v0);
     auto geom_normal = normalize(unnormalized_geom_normal);
-    // Surface derivative for ray differential
-    // Want to know duv/dp
-    // We project p to barycentric coordinate, then reconstruct
-    // p -> u, v -> uv
-    auto dudp = Vector3{0, 0, 0};
-    auto dvdp = Vector3{0, 0, 0};
-    barycentric(v0, v1, v2, dudp, dvdp);
-    auto duv_dpx = (1.f - dudp[0] - dvdp[0]) * uvs0 + dudp[0] * uvs1 + dvdp[0] * uvs2;
-    auto duv_dpy = (1.f - dudp[1] - dvdp[1]) * uvs0 + dudp[1] * uvs1 + dvdp[1] * uvs2;
-    auto duv_dpz = (1.f - dudp[2] - dvdp[2]) * uvs0 + dudp[2] * uvs1 + dvdp[2] * uvs2;
-    auto org_dx = ray_differential.org_dx;
-    auto dir_dx = ray_differential.dir_dx;
-    auto org_dy = ray_differential.org_dy;
-    auto dir_dy = ray_differential.dir_dy;
-    // Ighey 1999 Eq. 10
-    auto dtdx = -dot((org_dx + t * dir_dx), geom_normal) / dot(ray.dir, geom_normal);
-    auto dpdx = (org_dx + t * dir_dx) + dtdx * ray.dir;
-    auto dtdy = -dot((org_dy + t * dir_dy), geom_normal) / dot(ray.dir, geom_normal);
-    auto dpdy = (org_dy + t * dir_dy) + dtdy * ray.dir;
-    // auto du_dxy = Vector2{duv_dpx[0] * dpdx.x + duv_dpy[0] * dpdx.y + duv_dpz[0] * dpdx.z,
-    //                       duv_dpx[0] * dpdy.x + duv_dpy[0] * dpdy.y + duv_dpz[0] * dpdy.z};
-    // auto dv_dxy = Vector2{duv_dpx[1] * dpdx.x + duv_dpy[1] * dpdx.y + duv_dpz[1] * dpdx.z,
-    //                       duv_dpx[1] * dpdy.x + duv_dpy[1] * dpdy.y + duv_dpz[1] * dpdy.z};
+
+    // Surface derivative for ray differentials
+    // du_dxy = (- u_dxy - v_dxy) * uvs0[0] + u_dxy * uvs1[0] + v_dxy * uvs2[0]
+    // dv_dxy = (- u_dxy - v_dxy) * uvs0[1] + u_dxy * uvs1[1] + v_dxy * uvs2[1]
+    // dpdx = ray_differential.org_dx + ray.dir * t_dxy.x + ray_differential.dir_dx * t
+    // dpdy = ray_differential.org_dy + ray.dir * t_dxy.y + ray_differential.dir_dy * t
+
     auto shading_normal = geom_normal;
     auto geom_normal_flipped = false;
     auto dn_dx = Vector3{0, 0, 0};
@@ -484,17 +453,14 @@ inline void d_intersect_shape(
         auto n2 = get_shading_normal(shape, ind[2]);
         auto nn = w * n0 + u * n1 + v * n2;
 
-        // dndx & dndy computation. might be useful for bump mapping in the future
-        auto dnn_dpx = (1.f - dudp[0] - dvdp[0]) * n0 + dudp[0] * n1 + dvdp[0] * n2;
-        auto dnn_dpy = (1.f - dudp[1] - dvdp[1]) * n0 + dudp[1] * n1 + dvdp[1] * n2;
-        auto dnn_dpz = (1.f - dudp[2] - dvdp[2]) * n0 + dudp[2] * n1 + dvdp[2] * n2;
-        auto dnn_dx = dnn_dpx * dpdx.x + dnn_dpy * dpdx.y + dnn_dpz * dpdx.z;
-        auto dnn_dy = dnn_dpx * dpdy.x + dnn_dpy * dpdy.y + dnn_dpz * dpdy.z;
-        // normalization derivative
+        // Compute dndx & dndy
+        auto dnn_dx = (- u_dxy.x - v_dxy.x) * n0 + u_dxy.x * n1 + v_dxy.x * n2;
+        auto dnn_dy = (- u_dxy.y - v_dxy.y) * n0 + u_dxy.y * n1 + v_dxy.y * n2;
+        // normalization derivatives
         auto nn_len_sq = dot(nn, nn);
-        auto nn_denom = pow(nn_len_sq, Real(3.0/2.0));
-        dn_dx = (nn_len_sq * dnn_dx - dot(nn, dnn_dx) * nn) / nn_denom;
-        dn_dy = (nn_len_sq * dnn_dy - dot(nn, dnn_dy) * nn) / nn_denom;
+        auto nn_len = sqrt(nn_len_sq);
+        dn_dx = (nn_len_sq * dnn_dx - dot(nn, dnn_dx) * nn) / (nn_len_sq * nn_len);
+        dn_dy = (nn_len_sq * dnn_dy - dot(nn, dnn_dy) * nn) / (nn_len_sq * nn_len);
 
         // Shading normal computation
         shading_normal = normalize(nn);
@@ -504,7 +470,8 @@ inline void d_intersect_shape(
             geom_normal_flipped = true;
         }
     }
-    // point = SurfacePoint{hit_pos, geom_normal, Frame(shading_normal), uv, du_dxy, dv_dxy}
+    // point = SurfacePoint{hit_pos, geom_normal, Frame(shading_normal), uv,
+    //     du_dxy, dv_dxy, dn_dx, dn_dy}
 
     // Backprop
     auto d_geom_normal = d_point.geom_normal;
@@ -517,8 +484,8 @@ inline void d_intersect_shape(
     d_ray_differential.dir_dx += d_new_ray_differential.dir_dx;
     d_ray_differential.dir_dy += d_new_ray_differential.dir_dy;
     auto d_u = Real(0), d_v = Real(0), d_w = Real(0);
-    auto d_dudp = Vector3{0, 0, 0};
-    auto d_dvdp = Vector3{0, 0, 0};
+    auto d_u_dxy = Vector2{0, 0};
+    auto d_v_dxy = Vector2{0, 0};
     if (has_shading_normals(shape)) {
         if (geom_normal_flipped) {
             d_geom_normal = -d_geom_normal;
@@ -533,22 +500,20 @@ inline void d_intersect_shape(
 
         auto nn = w * n0 + u * n1 + v * n2;
 
-        auto dnn_dpx = (1.f - dudp[0] - dvdp[0]) * n0 + dudp[0] * n1 + dvdp[0] * n2;
-        auto dnn_dpy = (1.f - dudp[1] - dvdp[1]) * n0 + dudp[1] * n1 + dvdp[1] * n2;
-        auto dnn_dpz = (1.f - dudp[2] - dvdp[2]) * n0 + dudp[2] * n1 + dvdp[2] * n2;
-        auto dnn_dx = dnn_dpx * dpdx.x + dnn_dpy * dpdx.y + dnn_dpz * dpdx.z;
-        auto dnn_dy = dnn_dpx * dpdy.x + dnn_dpy * dpdy.y + dnn_dpz * dpdy.z;
-        // normalization derivative
+        auto dnn_dx = (- u_dxy.x - v_dxy.x) * n0 + u_dxy.x * n1 + v_dxy.x * n2;
+        auto dnn_dy = (- u_dxy.y - v_dxy.y) * n0 + u_dxy.y * n1 + v_dxy.y * n2;
+        // normalization derivatives
         auto nn_len_sq = dot(nn, nn);
-        auto nn_denom = pow(nn_len_sq, Real(3.0/2.0));
-        dn_dx = (nn_len_sq * dnn_dx - dot(nn, dnn_dx) * nn) / nn_denom;
-        dn_dy = (nn_len_sq * dnn_dy - dot(nn, dnn_dy) * nn) / nn_denom;
+        auto nn_len = sqrt(nn_len_sq);
+        // dn_dx = (nn_len_sq * dnn_dx - dot(nn, dnn_dx) * nn) / (nn_len_sq * nn_len)
+        // dn_dy = (nn_len_sq * dnn_dy - dot(nn, dnn_dy) * nn) / (nn_len_sq * nn_len)
 
         // shading_normal = normalize(nn)
         auto d_nn = d_normalize(nn, d_shading_normal);
 
         // dn_dx = (nn_len_sq * dnn_dx - dot(nn, dnn_dx) * nn) / nn_denom
         // dn_dy = (nn_len_sq * dnn_dy - dot(nn, dnn_dy) * nn) / nn_denom
+        auto nn_denom = (nn_len_sq * nn_len);
         auto d_dn_dx = d_point.dn_dx;
         auto d_dn_dy = d_point.dn_dy;
         auto d_nn_len_sq = (d_dn_dx * dnn_dx + d_dn_dy * dnn_dy) / nn_denom;
@@ -557,45 +522,27 @@ inline void d_intersect_shape(
         auto d_dot_nn_dnn_dx = sum(d_dn_dx * nn) / nn_denom;
         auto d_dot_nn_dnn_dy = sum(d_dn_dy * nn) / nn_denom;
         d_nn += (d_dn_dx * dot(nn, dnn_dx) + d_dn_dy * dot(nn, dnn_dy)) / nn_denom;
-        auto d_nn_denom = (d_dn_dx * (-dn_dx) + d_dn_dx * (-dn_dy)) / nn_denom;
+        auto d_nn_denom = (d_dn_dx * (-dn_dx) + d_dn_dy * (-dn_dy)) / nn_denom;
         // dot(nn, dnn_dx) & dot(nn, dnn_dy)
         d_nn += d_dot_nn_dnn_dx * dnn_dx + d_dot_nn_dnn_dy * dnn_dy;
-        d_dnn_dx += (d_dot_nn_dnn_dx + d_dot_nn_dnn_dy) * nn;
+        d_dnn_dx += d_dot_nn_dnn_dx * nn;
+        d_dnn_dy += d_dot_nn_dnn_dy * nn;
 
         // nn_denom = pow(nn_len_sq, Real(3.0/2.0))
-        d_nn_len_sq += d_nn_denom * sqrt(nn_len_sq) * Real(3.0 / 2.0);
+        d_nn_len_sq += d_nn_denom * nn_len * Real(3.0 / 2.0);
         // nn_len_sq = dot(nn, nn)
         d_nn += 2 * d_nn_len_sq * nn;
 
-        // dnn_dx = dnn_dpx * dpdx.x + dnn_dpy * dpdx.y + dnn_dpz * dpdx.z;
-        // dnn_dy = dnn_dpx * dpdy.x + dnn_dpy * dpdy.y + dnn_dpz * dpdy.z;
-        auto d_dnn_dpx = d_dnn_dx * dpdx.x + d_dnn_dy * dpdy.x;
-        auto d_dnn_dpy = d_dnn_dx * dpdx.y + d_dnn_dy * dpdy.y;
-        auto d_dnn_dpz = d_dnn_dx * dpdx.z + d_dnn_dy * dpdy.z;
-        d_dpdx.x += sum(d_dnn_dx * dnn_dpx);
-        d_dpdx.y += sum(d_dnn_dx * dnn_dpy);
-        d_dpdx.z += sum(d_dnn_dx * dnn_dpz);
-        d_dpdy.x += sum(d_dnn_dy * dnn_dpx);
-        d_dpdy.y += sum(d_dnn_dy * dnn_dpy);
-        d_dpdy.z += sum(d_dnn_dy * dnn_dpz);
-        // dnn_dpx = (1.f - dudp[0] - dvdp[0]) * n0 + dudp[0] * n1 + dvdp[0] * n2
-        // dnn_dpy = (1.f - dudp[1] - dvdp[1]) * n0 + dudp[1] * n1 + dvdp[1] * n2
-        // dnn_dpz = (1.f - dudp[2] - dvdp[2]) * n0 + dudp[2] * n1 + dvdp[2] * n2
-        d_dudp[0] += sum(d_dnn_dpx * (n1 - n0));
-        d_dvdp[0] += sum(d_dnn_dpx * (n2 - n0));
-        d_dudp[1] += sum(d_dnn_dpy * (n1 - n0));
-        d_dvdp[1] += sum(d_dnn_dpy * (n2 - n0));
-        d_dudp[2] += sum(d_dnn_dpz * (n1 - n0));
-        d_dvdp[2] += sum(d_dnn_dpz * (n2 - n0));
-        auto d_n0 = d_dnn_dpx * (1.f - dudp[0] - dvdp[0]) +
-                    d_dnn_dpy * (1.f - dudp[1] - dvdp[1]) +
-                    d_dnn_dpz * (1.f - dudp[2] - dvdp[2]);
-        auto d_n1 = d_dnn_dpx * dudp[0] +
-                    d_dnn_dpy * dudp[1] +
-                    d_dnn_dpz * dudp[2];
-        auto d_n2 = d_dnn_dpx * dvdp[0] +
-                    d_dnn_dpy * dvdp[1] +
-                    d_dnn_dpz * dvdp[2];
+        // dnn_dx = (- u_dxy.x - v_dxy.x) * n0 + u_dxy.x * n1 + v_dxy.x * n2
+        // dnn_dy = (- u_dxy.y - v_dxy.y) * n0 + u_dxy.y * n1 + v_dxy.y * n2
+        d_u_dxy.x += sum(d_dnn_dx * (n1 - n0));
+        d_u_dxy.y += sum(d_dnn_dy * (n1 - n0));
+        d_v_dxy.x += sum(d_dnn_dx * (n2 - n0));
+        d_v_dxy.y += sum(d_dnn_dy * (n2 - n0));
+        auto d_n0 = d_dnn_dx * (- u_dxy.x - v_dxy.x) +
+                    d_dnn_dy * (- u_dxy.y - v_dxy.y);
+        auto d_n1 = d_dnn_dx * u_dxy.x + d_dnn_dy * u_dxy.y;
+        auto d_n2 = d_dnn_dx * v_dxy.x + d_dnn_dy * v_dxy.y;
 
         // nn = w * n0 + u * n1 + v * n2
         d_w += sum(d_nn * n0);
@@ -613,82 +560,35 @@ inline void d_intersect_shape(
                             d_geom_normal);
     }
 
-    // du_dxy = Vector2{duv_dpx[0] * dpdx.x + duv_dpy[0] * dpdx.y + duv_dpz[0] * dpdx.z,
-    //                  duv_dpx[0] * dpdy.x + duv_dpy[0] * dpdy.y + duv_dpz[0] * dpdy.z}
-    // dv_dxy = Vector2{duv_dpx[1] * dpdx.x + duv_dpy[1] * dpdx.y + duv_dpz[1] * dpdx.z,
-    //                  duv_dpx[1] * dpdy.x + duv_dpy[1] * dpdy.y + duv_dpz[1] * dpdy.z}
+    // dpdx = ray_differential.org_dx + ray.dir * t_dxy.x + ray_differential.dir_dx * t
+    // dpdy = ray_differential.org_dy + ray.dir * t_dxy.y + ray_differential.dir_dy * t
+    auto d_t_dxy = Vector2{0, 0};
+    d_ray_differential.org_dx += d_dpdx;
+    d_ray.dir += d_dpdx * t_dxy.x;
+    d_t_dxy.x += sum(d_dpdx * ray.dir);
+    d_ray_differential.dir_dx += d_dpdx * t;
+    auto d_t = sum(d_dpdx * ray_differential.dir_dx);
+    d_ray_differential.org_dy += d_dpdy;
+    d_ray.dir += d_dpdy * t_dxy.y;
+    d_t_dxy.y += sum(d_dpdy * ray.dir);
+    d_ray_differential.dir_dy += d_dpdy * t;
+    d_t += sum(d_dpdy * ray_differential.dir_dy);
+
+    // du_dxy = (- u_dxy - v_dxy) * uvs0[0] + u_dxy * uvs1[0] + v_dxy * uvs2[0]
+    // dv_dxy = (- u_dxy - v_dxy) * uvs0[1] + u_dxy * uvs1[1] + v_dxy * uvs2[1]
+    auto d_uvs0 = Vector2{0, 0};
+    auto d_uvs1 = Vector2{0, 0};
+    auto d_uvs2 = Vector2{0, 0};
     auto d_du_dxy = d_point.du_dxy;
     auto d_dv_dxy = d_point.dv_dxy;
-    auto d_duv_dpx = Vector2{d_du_dxy.x * dpdx.x + d_du_dxy.y * dpdy.x,
-                             d_dv_dxy.x * dpdx.x + d_dv_dxy.y * dpdy.x};
-    auto d_duv_dpy = Vector2{d_du_dxy.x * dpdx.y + d_du_dxy.y * dpdy.y,
-                             d_dv_dxy.x * dpdx.y + d_dv_dxy.y * dpdy.y};
-    auto d_duv_dpz = Vector2{d_du_dxy.x * dpdx.z + d_du_dxy.y * dpdy.z,
-                             d_dv_dxy.x * dpdx.z + d_dv_dxy.y * dpdy.z};
-    d_dpdx += Vector3{d_du_dxy.x * duv_dpx[0] + d_dv_dxy.x * duv_dpx[1],
-                      d_du_dxy.x * duv_dpy[0] + d_dv_dxy.x * duv_dpy[1],
-                      d_du_dxy.x * duv_dpz[0] + d_dv_dxy.x * duv_dpz[1]};
-    d_dpdy += Vector3{d_du_dxy.y * duv_dpx[0] + d_dv_dxy.y * duv_dpx[1],
-                      d_du_dxy.y * duv_dpy[0] + d_dv_dxy.y * duv_dpy[1],
-                      d_du_dxy.y * duv_dpz[0] + d_dv_dxy.y * duv_dpz[1]};
-    // dpdy = (org_dy + t * dir_dy) + dtdy * ray.dir
-    d_ray_differential.org_dy += d_dpdy;
-    auto d_t = sum(d_dpdy * dir_dy);
-    d_ray_differential.dir_dy += d_dpdy * t;
-    auto d_dtdy = sum(d_dpdy * ray.dir);
-    d_ray.dir += d_dpdy * dtdy;
-    // dtdy = -dot((org_dy + t * dir_dy), geom_normal) / dot(ray.dir, geom_normal)
-    // -> dtdy = dtdy_numerator / dtdy_denominator
-    auto d_dtdy_numerator = d_dtdy / dot(ray.dir, geom_normal);
-    auto d_dtdy_denominator = -d_dtdy * dtdy / dot(ray.dir, geom_normal);
-    // dtdy_numerator = -dot((org_dy + t * dir_dy), geom_normal)
-    d_ray_differential.org_dy += (-d_dtdy_numerator * geom_normal);
-    d_ray_differential.dir_dy += (-d_dtdy_numerator * geom_normal * t);
-    d_t += -sum(d_dtdy_numerator * geom_normal * dir_dy);
-    d_geom_normal += -d_dtdy_numerator * (org_dy + t * dir_dy);
-    // dtdy_denominator = dot(ray.dir, geom_normal)
-    d_ray.dir += d_dtdy_denominator * geom_normal;
-    d_geom_normal += d_dtdy_denominator * ray.dir;
-
-    // dpdx = (org_dx + t * dir_dx) + dtdx * ray.dir
-    d_ray_differential.org_dx += d_dpdx;
-    d_t += sum(d_dpdx * dir_dx);
-    d_ray_differential.dir_dx += d_dpdx * t;
-    auto d_dtdx = sum(d_dpdx * ray.dir);
-    d_ray.dir += d_dpdx * dtdx;
-    // dtdx = -dot((org_dx + t * dir_dx), geom_normal) / dot(ray.dir, geom_normal)
-    // -> dtdx = dtdx_numerator / dtdx_denominator
-    auto d_dtdx_numerator = d_dtdx / dot(ray.dir, geom_normal);
-    auto d_dtdx_denominator = -d_dtdx * dtdx / dot(ray.dir, geom_normal);
-    // dtdx_numerator = -dot((org_dx + t * dir_dx), geom_normal)
-    d_ray_differential.org_dx += (-d_dtdx_numerator * geom_normal);
-    d_ray_differential.dir_dx += (-d_dtdx_numerator * geom_normal * t);
-    d_t += -sum(d_dtdx_numerator * geom_normal * dir_dx);
-    d_geom_normal += -d_dtdx_numerator * (org_dx + t * dir_dx);
-    // dtdx_denominator = dot(ray.dir, geom_normal)
-    d_ray.dir += d_dtdx_denominator * geom_normal;
-    d_geom_normal += d_dtdx_denominator * ray.dir;
-
-    // duv_dpx = (1.f - dudp[0] - dvdp[0]) * uvs0 + dudp[0] * uvs1 + dvdp[0] * uvs2
-    // duv_dpy = (1.f - dudp[1] - dvdp[1]) * uvs0 + dudp[1] * uvs1 + dvdp[1] * uvs2
-    // duv_dpz = (1.f - dudp[2] - dvdp[2]) * uvs0 + dudp[2] * uvs1 + dvdp[2] * uvs2
-    d_dudp[0] += sum(d_duv_dpx * (uvs1 - uvs0));
-    d_dudp[1] += sum(d_duv_dpy * (uvs1 - uvs0));
-    d_dudp[2] += sum(d_duv_dpz * (uvs1 - uvs0));
-    d_dvdp[0] += sum(d_duv_dpx * (uvs2 - uvs0));
-    d_dvdp[1] += sum(d_duv_dpy * (uvs2 - uvs0));
-    d_dvdp[2] += sum(d_duv_dpz * (uvs2 - uvs0));
-    auto d_uvs0 = d_duv_dpx * (1.f - dudp[0] - dvdp[0]) +
-                  d_duv_dpy * (1.f - dudp[1] - dvdp[1]) +
-                  d_duv_dpz * (1.f - dudp[2] - dvdp[2]);
-    auto d_uvs1 = d_duv_dpx * dudp[0] + d_duv_dpy * dudp[1] * d_duv_dpz * dudp[2];
-    auto d_uvs2 = d_duv_dpx * dvdp[0] + d_duv_dpy * dvdp[1] * d_duv_dpz * dvdp[2];
-
-    // barycentric(v0, v1, v2, dudp, dvdp)
-    auto d_v0 = Vector3{0, 0, 0};
-    auto d_v1 = Vector3{0, 0, 0};
-    auto d_v2 = Vector3{0, 0, 0};
-    d_barycentric(v0, v1, v2, d_dudp, d_dvdp, d_v0, d_v1, d_v2);
+    d_u_dxy += d_du_dxy * (uvs1[0] - uvs0[0]) + d_dv_dxy * (uvs1[1] - uvs0[1]);
+    d_v_dxy += d_du_dxy * (uvs2[0] - uvs0[0]) + d_dv_dxy * (uvs2[1] - uvs0[1]);
+    d_uvs0[0] += sum(d_du_dxy * (- u_dxy - v_dxy));
+    d_uvs0[1] += sum(d_dv_dxy * (- u_dxy - v_dxy));
+    d_uvs1[0] += sum(d_du_dxy * u_dxy);
+    d_uvs1[1] += sum(d_dv_dxy * u_dxy);
+    d_uvs2[0] += sum(d_du_dxy * v_dxy);
+    d_uvs2[1] += sum(d_dv_dxy * v_dxy);
 
     // geom_normal = normalize(unnormalized_geom_normal)
     auto d_unnormalized_geom_normal = d_normalize(unnormalized_geom_normal, d_geom_normal);
@@ -696,9 +596,9 @@ inline void d_intersect_shape(
     auto d_v1_v0 = Vector3{0, 0, 0};
     auto d_v2_v0 = Vector3{0, 0, 0};
     d_cross(v1 - v0, v2 - v0, d_unnormalized_geom_normal, d_v1_v0, d_v2_v0);
-    d_v0 += (- d_v1_v0 - d_v2_v0);
-    d_v1 += d_v1_v0;
-    d_v2 += d_v2_v0;
+    auto d_v0 = (- d_v1_v0 - d_v2_v0);
+    auto d_v1 = d_v1_v0;
+    auto d_v2 = d_v2_v0;
     // hit_pos = ray.org + ray.dir * t
     auto d_hit_pos = d_point.position;
     d_ray.org += d_hit_pos;
@@ -722,8 +622,9 @@ inline void d_intersect_shape(
     // v = uvt[1]
     d_uvt[0] += d_u;
     d_uvt[1] += d_v;
-    // uvt = intersect(v0, v1, v2, ray)
-    d_intersect(v0, v1, v2, ray, d_uvt, d_v0, d_v1, d_v2, d_ray);
+    // uvt = intersect(v0, v1, v2, ray, ray_differential, u_dxy, v_dxy, t_dxy)
+    d_intersect(v0, v1, v2, ray, ray_differential,
+        d_uvt, d_u_dxy, d_v_dxy, d_t_dxy, d_v0, d_v1, d_v2, d_ray, d_ray_differential);
     if (has_uvs(shape)) {
         d_vertices[0].d_uv += d_uvs0;
         d_vertices[1].d_uv += d_uvs1;

@@ -12,11 +12,11 @@ scene = pyredner.load_mitsuba('scenes/teapot_specular.xml')
 
 # The last material is the teapot material, set it to a specular material
 scene.materials[-1].diffuse_reflectance = \
-    torch.tensor([0.15, 0.2, 0.15], device = pyredner.get_device())
+    pyredner.Texture(torch.tensor([0.15, 0.2, 0.15], device = pyredner.get_device()))
 scene.materials[-1].specular_reflectance = \
-    torch.tensor([0.8, 0.8, 0.8], device = pyredner.get_device())
+    pyredner.Texture(torch.tensor([0.8, 0.8, 0.8], device = pyredner.get_device()))
 scene.materials[-1].roughness = \
-    torch.tensor([0.0001], device = pyredner.get_device())
+    pyredner.Texture(torch.tensor([0.0001], device = pyredner.get_device()))
 args=pyredner.RenderFunction.serialize_scene(\
     scene = scene,
     num_samples = 512,

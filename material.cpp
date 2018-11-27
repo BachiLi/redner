@@ -419,23 +419,22 @@ void test_d_bsdf_sample() {
                    Vector2{0.5, 0.5}};
     auto wi = normalize(Vector3{0.5, 1.0, 0.5});
     auto wi_differential = RayDifferential{
-        Vector3{0, 0, 0}, Vector3{0, 0, 0},
-        Vector3{0, 0, 0}, Vector3{0, 0, 0}};
+        Vector3{1, 1, 1}, Vector3{1, 1, 1},
+        Vector3{1, 1, 1}, Vector3{1, 1, 1}};
     auto min_roughness = Real(0.0);
-    for (int i = 0; i < 2; i++) {
+    for (int j = 0; j < 2; j++) {
         // Test for both specular and diffuse path
-        auto sample = i == 0 ?
+        auto sample = j == 0 ?
             BSDFSample{Vector2{0.5, 0.5}, 0.0} :
             BSDFSample{Vector2{0.5, 0.5}, 0.99};
+        auto d_wo_differential = RayDifferential{
+            Vector3{1, 1, 1}, Vector3{1, 1, 1},
+            Vector3{1, 1, 1}, Vector3{1, 1, 1}};
         auto d_p = SurfacePoint::zero();
         auto d_wi = Vector3{0, 0, 0};
-        auto d_wo_differential = RayDifferential{
-            Vector3{0, 0, 0}, Vector3{0, 0, 0},
-            Vector3{0, 0, 0}, Vector3{0, 0, 0}};
         auto d_wi_differential = RayDifferential{
             Vector3{0, 0, 0}, Vector3{0, 0, 0},
             Vector3{0, 0, 0}, Vector3{0, 0, 0}};
-        auto tmp_ray_diff = RayDifferential{};
 
         d_bsdf_sample(m,
                       p,
@@ -453,14 +452,25 @@ void test_d_bsdf_sample() {
         // Check roughness derivatives
         auto finite_delta = Real(1e-5);
         {
+            auto ray_diff_pos = RayDifferential{
+                Vector3{0, 0, 0}, Vector3{0, 0, 0},
+                Vector3{0, 0, 0}, Vector3{0, 0, 0}};
+            auto ray_diff_neg = RayDifferential{
+                Vector3{0, 0, 0}, Vector3{0, 0, 0},
+                Vector3{0, 0, 0}, Vector3{0, 0, 0}};
             auto delta_m = m;
             delta_m.roughness.texels[0] += finite_delta;
             auto positive = bsdf_sample(delta_m, p, wi, sample, min_roughness,
-                wi_differential, tmp_ray_diff);
+                wi_differential, ray_diff_pos);
             delta_m.roughness.texels[0] -= 2 * finite_delta;
             auto negative = bsdf_sample(delta_m, p, wi, sample, min_roughness,
-                wi_differential, tmp_ray_diff);
-            auto diff = sum(positive - negative) / (2 * finite_delta);
+                wi_differential, ray_diff_neg);
+            auto diff = (sum(positive - negative) +
+                     sum(ray_diff_pos.org_dx - ray_diff_neg.org_dx) +
+                     sum(ray_diff_pos.org_dy - ray_diff_neg.org_dy) +
+                     sum(ray_diff_pos.dir_dx - ray_diff_neg.dir_dx) +
+                     sum(ray_diff_pos.dir_dy - ray_diff_neg.dir_dy))
+                    / (2 * finite_delta);
             equal_or_error(__FILE__, __LINE__, diff, d_roughness_tex.t000);
         }
 
@@ -469,63 +479,118 @@ void test_d_bsdf_sample() {
         equal_or_error(__FILE__, __LINE__, Vector3{0, 0, 0}, d_p.geom_normal);
         // Shading frame x
         for (int i = 0; i < 3; i++) {
+            auto ray_diff_pos = RayDifferential{
+                Vector3{0, 0, 0}, Vector3{0, 0, 0},
+                Vector3{0, 0, 0}, Vector3{0, 0, 0}};
+            auto ray_diff_neg = RayDifferential{
+                Vector3{0, 0, 0}, Vector3{0, 0, 0},
+                Vector3{0, 0, 0}, Vector3{0, 0, 0}};
             auto delta_p = p;
             delta_p.shading_frame.x[i] += finite_delta;
             auto positive = bsdf_sample(m, delta_p, wi, sample, min_roughness,
-                wi_differential, tmp_ray_diff);
+                wi_differential, ray_diff_pos);
             delta_p.shading_frame.x[i] -= 2 * finite_delta;
             auto negative = bsdf_sample(m, delta_p, wi, sample, min_roughness,
-                wi_differential, tmp_ray_diff);
-            auto diff = sum(positive - negative) / (2 * finite_delta);
+                wi_differential, ray_diff_neg);
+            auto diff = (sum(positive - negative) +
+                     sum(ray_diff_pos.org_dx - ray_diff_neg.org_dx) +
+                     sum(ray_diff_pos.org_dy - ray_diff_neg.org_dy) +
+                     sum(ray_diff_pos.dir_dx - ray_diff_neg.dir_dx) +
+                     sum(ray_diff_pos.dir_dy - ray_diff_neg.dir_dy))
+                    / (2 * finite_delta);
             equal_or_error(__FILE__, __LINE__, diff, d_p.shading_frame.x[i]);
         }
         // Shading frame y
         for (int i = 0; i < 3; i++) {
+            auto ray_diff_pos = RayDifferential{
+                Vector3{0, 0, 0}, Vector3{0, 0, 0},
+                Vector3{0, 0, 0}, Vector3{0, 0, 0}};
+            auto ray_diff_neg = RayDifferential{
+                Vector3{0, 0, 0}, Vector3{0, 0, 0},
+                Vector3{0, 0, 0}, Vector3{0, 0, 0}};
             auto delta_p = p;
             delta_p.shading_frame.y[i] += finite_delta;
             auto positive = bsdf_sample(m, delta_p, wi, sample, min_roughness,
-                wi_differential, tmp_ray_diff);
+                wi_differential, ray_diff_pos);
             delta_p.shading_frame.y[i] -= 2 * finite_delta;
             auto negative = bsdf_sample(m, delta_p, wi, sample, min_roughness,
-                wi_differential, tmp_ray_diff);
-            auto diff = sum(positive - negative) / (2 * finite_delta);
+                wi_differential, ray_diff_neg);
+            auto diff = (sum(positive - negative) +
+                     sum(ray_diff_pos.org_dx - ray_diff_neg.org_dx) +
+                     sum(ray_diff_pos.org_dy - ray_diff_neg.org_dy) +
+                     sum(ray_diff_pos.dir_dx - ray_diff_neg.dir_dx) +
+                     sum(ray_diff_pos.dir_dy - ray_diff_neg.dir_dy))
+                    / (2 * finite_delta);
             equal_or_error(__FILE__, __LINE__, diff, d_p.shading_frame.y[i]);
         }
         // Shading frame n
         for (int i = 0; i < 3; i++) {
+            auto ray_diff_pos = RayDifferential{
+                Vector3{0, 0, 0}, Vector3{0, 0, 0},
+                Vector3{0, 0, 0}, Vector3{0, 0, 0}};
+            auto ray_diff_neg = RayDifferential{
+                Vector3{0, 0, 0}, Vector3{0, 0, 0},
+                Vector3{0, 0, 0}, Vector3{0, 0, 0}};
             auto delta_p = p;
             delta_p.shading_frame.n[i] += finite_delta;
             auto positive = bsdf_sample(m, delta_p, wi, sample, min_roughness,
-                wi_differential, tmp_ray_diff);
+                wi_differential, ray_diff_pos);
             delta_p.shading_frame.n[i] -= 2 * finite_delta;
             auto negative = bsdf_sample(m, delta_p, wi, sample, min_roughness,
-                wi_differential, tmp_ray_diff);
-            auto diff = sum(positive - negative) / (2 * finite_delta);
+                wi_differential, ray_diff_neg);
+            auto diff = (sum(positive - negative) +
+                     sum(ray_diff_pos.org_dx - ray_diff_neg.org_dx) +
+                     sum(ray_diff_pos.org_dy - ray_diff_neg.org_dy) +
+                     sum(ray_diff_pos.dir_dx - ray_diff_neg.dir_dx) +
+                     sum(ray_diff_pos.dir_dy - ray_diff_neg.dir_dy))
+                    / (2 * finite_delta);
             equal_or_error(__FILE__, __LINE__, diff, d_p.shading_frame.n[i]);
         }
         // uv
         for (int i = 0; i < 2; i++) {
+            auto ray_diff_pos = RayDifferential{
+                Vector3{0, 0, 0}, Vector3{0, 0, 0},
+                Vector3{0, 0, 0}, Vector3{0, 0, 0}};
+            auto ray_diff_neg = RayDifferential{
+                Vector3{0, 0, 0}, Vector3{0, 0, 0},
+                Vector3{0, 0, 0}, Vector3{0, 0, 0}};
             auto delta_p = p;
             delta_p.uv[i] += finite_delta;
             auto positive = bsdf_sample(m, delta_p, wi, sample, min_roughness,
-                wi_differential, tmp_ray_diff);
+                wi_differential, ray_diff_pos);
             delta_p.uv[i] -= 2 * finite_delta;
             auto negative = bsdf_sample(m, delta_p, wi, sample, min_roughness,
-                wi_differential, tmp_ray_diff);
-            auto diff = sum(positive - negative) / (2 * finite_delta);
+                wi_differential, ray_diff_neg);
+            auto diff = (sum(positive - negative) +
+                     sum(ray_diff_pos.org_dx - ray_diff_neg.org_dx) +
+                     sum(ray_diff_pos.org_dy - ray_diff_neg.org_dy) +
+                     sum(ray_diff_pos.dir_dx - ray_diff_neg.dir_dx) +
+                     sum(ray_diff_pos.dir_dy - ray_diff_neg.dir_dy))
+                    / (2 * finite_delta);
             equal_or_error(__FILE__, __LINE__, diff, d_p.uv[i]);
         }
 
         // wi
         for (int i = 0; i < 3; i++) {
+            auto ray_diff_pos = RayDifferential{
+                Vector3{0, 0, 0}, Vector3{0, 0, 0},
+                Vector3{0, 0, 0}, Vector3{0, 0, 0}};
+            auto ray_diff_neg = RayDifferential{
+                Vector3{0, 0, 0}, Vector3{0, 0, 0},
+                Vector3{0, 0, 0}, Vector3{0, 0, 0}};
             auto delta_wi = wi;
             delta_wi[i] += finite_delta;
             auto positive = bsdf_sample(m, p, delta_wi, sample, min_roughness,
-                wi_differential, tmp_ray_diff);
+                wi_differential, ray_diff_pos);
             delta_wi[i] -= 2 * finite_delta;
             auto negative = bsdf_sample(m, p, delta_wi, sample, min_roughness,
-                wi_differential, tmp_ray_diff);
-            auto diff = sum(positive - negative) / (2 * finite_delta);
+                wi_differential, ray_diff_neg);
+            auto diff = (sum(positive - negative) +
+                     sum(ray_diff_pos.org_dx - ray_diff_neg.org_dx) +
+                     sum(ray_diff_pos.org_dy - ray_diff_neg.org_dy) +
+                     sum(ray_diff_pos.dir_dx - ray_diff_neg.dir_dx) +
+                     sum(ray_diff_pos.dir_dy - ray_diff_neg.dir_dy))
+                    / (2 * finite_delta);
             equal_or_error(__FILE__, __LINE__, diff, d_wi[i]);
         }
     }
