@@ -80,14 +80,21 @@ struct Texture3 {
 
 struct DTexture3 {
     int material_id = -1, xi = -1, yi = -1, li = -1;
-    Vector3 t000 = Vector3{0, 0, 0};
-    Vector3 t010 = Vector3{0, 0, 0};
-    Vector3 t100 = Vector3{0, 0, 0};
-    Vector3 t110 = Vector3{0, 0, 0};
-    Vector3 t001 = Vector3{0, 0, 0};
-    Vector3 t011 = Vector3{0, 0, 0};
-    Vector3 t101 = Vector3{0, 0, 0};
-    Vector3 t111 = Vector3{0, 0, 0};
+    /**
+     * HACK: We use Vector3f instead of Vector3 as a workaround for a bug in thrust
+     * It seems that thrust has some memory bugs when a struct is larger than 128 bytes
+     * see https://devtalk.nvidia.com/default/topic/1036643/cuda-programming-and-performance/thrust-remove_if-memory-corruption/
+     * (and after 5 months the bugs is still not fixed ; ( )
+     * maybe we should drop thrust dependencies at some point.
+     */
+    Vector3f t000 = Vector3f{0, 0, 0};
+    Vector3f t010 = Vector3f{0, 0, 0};
+    Vector3f t100 = Vector3f{0, 0, 0};
+    Vector3f t110 = Vector3f{0, 0, 0};
+    Vector3f t001 = Vector3f{0, 0, 0};
+    Vector3f t011 = Vector3f{0, 0, 0};
+    Vector3f t101 = Vector3f{0, 0, 0};
+    Vector3f t111 = Vector3f{0, 0, 0};
 
     DEVICE inline bool operator<(const DTexture3 &other) const {
         if (material_id != other.material_id) {
@@ -153,8 +160,8 @@ inline void d_bilinear_interp(const Texture3 &tex,
                               Real u, Real v,
                               int level,
                               const Vector3 &d_output,
-                              Vector3 &d_color_ff, Vector3 &d_color_cf,
-                              Vector3 &d_color_fc, Vector3 &d_color_cc,
+                              Vector3f &d_color_ff, Vector3f &d_color_cf,
+                              Vector3f &d_color_fc, Vector3f &d_color_cc,
                               Real &d_u, Real &d_v) {
     auto texels = tex.texels + level * tex.width * tex.height * 3;
     auto color_ff = Vector3f{texels[3 * (yfi * tex.width + xfi) + 0],

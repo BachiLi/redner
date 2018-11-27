@@ -574,10 +574,6 @@ struct d_path_contribs_accumulator {
         const auto &bsdf_isect = bsdf_isects[pixel_id];
         if (bsdf_isect.valid()) {
             const auto &bsdf_shape = scene.shapes[bsdf_isect.shape_id];
-            d_diffuse_tex.material_id = shading_shape.material_id;
-            d_specular_tex.material_id = shading_shape.material_id;
-            d_roughness_tex.material_id = shading_shape.material_id;
-
             const auto &bsdf_sample = bsdf_samples[pixel_id];
             const auto &bsdf_point = bsdf_points[pixel_id];
             const auto &d_next_ray = d_next_rays[pixel_id];
@@ -600,6 +596,10 @@ struct d_path_contribs_accumulator {
             auto wo = dir / sqrt(dist_sq);
             auto pdf_bsdf = bsdf_pdf(material, shading_point, wi, wo, min_rough);
             if (pdf_bsdf > 0) {
+                d_diffuse_tex.material_id = shading_shape.material_id;
+                d_specular_tex.material_id = shading_shape.material_id;
+                d_roughness_tex.material_id = shading_shape.material_id;
+
                 auto bsdf_val = bsdf(material, shading_point, wi, wo, min_rough);
                 auto scatter_bsdf = bsdf_val / pdf_bsdf;
 
@@ -918,7 +918,6 @@ struct PathBuffer {
     Buffer<Ray> rays, edge_rays;
     Buffer<RayDifferential> primary_ray_differentials;
     Buffer<RayDifferential> ray_differentials, bsdf_ray_differentials;
-    Buffer<RayDifferential> edge_primary_ray_differentials;
     Buffer<RayDifferential> edge_ray_differentials;
     Buffer<int> active_pixels, edge_active_pixels;
     Buffer<Intersection> shading_isects, edge_shading_isects;
@@ -1000,7 +999,7 @@ void accumulate_diffuse(const Scene &scene,
     // Reduce into unique sequence
     auto beg = d_diffuse.begin();
     auto end = d_diffuse.end();
-    end = DISPATCH(scene.use_gpu, thrust::remove, beg, end, DTexture3{-1, -1, -1});
+    end = DISPATCH(scene.use_gpu, thrust::remove, beg, end, DTexture3{-1, -1, -1, -1});
     DISPATCH(scene.use_gpu, thrust::sort, beg, end);
     auto buffer_beg = reduce_buffer.begin();
     auto new_end = DISPATCH(scene.use_gpu, thrust::reduce_by_key,
@@ -1024,7 +1023,7 @@ void accumulate_specular(const Scene &scene,
     // Reduce into unique sequence
     auto beg = d_specular.begin();
     auto end = d_specular.end();
-    end = DISPATCH(scene.use_gpu, thrust::remove, beg, end, DTexture3{-1, -1, -1});
+    end = DISPATCH(scene.use_gpu, thrust::remove, beg, end, DTexture3{-1, -1, -1, -1});
     DISPATCH(scene.use_gpu, thrust::sort, beg, end);
     auto buffer_beg = reduce_buffer.begin();
     auto new_end = DISPATCH(scene.use_gpu, thrust::reduce_by_key,
@@ -1048,7 +1047,7 @@ void accumulate_roughness(const Scene &scene,
     // Reduce into unique sequence
     auto beg = d_roughness.begin();
     auto end = d_roughness.end();
-    end = DISPATCH(scene.use_gpu, thrust::remove, beg, end, DTexture1{-1, -1, -1});
+    end = DISPATCH(scene.use_gpu, thrust::remove, beg, end, DTexture1{-1, -1, -1, -1});
     DISPATCH(scene.use_gpu, thrust::sort, beg, end);
     auto buffer_beg = reduce_buffer.begin();
     auto new_end = DISPATCH(scene.use_gpu, thrust::reduce_by_key,
