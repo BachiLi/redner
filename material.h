@@ -522,8 +522,6 @@ Vector3 bsdf_sample(const Material &material,
         auto m = to_world(shading_frame, m_local);
         auto dir = 2.f * dot(wi, m) * m - wi;
         // Propagate ray differentials
-        wo_differential.org_dx = wi_differential.org_dx;
-        wo_differential.org_dy = wi_differential.org_dy;
         // HACK: we approximate the directional derivative dmdx using dndx * m_local[2]
         // i.e. we ignore the derivatives on the tangent plane
         auto dmdx = shading_point.dn_dx * m_local[2];
@@ -534,6 +532,8 @@ Vector3 bsdf_sample(const Material &material,
         auto widotm_dx = sum(wi_dx * m) + sum(wi * dmdx);
         auto widotm_dy = sum(wi_dy * m) + sum(wi * dmdy);
         // Igehy 1999, Equation 14
+        wo_differential.org_dx = wi_differential.org_dx;
+        wo_differential.org_dy = wi_differential.org_dy;
         wo_differential.dir_dx = 2 * (dot(wi, m) * dmdx + widotm_dx * m) - wi_dx;
         wo_differential.dir_dy = 2 * (dot(wi, m) * dmdy + widotm_dy * m) - wi_dy;
         return dir;
@@ -619,8 +619,6 @@ void d_bsdf_sample(const Material &material,
         auto m = to_world(shading_frame, m_local);
 
         // Propagate ray differentials
-        // wo_differential.org_dx = wi_differential.org_dx;
-        // wo_differential.org_dy = wi_differential.org_dy;
         // HACK: we approximate the directional derivative dmdx using dndx * m_local[2]
         // i.e. we ignore the derivatives on the tangent plane
         auto dmdx = shading_point.dn_dx * m_local[2];
@@ -631,23 +629,23 @@ void d_bsdf_sample(const Material &material,
         auto widotm_dx = sum(wi_dx * m) + sum(wi * dmdx);
         auto widotm_dy = sum(wi_dy * m) + sum(wi * dmdy);
         // Igehy 1999, Equation 14
-        // wo_differential.dir_dx = 2 * (dot(wi, m) * dmdx + widotm_dx * m) - wi_dx;
-        // wo_differential.dir_dy = 2 * (dot(wi, m) * dmdy + widotm_dy * m) - wi_dy;
+        // wo_differential.org_dx = wi_differential.org_dx
+        // wo_differential.org_dy = wi_differential.org_dy
+        // wo_differential.dir_dx = 2 * (dot(wi, m) * dmdx + widotm_dx * m) - wi_dx
+        // wo_differential.dir_dy = 2 * (dot(wi, m) * dmdy + widotm_dy * m) - wi_dy
 
         d_wi_differential.org_dx += d_wo_differential.org_dx;
         d_wi_differential.org_dy += d_wo_differential.org_dy;
         d_wi_differential.dir_dx += d_wo_differential.dir_dx;
         d_wi_differential.dir_dy += d_wo_differential.dir_dy;
-        auto d_dot_wi_m = d_wo_differential.dir_dx * 2 * dmdx +
-                          d_wo_differential.dir_dy * 2 * dmdy;
+        auto d_dot_wi_m = 2 * sum(d_wo_differential.dir_dx * dmdx) +
+                          2 * sum(d_wo_differential.dir_dy * dmdy);
         auto d_dmdx = d_wo_differential.dir_dx * 2 * dot(wi, m);
         auto d_dmdy = d_wo_differential.dir_dy * 2 * dot(wi, m);
         auto d_widotm_dx = 2 * sum(d_wo_differential.dir_dx * m);
         auto d_widotm_dy = 2 * sum(d_wo_differential.dir_dy * m);
-        auto d_m = d_wo_differential.dir_dx * 2 * (widotm_dx + widotm_dy);
-        // dot(wi, m)
-        d_wi += d_dot_wi_m * m;
-        d_m += d_dot_wi_m * wi;
+        auto d_m = d_wo_differential.dir_dx * 2 * widotm_dx +
+                   d_wo_differential.dir_dy * 2 * widotm_dy;
         // widotm_dx = sum(wi_dx * m) + sum(wi * dmdx)
         auto d_wi_dx = d_widotm_dx * m;
         d_m += d_widotm_dx * wi_dx;
@@ -667,12 +665,8 @@ void d_bsdf_sample(const Material &material,
         d_shading_point.dn_dx += d_dmdx * m_local[2];
         d_shading_point.dn_dy += d_dmdy * m_local[2];
         auto d_m_local = Vector3{0, 0, 0};
-        // dmdx = shading_point.dn_dx * m_local[2]
-        d_shading_point.dn_dx += d_dmdx * m_local[2];
-        d_m_local[2] += sum(d_dmdx * shading_point.dn_dx);
-        // dmdy = shading_point.dn_dy * m_local[2]
-        d_shading_point.dn_dy += d_dmdy * m_local[2];
-        d_m_local[2] += sum(d_dmdy * shading_point.dn_dy);
+        d_m_local[2] += sum(d_dmdx * shading_point.dn_dx) +
+                        sum(d_dmdy * shading_point.dn_dy);
 
         // wo = 2.f * dot(wi, m) * m - wi
         d_dot_wi_m += 2.f * sum(d_wo * m);

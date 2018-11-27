@@ -416,7 +416,9 @@ void test_d_bsdf_sample() {
     SurfacePoint p{Vector3{0, 0, 0},
                    Vector3{0, 1, 0},
                    Frame(Vector3{0, 1, 0}),
-                   Vector2{0.5, 0.5}};
+                   Vector2{0.5, 0.5},
+                   Vector2{1, 1}, Vector2{1, 1},
+                   Vector3{1, 1, 1}, Vector3{1, 1, 1}};
     auto wi = normalize(Vector3{0.5, 1.0, 0.5});
     auto wi_differential = RayDifferential{
         Vector3{1, 1, 1}, Vector3{1, 1, 1},
@@ -450,7 +452,7 @@ void test_d_bsdf_sample() {
                       d_wi_differential);
 
         // Check roughness derivatives
-        auto finite_delta = Real(1e-5);
+        auto finite_delta = Real(1e-4);
         {
             auto ray_diff_pos = RayDifferential{
                 Vector3{0, 0, 0}, Vector3{0, 0, 0},
@@ -591,7 +593,7 @@ void test_d_bsdf_sample() {
                      sum(ray_diff_pos.dir_dx - ray_diff_neg.dir_dx) +
                      sum(ray_diff_pos.dir_dy - ray_diff_neg.dir_dy))
                     / (2 * finite_delta);
-            equal_or_error(__FILE__, __LINE__, diff, d_wi[i]);
+            equal_or_error(__FILE__, __LINE__, diff, d_wi[i], Real(5e-2f));
         }
     }
 }
