@@ -7,6 +7,8 @@
 #include "ptr.h"
 #include "texture.h"
 
+#include <tuple>
+
 struct Material {
     Material() {}
 

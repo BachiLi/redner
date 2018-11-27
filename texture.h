@@ -239,10 +239,12 @@ inline void d_bilinear_interp(const Texture1 &tex,
                         value_cc *        u);
 }
 
+DEVICE
 inline Vector3 get_texture_value_constant(const Texture3 &tex) {
     return Vector3{tex.texels[0], tex.texels[1], tex.texels[2]};
 }
 
+DEVICE
 inline Real get_texture_value_constant(const Texture1 &tex) {
     return tex.texels[0];
 }
