@@ -65,11 +65,11 @@ void test_d_intersect() {
     d_point.dv_dxy = Vector2{1, 1};
     d_point.dn_dx = Vector3{1, 1, 1};
     d_point.dn_dy = Vector3{1, 1, 1};
-
-    DRay d_ray{};
     RayDifferential d_new_ray_diff{
         Vector3{1, 1, 1}, Vector3{1, 1, 1},
         Vector3{1, 1, 1}, Vector3{1, 1, 1}};
+
+    DRay d_ray{};
     RayDifferential d_ray_diff{
         Vector3{0, 0, 0}, Vector3{0, 0, 0},
         Vector3{0, 0, 0}, Vector3{0, 0, 0}};
