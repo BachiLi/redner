@@ -665,8 +665,8 @@ void test_sample_point_on_light(bool use_gpu) {
                  1, // num_triangles
                  0,
                  0};
-    Light light0{0, Vector3f{1.f, 1.f, 1.f}};
-    Light light1{1, Vector3f{2.f, 2.f, 2.f}};
+    Light light0{0, Vector3f{1.f, 1.f, 1.f}, false};
+    Light light1{1, Vector3f{2.f, 2.f, 2.f}, false};
 
     auto shapes = std::make_shared<std::vector<const Shape *>>(
         std::vector<const Shape*>{&shape0, &shape1});

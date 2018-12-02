@@ -94,7 +94,8 @@ PYBIND11_MODULE(redner, m) {
 
     py::class_<Light>(m, "Light")
         .def(py::init<int,
-                      ptr<float>>());
+                      ptr<float>,
+                      bool>());
 
     py::class_<DLight>(m, "DLight")
         .def(py::init<ptr<float>>());

@@ -9,18 +9,21 @@ struct Light {
     Light() {}
 
     Light(int shape_id,
-          const ptr<float> intensity_data) : shape_id(shape_id) {
+          const ptr<float> intensity_data,
+          bool two_sided) : shape_id(shape_id), two_sided(two_sided) {
         intensity[0] = intensity_data[0];
         intensity[1] = intensity_data[1];
         intensity[2] = intensity_data[2];
     }
 
     Light(int shape_id,
-          const Vector3f &intensity) :
-        shape_id(shape_id), intensity(intensity) {}
+          const Vector3f &intensity,
+          bool two_sided) :
+        shape_id(shape_id), intensity(intensity), two_sided(two_sided) {}
 
     int shape_id;
     Vector3f intensity;
+    bool two_sided;
 };
 
 struct DLight {

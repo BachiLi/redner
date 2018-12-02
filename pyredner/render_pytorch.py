@@ -67,6 +67,7 @@ class RenderFunction(torch.autograd.Function):
         for light in scene.lights:
             args.append(light.shape_id)
             args.append(light.intensity)
+            args.append(light.two_sided)
         args.append(num_samples)
         args.append(max_bounces)
 
@@ -201,9 +202,12 @@ class RenderFunction(torch.autograd.Function):
             current_index += 1
             intensity = args[current_index]
             current_index += 1
+            two_sided = args[current_index]
+            current_index += 1
 
             lights.append(redner.Light(shape_id,
-                                       redner.float_ptr(intensity.data_ptr())))
+                                       redner.float_ptr(intensity.data_ptr()),
+                                       two_sided))
 
         scene = redner.Scene(camera,
                              shapes,
@@ -393,6 +397,7 @@ class RenderFunction(torch.autograd.Function):
         for i in range(num_lights):
             ret_list.append(None) # shape id
             ret_list.append(d_intensity_list[i].cpu())
+            ret_list.append(None) # two sided
         
         ret_list.append(None) # num samples
         ret_list.append(None) # num bounces
