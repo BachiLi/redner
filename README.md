@@ -66,7 +66,6 @@ portable with moderate modification. In general any compiler with c++14 support 
 
 The current development plan is to enhance the renderer. Following features will be added in the near future (not listed in any particular order):
 - Environment map
-- Non-black background
 - Stratification of random number
 - More BSDFs e.g. glass/GGX
 - A properer secondary edge sampling strategy 
