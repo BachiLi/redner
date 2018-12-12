@@ -145,7 +145,7 @@ void d_primary_intersection(const Scene &scene,
         d_cameras.begin()}, active_pixels.size(), scene.use_gpu);
 }
 
-struct direct_visible_lights_accumulator {
+struct primary_contribs_accumulator {
     DEVICE void operator()(int idx) {
         auto pixel_id = active_pixels[idx];
         const auto &throughput = throughputs[pixel_id];
@@ -162,28 +162,50 @@ struct direct_visible_lights_accumulator {
         }
         auto contrib = weight * throughput * emission;
         if (rendered_image != nullptr) {
-            rendered_image[3 * pixel_id    ] += contrib[0];
-            rendered_image[3 * pixel_id + 1] += contrib[1];
-            rendered_image[3 * pixel_id + 2] += contrib[2];
+            if (output_alpha) {
+                rendered_image[4 * pixel_id    ] += contrib[0];
+                rendered_image[4 * pixel_id + 1] += contrib[1];
+                rendered_image[4 * pixel_id + 2] += contrib[2];
+                if (shading_isect.valid()) {
+                    auto alpha = weight;
+                    if (alpha_multipliers != nullptr) {
+                        alpha *= alpha_multipliers[pixel_id];
+                    }
+                    rendered_image[4 * pixel_id + 3] += alpha;
+                }
+            } else {
+                rendered_image[3 * pixel_id    ] += contrib[0];
+                rendered_image[3 * pixel_id + 1] += contrib[1];
+                rendered_image[3 * pixel_id + 2] += contrib[2];
+            }
         }
         if (edge_contribs != nullptr) {
             edge_contribs[pixel_id] += sum(contrib);
+            if (shading_isect.valid()) {
+                auto alpha = weight;
+                if (alpha_multipliers != nullptr) {
+                    alpha *= alpha_multipliers[pixel_id];
+                }
+                edge_contribs[pixel_id] += alpha;
+            }
         }
     }
 
     const FlattenScene scene;
     const int *active_pixels;
     const Vector3 *throughputs;
+    const Real *alpha_multipliers;
     const Ray *incoming_rays;
     const RayDifferential *incoming_ray_differentials;
     const Intersection *shading_isects;
     const SurfacePoint *shading_points;
     const Real weight;
+    const bool output_alpha;
     float *rendered_image;
     Real *edge_contribs;
 };
 
-struct d_direct_visible_lights_accumulator {
+struct d_primary_contribs_accumulator {
     DEVICE void operator()(int idx) {
         auto pixel_id = active_pixels[idx];
         const auto &throughput = throughputs[pixel_id];
@@ -198,10 +220,18 @@ struct d_direct_visible_lights_accumulator {
             const auto &light = scene.lights[shading_shape.light_id];
             if (light.two_sided || dot(wi, shading_point.shading_frame.n) > 0) {
                 // contrib = weight * throughput * emission
-                auto d_path_contrib = weight * throughput *
-                    Vector3{d_rendered_image[3 * pixel_id    ],
-                            d_rendered_image[3 * pixel_id + 1],
-                            d_rendered_image[3 * pixel_id + 2]};
+                auto d_path_contrib = Vector3{};
+                if (output_alpha) {
+                    d_path_contrib = weight * throughput *
+                        Vector3{d_rendered_image[4 * pixel_id    ],
+                                d_rendered_image[4 * pixel_id + 1],
+                                d_rendered_image[4 * pixel_id + 2]};
+                } else {
+                    d_path_contrib = weight * throughput *
+                        Vector3{d_rendered_image[3 * pixel_id    ],
+                                d_rendered_image[3 * pixel_id + 1],
+                                d_rendered_image[3 * pixel_id + 2]};
+                }
                 d_direct_lights[idx].light_id = shading_shape.light_id;
                 d_direct_lights[idx].intensity = d_path_contrib;
             }
@@ -216,36 +246,41 @@ struct d_direct_visible_lights_accumulator {
     const Intersection *shading_isects;
     const SurfacePoint *shading_points;
     const Real weight;
+    const bool output_alpha;
     const float *d_rendered_image;
     DLightInst *d_direct_lights;
 };
 
-void accumulate_direct_visible_lights(
+void accumulate_primary_contribs(
         const Scene &scene,
         const BufferView<int> &active_pixels,
         const BufferView<Vector3> &throughputs,
+        const BufferView<Real> &alpha_multipliers,
         const BufferView<Ray> &incoming_rays,
         const BufferView<RayDifferential> &incoming_ray_differentials,
         const BufferView<Intersection> &shading_isects,
         const BufferView<SurfacePoint> &shading_points,
         const Real weight,
+        const bool output_alpha,
         float *rendered_image,
         BufferView<Real> edge_contribs) {
-    parallel_for(direct_visible_lights_accumulator{
+    parallel_for(primary_contribs_accumulator{
         get_flatten_scene(scene),
         active_pixels.begin(),
         throughputs.begin(),
+        alpha_multipliers.begin(),
         incoming_rays.begin(),
         incoming_ray_differentials.begin(),
         shading_isects.begin(),
         shading_points.begin(),
         weight,
+        output_alpha,
         rendered_image,
         edge_contribs.begin()
     }, active_pixels.size(), scene.use_gpu);
 }
 
-void d_accumulate_direct_visible_lights(
+void d_accumulate_primary_contribs(
         const Scene &scene,
         const BufferView<int> &active_pixels,
         const BufferView<Vector3> &throughputs,
@@ -254,9 +289,10 @@ void d_accumulate_direct_visible_lights(
         const BufferView<Intersection> &shading_isects,
         const BufferView<SurfacePoint> &shading_points,
         const Real weight,
+        const bool output_alpha,
         const float *d_rendered_image,
         BufferView<DLightInst> d_direct_lights) {
-    parallel_for(d_direct_visible_lights_accumulator{
+    parallel_for(d_primary_contribs_accumulator{
         get_flatten_scene(scene),
         active_pixels.begin(),
         throughputs.begin(),
@@ -265,6 +301,7 @@ void d_accumulate_direct_visible_lights(
         shading_isects.begin(),
         shading_points.begin(),
         weight,
+        output_alpha,
         d_rendered_image,
         d_direct_lights.begin()
     }, active_pixels.size(), scene.use_gpu);
@@ -403,9 +440,15 @@ struct path_contribs_accumulator {
 
         auto path_contrib = throughput * (nee_contrib + scatter_contrib);
         if (rendered_image != nullptr) {
-            rendered_image[3 * pixel_id    ] += weight * path_contrib[0];
-            rendered_image[3 * pixel_id + 1] += weight * path_contrib[1];
-            rendered_image[3 * pixel_id + 2] += weight * path_contrib[2];
+            if (output_alpha) {
+                rendered_image[4 * pixel_id    ] += weight * path_contrib[0];
+                rendered_image[4 * pixel_id + 1] += weight * path_contrib[1];
+                rendered_image[4 * pixel_id + 2] += weight * path_contrib[2];
+            } else {
+                rendered_image[3 * pixel_id    ] += weight * path_contrib[0];
+                rendered_image[3 * pixel_id + 1] += weight * path_contrib[1];
+                rendered_image[3 * pixel_id + 2] += weight * path_contrib[2];
+            }
         }
         if (edge_contribs != nullptr) {
             edge_contribs[pixel_id] += sum(weight * path_contrib);
@@ -424,6 +467,7 @@ struct path_contribs_accumulator {
     const SurfacePoint *bsdf_points;
     const Real *min_roughness;
     const Real weight;
+    const bool output_alpha;
     Vector3 *next_throughputs;
     float *rendered_image;
     Real *edge_contribs;
@@ -459,13 +503,24 @@ struct d_path_contribs_accumulator {
         const auto &shading_shape = scene.shapes[shading_isect.shape_id];
         const auto &material = scene.materials[shading_shape.material_id];
 
-        // rendered_image[3 * pixel_id    ] += weight * path_contrib[0]
-        // rendered_image[3 * pixel_id + 1] += weight * path_contrib[1]
-        // rendered_image[3 * pixel_id + 2] += weight * path_contrib[2]
-        auto d_path_contrib = weight *
-            Vector3{d_rendered_image[3 * pixel_id    ],
-                    d_rendered_image[3 * pixel_id + 1],
-                    d_rendered_image[3 * pixel_id + 2]};
+        auto d_path_contrib = Vector3{};
+        if (output_alpha) {
+            // rendered_image[4 * pixel_id    ] += weight * path_contrib[0]
+            // rendered_image[4 * pixel_id + 1] += weight * path_contrib[1]
+            // rendered_image[4 * pixel_id + 2] += weight * path_contrib[2]
+            d_path_contrib = weight *
+                Vector3{d_rendered_image[4 * pixel_id    ],
+                        d_rendered_image[4 * pixel_id + 1],
+                        d_rendered_image[4 * pixel_id + 2]};
+        } else {
+            // rendered_image[3 * pixel_id    ] += weight * path_contrib[0]
+            // rendered_image[3 * pixel_id + 1] += weight * path_contrib[1]
+            // rendered_image[3 * pixel_id + 2] += weight * path_contrib[2]
+            d_path_contrib = weight *
+                Vector3{d_rendered_image[3 * pixel_id    ],
+                        d_rendered_image[3 * pixel_id + 1],
+                        d_rendered_image[3 * pixel_id + 2]};
+        }
 
         // Initialize derivatives
         d_light_v[0] = DVertex{};
@@ -734,6 +789,7 @@ struct d_path_contribs_accumulator {
     const SurfacePoint *bsdf_points;
     const Real *min_roughness;
     const Real weight;
+    const bool output_alpha;
     const float *d_rendered_image;
     const Vector3 *d_next_throughputs;
     const DRay *d_next_rays;
@@ -763,7 +819,8 @@ void accumulate_path_contribs(const Scene &scene,
                               const BufferView<Intersection> &bsdf_isects,
                               const BufferView<SurfacePoint> &bsdf_points,
                               const BufferView<Real> &min_roughness,
-                              Real weight,
+                              const Real weight,
+                              const bool output_alpha,
                               BufferView<Vector3> next_throughputs,
                               float *rendered_image,
                               BufferView<Real> edge_contribs) {
@@ -780,6 +837,7 @@ void accumulate_path_contribs(const Scene &scene,
         bsdf_points.begin(),
         min_roughness.begin(),
         weight,
+        output_alpha,
         next_throughputs.begin(),
         rendered_image,
         edge_contribs.begin()}, active_pixels.size(), scene.use_gpu);
@@ -801,6 +859,7 @@ void d_accumulate_path_contribs(const Scene &scene,
                                 const BufferView<SurfacePoint> &bsdf_points,
                                 const BufferView<Real> &min_roughness,
                                 const Real weight,
+                                const bool output_alpha,
                                 const float *d_rendered_image,
                                 const BufferView<Vector3> &d_next_throughputs,
                                 const BufferView<DRay> &d_next_rays,
@@ -834,6 +893,7 @@ void d_accumulate_path_contribs(const Scene &scene,
         bsdf_points.begin(),
         min_roughness.begin(),
         weight,
+        output_alpha,
         d_rendered_image,
         d_next_throughputs.begin(),
         d_next_rays.begin(),
@@ -885,6 +945,7 @@ struct PathBuffer {
         edge_light_points = Buffer<SurfacePoint>(use_gpu, 2 * num_pixels);
         throughputs = Buffer<Vector3>(use_gpu, (max_bounces + 1) * num_pixels);
         edge_throughputs = Buffer<Vector3>(use_gpu, 4 * num_pixels);
+        alpha_multipliers = Buffer<Real>(use_gpu, 2 * num_pixels);
         min_roughness = Buffer<Real>(use_gpu, (max_bounces + 1) * num_pixels);
         edge_min_roughness = Buffer<Real>(use_gpu, 4 * num_pixels);
 
@@ -940,6 +1001,7 @@ struct PathBuffer {
     Buffer<Intersection> light_isects, edge_light_isects;
     Buffer<SurfacePoint> light_points, edge_light_points;
     Buffer<Vector3> throughputs, edge_throughputs;
+    Buffer<Real> alpha_multipliers;
     Buffer<Real> min_roughness, edge_min_roughness;
 
     // Derivatives related
@@ -1175,16 +1237,18 @@ void render(const Scene &scene,
                   ray_differentials);
         // Stream compaction: remove invalid intersection
         update_active_pixels(active_pixels, shading_isects, active_pixels, scene.use_gpu);
-        accumulate_direct_visible_lights(scene,
-                                         active_pixels,
-                                         throughputs,
-                                         rays,
-                                         ray_differentials,
-                                         shading_isects,
-                                         shading_points,
-                                         Real(1) / options.num_samples,
-                                         rendered_image.get(),
-                                         nullptr);
+        accumulate_primary_contribs(scene,
+                                    active_pixels,
+                                    throughputs,
+                                    BufferView<Real>(), // alpha multipliers
+                                    rays,
+                                    ray_differentials,
+                                    shading_isects,
+                                    shading_points,
+                                    Real(1) / options.num_samples,
+                                    options.output_alpha,
+                                    rendered_image.get(),
+                                    nullptr);
         std::fill(num_active_pixels.begin(), num_active_pixels.end(), 0);
         num_active_pixels[0] = active_pixels.size();
         for (int depth = 0; depth < max_bounces &&
@@ -1271,6 +1335,7 @@ void render(const Scene &scene,
                 bsdf_points,
                 min_roughness,
                 Real(1) / options.num_samples,
+                options.output_alpha,
                 next_throughputs,
                 rendered_image.get(),
                 BufferView<Real>());
@@ -1367,6 +1432,7 @@ void render(const Scene &scene,
                     bsdf_isects, bsdf_points,
                     min_roughness,
                     Real(1) / options.num_samples, // weight
+                    options.output_alpha,
                     d_rendered_image.get(),
                     d_next_throughputs,
                     d_next_rays,
@@ -1411,6 +1477,7 @@ void render(const Scene &scene,
                     throughputs,
                     min_roughness,
                     d_rendered_image.get(),
+                    options.output_alpha,
                     edge_records,
                     edge_rays,
                     edge_ray_differentials,
@@ -1452,15 +1519,17 @@ void render(const Scene &scene,
                 // Initialize edge contribution
                 DISPATCH(scene.use_gpu, thrust::fill,
                     edge_contribs.begin(), edge_contribs.end(), 0);
-                accumulate_direct_visible_lights(
+                accumulate_primary_contribs(
                     scene,
                     edge_active_pixels,
                     edge_throughputs,
+                    BufferView<Real>(), // alpha multipliers
                     edge_rays,
                     edge_ray_differentials,
                     edge_shading_isects,
                     edge_shading_points,
                     Real(1) / options.num_samples,
+                    options.output_alpha,
                     nullptr,
                     edge_contribs);
                 auto num_active_edge_samples = edge_active_pixels.size();
@@ -1552,6 +1621,7 @@ void render(const Scene &scene,
                         bsdf_points,
                         edge_min_roughness,
                         Real(1) / options.num_samples,
+                        options.output_alpha,
                         next_throughputs,
                         nullptr,
                         edge_contribs);
@@ -1686,16 +1756,17 @@ void render(const Scene &scene,
                 auto d_primary_vertices = path_buffer.d_general_vertices.view(0, 3 * num_actives);
                 auto d_cameras = path_buffer.d_cameras.view(0, num_actives);
 
-                d_accumulate_direct_visible_lights(scene,
-                                                   active_pixels,
-                                                   throughputs,
-                                                   rays,
-                                                   primary_ray_differentials,
-                                                   shading_isects,
-                                                   shading_points,
-                                                   Real(1) / options.num_samples,
-                                                   d_rendered_image.get(),
-                                                   d_direct_lights);
+                d_accumulate_primary_contribs(scene,
+                                              active_pixels,
+                                              throughputs,
+                                              rays,
+                                              primary_ray_differentials,
+                                              shading_isects,
+                                              shading_points,
+                                              Real(1) / options.num_samples,
+                                              options.output_alpha,
+                                              d_rendered_image.get(),
+                                              d_direct_lights);
                 // Propagate to camera
                 d_primary_intersection(scene,
                                        active_pixels,
@@ -1754,6 +1825,7 @@ void render(const Scene &scene,
                 auto ray_differentials =
                     path_buffer.edge_ray_differentials.view(0, 2 * num_pixels);
                 auto throughputs = path_buffer.edge_throughputs.view(0, 2 * num_pixels);
+                auto alpha_multipliers = path_buffer.alpha_multipliers.view(0, 2 * num_pixels);
                 auto shading_isects = path_buffer.edge_shading_isects.view(0, 2 * num_pixels);
                 auto shading_points = path_buffer.edge_shading_points.view(0, 2 * num_pixels);
                 auto active_pixels = path_buffer.edge_active_pixels.view(0, 2 * num_pixels);
@@ -1771,10 +1843,12 @@ void render(const Scene &scene,
                 sample_primary_edges(scene,
                                      primary_edge_samples,
                                      d_rendered_image.get(),
+                                     options.output_alpha,
                                      edge_records,
                                      rays,
                                      ray_differentials,
-                                     throughputs);
+                                     throughputs,
+                                     alpha_multipliers);
                 // Initialize pixel id
                 init_active_pixels(rays, active_pixels, scene.use_gpu);
 
@@ -1788,6 +1862,18 @@ void render(const Scene &scene,
                           ray_differentials);
                 // Stream compaction: remove invalid intersections
                 update_active_pixels(active_pixels, shading_isects, active_pixels, scene.use_gpu);
+                accumulate_primary_contribs(scene,
+                                            active_pixels,
+                                            throughputs,
+                                            alpha_multipliers,
+                                            rays,
+                                            ray_differentials,
+                                            shading_isects,
+                                            shading_points,
+                                            Real(1) / options.num_samples,
+                                            options.output_alpha,
+                                            nullptr,
+                                            edge_contribs);
                 auto active_pixels_size = active_pixels.size();
                 for (int depth = 0; depth < max_bounces &&
                         active_pixels_size > 0; depth++) {
@@ -1876,6 +1962,7 @@ void render(const Scene &scene,
                         bsdf_points,
                         edge_min_roughness,
                         Real(1) / options.num_samples,
+                        options.output_alpha,
                         next_throughputs,
                         nullptr,
                         edge_contribs);

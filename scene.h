@@ -9,6 +9,7 @@
 #include "light.h"
 #include "shape.h"
 #include "material.h"
+#include "texture.h"
 #include "edge.h"
 #include <vector>
 #include <memory>

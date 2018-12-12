@@ -229,6 +229,8 @@ struct primary_edge_sampler {
         edge_records[idx] = PrimaryEdgeRecord{};
         throughputs[2 * idx + 0] = Vector3{0, 0, 0};
         throughputs[2 * idx + 1] = Vector3{0, 0, 0};
+        alphas[2 * idx + 0] = 0;
+        alphas[2 * idx + 1] = 0;
         rays[2 * idx + 0] = Ray(Vector3{0, 0, 0}, Vector3{0, 0, 0});
         rays[2 * idx + 1] = Ray(Vector3{0, 0, 0}, Vector3{0, 0, 0});
 
@@ -277,11 +279,22 @@ struct primary_edge_sampler {
             // Compute the corresponding backprop derivatives
             auto xi = clamp(int(edge_pt[0] * camera.width), 0, camera.width - 1);
             auto yi = clamp(int(edge_pt[1] * camera.height), 0, camera.height - 1);
-            auto d_color = Vector3{
-                d_rendered_image[3 * (yi * camera.width + xi) + 0],
-                d_rendered_image[3 * (yi * camera.width + xi) + 1],
-                d_rendered_image[3 * (yi * camera.width + xi) + 2]
-            };
+            auto d_color = Vector3{};
+            auto d_alpha = Real(0);
+            if (output_alpha) {
+                d_color = Vector3{
+                    d_rendered_image[4 * (yi * camera.width + xi) + 0],
+                    d_rendered_image[4 * (yi * camera.width + xi) + 1],
+                    d_rendered_image[4 * (yi * camera.width + xi) + 2]
+                };
+                d_alpha = d_rendered_image[4 * (yi * camera.width + xi) + 3];
+            } else {
+                d_color = Vector3{
+                    d_rendered_image[3 * (yi * camera.width + xi) + 0],
+                    d_rendered_image[3 * (yi * camera.width + xi) + 1],
+                    d_rendered_image[3 * (yi * camera.width + xi) + 2]
+                };
+            }
             // The weight is the length of edge divided by the probability
             // of selecting this edge, divided by the length of gradients
             // of the edge equation w.r.t. screen coordinate.
@@ -293,6 +306,8 @@ struct primary_edge_sampler {
 
             throughputs[2 * idx + 0] = upper_weight;
             throughputs[2 * idx + 1] = lower_weight;
+            alphas[2 * idx + 0] = d_alpha / edges_pmf[edge_id];
+            alphas[2 * idx + 1] = -d_alpha / edges_pmf[edge_id];
         } else {
             // In paper we focused on linear projection model.
             // However we also support non-linear models such as fisheye
@@ -351,11 +366,22 @@ struct primary_edge_sampler {
             // Compute the corresponding backprop derivatives
             auto xi = int(edge_pt[0] * camera.width);
             auto yi = int(edge_pt[1] * camera.height);
-            auto d_color = Vector3{
-                d_rendered_image[3 * (yi * camera.width + xi) + 0],
-                d_rendered_image[3 * (yi * camera.width + xi) + 1],
-                d_rendered_image[3 * (yi * camera.width + xi) + 2]
-            };
+            auto d_color = Vector3{};
+            auto d_alpha = Real(0);
+            if (output_alpha) {
+                d_color = Vector3{
+                    d_rendered_image[4 * (yi * camera.width + xi) + 0],
+                    d_rendered_image[4 * (yi * camera.width + xi) + 1],
+                    d_rendered_image[4 * (yi * camera.width + xi) + 2]
+                };
+                d_alpha = d_rendered_image[4 * (yi * camera.width + xi) + 3];
+            } else {
+                d_color = Vector3{
+                    d_rendered_image[3 * (yi * camera.width + xi) + 0],
+                    d_rendered_image[3 * (yi * camera.width + xi) + 1],
+                    d_rendered_image[3 * (yi * camera.width + xi) + 2]
+                };
+            }
             // The weight is the length of edge divided by the probability
             // of selecting this edge, divided by the length of gradients
             // of the edge equation w.r.t. screen coordinate.
@@ -387,6 +413,8 @@ struct primary_edge_sampler {
 
             throughputs[2 * idx + 0] = upper_weight;
             throughputs[2 * idx + 1] = lower_weight;
+            alphas[2 * idx + 0] = d_alpha * jacobian / edges_pmf[edge_id];
+            alphas[2 * idx + 1] = -d_alpha * jacobian / edges_pmf[edge_id];
         }
 
         // Ray differential computation
@@ -414,19 +442,23 @@ struct primary_edge_sampler {
     const Real *edges_cdf;
     const PrimaryEdgeSample *samples;
     const float *d_rendered_image;
+    const bool output_alpha;
     PrimaryEdgeRecord *edge_records;
     Ray *rays;
     RayDifferential *primary_ray_differentials;
     Vector3 *throughputs;
+    Real *alphas;
 };
 
 void sample_primary_edges(const Scene &scene,
                           const BufferView<PrimaryEdgeSample> &samples,
                           const float *d_rendered_image,
+                          const bool output_alpha,
                           BufferView<PrimaryEdgeRecord> edge_records,
                           BufferView<Ray> rays,
                           BufferView<RayDifferential> primary_ray_differentials,
-                          BufferView<Vector3> throughputs) {
+                          BufferView<Vector3> throughputs,
+                          BufferView<Real> alphas) {
     parallel_for(primary_edge_sampler{
         scene.camera,
         scene.shapes.data,
@@ -436,10 +468,12 @@ void sample_primary_edges(const Scene &scene,
         scene.edge_sampler.primary_edges_cdf.begin(),
         samples.begin(),
         d_rendered_image,
+        output_alpha,
         edge_records.begin(),
         rays.begin(),
         primary_ray_differentials.begin(),
-        throughputs.begin()
+        throughputs.begin(),
+        alphas.begin()
     }, samples.size(), scene.use_gpu);
 }
 
@@ -780,11 +814,20 @@ struct secondary_edge_sampler {
         }
 
         // Setup output
-        auto d_color = Vector3{
-            d_rendered_image[3 * pixel_id + 0],
-            d_rendered_image[3 * pixel_id + 1],
-            d_rendered_image[3 * pixel_id + 2]
-        };
+        auto d_color = Vector3{};
+        if (output_alpha) {
+            d_color = Vector3{
+                d_rendered_image[4 * pixel_id + 0],
+                d_rendered_image[4 * pixel_id + 1],
+                d_rendered_image[4 * pixel_id + 2]
+            };
+        } else {
+            d_color = Vector3{
+                d_rendered_image[3 * pixel_id + 0],
+                d_rendered_image[3 * pixel_id + 1],
+                d_rendered_image[3 * pixel_id + 2]
+            };
+        }
         edge_records[idx].shape_id = edge.shape_id;
         edge_records[idx].v0 = edge.v0;
         edge_records[idx].v1 = edge.v1;
@@ -846,6 +889,7 @@ struct secondary_edge_sampler {
     const Vector3 *throughputs;
     const Real *min_roughness;
     const float *d_rendered_image;
+    const bool output_alpha;
     SecondaryEdgeRecord *edge_records;
     Ray *rays;
     RayDifferential *bsdf_differentials;
@@ -863,6 +907,7 @@ void sample_secondary_edges(const Scene &scene,
                             const BufferView<Vector3> &throughputs,
                             const BufferView<Real> &min_roughness,
                             const float *d_rendered_image,
+                            const bool output_alpha,
                             BufferView<SecondaryEdgeRecord> edge_records,
                             BufferView<Ray> rays,
                             BufferView<RayDifferential> &bsdf_differentials,
@@ -884,6 +929,7 @@ void sample_secondary_edges(const Scene &scene,
         throughputs.begin(),
         min_roughness.begin(),
         d_rendered_image,
+        output_alpha,
         edge_records.begin(),
         rays.begin(),
         bsdf_differentials.begin(),

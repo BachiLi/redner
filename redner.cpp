@@ -103,7 +103,8 @@ PYBIND11_MODULE(redner, m) {
     py::class_<RenderOptions>(m, "RenderOptions")
         .def(py::init<uint64_t,
                       int,
-                      int>())
+                      int,
+                      bool>())
         .def_readwrite("seed", &RenderOptions::seed);
 
     py::class_<Vector2f>(m, "Vector2f")

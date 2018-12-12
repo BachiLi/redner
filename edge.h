@@ -132,10 +132,12 @@ struct EdgeSampler {
 void sample_primary_edges(const Scene &scene,
                           const BufferView<PrimaryEdgeSample> &samples,
                           const float *d_rendered_image,
+                          const bool output_alpha,
                           BufferView<PrimaryEdgeRecord> edge_records,
                           BufferView<Ray> rays,
                           BufferView<RayDifferential> primary_ray_differentials,
-                          BufferView<Vector3> throughputs);
+                          BufferView<Vector3> throughputs,
+                          BufferView<Real> alphas);
 
 void compute_primary_edge_derivatives(const Scene &scene,
                                       const BufferView<PrimaryEdgeRecord> &edge_records,
@@ -153,6 +155,7 @@ void sample_secondary_edges(const Scene &scene,
                             const BufferView<Vector3> &throughputs,
                             const BufferView<Real> &min_roughness,
                             const float *d_rendered_image,
+                            const bool output_alpha,
                             BufferView<SecondaryEdgeRecord> edge_records,
                             BufferView<Ray> rays,
                             BufferView<RayDifferential> &bsdf_ray_differentials,

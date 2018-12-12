@@ -11,6 +11,7 @@ struct RenderOptions {
     uint64_t seed;
     int num_samples;
     int max_bounces;
+    bool output_alpha;
 };
 
 void render(const Scene &scene,
