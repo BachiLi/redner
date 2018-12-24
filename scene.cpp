@@ -487,7 +487,7 @@ void update_occluded_rays(const BufferView<int> &active_pixels,
                           BufferView<Ray> rays) {
     auto block_size = 256;
     auto block_count = idiv_ceil(active_pixels.size(), block_size);
-    update_intersection_kernel<<<block_count, block_size>>>(
+    update_occluded_rays_kernel<<<block_count, block_size>>>(
         active_pixels.size(),
         active_pixels.begin(),
         optix_hits.begin(),

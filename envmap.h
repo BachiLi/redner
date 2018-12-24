@@ -14,8 +14,7 @@
 struct Scene;
 
 struct EnvironmentMap {
-    DEVICE EnvironmentMap() {}
-    DEVICE
+    EnvironmentMap() {}
     EnvironmentMap(const Texture3 &values,
                    ptr<float> env_to_world,
                    ptr<float> world_to_env,
@@ -44,8 +43,7 @@ struct EnvironmentMap {
 };
 
 struct DEnvironmentMap {
-    DEVICE DEnvironmentMap() {}
-    DEVICE
+    DEnvironmentMap() {}
     DEnvironmentMap(const Texture3 &values,
                     ptr<float> world_to_env)
         : values(values),
