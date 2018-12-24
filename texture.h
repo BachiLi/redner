@@ -259,14 +259,17 @@ inline Real get_texture_value_constant(const Texture1 &tex) {
 template <typename TextureType>
 DEVICE
 inline auto get_texture_value(const TextureType &tex,
-                              const Vector2 &uv,
-                              const Vector2 &du_dxy,
-                              const Vector2 &dv_dxy) {
+                              const Vector2 &uv_,
+                              const Vector2 &du_dxy_,
+                              const Vector2 &dv_dxy_) {
     if (tex.num_levels <= 0) {
         // Constant texture
         return get_texture_value_constant(tex);
     } else {
         // Trilinear interpolation
+        auto uv = uv_ * tex.uv_scale;
+        auto du_dxy = du_dxy_ * tex.uv_scale[0];
+        auto dv_dxy = dv_dxy_ * tex.uv_scale[1];
         auto x = uv[0] * tex.width - 0.5f;
         auto y = uv[1] * tex.height - 0.5f;
         auto xf = (int)floor(x);
@@ -297,20 +300,23 @@ inline auto get_texture_value(const TextureType &tex,
 template <typename TextureType, typename OutputType, typename DTextureType>
 DEVICE
 inline void d_get_texture_value(const TextureType &tex,
-                                const Vector2 &uv,
-                                const Vector2 &du_dxy,
-                                const Vector2 &dv_dxy,
+                                const Vector2 &uv_,
+                                const Vector2 &du_dxy_,
+                                const Vector2 &dv_dxy_,
                                 const OutputType &d_output,
                                 DTextureType &d_tex,
-                                Vector2 &d_uv,
-                                Vector2 &d_du_dxy,
-                                Vector2 &d_dv_dxy) {
+                                Vector2 &d_uv_,
+                                Vector2 &d_du_dxy_,
+                                Vector2 &d_dv_dxy_) {
     if (tex.width <= 0 && tex.height <= 0) {
         // Constant texture
         // output =  Vector3{tex.texels[0], tex.texels[1], tex.texels[2]};
         d_tex.t000 = d_output;
     } else {
         // Trilinear interpolation
+        auto uv = uv_ * tex.uv_scale;
+        auto du_dxy = du_dxy_ * tex.uv_scale[0];
+        auto dv_dxy = dv_dxy_ * tex.uv_scale[1];
         auto x = uv[0] * tex.width - 0.5f;
         auto y = uv[1] * tex.height - 0.5f;
         auto xf = (int)floor(x);
@@ -364,6 +370,9 @@ inline void d_get_texture_value(const TextureType &tex,
             d_max_footprint += d_ld / (max_footprint * log(Real(2)));
         }
         // max_footprint = max(length(du_dxy) * tex.width, length(dv_dxy) * tex.height)
+        auto d_uv = Vector2{0, 0};
+        auto d_du_dxy = Vector2{0, 0};
+        auto d_dv_dxy = Vector2{0, 0};
         if (is_u_max) {
             d_du_dxy += d_length(du_dxy, d_max_footprint) * tex.width;
         } else {
@@ -375,5 +384,12 @@ inline void d_get_texture_value(const TextureType &tex,
         // y = uv[1] * tex.height - 0.5f
         d_uv[0] += d_u * tex.width;
         d_uv[1] += d_v * tex.height;
+
+        // uv = uv_ * tex.uv_scale
+        // du_dxy = du_dxy_ * tex.uv_scale[0]
+        // dv_dxy = dv_dxy_ * tex.uv_scale[1]
+        d_uv_ += d_uv * tex.uv_scale;
+        d_du_dxy_ += d_du_dxy * tex.uv_scale[0];
+        d_dv_dxy_ += d_dv_dxy * tex.uv_scale[1];
     }
 }

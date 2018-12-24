@@ -50,12 +50,12 @@ shape_light = pyredner.Shape(\
 shapes = [shape_triangle, shape_light]
 
 # Setup light source
-light = pyredner.Light(shape_id = 1, 
-                       intensity = torch.tensor([20.0,20.0,20.0]))
-lights = [light]
+light = pyredner.AreaLight(shape_id = 1, 
+                           intensity = torch.tensor([20.0,20.0,20.0]))
+area_lights = [light]
 
 # Construct the scene
-scene = pyredner.Scene(cam, shapes, materials, lights)
+scene = pyredner.Scene(cam, shapes, materials, area_lights)
 # Serialize the scene
 scene_args = pyredner.RenderFunction.serialize_scene(\
     scene = scene,

@@ -175,7 +175,7 @@ def parse_shape(node, material_dict, shape_id):
         assert(indices is not None)
         lgt = None
         if light_intensity is not None:
-            lgt = pyredner.Light(shape_id, light_intensity)
+            lgt = pyredner.AreaLight(shape_id, light_intensity)
 
         if pyredner.get_use_gpu():
             # Copy to GPU

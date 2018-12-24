@@ -37,8 +37,8 @@ class RenderFunction(torch.autograd.Function):
         cam = scene.camera
         num_shapes = len(scene.shapes)
         num_materials = len(scene.materials)
-        num_lights = len(scene.lights)
-        for light_id, light in enumerate(scene.lights):
+        num_lights = len(scene.area_lights)
+        for light_id, light in enumerate(scene.area_lights):
             scene.shapes[light.shape_id].light_id = light_id
         args = []
         args.append(num_shapes)
@@ -65,10 +65,26 @@ class RenderFunction(torch.autograd.Function):
             args.append(material.roughness.texels)
             args.append(material.roughness.uv_scale)
             args.append(material.two_sided)
-        for light in scene.lights:
+        for light in scene.area_lights:
             args.append(light.shape_id)
             args.append(light.intensity)
             args.append(light.two_sided)
+        if scene.envmap is not None:
+            args.append(scene.envmap.values.texels)
+            args.append(scene.envmap.values.uv_scale)
+            args.append(scene.envmap.env_to_world)
+            args.append(scene.envmap.world_to_env)
+            args.append(scene.envmap.sample_cdf_ys)
+            args.append(scene.envmap.sample_cdf_xs)
+            args.append(scene.envmap.pdf_norm)
+        else:
+            args.append(None)
+            args.append(None)
+            args.append(None)
+            args.append(None)
+            args.append(None)
+            args.append(None)
+            args.append(None)
         args.append(num_samples)
         args.append(max_bounces)
         args.append(output_alpha)
@@ -198,7 +214,7 @@ class RenderFunction(torch.autograd.Function):
                 roughness,
                 two_sided))
 
-        lights = []
+        area_lights = []
         for i in range(num_lights):
             shape_id = args[current_index]
             current_index += 1
@@ -207,14 +223,48 @@ class RenderFunction(torch.autograd.Function):
             two_sided = args[current_index]
             current_index += 1
 
-            lights.append(redner.Light(shape_id,
-                                       redner.float_ptr(intensity.data_ptr()),
-                                       two_sided))
+            area_lights.append(redner.AreaLight(\
+                shape_id,
+                redner.float_ptr(intensity.data_ptr()),
+                two_sided))
+
+        envmap = None
+        if args[current_index] is not None:
+            values = args[current_index]
+            current_index += 1
+            envmap_uv_scale = args[current_index]
+            current_index += 1
+            env_to_world = args[current_index]
+            current_index += 1
+            world_to_env = args[current_index]
+            current_index += 1
+            sample_cdf_ys = args[current_index]
+            current_index += 1
+            sample_cdf_xs = args[current_index]
+            current_index += 1
+            pdf_norm = args[current_index]
+            current_index += 1
+            values = redner.Texture3(\
+                redner.float_ptr(values.data_ptr()),
+                int(values.shape[2]), # width
+                int(values.shape[1]), # height
+                int(values.shape[0]), # num levels
+                redner.float_ptr(envmap_uv_scale.data_ptr()))
+            envmap = redner.EnvironmentMap(\
+                values,
+                redner.float_ptr(env_to_world.data_ptr()),
+                redner.float_ptr(world_to_env.data_ptr()),
+                redner.float_ptr(sample_cdf_ys.data_ptr()),
+                redner.float_ptr(sample_cdf_xs.data_ptr()),
+                pdf_norm)
+        else:
+            current_index += 7
 
         scene = redner.Scene(camera,
                              shapes,
                              materials,
-                             lights,
+                             area_lights,
+                             envmap,
                              pyredner.get_use_gpu())
         num_samples = args[current_index]
         current_index += 1
@@ -247,7 +297,8 @@ class RenderFunction(torch.autograd.Function):
 
         ctx.shapes = shapes
         ctx.materials = materials
-        ctx.lights = lights
+        ctx.area_lights = area_lights
+        ctx.envmap = envmap
         ctx.scene = scene
         ctx.options = options
         return rendered_image
@@ -337,16 +388,38 @@ class RenderFunction(torch.autograd.Function):
                 d_diffuse_tex, d_specular_tex, d_roughness_tex))
 
         d_intensity_list = []
-        d_lights = []
-        for light in ctx.lights:
+        d_area_lights = []
+        for light in ctx.area_lights:
             d_intensity = torch.zeros(3, device = pyredner.get_device())
             d_intensity_list.append(d_intensity)
-            d_lights.append(redner.DLight(redner.float_ptr(d_intensity.data_ptr())))
+            d_area_lights.append(\
+                redner.DAreaLight(redner.float_ptr(d_intensity.data_ptr())))
+
+        d_envmap = None
+        if ctx.envmap is not None:
+            envmap = ctx.envmap
+            size = envmap.get_size()
+            d_envmap_values = \
+                torch.zeros(size[2],
+                            size[1],
+                            size[0],
+                            3,
+                            device = pyredner.get_device())
+            d_envmap_uv_scale = torch.zeros(2)
+            d_envmap_tex = redner.Texture3(\
+                redner.float_ptr(d_envmap_values.data_ptr()),
+                size[0], size[1], size[2],
+                redner.float_ptr(d_envmap_uv_scale.data_ptr()))
+            d_world_to_env = torch.zeros(4, 4)
+            d_envmap = redner.DEnvironmentMap(\
+                d_envmap_tex,
+                redner.float_ptr(d_world_to_env.data_ptr()))
 
         d_scene = redner.DScene(d_camera,
                                 d_shapes,
                                 d_materials,
-                                d_lights,
+                                d_area_lights,
+                                d_envmap,
                                 pyredner.get_use_gpu())
         if not get_use_correlated_random_number():
             # Decouple the forward/backward random numbers by adding a big prime number
@@ -399,11 +472,28 @@ class RenderFunction(torch.autograd.Function):
             ret_list.append(None) # roughness_uv_scale
             ret_list.append(None) # two sided
 
-        num_lights = len(ctx.lights)
-        for i in range(num_lights):
+        num_area_lights = len(ctx.area_lights)
+        for i in range(num_area_lights):
             ret_list.append(None) # shape id
             ret_list.append(d_intensity_list[i].cpu())
             ret_list.append(None) # two sided
+
+        if ctx.envmap is not None:
+            ret_list.append(d_envmap_values)
+            ret_list.append(None) # uv_scale
+            ret_list.append(None) # env_to_world
+            ret_list.append(d_world_to_env)
+            ret_list.append(None) # sample_cdf_ys
+            ret_list.append(None) # sample_cdf_xs
+            ret_list.append(None) # pdf_norm
+        else:
+            ret_list.append(None)
+            ret_list.append(None)
+            ret_list.append(None)
+            ret_list.append(None)
+            ret_list.append(None)
+            ret_list.append(None)
+            ret_list.append(None)
         
         ret_list.append(None) # num samples
         ret_list.append(None) # num bounces

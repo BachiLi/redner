@@ -62,11 +62,8 @@ using BSDFSample = TBSDFSample<Real>;
 DEVICE
 inline Vector3 get_diffuse_reflectance(const Material &material,
                                        const SurfacePoint &shading_point) {
-    auto uv_scale = material.diffuse_reflectance.uv_scale;
     return get_texture_value(material.diffuse_reflectance,
-        shading_point.uv * uv_scale,
-        shading_point.du_dxy * uv_scale[0],
-        shading_point.dv_dxy * uv_scale[1]);
+        shading_point.uv, shading_point.du_dxy, shading_point.dv_dxy);
 }
 
 DEVICE
@@ -75,34 +72,22 @@ inline void d_get_diffuse_reflectance(const Material &material,
                                       const Vector3 &d_output,
                                       DTexture3 &d_texture,
                                       SurfacePoint &d_shading_point) {
-    auto uv_scale = material.diffuse_reflectance.uv_scale;
-    auto d_scaled_uv = Vector2{0, 0};
-    auto d_scaled_du_dxy = Vector2{0, 0};
-    auto d_scaled_dv_dxy = Vector2{0, 0};
     d_get_texture_value(material.diffuse_reflectance,
-                        shading_point.uv * uv_scale,
-                        shading_point.du_dxy * uv_scale[0],
-                        shading_point.dv_dxy * uv_scale[1],
+                        shading_point.uv,
+                        shading_point.du_dxy,
+                        shading_point.dv_dxy,
                         d_output,
                         d_texture,
-                        d_scaled_uv,
-                        d_scaled_du_dxy,
-                        d_scaled_dv_dxy);
-    // scaled_uv = uv * uv_scale
-    d_shading_point.uv += d_scaled_uv * uv_scale;
-    d_shading_point.du_dxy += d_scaled_du_dxy * uv_scale[0];
-    d_shading_point.dv_dxy += d_scaled_dv_dxy * uv_scale[1];
-    // d_material.d_diffuse_uv_scale += d_scaled_uv * uv;
+                        d_shading_point.uv,
+                        d_shading_point.du_dxy,
+                        d_shading_point.dv_dxy);
 }
 
 DEVICE
 inline Vector3 get_specular_reflectance(const Material &material,
                                         const SurfacePoint &shading_point) {
-    auto uv_scale = material.specular_reflectance.uv_scale;
     return get_texture_value(material.specular_reflectance,
-        shading_point.uv * uv_scale,
-        shading_point.du_dxy * uv_scale[0],
-        shading_point.dv_dxy * uv_scale[1]);
+        shading_point.uv, shading_point.du_dxy, shading_point.dv_dxy);
 }
 
 DEVICE
@@ -111,34 +96,22 @@ inline void d_get_specular_reflectance(const Material &material,
                                        const Vector3 &d_output,
                                        DTexture3 &d_texture,
                                        SurfacePoint &d_shading_point) {
-    auto uv_scale = material.specular_reflectance.uv_scale;
-    auto d_scaled_uv = Vector2{0, 0};
-    auto d_scaled_du_dxy = Vector2{0, 0};
-    auto d_scaled_dv_dxy = Vector2{0, 0};
     d_get_texture_value(material.specular_reflectance,
-                        shading_point.uv * uv_scale,
-                        shading_point.du_dxy * uv_scale[0],
-                        shading_point.dv_dxy * uv_scale[1],
+                        shading_point.uv,
+                        shading_point.du_dxy,
+                        shading_point.dv_dxy,
                         d_output,
                         d_texture,
-                        d_scaled_uv,
-                        d_scaled_du_dxy,
-                        d_scaled_dv_dxy);
-    // scaled_uv = uv * uv_scale
-    d_shading_point.uv += d_scaled_uv * uv_scale;
-    d_shading_point.du_dxy += d_scaled_du_dxy * uv_scale[0];
-    d_shading_point.dv_dxy += d_scaled_dv_dxy * uv_scale[1];
-    // d_material.d_specular_uv_scale += d_scaled_uv * uv;
+                        d_shading_point.uv,
+                        d_shading_point.du_dxy,
+                        d_shading_point.dv_dxy);
 }
 
 DEVICE
 inline Real get_roughness(const Material &material,
                           const SurfacePoint &shading_point) {
-    auto uv_scale = material.roughness.uv_scale;
     return get_texture_value(material.roughness,
-        shading_point.uv * uv_scale,
-        shading_point.du_dxy * uv_scale[0],
-        shading_point.dv_dxy * uv_scale[1]);
+        shading_point.uv, shading_point.du_dxy, shading_point.dv_dxy);
 }
 
 DEVICE
@@ -147,24 +120,15 @@ inline void d_get_roughness(const Material &material,
                             const Real d_output,
                             DTexture1 &d_texture,
                             SurfacePoint &d_shading_point) {
-    auto uv_scale = material.roughness.uv_scale;
-    auto d_scaled_uv = Vector2{0, 0};
-    auto d_scaled_du_dxy = Vector2{0, 0};
-    auto d_scaled_dv_dxy = Vector2{0, 0};
     d_get_texture_value(material.roughness,
-                        shading_point.uv * uv_scale,
-                        shading_point.du_dxy * uv_scale[0],
-                        shading_point.dv_dxy * uv_scale[1],
+                        shading_point.uv,
+                        shading_point.du_dxy,
+                        shading_point.dv_dxy,
                         d_output,
                         d_texture,
-                        d_scaled_uv,
-                        d_scaled_du_dxy,
-                        d_scaled_dv_dxy);
-    // scaled_uv = uv * uv_scale
-    d_shading_point.uv += d_scaled_uv * uv_scale;
-    d_shading_point.du_dxy += d_scaled_du_dxy * uv_scale[0];
-    d_shading_point.dv_dxy += d_scaled_dv_dxy * uv_scale[1];
-    // d_material.d_roughness_uv_scale += d_scaled_uv * uv;
+                        d_shading_point.uv,
+                        d_shading_point.du_dxy,
+                        d_shading_point.dv_dxy);
 }
 
 

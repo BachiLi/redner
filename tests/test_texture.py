@@ -46,9 +46,9 @@ shape_light = pyredner.Shape(light_vertices, light_indices, None, None, 1)
 shapes = [shape_plane, shape_light]
 light_intensity = torch.tensor([20.0, 20.0, 20.0])
 # The first argument is the shape id of the light
-light = pyredner.Light(1, light_intensity)
-lights = [light]
-scene = pyredner.Scene(cam, shapes, materials, lights)
+light = pyredner.AreaLight(1, light_intensity)
+area_lights = [light]
+scene = pyredner.Scene(cam, shapes, materials, area_lights)
 args = pyredner.RenderFunction.serialize_scene(\
     scene = scene,
     num_samples = 16,

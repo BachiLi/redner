@@ -1,8 +1,4 @@
 #include "scene.h"
-#include "camera.h"
-#include "shape.h"
-#include "material.h"
-#include "light.h"
 #include "cuda_utils.h"
 #include "intersection.h"
 #include "parallel.h"
@@ -53,7 +49,8 @@ Real compute_area_cdf(const Shape &shape, Real *cdf, bool use_gpu) {
 Scene::Scene(const Camera &camera,
              const std::vector<const Shape*> &shapes,
              const std::vector<const Material*> &materials,
-             const std::vector<const Light*> &lights,
+             const std::vector<const AreaLight*> &area_lights,
+             const std::shared_ptr<const EnvironmentMap> &envmap,
              bool use_gpu)
         : camera(camera), use_gpu(use_gpu) {
     if (use_gpu) {
@@ -99,8 +96,8 @@ Scene::Scene(const Camera &camera,
                 vertices[i] = Vector4f{vertex[0], vertex[1], vertex[2], 0.f};
             }
             auto triangles = (Vector3i*) rtcSetNewGeometryBuffer(
-                    mesh, RTC_BUFFER_TYPE_INDEX, 0, RTC_FORMAT_UINT3,
-                    sizeof(Vector3i), shape->num_triangles);
+                mesh, RTC_BUFFER_TYPE_INDEX, 0, RTC_FORMAT_UINT3,
+                sizeof(Vector3i), shape->num_triangles);
             for (auto i = 0; i < shape->num_triangles; i++) {
                 triangles[i] = get_indices(*shape, i);
             }
@@ -112,47 +109,55 @@ Scene::Scene(const Camera &camera,
         rtcCommitScene(embree_scene);
     }
 
-    if (lights.size() > 0) {
+    if (area_lights.size() > 0 || envmap.get() != nullptr) {
+        auto num_lights = (int)area_lights.size();
+        if (envmap.get() != nullptr) {
+            num_lights++;
+        }
+        auto envmap_id = (int)area_lights.size();
         // Build Light CDFs
-        light_pmf = Buffer<Real>(use_gpu, lights.size());
-        light_areas = Buffer<Real>(use_gpu, lights.size());
+        light_pmf = Buffer<Real>(use_gpu, num_lights);
+        light_areas = Buffer<Real>(use_gpu, area_lights.size());
         // For each area light we build a CDF using area of triangles
-        area_cdfs = Buffer<Real*>(use_gpu, lights.size());
+        area_cdfs = Buffer<Real*>(use_gpu, area_lights.size());
         auto total_light_triangles = 0;
-        for (int light_id = 0; light_id < (int)lights.size(); light_id++) {
-            const Light &light = *lights[light_id];
+        for (int light_id = 0; light_id < (int)area_lights.size(); light_id++) {
+            const AreaLight &light = *area_lights[light_id];
             const Shape &shape = *shapes[light.shape_id];
             total_light_triangles += shape.num_triangles;
         }
         area_cdf_pool = Buffer<Real>(use_gpu, total_light_triangles);
         auto cur_tri_id = 0;
-        for (int light_id = 0; light_id < (int)lights.size(); light_id++) {
-            const Light &light = *lights[light_id];
+        for (int light_id = 0; light_id < (int)area_lights.size(); light_id++) {
+            const AreaLight &light = *area_lights[light_id];
             const Shape &shape = *shapes[light.shape_id];
             area_cdfs[light_id] = area_cdf_pool.begin() + cur_tri_id;
             cur_tri_id += shape.num_triangles;
         }
         auto total_importance = Real(0);
-        for (int light_id = 0; light_id < (int)lights.size(); light_id++) {
-            const Light &light = *lights[light_id];
+        for (int light_id = 0; light_id < (int)area_lights.size(); light_id++) {
+            const AreaLight &light = *area_lights[light_id];
             const Shape &shape = *shapes[light.shape_id];
-            auto area_sum =
-                compute_area_cdf(shape, area_cdfs[light_id], use_gpu);
+            auto area_sum = compute_area_cdf(shape, area_cdfs[light_id], use_gpu);
             light_areas[light_id] = area_sum;
             // Power of an area light
-            light_pmf[light_id] =
-                area_sum * luminance(light.intensity) * Real(M_PI);
+            light_pmf[light_id] = area_sum * luminance(light.intensity) * Real(M_PI);
             total_importance += light_pmf[light_id];
         }
+        if (envmap.get() != nullptr) {
+            // TODO: use scene bounding box to determine light power
+            light_pmf[envmap_id] = 1;
+            total_importance += 1;
+        }
+
         assert(total_importance > Real(0));
         // Normalize PMF
-        std::transform(
-            light_pmf.data, light_pmf.data + lights.size(),
-            light_pmf.data, [=](Real x) {return x / total_importance;});
+        std::transform(light_pmf.data, light_pmf.data + num_lights,
+                       light_pmf.data, [=](Real x) {return x / total_importance;});
         // Prefix sum for CDF
-        light_cdf = Buffer<Real>(use_gpu, lights.size());
+        light_cdf = Buffer<Real>(use_gpu, num_lights);
         light_cdf[0] = 0;
-        for (int i = 1; i < (int)lights.size(); i++) {
+        for (int i = 1; i < num_lights; i++) {
             light_cdf[i] = light_cdf[i - 1] + light_pmf[i - 1];
         }
     }
@@ -170,11 +175,26 @@ Scene::Scene(const Camera &camera,
             this->materials[material_id] = *materials[material_id];
         }
     }
-    if (lights.size() > 0) {
-        this->lights = Buffer<Light>(use_gpu, lights.size());
-        for (int light_id = 0; light_id < (int)lights.size(); light_id++) {
-            this->lights[light_id] = *lights[light_id];
+    if (area_lights.size() > 0) {
+        this->area_lights = Buffer<AreaLight>(use_gpu, area_lights.size());
+        for (int light_id = 0; light_id < (int)area_lights.size(); light_id++) {
+            this->area_lights[light_id] = *area_lights[light_id];
         }
+    }
+
+    if (envmap.get() != nullptr) {
+        if (use_gpu) {
+#ifdef __NVCC__
+            checkCuda(cudaMallocManaged(&this->envmap, sizeof(EnvironmentMap)));
+#else
+            assert(false);
+#endif
+        } else {
+            this->envmap = new EnvironmentMap;
+        }
+        *(this->envmap) = *envmap;
+    } else {
+        this->envmap = nullptr;
     }
 
     // Create a mutex for each material for derivatives accumulation
@@ -187,14 +207,23 @@ Scene::~Scene() {
     if (!use_gpu) {
         rtcReleaseScene(embree_scene);
         rtcReleaseDevice(embree_device);
+        delete envmap;
+    } else {
+#ifdef __NVCC__
+        checkCuda(cudaFree(envmap));
+#else
+        assert(false);
+#endif
     }
+
 }
 
 DScene::DScene(const DCamera &camera,
                const std::vector<DShape*> &shapes,
                const std::vector<DMaterial*> &materials,
-               const std::vector<DLight*> &lights,
-               bool use_gpu) {
+               const std::vector<DAreaLight*> &area_lights,
+               const std::shared_ptr<DEnvironmentMap> &envmap,
+               bool use_gpu) : use_gpu(use_gpu) {
     if (use_gpu) {
         cuda_synchronize();
     }
@@ -213,26 +242,52 @@ DScene::DScene(const DCamera &camera,
             
         }
     }
-    if (lights.size() > 0) {
-        this->lights = Buffer<DLight>(use_gpu, lights.size());
-        for (int light_id = 0; light_id < (int)lights.size(); light_id++) {
-            this->lights[light_id] = *lights[light_id];
+    if (area_lights.size() > 0) {
+        this->area_lights = Buffer<DAreaLight>(use_gpu, area_lights.size());
+        for (int light_id = 0; light_id < (int)area_lights.size(); light_id++) {
+            this->area_lights[light_id] = *area_lights[light_id];
         }
+    }
+    if (envmap.get() != nullptr) {
+        if (use_gpu) {
+#ifdef __NVCC__
+            checkCuda(cudaMallocManaged(&this->envmap, sizeof(DEnvironmentMap)));
+#else
+            assert(false);
+#endif
+        } else {
+            this->envmap = new DEnvironmentMap;
+        }
+        *(this->envmap) = *envmap;
+    } else {
+        this->envmap = nullptr;
     }
 }
 
 DScene::~DScene() {
+    if (!use_gpu) {
+        delete envmap;
+    } else {
+#ifdef __NVCC__
+        checkCuda(cudaFree(envmap));
+#else
+        assert(false);
+#endif
+    }
 }
 
 FlattenScene get_flatten_scene(const Scene &scene) {
     return FlattenScene{scene.shapes.data,
                         scene.materials.data,
-                        scene.lights.data,
-                        (int)scene.lights.size(),
+                        scene.area_lights.data,
+                        scene.envmap != nullptr ?
+                            (int)scene.area_lights.size() + 1 :
+                            (int)scene.area_lights.size(),
                         scene.light_pmf.data,
                         scene.light_cdf.data,
                         scene.light_areas.data,
-                        scene.area_cdfs.data};
+                        scene.area_cdfs.data,
+                        scene.envmap};
 }
 
 #ifdef __NVCC__
@@ -291,6 +346,7 @@ __global__ void intersect_shape_kernel(
     } else {
         out_isects[pixel_id].shape_id = -1;
         out_isects[pixel_id].tri_id = -1;
+        new_ray_differentials[pixel_id] = ray_differentials[pixel_id];
     }
 }
 
@@ -388,6 +444,7 @@ void intersect(const Scene &scene,
                 rtcIntersect1(scene.embree_scene, &rtc_context, &rtc_ray_hit);
                 if (rtc_ray_hit.hit.geomID == RTC_INVALID_GEOMETRY_ID) {
                     intersections[pixel_id] = Intersection{-1, -1};
+                    new_ray_differentials[pixel_id] = ray_differentials[pixel_id];
                 } else {
                     auto shape_id = (int)rtc_ray_hit.hit.geomID;
                     auto tri_id = (int)rtc_ray_hit.hit.primID;
@@ -409,40 +466,38 @@ void intersect(const Scene &scene,
 }
 
 #ifdef __NVCC__
-__global__ void update_intersection_kernel(int N,
-                                           const int *active_pixels,
-                                           const OptiXHit *optix_hits,
-                                           Intersection *isects) {
+__global__ void update_occluded_rays_kernel(int N,
+                                            const int *active_pixels,
+                                            const OptiXHit *optix_hits,
+                                            Ray *rays) {
     auto idx = threadIdx.x + blockIdx.x * blockDim.x;
     if (idx >= N) {
         return;
     }
 
     if (optix_hits[idx].t >= 0.f) {
-        // Invalidate intersection if occluded
+        // Invalidate ray if occluded
         auto pixel_id = active_pixels[idx];
-        isects[pixel_id].shape_id = -1;
-        isects[pixel_id].tri_id = -1;
+        rays[pixel_id].tmax = -1;
     }
 }
 
-void update_intersection(const BufferView<int> &active_pixels,
-                         const BufferView<OptiXHit> &optix_hits,
-                         BufferView<Intersection> hits) {
+void update_occluded_rays(const BufferView<int> &active_pixels,
+                          const BufferView<OptiXHit> &optix_hits,
+                          BufferView<Ray> rays) {
     auto block_size = 256;
     auto block_count = idiv_ceil(active_pixels.size(), block_size);
     update_intersection_kernel<<<block_count, block_size>>>(
         active_pixels.size(),
         active_pixels.begin(),
         optix_hits.begin(),
-        hits.begin());
+        rays.begin());
 }
 #endif
 
 void occluded(const Scene &scene,
               const BufferView<int> &active_pixels,
-              const BufferView<Ray> &rays,
-              BufferView<Intersection> intersections) {
+              BufferView<Ray> rays) {
     if (scene.use_gpu) {
 #ifdef __NVCC__
         // OptiX prime query
@@ -462,9 +517,9 @@ void occluded(const Scene &scene,
                        optix_hits.data);
         // XXX: should use watertight intersection here?
         query->execute(0);
-        update_intersection(active_pixels,
-                            optix_hits.view(0, optix_hits.size()),
-                            intersections);
+        update_occluded_rays(active_pixels,
+                             optix_hits.view(0, optix_hits.size()),
+                             rays);
 #else
         assert(false);
 #endif
@@ -497,7 +552,8 @@ void occluded(const Scene &scene,
                 // TODO: switch to rtcOccluded16
                 rtcOccluded1(scene.embree_scene, &rtc_context, &rtc_ray);
                 if (rtc_ray.tfar < 0) {
-                    intersections[pixel_id] = Intersection{-1, -1};
+                    // intersections[pixel_id] = Intersection{-1, -1};
+                    rays[pixel_id].tmax = -1;
                 }
             }
         }, num_threads); 
@@ -515,26 +571,35 @@ struct light_point_sampler {
                 sample.light_sel);
         auto light_id = clamp((int)(light_ptr - scene.light_cdf - 1),
                                     0, scene.num_lights - 1);
-        const auto &light = scene.lights[light_id];
-        const auto &shape = scene.shapes[light.shape_id];
-        // Select triangle by binary search on area_cdfs
-        const Real *area_cdf = scene.area_cdfs[light_id];
-        const Real *tri_ptr = thrust::upper_bound(thrust::seq,
-                area_cdf, area_cdf + shape.num_triangles, sample.tri_sel);
-        auto tri_id = clamp((int)(tri_ptr - area_cdf - 1),
-                            0, shape.num_triangles - 1);
-        light_isects[pixel_id].shape_id = light.shape_id;
-        light_isects[pixel_id].tri_id = tri_id;
-        light_points[pixel_id] = sample_shape(shape, tri_id, sample.uv);
-        shadow_rays[pixel_id].org = shading_points[pixel_id].position;
-        shadow_rays[pixel_id].dir = normalize(
-            light_points[pixel_id].position -
-            shading_points[pixel_id].position);
-        // Shadow epislon. Sorry.
-        shadow_rays[pixel_id].tmin = 1e-3f;
-        shadow_rays[pixel_id].tmax = (1 - 1e-3f) *
-            length(light_points[pixel_id].position -
-                   shading_points[pixel_id].position);
+        if (scene.envmap != nullptr && light_id == scene.num_lights - 1) {
+            // Environment map
+            light_isects[pixel_id].shape_id = -1;
+            light_isects[pixel_id].tri_id = -1;
+            light_points[pixel_id] = SurfacePoint::zero();
+            shadow_rays[pixel_id].org = shading_points[pixel_id].position;
+            shadow_rays[pixel_id].dir = envmap_sample(*(scene.envmap), sample.uv);
+            shadow_rays[pixel_id].tmin = 1e-3f;
+            shadow_rays[pixel_id].tmax = infinity<Real>();
+        } else {
+            // Area light
+            const auto &light = scene.area_lights[light_id];
+            const auto &shape = scene.shapes[light.shape_id];
+            // Select triangle by binary search on area_cdfs
+            const Real *area_cdf = scene.area_cdfs[light_id];
+            const Real *tri_ptr = thrust::upper_bound(thrust::seq,
+                    area_cdf, area_cdf + shape.num_triangles, sample.tri_sel);
+            auto tri_id = clamp((int)(tri_ptr - area_cdf - 1), 0, shape.num_triangles - 1);
+            light_isects[pixel_id].shape_id = light.shape_id;
+            light_isects[pixel_id].tri_id = tri_id;
+            light_points[pixel_id] = sample_shape(shape, tri_id, sample.uv);
+            shadow_rays[pixel_id].org = shading_points[pixel_id].position;
+            shadow_rays[pixel_id].dir = normalize(
+                light_points[pixel_id].position - shading_points[pixel_id].position);
+            // Shadow epislon. Sorry.
+            shadow_rays[pixel_id].tmin = 1e-3f;
+            shadow_rays[pixel_id].tmax = (1 - 1e-3f) *
+                length(light_points[pixel_id].position - shading_points[pixel_id].position);
+        }
     }
 
     const FlattenScene scene;
@@ -594,7 +659,7 @@ void test_scene_intersect(bool use_gpu) {
                    1, // num_triangles
                    0,
                    -1};
-    Scene scene{Camera{}, {&triangle}, {}, {}, use_gpu};
+    Scene scene{Camera{}, {&triangle}, {}, {}, {}, use_gpu};
     parallel_init();
 
     Buffer<int> active_pixels(use_gpu, 2);
@@ -665,17 +730,17 @@ void test_sample_point_on_light(bool use_gpu) {
                  1, // num_triangles
                  0,
                  0};
-    Light light0{0, Vector3f{1.f, 1.f, 1.f}, false};
-    Light light1{1, Vector3f{2.f, 2.f, 2.f}, false};
+    AreaLight light0{0, Vector3f{1.f, 1.f, 1.f}, false};
+    AreaLight light1{1, Vector3f{2.f, 2.f, 2.f}, false};
 
     auto shapes = std::make_shared<std::vector<const Shape *>>(
         std::vector<const Shape*>{&shape0, &shape1});
     auto materials = std::make_shared<std::vector<const Material *>>();
-    auto lights = std::make_shared<std::vector<const Light *>>(
-        std::vector<const Light*>{&light0, &light1});
+    auto lights = std::make_shared<std::vector<const AreaLight *>>(
+        std::vector<const AreaLight*>{&light0, &light1});
     std::shared_ptr<Camera> camera = std::make_shared<Camera>();
 
-    Scene scene{Camera{}, {&shape0, &shape1}, {}, {&light0, &light1}, use_gpu};
+    Scene scene{Camera{}, {&shape0, &shape1}, {}, {&light0, &light1}, {}, use_gpu};
     cuda_synchronize();
     // Power of the first light source: 1.5
     // Power of the second light source: 2

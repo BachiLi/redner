@@ -15,14 +15,15 @@ struct is_invalid_ray {
 };
 
 void init_active_pixels(const BufferView<Ray> &rays,
-                        BufferView<int> active_pixels,
+                        BufferView<int> &active_pixels,
                         bool use_gpu) {
     assert(rays.size() == active_pixels.size());
     DISPATCH(use_gpu, thrust::sequence, active_pixels.begin(), active_pixels.end());
     auto op = is_invalid_ray{rays.begin()};
-    DISPATCH(use_gpu, thrust::remove_if,
+    auto new_end = DISPATCH(use_gpu, thrust::remove_if,
         active_pixels.begin(), active_pixels.end(),
         active_pixels.begin(), op);
+    active_pixels.count = new_end - active_pixels.begin();
 }
 
 struct is_valid_intersection {

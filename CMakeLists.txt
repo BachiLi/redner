@@ -29,14 +29,14 @@ if(NOT CUDA_FOUND)
 endif()
 
 set(SRCS active_pixels.h
+         area_light.h
          buffer.h
          camera.h
          cuda_utils.h
-         redner.h
          edge.h
+         envmap.h
          frame.h
          intersection.h
-         light.h
          line_clip.h
          load_serialized.h
          material.h
@@ -47,6 +47,7 @@ set(SRCS active_pixels.h
          ptr.h
          py_utils.h
          ray.h
+         redner.h
          sampler.h
          scene.h
          shape.h
@@ -55,15 +56,16 @@ set(SRCS active_pixels.h
          transform.h
          vector.h
          active_pixels.cpp
+         area_light.cpp
          camera.cpp
-         redner.cpp
          edge.cpp
-         light.cpp
+         envmap.cpp
          load_serialized.cpp
          material.cpp
          miniz.c
          parallel.cpp
          pathtracer.cpp
+         redner.cpp
          sampler.cpp
          scene.cpp
          shape.cpp)
@@ -86,6 +88,7 @@ if(CUDA_FOUND)
         active_pixels.cpp
         camera.cpp
         edge.cpp
+        envmap.cpp
         light.cpp
         material.cpp
         parallel.cpp

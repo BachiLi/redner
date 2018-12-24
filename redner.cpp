@@ -5,7 +5,8 @@
 #include "scene.h"
 #include "shape.h"
 #include "material.h"
-#include "light.h"
+#include "area_light.h"
+#include "envmap.h"
 #include "active_pixels.h"
 #include "ptr.h"
 #include "load_serialized.h"
@@ -36,14 +37,16 @@ PYBIND11_MODULE(redner, m) {
         .def(py::init<const Camera &,
                       const std::vector<const Shape*> &,
                       const std::vector<const Material*> &,
-                      const std::vector<const Light*> &,
+                      const std::vector<const AreaLight*> &,
+                      const std::shared_ptr<const EnvironmentMap> &,
                       bool>());
 
     py::class_<DScene, std::shared_ptr<DScene>>(m, "DScene")
         .def(py::init<const DCamera &,
                       const std::vector<DShape*> &,
                       const std::vector<DMaterial*> &,
-                      const std::vector<DLight*> &,
+                      const std::vector<DAreaLight*> &,
+                      const std::shared_ptr<DEnvironmentMap> &,
                       bool>());
 
     py::class_<Shape>(m, "Shape")
@@ -92,13 +95,25 @@ PYBIND11_MODULE(redner, m) {
                       Texture3,
                       Texture1>());
 
-    py::class_<Light>(m, "Light")
+    py::class_<AreaLight>(m, "AreaLight")
         .def(py::init<int,
                       ptr<float>,
                       bool>());
 
-    py::class_<DLight>(m, "DLight")
+    py::class_<DAreaLight>(m, "DAreaLight")
         .def(py::init<ptr<float>>());
+
+    py::class_<EnvironmentMap, std::shared_ptr<EnvironmentMap>>(m, "EnvironmentMap")
+        .def(py::init<Texture3,   // values
+                      ptr<float>, // env_to_world
+                      ptr<float>, // world_to_env
+                      ptr<float>, // sample_cdf_ys
+                      ptr<float>, // sample_cdf_xs
+                      Real>())
+        .def("get_size", &EnvironmentMap::get_size);
+    py::class_<DEnvironmentMap, std::shared_ptr<DEnvironmentMap>>(m, "DEnvironmentMap")
+        .def(py::init<Texture3,       // values
+                      ptr<float>>()); // world_to_env
 
     py::class_<RenderOptions>(m, "RenderOptions")
         .def(py::init<uint64_t,

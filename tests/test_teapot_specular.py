@@ -47,7 +47,7 @@ diff = torch.abs(target - img)
 pyredner.imwrite(diff.cpu(), 'results/test_teapot_specular/init_diff.png')
 
 lr = 0.5
-optimizer = torch.optim.Adam([translation], lr=0.5)
+optimizer = torch.optim.Adam([translation], lr=lr)
 num_iteration = 400
 for t in range(num_iteration):
     print('iteration:', t)

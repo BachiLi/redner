@@ -1,7 +1,7 @@
-#include "light.h"
+#include "area_light.h"
 #include "parallel.h"
 
-struct light_accumulator {
+struct area_light_accumulator {
     DEVICE
     inline void operator()(int idx) {
         auto lid = d_light_insts[idx].light_id;
@@ -10,15 +10,14 @@ struct light_accumulator {
         d_lights[lid].intensity[2] += d_light_insts[idx].intensity[2];
     }
 
-    const DLightInst *d_light_insts;
-    DLight *d_lights;
+    const DAreaLightInst *d_light_insts;
+    DAreaLight *d_lights;
 };
 
-void accumulate_light(const BufferView<DLightInst> &d_light_insts,
-                      BufferView<DLight> d_lights,
-                      bool use_gpu) {
-    parallel_for(light_accumulator{
+void accumulate_area_light(const BufferView<DAreaLightInst> &d_light_insts,
+                           BufferView<DAreaLight> d_lights,
+                           bool use_gpu) {
+    parallel_for(area_light_accumulator{
         d_light_insts.begin(), d_lights.begin()
     }, d_light_insts.size(), use_gpu);
 }
-

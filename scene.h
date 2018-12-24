@@ -6,10 +6,10 @@
 #include "ray.h"
 #include "intersection.h"
 #include "camera.h"
-#include "light.h"
+#include "area_light.h"
 #include "shape.h"
 #include "material.h"
-#include "texture.h"
+#include "envmap.h"
 #include "edge.h"
 #include <vector>
 #include <memory>
@@ -24,7 +24,8 @@ struct Scene {
     Scene(const Camera &camera,
           const std::vector<const Shape*> &shapes,
           const std::vector<const Material*> &materials,
-          const std::vector<const Light*> &lights,
+          const std::vector<const AreaLight*> &area_lights,
+          const std::shared_ptr<const EnvironmentMap> &envmap,
           bool use_gpu);
     ~Scene();
 
@@ -32,7 +33,8 @@ struct Scene {
     Camera camera;
     Buffer<Shape> shapes;
     Buffer<Material> materials;
-    Buffer<Light> lights;
+    Buffer<AreaLight> area_lights;
+    EnvironmentMap *envmap;
 
     // Is the scene stored in GPU or CPU
     bool use_gpu;
@@ -59,6 +61,8 @@ struct Scene {
 
     // For material derivatives
     std::vector<std::mutex> material_mutexes;
+    // For envmap derivatives
+    std::mutex envmap_mutex;
 
     // For edge sampling
     EdgeSampler edge_sampler;
@@ -67,12 +71,13 @@ struct Scene {
 struct FlattenScene {
     Shape *shapes;
     Material *materials;
-    Light *lights;
+    AreaLight *area_lights;
     int num_lights;
     Real *light_pmf;
     Real *light_cdf;
     Real *light_areas;
     Real **area_cdfs;
+    EnvironmentMap *envmap;
 };
 
 // XXX: Again, some unnecessary copy from Python
@@ -81,14 +86,17 @@ struct DScene {
     DScene(const DCamera &camera,
            const std::vector<DShape*> &shapes,
            const std::vector<DMaterial*> &materials,
-           const std::vector<DLight*> &lights,
+           const std::vector<DAreaLight*> &lights,
+           const std::shared_ptr<DEnvironmentMap> &envmap,
            bool use_gpu);
     ~DScene();
 
     DCamera camera;
     Buffer<DShape> shapes;
     Buffer<DMaterial> materials;
-    Buffer<DLight> lights;
+    Buffer<DAreaLight> area_lights;
+    DEnvironmentMap *envmap;
+    bool use_gpu;
 };
 
 FlattenScene get_flatten_scene(const Scene &scene);
@@ -100,11 +108,10 @@ void intersect(const Scene &scene,
                BufferView<Intersection> intersections,
                BufferView<SurfacePoint> surface_points,
                BufferView<RayDifferential> new_ray_differentials);
-// Set intersection to invalid if occluded
+// Set ray.tmax to negative if occluded
 void occluded(const Scene &scene,
               const BufferView<int> &active_pixels,
-              const BufferView<Ray> &rays,
-              BufferView<Intersection> intersections);
+              BufferView<Ray> rays);
 void sample_point_on_light(const Scene &scene,
                            const BufferView<int> &active_pixels,
                            const BufferView<SurfacePoint> &shading_points,

@@ -53,14 +53,12 @@ void accumulate_camera(const DCameraInst &d_camera_inst,
                        bool use_gpu) {
     for (int i = 0; i < 4; i++) {
         for (int j = 0; j < 4; j++) {
-            d_camera.cam_to_world[4 * i + j] +=
-                d_camera_inst.cam_to_world(i, j);
+            d_camera.cam_to_world[4 * i + j] += d_camera_inst.cam_to_world(i, j);
         }
     }
     for (int i = 0; i < 4; i++) {
         for (int j = 0; j < 4; j++) {
-            d_camera.world_to_cam[4 * i + j] +=
-                d_camera_inst.world_to_cam(i, j);
+            d_camera.world_to_cam[4 * i + j] += d_camera_inst.world_to_cam(i, j);
         }
     }
     *(d_camera.fov_factor) += d_camera_inst.fov_factor;

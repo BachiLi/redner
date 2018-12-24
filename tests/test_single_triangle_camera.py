@@ -38,9 +38,9 @@ light_indices = torch.tensor([[0,1,2],[1,3,2]], dtype = torch.int32,
 shape_light = pyredner.Shape(light_vertices, light_indices, None, None, 0)
 shapes = [shape_triangle, shape_light]
 light_intensity = torch.tensor([30.0,30.0,30.0])
-light = pyredner.Light(1, light_intensity)
-lights = [light]
-scene = pyredner.Scene(cam, shapes, materials, lights)
+light = pyredner.AreaLight(1, light_intensity)
+area_lights = [light]
+scene = pyredner.Scene(cam, shapes, materials, area_lights)
 args = pyredner.RenderFunction.serialize_scene(\
     scene = scene,
     num_samples = 16,

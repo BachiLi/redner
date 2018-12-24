@@ -973,44 +973,56 @@ struct secondary_edge_weights_updater {
                                   const SurfacePoint &shading_point,
                                   const SecondaryEdgeRecord &edge_record,
                                   Vector3 &edge_throughput) {
-        if (!edge_isect.valid()) {
-            return;
+        if (edge_isect.valid()) {
+            // Hit a surface
+            // Geometry term
+            auto dir = edge_surface_point.position - shading_point.position;
+            auto dist_sq = length_squared(dir);
+            if (dist_sq < 1e-8f) {
+                // Likely a self-intersection
+                edge_throughput = Vector3{0, 0, 0};
+                return;
+            }
+
+            auto n_dir = dir / sqrt(dist_sq);
+            auto geometry_term = fabs(dot(edge_surface_point.geom_normal, n_dir)) / dist_sq;
+
+
+            // Intersection Jacobian Jm(t) (Eq. 18 in the paper)
+            auto isect_jacobian = intersect_jacobian(shading_point.position,
+                                                     edge_record.edge_pt,
+                                                     edge_surface_point.position,
+                                                     edge_surface_point.geom_normal,
+                                                     edge_record.mwt);
+            // area of projection
+            auto v0 = Vector3{get_v0(scene.shapes, edge_record)};
+            auto v1 = Vector3{get_v1(scene.shapes, edge_record)};
+            auto half_plane_normal = normalize(cross(v0 - shading_point.position,
+                                                     v1 - shading_point.position));
+            // ||Jm(t)|| / ||n_m x n_h|| in Eq. 15 in the paper
+            auto line_jacobian = length(isect_jacobian) /
+                length(cross(edge_surface_point.geom_normal, half_plane_normal)); 
+            auto p = shading_point.position;
+            auto d0 = v0 - p;
+            auto d1 = v1 - p;
+            auto dirac_jacobian = length(cross(d0, d1)); // Eq. 16 in the paper
+            auto w = line_jacobian / dirac_jacobian;
+
+            edge_throughput *= geometry_term * w;
+        } else if (scene.envmap != nullptr) {
+            // Hit an environment light
+            auto p = shading_point.position;
+            auto v0 = Vector3{get_v0(scene.shapes, edge_record)};
+            auto v1 = Vector3{get_v1(scene.shapes, edge_record)};
+            auto d0 = v0 - p;
+            auto d1 = v1 - p;
+            auto dirac_jacobian = length(cross(d0, d1)); // Eq. 16 in the paper
+            // TODO: check the correctness of this
+            auto line_jacobian = 1 / length_squared(edge_record.edge_pt - p);
+            auto w = line_jacobian / dirac_jacobian;
+
+            edge_throughput *= w;
         }
-
-        // Geometry term
-        auto dir = edge_surface_point.position - shading_point.position;
-        auto dist_sq = length_squared(dir);
-        if (dist_sq < 1e-8f) {
-            // Likely a self-intersection
-            edge_throughput = Vector3{0, 0, 0};
-            return;
-        }
-
-        auto n_dir = dir / sqrt(dist_sq);
-        auto geometry_term = fabs(dot(edge_surface_point.geom_normal, n_dir)) / dist_sq;
-
-
-        // Intersection Jacobian Jm(t) (Eq. 18 in the paper)
-        auto isect_jacobian = intersect_jacobian(shading_point.position,
-                                                 edge_record.edge_pt,
-                                                 edge_surface_point.position,
-                                                 edge_surface_point.geom_normal,
-                                                 edge_record.mwt);
-        // area of projection
-        auto v0 = Vector3{get_v0(shapes, edge_record)};
-        auto v1 = Vector3{get_v1(shapes, edge_record)};
-        auto half_plane_normal = normalize(cross(v0 - shading_point.position,
-                                                 v1 - shading_point.position));
-        // ||Jm(t)|| / ||n_m x n_h|| in Eq. 15 in the paper
-        auto line_jacobian = length(isect_jacobian) /
-            length(cross(edge_surface_point.geom_normal, half_plane_normal)); 
-        auto p = shading_point.position;
-        auto d0 = v0 - p;
-        auto d1 = v1 - p;
-        auto dirac_jacobian = length(cross(d0, d1)); // Eq. 16 in the paper
-        auto w = line_jacobian / dirac_jacobian;
-
-        edge_throughput *= geometry_term * w;
     }
 
     DEVICE void operator()(int idx) {
@@ -1037,7 +1049,7 @@ struct secondary_edge_weights_updater {
                           edge_throughputs[2 * idx + 1]);
     }
 
-    const Shape *shapes;
+    const FlattenScene scene;
     const int *active_pixels;
     const SurfacePoint *shading_points;
     const Intersection *edge_isects;
@@ -1054,7 +1066,7 @@ void update_secondary_edge_weights(const Scene &scene,
                                    const BufferView<SecondaryEdgeRecord> &edge_records,
                                    BufferView<Vector3> edge_throughputs) {
     parallel_for(secondary_edge_weights_updater{
-        scene.shapes.data,
+        get_flatten_scene(scene),
         active_pixels.begin(),
         shading_points.begin(),
         edge_isects.begin(),

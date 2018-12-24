@@ -71,14 +71,14 @@ shape_light = pyredner.Shape(\
 shapes = [shape_triangle, shape_light]
 
 # Now we assign some of the shapes in the scene as light sources.
-# Again, all light sources in the scene are stored in a Python list.
-# Each light is attached to a shape using shape id, additionally we need to
+# Again, all the area light sources in the scene are stored in a Python list.
+# Each area light is attached to a shape using shape id, additionally we need to
 # assign the intensity of the light, which is a length 3 float tensor in CPU. 
-light = pyredner.Light(shape_id = 1, 
-                       intensity = torch.tensor([20.0,20.0,20.0]))
-lights = [light]
+light = pyredner.AreaLight(shape_id = 1, 
+                           intensity = torch.tensor([20.0,20.0,20.0]))
+area_lights = [light]
 # Finally we construct our scene using all the variables we setup previously.
-scene = pyredner.Scene(cam, shapes, materials, lights)
+scene = pyredner.Scene(cam, shapes, materials, area_lights)
 # All PyTorch functions take a flat array of PyTorch tensors as input,
 # therefore we need to serialize the scene into an array. The following
 # function is doing this. We also specify how many Monte Carlo samples we want to 
