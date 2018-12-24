@@ -132,5 +132,11 @@ execute_process(
 install(
     TARGETS redner
     DESTINATION ${PYTHON_SITE})
+# Install openexrpython
+if(APPLE)
+    set(ENV{MACOSX_DEPLOYMENT_TARGET} 10.9)
+endif()
+install(CODE "execute_process(COMMAND python ${CMAKE_CURRENT_SOURCE_DIR}/openexrpython/setup.py install
+                              WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/openexrpython)")
 install(CODE "execute_process(COMMAND python ${CMAKE_CURRENT_SOURCE_DIR}/setup.py install
                               WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})")

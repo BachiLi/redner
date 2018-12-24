@@ -22,7 +22,7 @@ redner depends on a few libraries/systems:
 - [pybind11](https://github.com/pybind/pybind11) (required)
 - [PyTorch 0.4.1 or 1.0](https://pytorch.org) (required)
 - [OpenEXR](https://github.com/openexr/openexr) (required)
-- [OpenEXR Python](https://github.com/jamesbowman/openexrpython) (required, just clone the repo and python setup.py install)
+- [OpenEXR Python](https://github.com/jamesbowman/openexrpython) (required, included in a submodule)
 - [Embree](https://embree.github.io) (required)
 - [Thrust](https://thrust.github.io) (required, included in a submodule)
 - [miniz](https://github.com/richgel999/miniz) (already in this repository)
@@ -61,7 +61,7 @@ CUDA_curand_LIBRARY
 ```
 I suggest using ccmake or other interfaces of cmake to setup the variables.
 
-redner is tested under MacOS with clang 6.0 and Ubuntu with gcc 7.0. Windows is not tested yet but should be
+redner is tested under MacOS with clang 7 and Ubuntu with gcc 7. Windows is not tested yet but should be
 portable with moderate modification. In general any compiler with c++14 support should work.
 
 The current development plan is to enhance the renderer. Following features will be added in the near future (not listed in any particular order):
