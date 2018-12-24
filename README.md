@@ -65,7 +65,6 @@ redner is tested under MacOS with clang 6.0 and Ubuntu with gcc 7.0. Windows is 
 portable with moderate modification. In general any compiler with c++14 support should work.
 
 The current development plan is to enhance the renderer. Following features will be added in the near future (not listed in any particular order):
-- Environment map
 - Stratification of random number
 - More BSDFs e.g. glass/GGX
 - A properer secondary edge sampling strategy 
