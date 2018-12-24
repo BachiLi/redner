@@ -14,6 +14,23 @@
 #include <embree3/rtcore_ray.h>
 #include <algorithm>
 
+struct BoundingSphere {
+    Vector3 center;
+    Real radius;
+};
+
+struct vector3f_min {
+    DEVICE Vector3f operator()(const Vector3f &a, const Vector3f &b) const {
+        return Vector3{min(a.x, b.x), min(a.y, b.y), min(a.z, b.z)};
+    }
+};
+
+struct vector3f_max {
+    DEVICE Vector3f operator()(const Vector3f &a, const Vector3f &b) const {
+        return Vector3{max(a.x, b.x), max(a.y, b.y), max(a.z, b.z)};
+    }
+};
+
 struct area_computer {
     DEVICE void operator()(int idx) {
         area[idx] = get_area(shape, idx);      
@@ -109,6 +126,46 @@ Scene::Scene(const Camera &camera,
         rtcCommitScene(embree_scene);
     }
 
+    // Compute bounding sphere
+    BoundingSphere bsphere;
+    auto scene_min_pos = Vector3f{
+        std::numeric_limits<float>::infinity(),
+        std::numeric_limits<float>::infinity(),
+        std::numeric_limits<float>::infinity()};
+    auto scene_max_pos = Vector3f{
+        -std::numeric_limits<float>::infinity(),
+        -std::numeric_limits<float>::infinity(),
+        -std::numeric_limits<float>::infinity()};
+    for (int shape_id = 0; shape_id < (int)shapes.size(); shape_id++) {
+        const auto &shape = *shapes[shape_id];
+        const auto *vertices = (const Vector3f *)shape.vertices;
+        auto min_pos = DISPATCH(use_gpu, thrust::reduce,
+            vertices, vertices + shape.num_vertices,
+            Vector3f{std::numeric_limits<float>::infinity(),
+                     std::numeric_limits<float>::infinity(),
+                     std::numeric_limits<float>::infinity()},
+            vector3f_min{});
+        auto max_pos = DISPATCH(use_gpu, thrust::reduce,
+            vertices, vertices + shape.num_vertices,
+            Vector3f{-std::numeric_limits<float>::infinity(),
+                     -std::numeric_limits<float>::infinity(),
+                     -std::numeric_limits<float>::infinity()},
+            vector3f_max{});
+        scene_min_pos = Vector3f{min(min_pos.x, scene_min_pos.x),
+                                 min(min_pos.y, scene_min_pos.y),
+                                 min(min_pos.y, scene_min_pos.z)};
+        scene_max_pos = Vector3f{max(max_pos.x, scene_max_pos.x),
+                                 max(max_pos.y, scene_max_pos.y),
+                                 max(max_pos.y, scene_max_pos.z)};
+    }
+    if (shapes.size() > 0) {
+        bsphere.center = 0.5f * (scene_min_pos + scene_max_pos);
+        bsphere.radius = 0.5f * length(scene_max_pos - scene_min_pos);
+    } else {
+        bsphere.center = Vector3{0, 0, 0};
+        bsphere.radius = 0;
+    }
+
     if (area_lights.size() > 0 || envmap.get() != nullptr) {
         auto num_lights = (int)area_lights.size();
         if (envmap.get() != nullptr) {
@@ -145,9 +202,9 @@ Scene::Scene(const Camera &camera,
             total_importance += light_pmf[light_id];
         }
         if (envmap.get() != nullptr) {
-            // TODO: use scene bounding box to determine light power
-            light_pmf[envmap_id] = 1;
-            total_importance += 1;
+            auto surface_area = 4 * Real(M_PI) * square(bsphere.radius);
+            light_pmf[envmap_id] = surface_area / envmap->pdf_norm;
+            total_importance += light_pmf[envmap_id];
         }
 
         assert(total_importance > Real(0));
