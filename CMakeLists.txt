@@ -89,7 +89,7 @@ if(CUDA_FOUND)
         camera.cpp
         edge.cpp
         envmap.cpp
-        light.cpp
+        area_light.cpp
         material.cpp
         parallel.cpp
         pathtracer.cpp

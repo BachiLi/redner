@@ -380,6 +380,9 @@ void intersect(const Scene &scene,
                BufferView<Intersection> intersections,
                BufferView<SurfacePoint> points,
                BufferView<RayDifferential> new_ray_differentials) {
+    if (active_pixels.size() == 0) {
+        return;
+    }
     if (scene.use_gpu) {
 #ifdef __NVCC__
         // OptiX prime query
