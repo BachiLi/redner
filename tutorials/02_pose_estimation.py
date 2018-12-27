@@ -28,8 +28,7 @@ material_map, mesh_list, light_map = pyredner.load_obj('teapot.obj')
 # The teapot we loaded is relatively low-poly and doesn't have vertex normal.
 # Fortunately we can compute the vertex normal from the neighbor vertices.
 # We can use pyredner.compute_vertex_normal for this task:
-# (You are encourged to try comment out the following two lines to see the
-#  difference in target images!)
+# (Try commenting out the following two lines to see the differences in target images!)
 for _, mesh in mesh_list:
     mesh.normals = pyredner.compute_vertex_normal(mesh.vertices, mesh.indices)
 
