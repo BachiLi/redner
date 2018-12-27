@@ -6,12 +6,12 @@ scene parameters, that is, you can backpropagate from the image to your 3D scene
 For more details on the renderer, what it can do, and the techniques it uses for computing the derivatives, please
 take a look at the paper:
 "Differentiable Monte Carlo Ray Tracing through Edge Sampling", Tzu-Mao Li, Miika Aittala, Fredo Durand, Jaakko Lehtinen
-[https://people.csail.mit.edu/tzumao/diffrt/]
+[https://people.csail.mit.edu/tzumao/diffrt/].  
 Since the submission we have improved the renderer a bit. In particular we implemented a CUDA backend and accelerated
 the continuous derivatives significantly by replacing automatic differentiation with hand derivatives.
 
 redner is expected to be used with [PyTorch](https://pytorch.org/), and can be used seamlessly with PyTorch operators.
-While the documentation is work in progress, you can take a look at the [tests directory](tests) to have a basic sense.
+While the documentation is work in progress, you can take a look at the [tests directory](tests) to have some ideas.
 A series of tutorials is appearing now.
 A good starting point is to look at [tutorials/01_optimize_single_triangle.py](https://github.com/BachiLi/redner/blob/master/tutorials/01_optimize_single_triangle.py) where we optimize for the vertex positions of a single triangle.
 redner inherits a subset of [Mitsuba](http://www.mitsuba-renderer.org) scene format,
