@@ -28,7 +28,6 @@ redner depends on a few libraries/systems:
 - [miniconda](https://conda.io/miniconda.html) (optional, but recommended)
 - [OpenEXR Python](https://github.com/jamesbowman/openexrpython) (required, included in a submodule)
 - [Thrust](https://thrust.github.io) (required, included in a submodule)
-- [PyWavefront](https://github.com/greenmoss/PyWavefront) (required, included in a submodule)
 - [miniz](https://github.com/richgel999/miniz) (already in this repository)
 - A few other python packages: numpy, scikit-image
 
