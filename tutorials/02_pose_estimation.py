@@ -2,12 +2,11 @@ import pyredner
 import torch
 
 # Estimate the pose of a teapot object.
-# This tutorial showcases:
+# This tutorial demonstrates:
 # 1. how to load a Wavefront object file
 # 2. how to generate smooth vertex normals
 # 3. how to use an environment light
-# 4. how to apply mesh operations (rotation and translation in this case)
-#    in PyTorch
+# 4. how to apply mesh operations (rotation and translation in this case) in PyTorch
 # Like the first tutorial, we first render a target image, then perturb the
 # rotation/translation parameters and optimize to match the target.
 
