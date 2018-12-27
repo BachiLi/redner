@@ -367,16 +367,20 @@ inline void d_get_texture_value(const TextureType &tex,
                 d_tex.t001, d_tex.t101, d_tex.t011, d_tex.t111, d_u, d_v);
             auto d_ld = sum(d_output * (l1 - l0));
             // level = log2(max(max_footprint, Real(1e-8f)))
-            d_max_footprint += d_ld / (max_footprint * log(Real(2)));
+            if (max_footprint > Real(1e-8f)) {
+                d_max_footprint += d_ld / (max_footprint * log(Real(2)));
+            }
         }
         // max_footprint = max(length(du_dxy) * tex.width, length(dv_dxy) * tex.height)
         auto d_uv = Vector2{0, 0};
         auto d_du_dxy = Vector2{0, 0};
         auto d_dv_dxy = Vector2{0, 0};
-        if (is_u_max) {
-            d_du_dxy += d_length(du_dxy, d_max_footprint) * tex.width;
-        } else {
-            d_dv_dxy += d_length(dv_dxy, d_max_footprint) * tex.height;
+        if (max_footprint > Real(1e-8f)) {
+            if (is_u_max) {
+                d_du_dxy += d_length(du_dxy, d_max_footprint) * tex.width;
+            } else {
+                d_dv_dxy += d_length(dv_dxy, d_max_footprint) * tex.height;
+            }
         }
 
         // du = dx, dv = dy

@@ -131,7 +131,9 @@ inline void d_get_roughness(const Material &material,
                         d_shading_point.dv_dxy);
 }
 
-
+// y = 2 / x - 2
+// y + 2 = 2 / x
+// x = 2 / (y + 2)
 DEVICE
 inline Real roughness_to_phong(Real roughness) {
     return max(2.f / roughness - 2.f, Real(0));
@@ -158,9 +160,10 @@ Vector3 bsdf(const Material &material,
             geom_n = -geom_n;
         }
     }
+    auto geom_wi = dot(geom_n, wi);
     auto bsdf_cos = dot(shading_frame.n, wo);
     auto geom_cos = dot(geom_n, wo);
-    if (bsdf_cos <= 1e-3f || geom_cos <= 1e-3f) {
+    if (geom_wi <= 0 || bsdf_cos <= 1e-3f || geom_cos <= 1e-3f) {
         // XXX: kind of hacky. we ignore extreme grazing angles
         // for numerical robustness
         return Vector3{0, 0, 0};
@@ -173,43 +176,39 @@ Vector3 bsdf(const Material &material,
     auto diffuse_contrib = diffuse_reflectance * bsdf_cos / Real(M_PI);
     auto specular_contrib = Vector3{0, 0, 0};
     if (sum(specular_reflectance) > 0.f) {
-        // blinn-phong
-        if (dot(wi, shading_frame.n) > 0.f) {
-            // half-vector
-            auto m = normalize(wi + wo);
-            auto m_local = to_local(shading_frame, m);
-            if (m_local[2] > 0.f) {
-                auto phong_exponent = roughness_to_phong(roughness);
-                auto D = pow(max(m_local[2], Real(0)), phong_exponent) *
-                    (phong_exponent + 2.f) / Real(2 * M_PI);
-                auto smithG1 = [&](const Vector3 &v) -> Real {
-                    auto cos_theta = dot(v, shading_frame.n);
-                    if (dot(v, m) * cos_theta <= 0) {
-                        return 0;
-                    }
-                    // tan^2 + 1 = 1/cos^2
-                    auto tan_theta =
-                        sqrt(max(1.f / (cos_theta * cos_theta) - 1.f, Real(0)));
-                    if (tan_theta == 0.0f) {
-                        return 1;
-                    }
-                    auto alpha = sqrt(roughness);
-                    auto a = 1.f / (alpha * tan_theta);
-                    if (a >= 1.6f) {
-                        return 1;
-                    }
-                    auto a_sqr = a*a;
-                    return (3.535f * a + 2.181f * a_sqr)
-                         / (1.0f + 2.276f * a + 2.577f * a_sqr);
-                };
-                auto G = smithG1(wi) * smithG1(wo);
-                auto cos_theta_d = dot(m, wo);
-                // Schlick's approximation
-                auto F = specular_reflectance +
-                    (1.f - specular_reflectance) *
-                    pow(max(1.f - cos_theta_d, Real(0)), 5.f);
-                specular_contrib = F * D * G / (4.f * dot(wi, shading_frame.n));
-            }
+        // blinn-phong BRDF
+        // half-vector
+        auto m = normalize(wi + wo);
+        auto m_local = to_local(shading_frame, m);
+        if (m_local[2] > 0.f) {
+            auto phong_exponent = roughness_to_phong(roughness);
+            auto D = pow(max(m_local[2], Real(0)), phong_exponent) *
+                (phong_exponent + 2.f) / Real(2 * M_PI);
+            auto smithG1 = [&](const Vector3 &v) -> Real {
+                auto cos_theta = dot(v, shading_frame.n);
+                // tan^2 + 1 = 1/cos^2
+                auto tan_theta =
+                    sqrt(max(1.f / (cos_theta * cos_theta) - 1.f, Real(0)));
+                if (tan_theta == 0.0f) {
+                    return 1;
+                }
+                auto alpha = sqrt(roughness);
+                auto a = 1.f / (alpha * tan_theta);
+                if (a >= 1.6f) {
+                    return 1;
+                }
+                auto a_sqr = a*a;
+                return (3.535f * a + 2.181f * a_sqr)
+                     / (1.0f + 2.276f * a + 2.577f * a_sqr);
+            };
+            auto G = smithG1(wi) * smithG1(wo);
+            auto cos_theta_d = fabs(dot(m, wo));
+            // Schlick's approximation
+            auto F = specular_reflectance +
+                (1.f - specular_reflectance) *
+                pow(max(1.f - cos_theta_d, Real(0)), 5.f);
+            auto cos_wi = fabs(dot(wi, shading_frame.n));
+            specular_contrib = F * D * G / (4.f * cos_wi);
         }
     }
     return diffuse_contrib + specular_contrib;
@@ -240,9 +239,10 @@ void d_bsdf(const Material &material,
             geom_n = -geom_n;
         }
     }
+    auto geom_wi = dot(geom_n, wi);
     auto bsdf_cos = dot(shading_frame.n, wo);
     auto geom_cos = dot(geom_n, wo);
-    if (bsdf_cos <= 1e-3f || geom_cos <= 1e-3f) {
+    if (geom_wi <= 0 || bsdf_cos <= 1e-3f || geom_cos <= 1e-3f) {
         // XXX: kind of hacky. we ignore extreme grazing angles
         // for numerical robustness
         return;
@@ -262,137 +262,137 @@ void d_bsdf(const Material &material,
     auto roughness = max(get_roughness(material, shading_point), min_roughness);
     assert(roughness > 0.f);
     if (sum(specular_reflectance) > 0.f) {
-        // blinn-phong
-        if (dot(wi, shading_frame.n) > 0.f) {
-            // half-vector
-            auto m = normalize(wi + wo);
-            auto m_local = to_local(shading_frame, m);
-            if (m_local[2] > 0.f) {
-                auto phong_exponent = roughness_to_phong(roughness);
-                auto D = pow(m_local[2], phong_exponent) * (phong_exponent + 2.f) / Real(2 * M_PI);
-                auto smithG1 = [&](const Vector3 &v) -> Real {
-                    auto cos_theta = dot(v, shading_frame.n);
-                    if (dot(v, m) * cos_theta <= 0) {
-                        return 0;
-                    }
-                    // tan^2 + 1 = 1/cos^2
-                    auto tan_theta =
-                        sqrt(max(1.f / square(cos_theta) - 1.f, Real(0)));
-                    if (tan_theta == 0.0f) {
-                        return 1;
-                    }
-                    auto alpha = sqrt(roughness);
-                    auto a = 1.f / (alpha * tan_theta);
-                    if (a >= 1.6f) {
-                        return 1;
-                    }
-                    auto a_sqr = a * a;
-                    return (3.535f * a + 2.181f * a_sqr)
-                         / (1.0f + 2.276f * a + 2.577f * a_sqr);
-                };
-                auto d_roughness = Real(0);
-                auto d_smithG1 = [&](const Vector3 &v, Real d_G1) -> Vector3 {
-                    auto cos_theta = dot(v, shading_frame.n);
-                    if (dot(v, m) * cos_theta <= 0) {
-                        return Vector3{0, 0, 0};
-                    }
-                    // tan^2 + 1 = 1/cos^2
-                    auto tan_theta = sqrt(max(1.f / square(cos_theta) - 1.f, Real(0)));
-                    if (tan_theta <= 1e-10f) {
-                        return Vector3{0, 0, 0};
-                    }
-                    auto alpha = sqrt(roughness);
-                    auto a = 1.f / (alpha * tan_theta);
-                    if (a >= 1.6f) {
-                        return Vector3{0, 0, 0};
-                    }
-                    auto numerator = 3.535f * a + 2.181f * square(a);
-                    auto denominator = 1.f + 2.276f * a + 2.557f * square(a);
-                    // G1 = numerator / denominator
-                    auto d_numerator = d_G1 / denominator;
-                    auto d_denominator = - d_G1 * numerator / square(denominator);
-                    auto d_a = d_numerator * (3.535f + 2.181f * 2 * a) +
-                               d_denominator * (2.276f + 2.557f * 2 * a);
-                    // a = 1.f / (alpha * tan_theta)
-                    auto d_alpha = - d_a * a / alpha;
-                    auto d_tan_theta = - d_a * a / tan_theta;
-                    // alpha = sqrt(roughness)
-                    d_roughness += 0.5f * d_alpha / alpha;
-                    // tan_theta = sqrt(max(1.f / (cos_theta * cos_theta) - 1.f, Real(0)))
-                    auto d_tan_theta_sq = d_tan_theta * 0.5f / tan_theta;
-                    // tan_theta_sq = 1 / square(cos_theta) - 1
-                    auto d_cos_theta = -2.f * d_tan_theta_sq / cubic(cos_theta);
-                    // cos_theta = dot(v, shading_frame.n)
-                    auto d_v = d_cos_theta * shading_frame.n;
-                    d_n += d_cos_theta * v;
-                    return d_v;
-                };
-                auto Gwi = smithG1(wi);
-                auto Gwo = smithG1(wo);
-                auto G = Gwi * Gwo;
-                auto cos_theta_d = dot(m, wo);
-                // Schlick's approximation
-                auto cos5 = pow(max(1.f - cos_theta_d, Real(0)), 5.f);
-                auto F = specular_reflectance + (1.f - specular_reflectance) * cos5;
-                auto cos_wi = dot(wi, shading_frame.n);
-                auto specular_contrib = F * D * G / (4.f * cos_wi);
-
-                // specular_contrib = F * D * G / (4.f * cos_wi)
-                auto d_F = d_output * (D * G / (4.f * cos_wi));
-                auto d_D = sum(d_output * F) * (G / (4.f * cos_wi));
-                auto d_G = sum(d_output * F) * (D / (4.f * cos_wi));
-                auto d_dot_wi_n = -sum(d_output * specular_contrib) / cos_wi;
-                // dot_wi_n = dot(wi, shading_frame.n)
-                d_wi += d_dot_wi_n * shading_frame.n;
-                d_n += d_dot_wi_n * wi;
-                // F = specular_reflectance + (1.f - specular_reflectance) * cos5
-                auto d_specular_reflectance = d_F * (1.f - cos5);
-                auto d_cos_5 = sum(d_F * (1.f - specular_reflectance));
-                // cos5 = pow(max(1.f - cos_theta_d, Real(0)), 5.f)
-                auto d_cos_theta_d = -5.f * d_cos_5 * pow(max(1.f - cos_theta_d, Real(0)), 4.f);
-                // cos_theta_d = dot(m, wo)
-                auto d_m = d_cos_theta_d * wo;
-                d_wo += d_cos_theta_d * m;
-                // auto G = Gwi * Gwo;
-                auto d_Gwi = d_G * Gwo;
-                auto d_Gwo = d_G * Gwi;
-                // Gwi = smithG1(wi)
-                // Gwo = smithG1(wo)
-                d_wi += d_smithG1(wi, d_Gwi);
-                d_wo += d_smithG1(wo, d_Gwo);
-                // D = pow(max(m_local[2], Real(0)), phong_exponent) *
-                // (phong_exponent + 2.f) / Real(2 * M_PI)
-                auto d_D_pow = d_D * (phong_exponent + 2.f) / Real(2 * M_PI);
-                auto d_D_factor = d_D * pow(m_local[2], phong_exponent);
-                auto d_m_local2 = d_D_pow * pow(max(m_local[2], Real(0)), phong_exponent - 1) *
-                    phong_exponent;
-                // D_pow = pow(max(m_local[2], Real(0)), phong_exponent)
-                auto d_phong_exponent =
-                    d_D_pow * pow(max(m_local[2], Real(0)), phong_exponent) * log(m_local[2]);
-                // D_factor = (phong_exponent + 2.f) / Real(2 * M_PI)
-                d_phong_exponent += d_D_factor / Real(2 * M_PI);
-                // phong_exponent = roughness_to_phong(roughness)
-                d_roughness += d_roughness_to_phong(roughness, d_phong_exponent);
-                // m_local = to_local(shading_frame, m)
-                // This is an isotropic BRDF so only normal is affected
-                d_m += d_m_local2 * shading_frame.n;
-                d_n += d_m_local2 * m;
-                // m = normalize(wi + wo)
-                auto d_wi_wo = d_normalize(wi + wo, d_m);
-                d_wi += d_wi_wo;
-                d_wo += d_wi_wo;
-                // specular_reflectance = get_specular_reflectance(material, shading_point)
-                d_get_specular_reflectance(
-                    material, shading_point, d_specular_reflectance,
-                    d_specular_tex, d_shading_point);
-                // roughness = get_roughness(material, shading_point.uv)
-                if (roughness >= min_roughness) {
-                    d_get_roughness(material,
-                                    shading_point,
-                                    d_roughness,
-                                    d_roughness_tex,
-                                    d_shading_point);
+        // blinn-phong BRDF
+        // half-vector
+        auto m = normalize(wi + wo);
+        auto m_local = to_local(shading_frame, m);
+        if (m_local[2] > 0.f) {
+            auto phong_exponent = roughness_to_phong(roughness);
+            auto D = pow(m_local[2], phong_exponent) * (phong_exponent + 2.f) / Real(2 * M_PI);
+            auto smithG1 = [&](const Vector3 &v) -> Real {
+                auto cos_theta = dot(v, shading_frame.n);
+                // tan^2 + 1 = 1/cos^2
+                auto tan_theta =
+                    sqrt(max(1.f / square(cos_theta) - 1.f, Real(0)));
+                if (tan_theta == 0.0f) {
+                    return 1;
                 }
+                auto alpha = sqrt(roughness);
+                auto a = 1.f / (alpha * tan_theta);
+                if (a >= 1.6f) {
+                    return 1;
+                }
+                auto a_sqr = a * a;
+                return (3.535f * a + 2.181f * a_sqr)
+                     / (1.0f + 2.276f * a + 2.577f * a_sqr);
+            };
+            auto d_roughness = Real(0);
+            auto d_smithG1 = [&](const Vector3 &v, Real d_G1) -> Vector3 {
+                auto cos_theta = dot(v, shading_frame.n);
+                if (dot(v, m) * cos_theta <= 0) {
+                    return Vector3{0, 0, 0};
+                }
+                // tan^2 + 1 = 1/cos^2
+                auto tan_theta = sqrt(max(1.f / square(cos_theta) - 1.f, Real(0)));
+                if (tan_theta <= 1e-10f) {
+                    return Vector3{0, 0, 0};
+                }
+                auto alpha = sqrt(roughness);
+                auto a = 1.f / (alpha * tan_theta);
+                if (a >= 1.6f) {
+                    return Vector3{0, 0, 0};
+                }
+                auto numerator = 3.535f * a + 2.181f * square(a);
+                auto denominator = 1.f + 2.276f * a + 2.557f * square(a);
+                // G1 = numerator / denominator
+                auto d_numerator = d_G1 / denominator;
+                auto d_denominator = - d_G1 * numerator / square(denominator);
+                auto d_a = d_numerator * (3.535f + 2.181f * 2 * a) +
+                           d_denominator * (2.276f + 2.557f * 2 * a);
+                // a = 1.f / (alpha * tan_theta)
+                auto d_alpha = - d_a * a / alpha;
+                auto d_tan_theta = - d_a * a / tan_theta;
+                // alpha = sqrt(roughness)
+                d_roughness += 0.5f * d_alpha / alpha;
+                // tan_theta = sqrt(max(1.f / (cos_theta * cos_theta) - 1.f, Real(0)))
+                auto d_tan_theta_sq = d_tan_theta * 0.5f / tan_theta;
+                // tan_theta_sq = 1 / square(cos_theta) - 1
+                auto d_cos_theta = -2.f * d_tan_theta_sq / cubic(cos_theta);
+                // cos_theta = dot(v, shading_frame.n)
+                auto d_v = d_cos_theta * shading_frame.n;
+                d_n += d_cos_theta * v;
+                return d_v;
+            };
+            auto Gwi = smithG1(wi);
+            auto Gwo = smithG1(wo);
+            auto G = Gwi * Gwo;
+            auto cos_theta_d = dot(m, wo);
+            // Schlick's approximation
+            auto cos5 = pow(max(1.f - cos_theta_d, Real(0)), 5.f);
+            auto F = specular_reflectance + (1.f - specular_reflectance) * cos5;
+            auto cos_wi = fabs(dot(wi, shading_frame.n));
+            auto specular_contrib = F * D * G / (4.f * cos_wi);
+
+            // specular_contrib = F * D * G / (4.f * cos_wi)
+            auto d_F = d_output * (D * G / (4.f * cos_wi));
+            auto d_D = sum(d_output * F) * (G / (4.f * cos_wi));
+            auto d_G = sum(d_output * F) * (D / (4.f * cos_wi));
+            auto d_cos_wi = -sum(d_output * specular_contrib) / cos_wi;
+            // cos_wi = fabs(dot(wi, shading_frame.n))
+            if (cos_wi > 0) {
+                d_wi += d_cos_wi * shading_frame.n;
+                d_n += d_cos_wi * wi;
+            } else {
+                d_wi -= d_cos_wi * shading_frame.n;
+                d_n -= d_cos_wi * wi;
+            }
+            // F = specular_reflectance + (1.f - specular_reflectance) * cos5
+            auto d_specular_reflectance = d_F * (1.f - cos5);
+            auto d_cos_5 = sum(d_F * (1.f - specular_reflectance));
+            // cos5 = pow(max(1.f - cos_theta_d, Real(0)), 5.f)
+            auto d_cos_theta_d = -5.f * d_cos_5 * pow(max(1.f - cos_theta_d, Real(0)), 4.f);
+            // cos_theta_d = dot(m, wo)
+            auto d_m = d_cos_theta_d * wo;
+            d_wo += d_cos_theta_d * m;
+            // auto G = Gwi * Gwo;
+            auto d_Gwi = d_G * Gwo;
+            auto d_Gwo = d_G * Gwi;
+            // Gwi = smithG1(wi)
+            // Gwo = smithG1(wo)
+            d_wi += d_smithG1(wi, d_Gwi);
+            d_wo += d_smithG1(wo, d_Gwo);
+            // D = pow(max(m_local[2], Real(0)), phong_exponent) *
+            // (phong_exponent + 2.f) / Real(2 * M_PI)
+            auto d_D_pow = d_D * (phong_exponent + 2.f) / Real(2 * M_PI);
+            auto d_D_factor = d_D * pow(m_local[2], phong_exponent);
+            auto d_m_local2 = d_D_pow * pow(max(m_local[2], Real(0)), phong_exponent - 1) *
+                phong_exponent;
+            // D_pow = pow(max(m_local[2], Real(0)), phong_exponent)
+            auto d_phong_exponent =
+                d_D_pow * pow(max(m_local[2], Real(0)), phong_exponent) * log(m_local[2]);
+            // D_factor = (phong_exponent + 2.f) / Real(2 * M_PI)
+            d_phong_exponent += d_D_factor / Real(2 * M_PI);
+            // phong_exponent = roughness_to_phong(roughness)
+            d_roughness += d_roughness_to_phong(roughness, d_phong_exponent);
+            // m_local = to_local(shading_frame, m)
+            // This is an isotropic BRDF so only normal is affected
+            d_m += d_m_local2 * shading_frame.n;
+            d_n += d_m_local2 * m;
+            // m = normalize(wi + wo)
+            auto d_wi_wo = d_normalize(wi + wo, d_m);
+            d_wi += d_wi_wo;
+            d_wo += d_wi_wo;
+            // specular_reflectance = get_specular_reflectance(material, shading_point)
+            d_get_specular_reflectance(
+                material, shading_point, d_specular_reflectance,
+                d_specular_tex, d_shading_point);
+            // roughness = get_roughness(material, shading_point.uv)
+            if (roughness >= min_roughness) {
+                d_get_roughness(material,
+                                shading_point,
+                                d_roughness,
+                                d_roughness_tex,
+                                d_shading_point);
             }
         }
     }
@@ -425,12 +425,12 @@ Vector3 bsdf_sample(const Material &material,
         *next_min_roughness = min_roughness;
     }
     auto shading_frame = shading_point.shading_frame;
-    auto cos_wi = dot(shading_frame.n, wi);
-    if (material.two_sided && cos_wi < 0.f) {
+    auto geom_wi = dot(shading_point.geom_normal, wi);
+    if (material.two_sided && geom_wi < 0.f) {
         shading_frame = -shading_frame;
-        cos_wi = -cos_wi;
+        geom_wi = -geom_wi;
     }
-    if (cos_wi <= 0.f) {
+    if (geom_wi <= 0.f) {
         return Vector3{0, 0, 0};
     }
 
@@ -519,14 +519,14 @@ void d_bsdf_sample(const Material &material,
                    Vector3 &d_wi,
                    RayDifferential &d_wi_differential) {
     auto shading_frame = shading_point.shading_frame;
-    auto cos_wi = dot(shading_frame.n, wi);
+    auto geom_wi = dot(shading_point.geom_normal, wi);
     bool normal_flipped = false;
-    if (material.two_sided && cos_wi < 0.f) {
+    if (material.two_sided && geom_wi < 0.f) {
         shading_frame = -shading_frame;
-        cos_wi = -cos_wi;
+        geom_wi = -geom_wi;
         normal_flipped = true;
     }
-    if (cos_wi <= 0.f) {
+    if (geom_wi <= 0.f) {
         return;
     }
 
@@ -639,6 +639,7 @@ void d_bsdf_sample(const Material &material,
         // dot_wi_m = dot(wi, m)
         d_wi += d_dot_wi_m * m;
         d_m += d_dot_wi_m * wi;
+
         // m = to_world(shading_frame, m_local)
         d_to_world(shading_frame, m_local, d_m, d_shading_frame, d_m_local);
         // No need to propagate to phi
@@ -682,14 +683,14 @@ inline Real bsdf_pdf(const Material &material,
                      const Vector3 &wo,
                      const Real min_roughness) {
     auto shading_frame = shading_point.shading_frame;
-    auto cos_wi = dot(shading_frame.n, wi);
+    auto geom_wi = dot(shading_point.geom_normal, wi);
     if (material.two_sided) {
-        if (cos_wi < 0) {
+        if (geom_wi < 0) {
             shading_frame = -shading_frame;
-            cos_wi = -cos_wi;
+            geom_wi = -geom_wi;
         }
     }
-    if (cos_wi <= 0) {
+    if (geom_wi <= 0) {
         return 0;
     }
     auto diffuse_reflectance = get_diffuse_reflectance(material, shading_point);
@@ -739,16 +740,16 @@ inline void d_bsdf_pdf(const Material &material,
                        Vector3 &d_wi,
                        Vector3 &d_wo) {
     auto shading_frame = shading_point.shading_frame;
-    auto cos_wi = dot(shading_frame.n, wi);
+    auto geom_wi = dot(shading_point.geom_normal, wi);
     bool normal_flipped = false;
     if (material.two_sided) {
-        if (cos_wi < 0) {
+        if (geom_wi < 0) {
             shading_frame = -shading_frame;
-            cos_wi = -cos_wi;
+            geom_wi = -geom_wi;
             normal_flipped = true;
         }
     }
-    if (cos_wi <= 0) {
+    if (geom_wi <= 0) {
         return;
     }
     auto diffuse_reflectance = get_diffuse_reflectance(material, shading_point);

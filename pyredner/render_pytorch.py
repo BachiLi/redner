@@ -431,6 +431,7 @@ class RenderFunction(torch.autograd.Function):
                       redner.float_ptr(0))
 
         # # For debugging
+        # pyredner.imwrite(grad_img, 'grad_img.exr')
         # grad_img = torch.ones(256, 256, 3)
         # debug_img = torch.zeros(256, 256, 3)
         # redner.render(scene, options,
@@ -439,6 +440,7 @@ class RenderFunction(torch.autograd.Function):
         #               d_scene,
         #               redner.float_ptr(debug_img.data_ptr()))
         # pyredner.imwrite(debug_img, 'debug.exr')
+        # pyredner.imwrite(-debug_img, 'debug_.exr')
         # exit()
 
         ret_list = []

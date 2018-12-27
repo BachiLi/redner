@@ -19,14 +19,12 @@ struct Edge {
 };
 
 struct PrimaryEdgeRecord {
-    int shape_id = -1;
-    int v0, v1;
+    Edge edge;
     Vector2 edge_pt;
 };
 
 struct SecondaryEdgeRecord {
-    int shape_id = -1;
-    int v0, v1;
+    Edge edge;
     Vector3 edge_pt;
     Vector3 mwt;
 };
@@ -48,15 +46,13 @@ struct TSecondaryEdgeSample {
 using PrimaryEdgeSample = TPrimaryEdgeSample<Real>;
 using SecondaryEdgeSample = TSecondaryEdgeSample<Real>;
 
-template <typename EdgeType>
 DEVICE
-inline Vector3f get_v0(const Shape *shapes, const EdgeType &edge) {
+inline Vector3f get_v0(const Shape *shapes, const Edge &edge) {
     return get_vertex(shapes[edge.shape_id], edge.v0);
 }
 
-template <typename EdgeType>
 DEVICE
-inline Vector3f get_v1(const Shape *shapes, const EdgeType &edge) {
+inline Vector3f get_v1(const Shape *shapes, const Edge &edge) {
     return get_vertex(shapes[edge.shape_id], edge.v1);
 }
 
@@ -138,6 +134,12 @@ void sample_primary_edges(const Scene &scene,
                           BufferView<RayDifferential> primary_ray_differentials,
                           BufferView<Vector3> throughputs,
                           BufferView<Real> alphas);
+
+void update_primary_edge_weights(const Scene &scene,
+                                 const BufferView<PrimaryEdgeRecord> &edge_records,
+                                 const BufferView<Intersection> &shading_isects,
+                                 BufferView<Vector3> throughputs,
+                                 BufferView<Real> alphas);
 
 void compute_primary_edge_derivatives(const Scene &scene,
                                       const BufferView<PrimaryEdgeRecord> &edge_records,

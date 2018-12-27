@@ -51,6 +51,7 @@ struct d_primary_intersector {
             Vector3{0, 0, 0}, Vector3{0, 0, 0}
         };
         auto d_ray = d_rays[pixel_idx];
+
         if (isect.valid()) {
             auto shape_id = isect.shape_id;
             auto tri_id = isect.tri_id;
@@ -733,6 +734,10 @@ struct d_path_contribs_accumulator {
                 auto wo = light_ray.dir;
                 auto pdf_nee = envmap_pdf(*scene.envmap, wo);
                 if (pdf_nee > 0) {
+                    d_diffuse_tex.material_id = shading_shape.material_id;
+                    d_specular_tex.material_id = shading_shape.material_id;
+                    d_roughness_tex.material_id = shading_shape.material_id;
+
                     auto bsdf_val = bsdf(material, shading_point, wi, wo, min_rough);
                     // XXX: For now we don't use ray differentials for next event estimation.
                     //      A proper approach might be to use a filter radius based on sampling density?
@@ -907,7 +912,6 @@ struct d_path_contribs_accumulator {
             }
         } else if (scene.envmap != nullptr) {
             // Hit environment map
-            const auto &bsdf_sample = bsdf_samples[pixel_id];
             const auto &bsdf_ray = bsdf_rays[pixel_id];
             
             auto wo = bsdf_ray.dir;
@@ -933,10 +937,13 @@ struct d_path_contribs_accumulator {
                 auto weight = mis_weight / pdf_bsdf;
 
                 // scatter_contrib = weight * bsdf_val * light_contrib                
-                auto d_weight = sum(d_scatter_contrib * bsdf_val * light_contrib);
-                // Ignore derivatives of MIS weight
+                // auto d_weight = sum(d_scatter_contrib * bsdf_val * light_contrib);
+                // Ignore derivatives of MIS weight and pdf
+                // XXX: unlike the case of mesh light sources, we don't propagate to
+                //      the sampling procedure, since it causes higher variance when
+                //      there is a huge gradients in d_envmap_eval()
                 // weight = mis_weight / pdf_bsdf
-                auto d_pdf_bsdf = -d_weight * weight / pdf_bsdf;
+                // auto d_pdf_bsdf = -d_weight * weight / pdf_bsdf;
                 auto d_bsdf_val = weight * d_scatter_contrib * light_contrib;
                 auto d_light_contrib = weight * d_scatter_contrib * bsdf_val;
 
@@ -948,30 +955,31 @@ struct d_path_contribs_accumulator {
                 d_envmap_eval(*scene.envmap, wo, ray_diff, d_light_contrib,
                     d_envmap_val, d_world_to_env, d_wo, d_ray_diff);
                 auto d_wi = Vector3{0, 0, 0};
-                // pdf_bsdf = bsdf_pdf(material, shading_point, wi, wo, min_rough)
-                d_bsdf_pdf(material, shading_point, wi, wo, min_rough, d_pdf_bsdf,
-                           d_roughness_tex, d_shading_point, d_wi, d_wo);
                 // bsdf_val = bsdf(material, shading_point, wi, wo)
                 d_bsdf(material, shading_point, wi, wo, min_rough, d_bsdf_val,
                        d_diffuse_tex, d_specular_tex, d_roughness_tex,
                        d_shading_point, d_wi, d_wo);
 
+                // pdf_bsdf = bsdf_pdf(material, shading_point, wi, wo, min_rough)
+                // d_bsdf_pdf(material, shading_point, wi, wo, min_rough, d_pdf_bsdf,
+                //            d_roughness_tex, d_shading_point, d_wi, d_wo);
+
                 // sample bsdf direction
-                auto d_bsdf_ray_differential = RayDifferential{
-                    Vector3{0, 0, 0}, Vector3{0, 0, 0},
-                    Vector3{0, 0, 0}, Vector3{0, 0, 0}};
-                d_bsdf_sample(material,
-                              shading_point,
-                              wi,
-                              bsdf_sample,
-                              min_rough,
-                              incoming_ray_differential,
-                              d_wo,
-                              d_bsdf_ray_differential,
-                              d_roughness_tex,
-                              d_shading_point,
-                              d_wi,
-                              d_incoming_ray_differential);
+                // auto d_bsdf_ray_differential = RayDifferential{
+                //     Vector3{0, 0, 0}, Vector3{0, 0, 0},
+                //     Vector3{0, 0, 0}, Vector3{0, 0, 0}};
+                // d_bsdf_sample(material,
+                //               shading_point,
+                //               wi,
+                //               bsdf_sample,
+                //               min_rough,
+                //               incoming_ray_differential,
+                //               d_wo,
+                //               d_bsdf_ray_differential,
+                //               d_roughness_tex,
+                //               d_shading_point,
+                //               d_wi,
+                //               d_incoming_ray_differential);
 
                 // wi = -incoming_ray.dir
                 d_incoming_ray.dir -= d_wi;
@@ -2077,8 +2085,8 @@ void render(const Scene &scene,
                                        d_primary_vertices,
                                        d_cameras);
 
-                // for (int i = 0; i < active_pixels.size(); i++) {
-                //     auto pixel_id = active_pixels[i];
+                // for (int i = 0; i < primary_active_pixels.size(); i++) {
+                //     auto pixel_id = primary_active_pixels[i];
                 //     auto d_v0 = d_primary_vertices[3 * i + 0].d_v;
                 //     auto d_v1 = d_primary_vertices[3 * i + 1].d_v;
                 //     auto d_v2 = d_primary_vertices[3 * i + 2].d_v;
@@ -2110,11 +2118,11 @@ void render(const Scene &scene,
                         d_scene->envmap,
                         scene.use_gpu);
                 }
-                accumulate_vertex(
-                    d_primary_vertices,
-                    path_buffer.d_vertex_reduce_buffer.view(0, num_actives_primary),
-                    d_scene->shapes.view(0, d_scene->shapes.size()),
-                    scene.use_gpu);
+                // accumulate_vertex(
+                //     d_primary_vertices,
+                //     path_buffer.d_vertex_reduce_buffer.view(0, num_actives_primary),
+                //     d_scene->shapes.view(0, d_scene->shapes.size()),
+                //     scene.use_gpu);
 
                 // Reduce the camera array
                 DCameraInst d_camera = DISPATCH(scene.use_gpu, thrust::reduce,
@@ -2166,8 +2174,11 @@ void render(const Scene &scene,
                           shading_isects,
                           shading_points,
                           ray_differentials);
-                // Stream compaction: remove invalid intersections
-                update_active_pixels(active_pixels, shading_isects, active_pixels, scene.use_gpu);
+                update_primary_edge_weights(scene,
+                                            edge_records,
+                                            shading_isects,
+                                            throughputs,
+                                            alpha_multipliers);
                 accumulate_primary_contribs(scene,
                                             active_pixels,
                                             throughputs,
@@ -2180,9 +2191,10 @@ void render(const Scene &scene,
                                             options.output_alpha,
                                             nullptr,
                                             edge_contribs);
+                // Stream compaction: remove invalid intersections
+                update_active_pixels(active_pixels, shading_isects, active_pixels, scene.use_gpu);
                 auto active_pixels_size = active_pixels.size();
-                for (int depth = 0; depth < max_bounces &&
-                        active_pixels_size > 0; depth++) {
+                for (int depth = 0; depth < max_bounces && active_pixels_size > 0; depth++) {
                     // Buffer views for this path vertex
                     auto main_buffer_beg = (depth % 2) * (2 * num_pixels);
                     auto next_buffer_beg = ((depth + 1) % 2) * (2 * num_pixels);
@@ -2287,19 +2299,20 @@ void render(const Scene &scene,
                 auto d_vertices = path_buffer.d_general_vertices.view(0, 2 * num_pixels);
                 auto d_cameras = path_buffer.d_cameras.view(0, num_pixels);
                 compute_primary_edge_derivatives(
-                    scene, edge_records, edge_contribs,
-                    d_vertices, d_cameras);
+                    scene, edge_records, edge_contribs, d_vertices, d_cameras);
 
                 // for (int i = 0; i < edge_records.size(); i++) {
                 //     auto rec = edge_records[i];
-                //     auto edge_pt = rec.edge_pt;
-                //     auto xi = int(edge_pt[0] * camera.width);
-                //     auto yi = int(edge_pt[1] * camera.height);
-                //     auto d_v0 = d_vertices[2 * i + 0].d_v;
-                //     auto d_v1 = d_vertices[2 * i + 1].d_v;
-                //     debug_image[3 * (yi * camera.width + xi) + 0] += d_v0[0] + d_v1[0];
-                //     debug_image[3 * (yi * camera.width + xi) + 1] += d_v0[0] + d_v1[0];
-                //     debug_image[3 * (yi * camera.width + xi) + 2] += d_v0[0] + d_v1[0];
+                //     if (rec.edge.shape_id >= 0) {
+                //         auto edge_pt = rec.edge_pt;
+                //         auto xi = int(edge_pt[0] * camera.width);
+                //         auto yi = int(edge_pt[1] * camera.height);
+                //         auto d_v0 = d_vertices[2 * i + 0].d_v;
+                //         auto d_v1 = d_vertices[2 * i + 1].d_v;
+                //         debug_image[3 * (yi * camera.width + xi) + 0] += d_v0[0] + d_v1[0];
+                //         debug_image[3 * (yi * camera.width + xi) + 1] += d_v0[0] + d_v1[0];
+                //         debug_image[3 * (yi * camera.width + xi) + 2] += d_v0[0] + d_v1[0];
+                //     }
                 // }
 
                 // Deposit vertices

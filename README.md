@@ -22,13 +22,14 @@ redner depends on a few libraries/systems:
 - [pybind11](https://github.com/pybind/pybind11) (required)
 - [PyTorch 0.4.1 or 1.0](https://pytorch.org) (required)
 - [OpenEXR](https://github.com/openexr/openexr) (required)
-- [OpenEXR Python](https://github.com/jamesbowman/openexrpython) (required, included in a submodule)
 - [Embree](https://embree.github.io) (required)
-- [Thrust](https://thrust.github.io) (required, included in a submodule)
-- [miniz](https://github.com/richgel999/miniz) (already in this repository)
 - [CUDA 10](https://developer.nvidia.com/cuda-downloads) (optional)
 - [optix prime](https://developer.nvidia.com/optix) (optional, required when compiled with CUDA)
 - [miniconda](https://conda.io/miniconda.html) (optional, but recommended)
+- [OpenEXR Python](https://github.com/jamesbowman/openexrpython) (required, included in a submodule)
+- [Thrust](https://thrust.github.io) (required, included in a submodule)
+- [PyWavefront](https://github.com/greenmoss/PyWavefront) (required, included in a submodule)
+- [miniz](https://github.com/richgel999/miniz) (already in this repository)
 - A few other python packages: numpy, scikit-image
 
 I recommend using conda to setup the Python related dependencies, e.g.:

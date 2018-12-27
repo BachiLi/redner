@@ -10,3 +10,4 @@ from .render_pytorch import *
 from .image import *
 from .load_obj import load_obj
 from .load_mitsuba import load_mitsuba
+from .transform import gen_rotate_matrix

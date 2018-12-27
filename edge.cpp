@@ -93,10 +93,6 @@ struct primary_edge_weighter {
 struct secondary_edge_weighter {
     DEVICE void operator()(int idx) {
         const auto &edge = edges[idx];
-        // if (edge.shape_id != 6) {
-        //     secondary_edge_weights[idx] = 0;
-        //     return;
-        // }
         // We use the length * cos(dihedral angle) to sample the edges
         // If the dihedral angle is large, it's less likely that the edge would be an silhouette        
         auto &secondary_edge_weight = secondary_edge_weights[idx];
@@ -260,9 +256,7 @@ struct primary_edge_sampler {
                 return;
             }
 
-            edge_records[idx].shape_id = edge.shape_id;
-            edge_records[idx].v0 = edge.v0;
-            edge_records[idx].v1 = edge.v1;
+            edge_records[idx].edge = edge;
             edge_records[idx].edge_pt = edge_pt;
 
             // Generate two rays at the two sides of the edge
@@ -338,9 +332,7 @@ struct primary_edge_sampler {
                 return;
             }
 
-            edge_records[idx].shape_id = edge.shape_id;
-            edge_records[idx].v0 = edge.v0;
-            edge_records[idx].v1 = edge.v1;
+            edge_records[idx].edge = edge;
             edge_records[idx].edge_pt = edge_pt;
 
             // The edge equation for the fisheye camera is:
@@ -477,13 +469,55 @@ void sample_primary_edges(const Scene &scene,
     }, samples.size(), scene.use_gpu);
 }
 
+struct primary_edge_weights_updater {
+    DEVICE void operator()(int idx) {
+        const auto &edge_record = edge_records[idx];
+        auto isect_upper = shading_isects[2 * idx + 0];
+        auto isect_lower = shading_isects[2 * idx + 1];
+        auto &throughputs_upper = throughputs[2 * idx + 0];
+        auto &throughputs_lower = throughputs[2 * idx + 1];
+        auto &alphas_upper = alphas[2 * idx + 0];
+        auto &alphas_lower = alphas[2 * idx + 1];
+        // At least one of the intersections should be connected to the edge
+        bool upper_connected = isect_upper.shape_id == edge_record.edge.shape_id &&
+            (isect_upper.tri_id == edge_record.edge.f0 || isect_upper.tri_id == edge_record.edge.f1);
+        bool lower_connected = isect_lower.shape_id == edge_record.edge.shape_id &&
+            (isect_lower.tri_id == edge_record.edge.f0 || isect_lower.tri_id == edge_record.edge.f1);
+        if (!upper_connected && !lower_connected) {
+            throughputs_upper = Vector3{0, 0, 0};
+            throughputs_lower = Vector3{0, 0, 0};
+            alphas_upper = Real(0);
+            alphas_lower = Real(0);
+        }
+    }
+
+    const PrimaryEdgeRecord *edge_records;
+    const Intersection *shading_isects;
+    Vector3 *throughputs;
+    Real *alphas;
+};
+
+void update_primary_edge_weights(const Scene &scene,
+                                 const BufferView<PrimaryEdgeRecord> &edge_records,
+                                 const BufferView<Intersection> &edge_isects,
+                                 BufferView<Vector3> throughputs,
+                                 BufferView<Real> alphas) {
+    // XXX: Disable this at the moment. Not sure if this is more robust or not.
+    // parallel_for(primary_edge_weights_updater{
+    //     edge_records.begin(),
+    //     edge_isects.begin(),
+    //     throughputs.begin(),
+    //     alphas.begin()
+    // }, edge_records.size(), scene.use_gpu);
+}
+
 struct primary_edge_derivatives_computer {
     DEVICE void operator()(int idx) {
         const auto &edge_record = edge_records[idx];
         auto edge_contrib_upper = edge_contribs[2 * idx + 0];
         auto edge_contrib_lower = edge_contribs[2 * idx + 1];
         auto edge_contrib = edge_contrib_upper + edge_contrib_lower;
-        
+
         auto &d_v0 = d_vertices[2 * idx + 0];
         auto &d_v1 = d_vertices[2 * idx + 1];
         auto &d_camera = d_cameras[idx];
@@ -491,16 +525,16 @@ struct primary_edge_derivatives_computer {
         d_v0 = DVertex{};
         d_v1 = DVertex{};
         d_camera = DCameraInst{};
-        if (edge_record.shape_id < 0) {
+        if (edge_record.edge.shape_id < 0) {
             return;
         }
-        d_v0.shape_id = edge_record.shape_id;
-        d_v1.shape_id = edge_record.shape_id;
-        d_v0.vertex_id = edge_record.v0;
-        d_v1.vertex_id = edge_record.v1;
+        d_v0.shape_id = edge_record.edge.shape_id;
+        d_v1.shape_id = edge_record.edge.shape_id;
+        d_v0.vertex_id = edge_record.edge.v0;
+        d_v1.vertex_id = edge_record.edge.v1;
 
-        auto v0 = Vector3{get_v0(shapes, edge_record)};
-        auto v1 = Vector3{get_v1(shapes, edge_record)};
+        auto v0 = Vector3{get_v0(shapes, edge_record.edge)};
+        auto v1 = Vector3{get_v1(shapes, edge_record.edge)};
         auto v0_ss = Vector2{0, 0};
         auto v1_ss = Vector2{0, 0};
         if (!project(camera, v0, v1, v0_ss, v1_ss)) {
@@ -564,7 +598,8 @@ void compute_primary_edge_derivatives(const Scene &scene,
     parallel_for(primary_edge_derivatives_computer{
         scene.camera,
         scene.shapes.data,
-        edge_records.begin(), edge_contribs.begin(),
+        edge_records.begin(),
+        edge_contribs.begin(),
         d_vertices.begin(), d_cameras.begin()
     }, edge_records.size(), scene.use_gpu);
 }
@@ -828,9 +863,7 @@ struct secondary_edge_sampler {
                 d_rendered_image[3 * pixel_id + 2]
             };
         }
-        edge_records[idx].shape_id = edge.shape_id;
-        edge_records[idx].v0 = edge.v0;
-        edge_records[idx].v1 = edge.v1;
+        edge_records[idx].edge = edge;
         edge_records[idx].edge_pt = sample_p; // for Jacobian computation 
         edge_records[idx].mwt = m * wt; // for Jacobian computation
         rays[2 * idx + 0] = Ray(shading_point.position, v_upper_dir, 1e-3f * length(sample_p));
@@ -995,8 +1028,8 @@ struct secondary_edge_weights_updater {
                                                      edge_surface_point.geom_normal,
                                                      edge_record.mwt);
             // area of projection
-            auto v0 = Vector3{get_v0(scene.shapes, edge_record)};
-            auto v1 = Vector3{get_v1(scene.shapes, edge_record)};
+            auto v0 = Vector3{get_v0(scene.shapes, edge_record.edge)};
+            auto v1 = Vector3{get_v1(scene.shapes, edge_record.edge)};
             auto half_plane_normal = normalize(cross(v0 - shading_point.position,
                                                      v1 - shading_point.position));
             // ||Jm(t)|| / ||n_m x n_h|| in Eq. 15 in the paper
@@ -1012,8 +1045,8 @@ struct secondary_edge_weights_updater {
         } else if (scene.envmap != nullptr) {
             // Hit an environment light
             auto p = shading_point.position;
-            auto v0 = Vector3{get_v0(scene.shapes, edge_record)};
-            auto v1 = Vector3{get_v1(scene.shapes, edge_record)};
+            auto v0 = Vector3{get_v0(scene.shapes, edge_record.edge)};
+            auto v1 = Vector3{get_v1(scene.shapes, edge_record.edge)};
             auto d0 = v0 - p;
             auto d1 = v1 - p;
             auto dirac_jacobian = length(cross(d0, d1)); // Eq. 16 in the paper
@@ -1033,7 +1066,7 @@ struct secondary_edge_weights_updater {
         const auto &edge_isect1 = edge_isects[2 * idx + 1];
         const auto &edge_surface_point1 = edge_surface_points[2 * idx + 1];
         const auto &edge_record = edge_records[idx];
-        if (edge_record.shape_id < 0) {
+        if (edge_record.edge.shape_id < 0) {
             return;
         }
 
@@ -1083,7 +1116,7 @@ struct secondary_edge_derivatives_accumulator {
         const auto &edge_record = edge_records[idx];
         d_vertices[2 * idx + 0] = DVertex{};
         d_vertices[2 * idx + 1] = DVertex{};
-        if (edge_record.shape_id < 0) {
+        if (edge_record.edge.shape_id < 0) {
             return;
         }
 
@@ -1095,8 +1128,8 @@ struct secondary_edge_derivatives_accumulator {
         auto dcolor_dp = Vector3{0, 0, 0};
         auto dcolor_dv0 = Vector3{0, 0, 0};
         auto dcolor_dv1 = Vector3{0, 0, 0};
-        auto v0 = Vector3{get_v0(shapes, edge_record)};
-        auto v1 = Vector3{get_v1(shapes, edge_record)};
+        auto v0 = Vector3{get_v0(shapes, edge_record.edge)};
+        auto v1 = Vector3{get_v1(shapes, edge_record.edge)};
         auto grad = [&](const Vector3 &p, const Vector3 &x, Real edge_contrib) {
             if (edge_contrib == 0) {
                 return;
@@ -1115,11 +1148,11 @@ struct secondary_edge_derivatives_accumulator {
         grad(shading_point.position, edge_surface_point1, edge_contrib1);
 
         d_points[pixel_id].position += dcolor_dp;
-        d_vertices[2 * idx + 0].shape_id = edge_record.shape_id;
-        d_vertices[2 * idx + 0].vertex_id = edge_record.v0;
+        d_vertices[2 * idx + 0].shape_id = edge_record.edge.shape_id;
+        d_vertices[2 * idx + 0].vertex_id = edge_record.edge.v0;
         d_vertices[2 * idx + 0].d_v = dcolor_dv0;
-        d_vertices[2 * idx + 1].shape_id = edge_record.shape_id;
-        d_vertices[2 * idx + 1].vertex_id = edge_record.v1;
+        d_vertices[2 * idx + 1].shape_id = edge_record.edge.shape_id;
+        d_vertices[2 * idx + 1].vertex_id = edge_record.edge.v1;
         d_vertices[2 * idx + 1].d_v = dcolor_dv1;
     }
 

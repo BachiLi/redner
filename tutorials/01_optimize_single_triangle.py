@@ -1,5 +1,4 @@
 import pyredner
-import numpy as np
 import torch
 
 # Optimize three vertices of a single triangle

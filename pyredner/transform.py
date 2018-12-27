@@ -45,9 +45,9 @@ def gen_rotate_matrix(angles):
     theta = angles[0]
     phi = angles[1]
     psi = angles[2]
-    rot_x = torch.zeros((3, 3), dtype=torch.float32)
-    rot_y = torch.zeros((3, 3), dtype=torch.float32)
-    rot_z = torch.zeros((3, 3), dtype=torch.float32)
+    rot_x = torch.zeros((3, 3), device=angles.device, dtype=torch.float32)
+    rot_y = torch.zeros((3, 3), device=angles.device, dtype=torch.float32)
+    rot_z = torch.zeros((3, 3), device=angles.device, dtype=torch.float32)
     rot_x[0, 0] = 1
     rot_x[0, 1] = 0
     rot_x[0, 2] = 0

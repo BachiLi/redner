@@ -203,8 +203,13 @@ Scene::Scene(const Camera &camera,
         }
         if (envmap.get() != nullptr) {
             auto surface_area = 4 * Real(M_PI) * square(bsphere.radius);
-            light_pmf[envmap_id] = surface_area / envmap->pdf_norm;
-            total_importance += light_pmf[envmap_id];
+            if (surface_area > 0) {
+                light_pmf[envmap_id] = surface_area / envmap->pdf_norm;
+                total_importance += light_pmf[envmap_id];
+            } else {
+                light_pmf[envmap_id] = 1;
+                total_importance += 1;
+            }
         }
 
         assert(total_importance > Real(0));

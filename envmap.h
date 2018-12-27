@@ -259,7 +259,7 @@ inline Real envmap_pdf(const EnvironmentMap &envmap, const Vector3 &dir) {
     auto sin_theta = sqrt(1 - square(local_dir.y));
     auto sin_theta_fy = fabs(sin(Real(M_PI) * (yfi + 0.5f) / h));
     auto sin_theta_cy = fabs(sin(Real(M_PI) * (yci + 0.5f) / h));
-    return envmap.pdf_norm * (lum_fy * sin_theta_fy + lum_cy * sin_theta_cy) / sin_theta;
+    return envmap.pdf_norm * fabs(lum_fy * sin_theta_fy + lum_cy * sin_theta_cy) / sin_theta;
 }
 
 void accumulate_envmap(const Scene &scene,
