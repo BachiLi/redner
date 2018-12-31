@@ -6,47 +6,6 @@ import math
 # Use GPU if available
 pyredner.set_use_gpu(torch.cuda.is_available())
 
-def generate_sphere(theta_steps, phi_steps):
-    d_theta = math.pi / (theta_steps - 1)
-    d_phi = (2 * math.pi) / (phi_steps - 1)
-
-    vertices = torch.zeros(theta_steps * phi_steps, 3,
-                           device = pyredner.get_device())
-    uvs = torch.zeros(theta_steps * phi_steps, 2,
-                      device = pyredner.get_device())
-    vertices_index = 0
-    for theta_index in range(theta_steps):
-        sin_theta = math.sin(theta_index * d_theta)
-        cos_theta = math.cos(theta_index * d_theta)
-        for phi_index in range(phi_steps):
-            sin_phi = math.sin(phi_index * d_phi)
-            cos_phi = math.cos(phi_index * d_phi)
-            vertices[vertices_index, :] = \
-                torch.tensor([sin_theta * cos_phi, cos_theta, sin_theta * sin_phi],
-                    device = pyredner.get_device())
-            uvs[vertices_index, 0] = theta_index * d_theta / math.pi
-            uvs[vertices_index, 1] = phi_index * d_phi / (2 * math.pi)
-            vertices_index += 1
-
-    indices = []
-    for theta_index in range(1, theta_steps):
-        for phi_index in range(phi_steps - 1):
-            id0 = phi_steps * theta_index + phi_index
-            id1 = phi_steps * theta_index + phi_index + 1
-            id2 = phi_steps * (theta_index - 1) + phi_index
-            id3 = phi_steps * (theta_index - 1) + phi_index + 1
-
-            if (theta_index < theta_steps - 1):
-                indices.append([id0, id2, id1])
-            if (theta_index > 1):
-                indices.append([id1, id2, id3])
-    indices = torch.tensor(indices,
-                           dtype = torch.int32,
-                           device = pyredner.get_device())
-
-    normals = vertices.clone()
-    return (vertices, indices, uvs, normals)
-
 cam = pyredner.Camera(position = torch.tensor([0.0, 0.0, -5.0]),
                       look_at = torch.tensor([0.0, 0.0, 0.0]),
                       up = torch.tensor([0.0, 1.0, 0.0]),
@@ -65,7 +24,7 @@ mat_grey = pyredner.Material(\
 
 materials = [mat_grey]
 
-vertices, indices, uvs, normals = generate_sphere(128, 64)
+vertices, indices, uvs, normals = pyredner.generate_sphere(128, 64)
 shape_sphere = pyredner.Shape(\
     vertices = vertices,
     indices = indices,
@@ -128,7 +87,7 @@ scene_args = pyredner.RenderFunction.serialize_scene(\
     scene = scene,
     num_samples = 256,
     max_bounces = 1)
-img = render(202, *scene_args)
+img = render(602, *scene_args)
 pyredner.imwrite(img.cpu(), 'results/test_envmap/final.exr')
 pyredner.imwrite(img.cpu(), 'results/test_envmap/final.png')
 pyredner.imwrite(torch.abs(target - img).cpu(), 'results/test_envmap/final_diff.png')

@@ -79,6 +79,7 @@ The current development plan is to enhance the renderer. Following features will
 - Distribution effects: depth of field/motion blur
 - Proper pixel filter (currently only support 1x1 box filter)
 - Mini-batching
+- Volumetric path tracing (e.g. [http://www.cs.cornell.edu/projects/translucency/#acquisition-sa13](http://www.cs.cornell.edu/projects/translucency/#acquisition-sa13))
 - Documentation
 
 If you have any questions/comments/bug reports, feel free to open a github issue or e-mail to the author
