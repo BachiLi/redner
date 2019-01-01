@@ -58,6 +58,22 @@ struct DShape {
 };
 
 struct DVertex {
+#ifdef WIN32
+	DVertex(int si = -1, int vi = -1,
+		Vector3 &dv = Vector3{ 0, 0, 0 },
+		Vector2 &duv = Vector2{ 0, 0 },
+		Vector3 &dn = Vector3{ 0, 0, 0 })
+		:
+		shape_id(si),
+		vertex_id(vi),
+		d_v(dv),
+		d_uv(d_uv),
+		d_n(dn)
+
+	{
+
+	}
+#endif
     int shape_id = -1, vertex_id = -1;
     Vector3 d_v = Vector3{0, 0, 0};
     Vector2 d_uv = Vector2{0, 0};

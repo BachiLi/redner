@@ -4,7 +4,12 @@ project(redner VERSION 0.0.1 DESCRIPTION "Differentiable Path Tracer")
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/")
 
+if(WIN32)
+find_package(PythonLibs 3.6 COMPONENTS Development REQUIRED)
+add_subdirectory(pybind11)
+else()
 find_package(Python 3.6 COMPONENTS Development REQUIRED)
+endif()
 find_package(CUDA 10)
 if(CUDA_FOUND)
     find_package(OptiX REQUIRED)
@@ -81,6 +86,9 @@ if(APPLE)
     # at compile time.
     set(DYNAMIC_LOOKUP "-undefined dynamic_lookup")
 endif()
+if (WIN32)
+pybind11_add_module(redner SHARED  ${SRCS} )
+endif()
 
 if(CUDA_FOUND)
     add_compile_definitions(COMPILE_WITH_CUDA)
@@ -106,7 +114,9 @@ if(CUDA_FOUND)
         ${CUDA_curand_LIBRARY}
         ${DYNAMIC_LOOKUP})
 else()
+if (NOT WIN32)
     add_library(redner MODULE ${SRCS})
+
     # The "-undefined dynamic_lookup" is a hack for systems with
     # multiple Python installed. If we link a particular Python version
     # here, and we import it with a different Python version later.
@@ -118,6 +128,13 @@ else()
     target_link_libraries(redner
         ${EMBREE_LIBRARY}
         ${DYNAMIC_LOOKUP})
+else()
+    target_link_libraries(redner
+	PRIVATE
+        ${EMBREE_LIBRARY} 
+        )
+endif()
+
 endif()
 
 set_target_properties(redner PROPERTIES PREFIX "")

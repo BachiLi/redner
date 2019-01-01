@@ -8,7 +8,9 @@
 #include <atomic>
 #include <cstdint>
 #include <cassert>
-
+#ifdef WIN32
+#include <algorithm> //for std min on windows plateform
+#endif
 // From https://github.com/mmp/pbrt-v3/blob/master/src/core/parallel.h
 
 class Barrier {

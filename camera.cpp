@@ -90,8 +90,8 @@ void test_sample_primary_rays(bool use_gpu) {
                         use_gpu);
     cuda_synchronize();
 
-    equal_or_error(__FILE__, __LINE__, rays[0].org, Vector3{0, 0, 0});
-    equal_or_error(__FILE__, __LINE__, rays[0].dir, Vector3{0, 0, 1});
+    equal_or_error<Real>(__FILE__, __LINE__, rays[0].org, Vector3{0, 0, 0});
+    equal_or_error<Real>(__FILE__, __LINE__, rays[0].dir, Vector3{0, 0, 1});
     // TODO: test ray differentials
 
     parallel_cleanup();

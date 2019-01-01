@@ -24,6 +24,20 @@ struct Texture1 {
 };
 
 struct DTexture1 {
+#ifdef WIN32
+	DTexture1(int _mi = -1, int _xi = -1, int _yi = -1, int _li = -1,
+		Real _t000 = 0, Real _t010 = 0, Real _t100 = 0, Real _t110 = 0,
+		Real _t001 = 0, Real _t011 = 0, Real _t101 = 0, Real _t111 = 0)
+		:
+		material_id(_mi),
+		xi(_xi),
+		yi(_yi),
+		li(_li),
+		t000(_t000), t010(_t010), t100(_t100), t110(_t110),
+		t001(_t001), t011(_t011), t101(_t101), t111(_t111)
+	{
+	}
+#endif
     int material_id = -1, xi = -1, yi = -1, li = -1;
     Real t000 = 0, t010 = 0, t100 = 0, t110 = 0;
     Real t001 = 0, t011 = 0, t101 = 0, t111 = 0;
@@ -79,6 +93,20 @@ struct Texture3 {
 };
 
 struct DTexture3 {
+#ifdef WIN32
+	DTexture3(int _mi = -1, int _xi = -1, int _yi = -1, int _li = -1,
+		Vector3f _t000 = Vector3f{ 0, 0, 0 }, Vector3f _t010 = Vector3f{ 0, 0, 0 }, Vector3f _t100 = Vector3f{ 0, 0, 0 }, Vector3f _t110 = Vector3f{ 0, 0, 0 },
+		Vector3f _t001 = Vector3f{ 0, 0, 0 }, Vector3f _t011 = Vector3f{ 0, 0, 0 }, Vector3f _t101 = Vector3f{ 0, 0, 0 }, Vector3f _t111 = Vector3f{ 0, 0, 0 })
+		:
+		material_id(_mi),
+		xi(_xi),
+		yi(_yi),
+		li(_li),
+		t000(_t000), t010(_t010), t100(_t100), t110(_t110),
+		t001(_t001), t011(_t011), t101(_t101), t111(_t111)
+	{
+	}
+#endif
     int material_id = -1, xi = -1, yi = -1, li = -1;
     /**
      * HACK: We use Vector3f instead of Vector3 as a workaround for a bug in thrust

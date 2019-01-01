@@ -7,6 +7,26 @@
 struct Scene;
 
 struct Edge {
+#ifdef WIN32
+	Edge():
+	shape_id(-1),
+	v0(0),
+	v1(0),
+	f0(0),
+	f1(0)
+	{
+	}
+	Edge(int si,
+		int v0_, int v1_,
+		int f0_, int f1_) :
+		shape_id(si),
+		v0(v0_),
+		v1(v1_),
+		f0(f0_),
+		f1(f1_)
+	{
+	}
+#endif
     int shape_id = -1;
     int v0, v1;
     int f0, f1;
@@ -19,6 +39,7 @@ struct Edge {
 };
 
 struct PrimaryEdgeRecord {
+
     Edge edge;
     Vector2 edge_pt;
 };

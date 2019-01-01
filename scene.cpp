@@ -744,15 +744,15 @@ void test_scene_intersect(bool use_gpu) {
     equal_or_error(__FILE__, __LINE__, isects[0].tri_id, 0);
     equal_or_error(__FILE__, __LINE__, isects[1].shape_id, -1);
     equal_or_error(__FILE__, __LINE__, isects[1].tri_id, -1);
-    equal_or_error(__FILE__, __LINE__, surface_points[0].position, Vector3{0, 0, 1});
-    equal_or_error(__FILE__, __LINE__, ray_diffs[0].org_dx, Vector3{0, 0, 0});
-    equal_or_error(__FILE__, __LINE__, ray_diffs[0].org_dy, Vector3{0, 0, 0});
-    equal_or_error(__FILE__, __LINE__, ray_diffs[0].dir_dx, Vector3{0, 0, 0});
-    equal_or_error(__FILE__, __LINE__, ray_diffs[0].dir_dy, Vector3{0, 0, 0});
-    equal_or_error(__FILE__, __LINE__, ray_diffs[1].org_dx, Vector3{0, 0, 0});
-    equal_or_error(__FILE__, __LINE__, ray_diffs[1].org_dy, Vector3{0, 0, 0});
-    equal_or_error(__FILE__, __LINE__, ray_diffs[1].dir_dx, Vector3{0, 0, 0});
-    equal_or_error(__FILE__, __LINE__, ray_diffs[1].dir_dy, Vector3{0, 0, 0});
+    equal_or_error<Real>(__FILE__, __LINE__, surface_points[0].position, Vector3{0, 0, 1});
+    equal_or_error<Real>(__FILE__, __LINE__, ray_diffs[0].org_dx, Vector3{0, 0, 0});
+    equal_or_error<Real>(__FILE__, __LINE__, ray_diffs[0].org_dy, Vector3{0, 0, 0});
+    equal_or_error<Real>(__FILE__, __LINE__, ray_diffs[0].dir_dx, Vector3{0, 0, 0});
+    equal_or_error<Real>(__FILE__, __LINE__, ray_diffs[0].dir_dy, Vector3{0, 0, 0});
+    equal_or_error<Real>(__FILE__, __LINE__, ray_diffs[1].org_dx, Vector3{0, 0, 0});
+    equal_or_error<Real>(__FILE__, __LINE__, ray_diffs[1].org_dy, Vector3{0, 0, 0});
+    equal_or_error<Real>(__FILE__, __LINE__, ray_diffs[1].dir_dx, Vector3{0, 0, 0});
+    equal_or_error<Real>(__FILE__, __LINE__, ray_diffs[1].dir_dy, Vector3{0, 0, 0});
     parallel_cleanup();
 }
 
@@ -839,10 +839,10 @@ void test_sample_point_on_light(bool use_gpu) {
     equal_or_error(__FILE__, __LINE__, light_isects[1].tri_id, 1);
     equal_or_error(__FILE__, __LINE__, light_isects[2].shape_id, 1);
     equal_or_error(__FILE__, __LINE__, light_isects[2].tri_id, 0);
-    equal_or_error(__FILE__, __LINE__, light_points[0].position,
+    equal_or_error<Real>(__FILE__, __LINE__, light_points[0].position,
                                        Vector3{1.f, 0.f, 1.f});
-    equal_or_error(__FILE__, __LINE__, light_points[1].position,
+    equal_or_error<Real>(__FILE__, __LINE__, light_points[1].position,
                                        Vector3{1.f, 0.f, 2.f});
-    equal_or_error(__FILE__, __LINE__, light_points[2].position,
+    equal_or_error<Real>(__FILE__, __LINE__, light_points[2].position,
                                        Vector3{1.f, 0.f, 0.f});
 }
