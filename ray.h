@@ -33,16 +33,11 @@ struct TRayDifferential {
 
 template <typename T>
 struct DTRay {
-#ifdef WIN32
-	DTRay(TVector3<T> o = TVector3<T>{ 0, 0, 0 }, TVector3<T> d = TVector3<T>{ 0, 0, 0 })
-		:
-		org(o),
-		dir(d)
-	{
-	}
-#endif
-    TVector3<T> org = TVector3<T>{0, 0, 0};
-    TVector3<T> dir = TVector3<T>{0, 0, 0};
+    DTRay(const TVector3<T> &o = TVector3<T>{0,0,0},
+          const TVector3<T> &d = TVector3<T>{0,0,0})
+        : org(o), dir(d) {}
+    TVector3<T> org;
+    TVector3<T> dir;
 };
 
 using Ray = TRay<Real>;

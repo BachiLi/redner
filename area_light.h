@@ -34,15 +34,12 @@ struct DAreaLight {
 };
 
 struct DAreaLightInst {
-#ifdef WIN32
-	DAreaLightInst(int li = -1, Vector3& i = Vector3{ 0, 0, 0 })
-		:
-		light_id(li), intensity(i)
-	{
-	}
-#endif
-    int light_id = -1;
-    Vector3 intensity = Vector3{0, 0, 0};
+    DAreaLightInst(int light_id = -1,
+                  const Vector3 &intensity = Vector3{ 0, 0, 0 })
+        : light_id(light_id), intensity(intensity) {}
+
+    int light_id;
+    Vector3 intensity;
 
     DEVICE inline bool operator<(const DAreaLightInst &other) const {
         return light_id < other.light_id;

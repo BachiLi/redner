@@ -7,18 +7,12 @@
 #include <thrust/remove.h>
 
 struct is_invalid_ray {
-#ifdef WIN32
-	is_invalid_ray(const Ray* r)
-		:
-		rays(r)
-	{
-	}
-#endif
+    is_invalid_ray(const Ray* rays) : rays(rays) {}
     DEVICE bool operator()(int idx) {
         return is_zero(rays[idx].dir);
     }
 
-    const Ray *rays = nullptr;
+    const Ray *rays;
 };
 
 void init_active_pixels(const BufferView<Ray> &rays,
@@ -34,18 +28,13 @@ void init_active_pixels(const BufferView<Ray> &rays,
 }
 
 struct is_valid_intersection {
-#ifdef WIN32
-	is_valid_intersection(const Intersection *is)
-		:
-		isects(is)
-	{
-	}
-#endif
+    is_valid_intersection(const Intersection *isects) : isects(isects) {}
+
     DEVICE bool operator()(int pixel_id) {
         return isects[pixel_id].valid();
     }
 
-    const Intersection *isects = nullptr;
+    const Intersection *isects;
 };
 
 void update_active_pixels(const BufferView<int> &active_pixels,

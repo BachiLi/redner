@@ -7,27 +7,15 @@
 struct Scene;
 
 struct Edge {
-#ifdef WIN32
-	Edge():
-	shape_id(-1),
-	v0(0),
-	v1(0),
-	f0(0),
-	f1(0)
-	{
-	}
-	Edge(int si,
-		int v0_, int v1_,
-		int f0_, int f1_) :
-		shape_id(si),
-		v0(v0_),
-		v1(v1_),
-		f0(f0_),
-		f1(f1_)
-	{
-	}
-#endif
-    int shape_id = -1;
+   Edge() : shape_id(-1), v0(0), v1(0), f0(0), f1(0) {}
+   Edge(int si, int v0, int v1, int f0, int f1) :
+      shape_id(si),
+      v0(v0),
+      v1(v1),
+      f0(f0),
+      f1(f1) {}
+
+    int shape_id;
     int v0, v1;
     int f0, f1;
 

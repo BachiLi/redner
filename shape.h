@@ -58,26 +58,16 @@ struct DShape {
 };
 
 struct DVertex {
-#ifdef WIN32
-	DVertex(int si = -1, int vi = -1,
-		Vector3 &dv = Vector3{ 0, 0, 0 },
-		Vector2 &duv = Vector2{ 0, 0 },
-		Vector3 &dn = Vector3{ 0, 0, 0 })
-		:
-		shape_id(si),
-		vertex_id(vi),
-		d_v(dv),
-		d_uv(d_uv),
-		d_n(dn)
+    DVertex(int shape_id = -1, int vertex_id = -1,
+        const Vector3 &d_v = Vector3{0, 0, 0},
+        const Vector2 &d_uv = Vector2{0, 0},
+        const Vector3 &d_n = Vector3{0, 0, 0})
+        : shape_id(shape_id), vertex_id(vertex_id), d_v(d_v), d_uv(d_uv), d_n(d_n) {}
 
-	{
-
-	}
-#endif
-    int shape_id = -1, vertex_id = -1;
-    Vector3 d_v = Vector3{0, 0, 0};
-    Vector2 d_uv = Vector2{0, 0};
-    Vector3 d_n = Vector3{0, 0, 0};
+    int shape_id, vertex_id;
+    Vector3 d_v;
+    Vector2 d_uv;
+    Vector3 d_n;
 
     DEVICE inline bool operator<(const DVertex &other) const {
         if (shape_id != other.shape_id) {

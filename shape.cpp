@@ -3,13 +3,9 @@
 #include "test_utils.h"
 
 struct vertex_accumulator {
-#ifdef WIN32
-	vertex_accumulator(const DVertex *dv = nullptr, DShape *ds = nullptr)
-		:
-		d_vertices(dv), d_shapes(ds)
-	{
-	}
-#endif
+    vertex_accumulator(const DVertex *dv = nullptr, DShape *ds = nullptr)
+        : d_vertices(dv), d_shapes(ds) {}
+
     DEVICE
     inline void operator()(int idx) {
         auto sid = d_vertices[idx].shape_id;
@@ -31,8 +27,8 @@ struct vertex_accumulator {
         }
     }
 
-    const DVertex *d_vertices = nullptr;
-    DShape *d_shapes = nullptr;
+    const DVertex *d_vertices;
+    DShape *d_shapes;
 };
 
 void accumulate_vertex(const BufferView<DVertex> &d_vertices,

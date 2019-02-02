@@ -18,6 +18,10 @@
     }
 #endif
 
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+
 // We use Real for most of the internal computation.
 // However, for PyTorch interfaces, Optix Prime and Embree queries
 // we use float
