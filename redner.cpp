@@ -115,11 +115,24 @@ PYBIND11_MODULE(redner, m) {
         .def(py::init<Texture3,       // values
                       ptr<float>>()); // world_to_env
 
+    py::enum_<Channels>(m, "channels")
+        .value("radiance", Channels::radiance)
+        .value("alpha", Channels::alpha)
+        .value("depth", Channels::depth)
+        .value("geometry_normal", Channels::geometry_normal)
+        .value("shading_normal", Channels::shading_normal)
+        .value("uv", Channels::uv)
+        .value("diffuse_reflectance", Channels::diffuse_reflectance)
+        .value("specular_reflectance", Channels::specular_reflectance)
+        .value("roughness", Channels::roughness);
+
+    m.def("compute_num_channels", compute_num_channels, "");
+
     py::class_<RenderOptions>(m, "RenderOptions")
         .def(py::init<uint64_t,
                       int,
                       int,
-                      bool>())
+                      std::vector<Channels>>())
         .def_readwrite("seed", &RenderOptions::seed);
 
     py::class_<Vector2f>(m, "Vector2f")

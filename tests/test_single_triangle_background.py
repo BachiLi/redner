@@ -1,4 +1,5 @@
 import pyredner
+import redner
 import numpy as np
 import torch
 import skimage.transform
@@ -57,17 +58,18 @@ area_lights = [light]
 # Construct the scene
 scene = pyredner.Scene(cam, shapes, materials, area_lights)
 # Serialize the scene
+# Here we specify the output channels as "radiance" and "alpha"
 scene_args = pyredner.RenderFunction.serialize_scene(\
     scene = scene,
     num_samples = 16,
     max_bounces = 1,
-    output_alpha = True)
+    channels = [redner.channels.radiance, redner.channels.alpha])
 
 # Render the scene as our target image.
 render = pyredner.RenderFunction.apply
 # Render. The first argument is the seed for RNG in the renderer.
 img = render(0, *scene_args)
-# Since we turn on the "output_alpha" option, img has 4 channels now
+# Since we specified alpha as output channel, img has 4 channels now
 # We blend the image with a background image
 background = pyredner.imread('scenes/textures/siggraph.jpg')
 background = torch.from_numpy(skimage.transform.resize(background.numpy(), (256, 256, 3)))
@@ -95,7 +97,7 @@ scene_args = pyredner.RenderFunction.serialize_scene(\
     scene = scene,
     num_samples = 16,
     max_bounces = 1,
-    output_alpha = True)
+    channels = [redner.channels.radiance, redner.channels.alpha])
 # Render the initial guess.
 img = render(1, *scene_args)
 # Blend the image with a background image
@@ -117,7 +119,7 @@ for t in range(300):
         scene = scene,
         num_samples = 4, # We use less samples in the Adam loop.
         max_bounces = 1,
-        output_alpha = True)
+        channels = [redner.channels.radiance, redner.channels.alpha])
     # Important to use a different seed every iteration, otherwise the result
     # would be biased.
     img = render(t+1, *scene_args)
@@ -144,7 +146,7 @@ scene_args = pyredner.RenderFunction.serialize_scene(\
     scene = scene,
     num_samples = 16,
     max_bounces = 1,
-    output_alpha = True)
+    channels = [redner.channels.radiance, redner.channels.alpha])
 img = render(302, *scene_args)
 # Blend the image with a background image
 img = img[:, :, :3] * img[:, :, 3:4] + background * (1 - img[:, :, 3:4])

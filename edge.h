@@ -3,6 +3,7 @@
 #include "redner.h"
 #include "shape.h"
 #include "camera.h"
+#include "channels.h"
 
 struct Scene;
 
@@ -137,18 +138,19 @@ struct EdgeSampler {
 void sample_primary_edges(const Scene &scene,
                           const BufferView<PrimaryEdgeSample> &samples,
                           const float *d_rendered_image,
-                          const bool output_alpha,
+                          const ChannelInfo &channel_info,
                           BufferView<PrimaryEdgeRecord> edge_records,
                           BufferView<Ray> rays,
                           BufferView<RayDifferential> primary_ray_differentials,
                           BufferView<Vector3> throughputs,
-                          BufferView<Real> alphas);
+                          BufferView<Real> channel_multipliers);
 
 void update_primary_edge_weights(const Scene &scene,
                                  const BufferView<PrimaryEdgeRecord> &edge_records,
                                  const BufferView<Intersection> &shading_isects,
+                                 const ChannelInfo &channel_info,
                                  BufferView<Vector3> throughputs,
-                                 BufferView<Real> alphas);
+                                 BufferView<Real> channel_multipliers);
 
 void compute_primary_edge_derivatives(const Scene &scene,
                                       const BufferView<PrimaryEdgeRecord> &edge_records,
@@ -166,7 +168,7 @@ void sample_secondary_edges(const Scene &scene,
                             const BufferView<Vector3> &throughputs,
                             const BufferView<Real> &min_roughness,
                             const float *d_rendered_image,
-                            const bool output_alpha,
+                            const ChannelInfo &channel_info,
                             BufferView<SecondaryEdgeRecord> edge_records,
                             BufferView<Ray> rays,
                             BufferView<RayDifferential> &bsdf_ray_differentials,

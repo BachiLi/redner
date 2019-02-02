@@ -29,7 +29,7 @@ class RenderFunction(torch.autograd.Function):
     def serialize_scene(scene,
                         num_samples,
                         max_bounces,
-                        output_alpha = False):
+                        channels = [redner.channels.radiance]):
         """
             Given a PyRedner scene, convert it to a linear list of argument,
             so that we can use it in PyTorch.
@@ -87,7 +87,7 @@ class RenderFunction(torch.autograd.Function):
             args.append(None)
         args.append(num_samples)
         args.append(max_bounces)
-        args.append(output_alpha)
+        args.append(channels)
 
         return args
     
@@ -270,11 +270,11 @@ class RenderFunction(torch.autograd.Function):
         current_index += 1
         max_bounces = args[current_index]
         current_index += 1
-        output_alpha = args[current_index]
+        channels = args[current_index]
         current_index += 1
 
-        options = redner.RenderOptions(seed, num_samples, max_bounces, output_alpha)
-        num_channels = 4 if output_alpha else 3
+        options = redner.RenderOptions(seed, num_samples, max_bounces, channels)
+        num_channels = redner.compute_num_channels(channels)
         rendered_image = torch.zeros(resolution[0], resolution[1], num_channels,
             device = pyredner.get_device())
         redner.render(scene,
@@ -499,6 +499,6 @@ class RenderFunction(torch.autograd.Function):
         
         ret_list.append(None) # num samples
         ret_list.append(None) # num bounces
-        ret_list.append(None) # output alpha
+        ret_list.append(None) # channels
 
         return tuple(ret_list)

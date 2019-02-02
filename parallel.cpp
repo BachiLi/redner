@@ -226,7 +226,7 @@ void parallel_for_host(
 }
 
 int num_system_cores() {
-    // return 1;
+    return 1;
     int ret = std::thread::hardware_concurrency();
     if (ret == 0) {
         return 16;

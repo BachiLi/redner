@@ -2,6 +2,7 @@
 
 #include "redner.h"
 #include "ptr.h"
+#include "channels.h"
 #include <memory>
 
 struct Scene;
@@ -11,7 +12,7 @@ struct RenderOptions {
     uint64_t seed;
     int num_samples;
     int max_bounces;
-    bool output_alpha;
+    std::vector<Channels> channels;
 };
 
 void render(const Scene &scene,

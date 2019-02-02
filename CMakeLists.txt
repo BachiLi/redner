@@ -38,6 +38,7 @@ set(SRCS active_pixels.h
          area_light.h
          buffer.h
          camera.h
+         channels.h
          cuda_utils.h
          edge.h
          envmap.h
@@ -64,6 +65,7 @@ set(SRCS active_pixels.h
          active_pixels.cpp
          area_light.cpp
          camera.cpp
+         channels.cpp
          edge.cpp
          envmap.cpp
          load_serialized.cpp
@@ -96,6 +98,7 @@ if(CUDA_FOUND)
     set_source_files_properties(
         active_pixels.cpp
         camera.cpp
+        channels.cpp
         edge.cpp
         envmap.cpp
         area_light.cpp
