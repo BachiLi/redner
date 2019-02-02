@@ -61,8 +61,9 @@ CUDA_curand_LIBRARY
 ```
 I suggest using ccmake or other interfaces of cmake to setup the variables.
 
-redner is tested under MacOS with clang 7 and Ubuntu with gcc 7. Windows is not tested yet but should be
-portable with moderate modification. In general any compiler with c++14 support should work.
+See [here](https://github.com/BachiLi/redner/pull/11) for build instruction on Windows.
+
+redner is tested under MacOS with clang 7 and Ubuntu with gcc 7. In general any compiler with c++14 support should work.
 
 The current development plan is to enhance the renderer. Following features will be added in the near future (not listed in any particular order):
 - Stratification of random number
