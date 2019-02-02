@@ -1768,6 +1768,7 @@ void render(const Scene &scene,
                     edge_ray_differentials,
                     edge_throughputs,
                     edge_min_roughness);
+
                 // Now we path trace these edges
                 auto edge_active_pixels = path_buffer.edge_active_pixels.view(0, num_edge_samples);
                 init_active_pixels(edge_rays, edge_active_pixels, scene.use_gpu);

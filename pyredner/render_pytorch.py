@@ -365,7 +365,7 @@ class RenderFunction(torch.autograd.Function):
                 d_roughness = torch.zeros(roughness_size[2],
                                           roughness_size[1],
                                           roughness_size[0],
-                                          device = pyredner.get_device())
+                                          1, device = pyredner.get_device())
             d_diffuse_list.append(d_diffuse)
             d_specular_list.append(d_specular)
             d_roughness_list.append(d_roughness)

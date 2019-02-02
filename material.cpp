@@ -215,14 +215,14 @@ struct roughness_accumulator {
             if (d_tex.li == -1) {
                 level = 0;
             }
-            auto lower_texels = texels + level * w * h * 3;
+            auto lower_texels = texels + level * w * h;
 #ifdef __CUDA_ARCH__ 
             atomic_add(lower_texels[yi0 * w + xi0], d_tex.t000);
             atomic_add(lower_texels[yi0 * w + xi1], d_tex.t100);
             atomic_add(lower_texels[yi1 * w + xi0], d_tex.t010);
             atomic_add(lower_texels[yi1 * w + xi1], d_tex.t110);
             if (d_tex.li >= 0 && d_tex.li < num_levels) {
-                auto higher_texels = texels + (level + 1) * w * h * 3;
+                auto higher_texels = texels + (level + 1) * w * h;
                 atomic_add(higher_texels[yi0 * w + xi0], d_tex.t001);
                 atomic_add(higher_texels[yi0 * w + xi1], d_tex.t101);
                 atomic_add(higher_texels[yi1 * w + xi0], d_tex.t011);
@@ -236,7 +236,7 @@ struct roughness_accumulator {
             lower_texels[yi1 * w + xi0] += d_tex.t010;
             lower_texels[yi1 * w + xi1] += d_tex.t110;
             if (d_tex.li >= 0 && d_tex.li < num_levels) {
-                auto higher_texels = texels + (level + 1) * w * h * 3;
+                auto higher_texels = texels + (level + 1) * w * h;
                 higher_texels[yi0 * w + xi0] += d_tex.t001;
                 higher_texels[yi0 * w + xi1] += d_tex.t101;
                 higher_texels[yi1 * w + xi0] += d_tex.t011;
@@ -273,7 +273,8 @@ void accumulate_roughness(const Scene &scene,
                           const BufferView<DTexture1> &d_roughness_texs,
                           BufferView<DMaterial> d_materials) {
     parallel_for(
-        roughness_accumulator{d_roughness_texs.begin(), d_materials.begin()},
+        roughness_accumulator{d_roughness_texs.begin(), d_materials.begin(),
+            (void*)&scene.material_mutexes[0]},
         d_roughness_texs.size(), scene.use_gpu);
 }
 
