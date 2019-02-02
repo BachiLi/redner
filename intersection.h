@@ -6,6 +6,16 @@
 #include "ray.h"
 
 struct Intersection {
+#ifdef WIN32
+	Intersection(int si, int ti)
+		:
+		shape_id(si),
+		tri_id(ti)
+	{
+
+	}
+#endif
+
     int shape_id = -1;
     int tri_id = -1;
 

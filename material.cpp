@@ -340,8 +340,8 @@ void test_d_bsdf() {
     }
 
     // Check surface point derivatives
-    equal_or_error(__FILE__, __LINE__, Vector3{0, 0, 0}, d_p.position);
-    equal_or_error(__FILE__, __LINE__, Vector3{0, 0, 0}, d_p.geom_normal);
+    equal_or_error<Real>(__FILE__, __LINE__, Vector3{0, 0, 0}, d_p.position);
+    equal_or_error<Real>(__FILE__, __LINE__, Vector3{0, 0, 0}, d_p.geom_normal);
     // Shading frame x
     for (int i = 0; i < 3; i++) {
         auto delta_p = p;
@@ -478,8 +478,8 @@ void test_d_bsdf_sample() {
         }
 
         // Check surface point derivatives
-        equal_or_error(__FILE__, __LINE__, Vector3{0, 0, 0}, d_p.position);
-        equal_or_error(__FILE__, __LINE__, Vector3{0, 0, 0}, d_p.geom_normal);
+        equal_or_error<Real>(__FILE__, __LINE__, Vector3{0, 0, 0}, d_p.position);
+        equal_or_error<Real>(__FILE__, __LINE__, Vector3{0, 0, 0}, d_p.geom_normal);
         // Shading frame x
         for (int i = 0; i < 3; i++) {
             auto ray_diff_pos = RayDifferential{
@@ -637,8 +637,8 @@ void test_d_bsdf_pdf() {
     }
 
     // Check surface point derivatives
-    equal_or_error(__FILE__, __LINE__, Vector3{0, 0, 0}, d_p.position);
-    equal_or_error(__FILE__, __LINE__, Vector3{0, 0, 0}, d_p.geom_normal);
+    equal_or_error<Real>(__FILE__, __LINE__, Vector3{0, 0, 0}, d_p.position);
+    equal_or_error<Real>(__FILE__, __LINE__, Vector3{0, 0, 0}, d_p.geom_normal);
     // Shading frame x
     for (int i = 0; i < 3; i++) {
         auto delta_p = p;
