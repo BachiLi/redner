@@ -60,7 +60,10 @@ template <typename T>
 inline void parallel_for(T functor,
                          int count,
                          bool use_gpu,
-                         int work_per_thread = 256) {
+                         int work_per_thread = -1) {
+    if (work_per_thread == -1) {
+        work_per_thread = use_gpu ? 64 : 256;
+    }
     if (count <= 0) {
         return;
     }
