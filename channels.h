@@ -7,6 +7,7 @@ enum class Channels {
     radiance,
     alpha,
     depth,
+    position,
     geometry_normal,
     shading_normal,
     uv,

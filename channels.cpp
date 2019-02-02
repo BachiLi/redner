@@ -50,6 +50,9 @@ int compute_num_channels(const std::vector<Channels> &channels) {
             case Channels::depth: {
                 num_total_dimensions += 1;
             } break;
+            case Channels::position: {
+                num_total_dimensions += 3;
+            } break;
             case Channels::geometry_normal: {
                 num_total_dimensions += 3;
             } break;

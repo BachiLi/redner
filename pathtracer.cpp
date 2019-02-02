@@ -207,6 +207,21 @@ struct primary_contribs_accumulator {
                         }
                         d++;
                     } break;
+                    case Channels::position: {
+                        if (shading_isect.valid()) {
+                            const auto &shading_point = shading_points[pixel_id];
+                            auto position = shading_point.position * weight;
+                            if (channel_multipliers != nullptr) {
+                                position[0] *= channel_multipliers[nd * pixel_id + d];
+                                position[1] *= channel_multipliers[nd * pixel_id + d + 1];
+                                position[2] *= channel_multipliers[nd * pixel_id + d + 2];
+                            }
+                            rendered_image[nd * pixel_id + d    ] += position[0];
+                            rendered_image[nd * pixel_id + d + 1] += position[1];
+                            rendered_image[nd * pixel_id + d + 2] += position[2];
+                        }
+                        d += 3;
+                    } break;
                     case Channels::geometry_normal: {
                         if (shading_isect.valid()) {
                             const auto &shading_point = shading_points[pixel_id];
@@ -299,6 +314,9 @@ struct primary_contribs_accumulator {
                         }
                         d++;
                     } break;
+                    default: {
+                        assert(false);
+                    }
                 }
             }
         }
@@ -329,6 +347,17 @@ struct primary_contribs_accumulator {
                             edge_contribs[pixel_id] += depth;
                         }
                         d++;
+                    } break;
+                    case Channels::position: {
+                        if (shading_isect.valid() && channel_multipliers != nullptr) {
+                            const auto &shading_point = shading_points[pixel_id];
+                            auto position = shading_point.position * weight;
+                            position[0] *= channel_multipliers[nd * pixel_id + d];
+                            position[1] *= channel_multipliers[nd * pixel_id + d + 1];
+                            position[2] *= channel_multipliers[nd * pixel_id + d + 2];
+                            edge_contribs[pixel_id] += sum(position);
+                        }
+                        d += 3;
                     } break;
                     case Channels::geometry_normal: {
                         if (shading_isect.valid() && channel_multipliers != nullptr) {
@@ -401,6 +430,9 @@ struct primary_contribs_accumulator {
                         }
                         d++;
                     } break;
+                    default: {
+                        assert(false);
+                    }
                 }
             }
         }
@@ -498,6 +530,19 @@ struct d_primary_contribs_accumulator {
                         d_shading_points[pixel_id].position += d_position;
                     }
                     d += 1;
+                } break;
+                case Channels::position: {
+                    if (shading_isect.valid()) {
+                        auto d_position = weight *
+                                Vector3{d_rendered_image[nd * pixel_id + d],
+                                        d_rendered_image[nd * pixel_id + d + 1],
+                                        d_rendered_image[nd * pixel_id + d + 2]};
+                        d_position[0] *= channel_multipliers[nd * pixel_id + d];
+                        d_position[1] *= channel_multipliers[nd * pixel_id + d + 1];
+                        d_position[2] *= channel_multipliers[nd * pixel_id + d + 2];
+                        d_shading_points[pixel_id].position += d_position;
+                    }
+                    d += 3;
                 } break;
                 case Channels::geometry_normal: {
                     if (shading_isect.valid()) {
@@ -601,6 +646,9 @@ struct d_primary_contribs_accumulator {
                     }
                     d += 1;
                 } break;
+                default: {
+                    assert(false);
+                }
             }
         }
     }
