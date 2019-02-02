@@ -1482,7 +1482,7 @@ struct PathBuffer {
                bool use_gpu,
                const ChannelInfo &channel_info) :
             num_pixels(num_pixels) {
-        assert(max_bounces >= 1);
+        assert(max_bounces >= 0);
         // For forward path tracing, we need to allocate memory for
         // all bounces
         // For edge sampling, we need to allocate memory for
@@ -2508,7 +2508,7 @@ void render(const Scene &scene,
                 auto shading_points = path_buffer.edge_shading_points.view(0, 2 * num_pixels);
                 auto active_pixels = path_buffer.edge_active_pixels.view(0, 2 * num_pixels);
                 auto edge_contribs = path_buffer.edge_contribs.view(0, 2 * num_pixels);
-                auto edge_min_roughness = path_buffer.min_roughness.view(0, 2 * num_pixels);
+                auto edge_min_roughness = path_buffer.edge_min_roughness.view(0, 2 * num_pixels);
                 // Initialize edge contribution
                 DISPATCH(scene.use_gpu, thrust::fill,
                          edge_contribs.begin(), edge_contribs.end(), 0);

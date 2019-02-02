@@ -1,6 +1,7 @@
 import torch
 import re
 import pyredner
+import os
 
 class WavefrontMaterial:
     def __init__(self):
@@ -65,6 +66,7 @@ def load_obj(filename):
     material_map = {}
     current_mtllib = {}
     current_material_name = None
+    cwd = os.getcwd()
 
     def create_mesh(indices, vertices, normals, uvs):
         indices = torch.tensor(indices, dtype = torch.int32, device = pyredner.get_device())
@@ -82,7 +84,9 @@ def load_obj(filename):
     mesh_list = []
     light_map = {}
 
-    for line in open(filename, 'r'):
+    f = open(filename, 'r')
+    os.chdir(os.path.dirname(filename))
+    for line in f:
         line = line.strip()
         splitted = re.split('\ +', line)
         if splitted[0] == 'mtllib':
@@ -176,5 +180,7 @@ def load_obj(filename):
                 vid3 = get_vertex_id(splitted[4])
                 indices.append([vid0, vid2, vid3])
     
-    mesh_list.append((current_material_name, create_mesh(indices, vertices, normals, uvs)))
+    mesh_list.append((current_material_name,
+        create_mesh(indices, vertices, normals, uvs)))
+    os.chdir(cwd)
     return material_map, mesh_list, light_map
