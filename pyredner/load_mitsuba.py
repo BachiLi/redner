@@ -50,7 +50,7 @@ def parse_camera(node):
             elif child.attrib['name'] == 'toWorld':
                 has_lookat = False
                 for grandchild in child:
-                    if grandchild.tag == 'lookat':
+                    if grandchild.tag.lower() == 'lookat':
                         has_lookat = True
                         position = parse_vector(grandchild.attrib['origin'])
                         look_at = parse_vector(grandchild.attrib['target'])
@@ -93,18 +93,18 @@ def parse_material(node, two_sided = False):
                             diffuse_uv_scale[0] = float(grandchild.attrib['value'])
                         elif grandchild.attrib['name'] == 'vscale':
                             diffuse_uv_scale[1] = float(grandchild.attrib['value'])
-                elif child.tag == 'rgb':
+                elif child.tag == 'rgb' or child.tag == 'spectrum':
                     diffuse_reflectance = parse_vector(child.attrib['value'])
             elif child.attrib['name'] == 'specular':
                 if child.tag == 'texture':
                     for grandchild in child:
                         if grandchild.attrib['name'] == 'filename':
-                            specular_reflectance = image.imread(grandchild.attrib['value'])
+                            specular_reflectance = pyredner.imread(grandchild.attrib['value'])
                         elif grandchild.attrib['name'] == 'uscale':
                             specular_uv_scale[0] = float(grandchild.attrib['value'])
                         elif grandchild.attrib['name'] == 'vscale':
                             specular_uv_scale[1] = float(grandchild.attrib['value'])
-                elif child.tag == 'rgb':
+                elif child.tag == 'rgb' or child.tag == 'spectrum':
                     specular_reflectance = parse_vector(child.attrib['value'])
             elif child.attrib['name'] == 'roughness':
                 roughness = torch.tensor(float(child.attrib['value']))
@@ -118,9 +118,54 @@ def parse_material(node, two_sided = False):
                 specular_reflectance = pyredner.Texture(specular_reflectance, specular_uv_scale),
                 roughness = pyredner.Texture(roughness),
                 two_sided = two_sided))
+    elif node.attrib['type'] == 'roughplastic':
+        diffuse_reflectance = torch.tensor([0.5, 0.5, 0.5])
+        diffuse_uv_scale = torch.tensor([1.0, 1.0])
+        specular_reflectance = torch.tensor([0.0, 0.0, 0.0])
+        specular_uv_scale = torch.tensor([1.0, 1.0])
+        roughness = torch.tensor([1.0])
+        for child in node:
+            if child.attrib['name'] == 'diffuseReflectance':
+                if child.tag == 'texture':
+                    for grandchild in child:
+                        if grandchild.attrib['name'] == 'filename':
+                            diffuse_reflectance = pyredner.imread(grandchild.attrib['value'])
+                        elif grandchild.attrib['name'] == 'uscale':
+                            diffuse_uv_scale[0] = float(grandchild.attrib['value'])
+                        elif grandchild.attrib['name'] == 'vscale':
+                            diffuse_uv_scale[1] = float(grandchild.attrib['value'])
+                elif child.tag == 'rgb' or child.tag == 'spectrum':
+                    diffuse_reflectance = parse_vector(child.attrib['value'])
+            elif child.attrib['name'] == 'specularReflectance':
+                if child.tag == 'texture':
+                    for grandchild in child:
+                        if grandchild.attrib['name'] == 'filename':
+                            specular_reflectance = pyredner.imread(grandchild.attrib['value'])
+                        elif grandchild.attrib['name'] == 'uscale':
+                            specular_uv_scale[0] = float(grandchild.attrib['value'])
+                        elif grandchild.attrib['name'] == 'vscale':
+                            specular_uv_scale[1] = float(grandchild.attrib['value'])
+                elif child.tag == 'rgb' or child.tag == 'spectrum':
+                    specular_reflectance = parse_vector(child.attrib['value'])
+            elif child.attrib['name'] == 'alpha':
+                alpha = float(child.attrib['value'])
+                roughness = torch.tensor(alpha * alpha)
+        if pyredner.get_use_gpu():
+            # Copy to GPU
+            diffuse_reflectance = diffuse_reflectance.cuda()
+            specular_reflectance = specular_reflectance.cuda()
+            roughness = roughness.cuda()
+        return (node_id, pyredner.Material(\
+                diffuse_reflectance = pyredner.Texture(diffuse_reflectance, diffuse_uv_scale),
+                specular_reflectance = pyredner.Texture(specular_reflectance, specular_uv_scale),
+                roughness = pyredner.Texture(roughness),
+                two_sided = two_sided))
     elif node.attrib['type'] == 'twosided':
         ret = parse_material(node[0], True)
         return (node_id, ret[1])
+    else:
+        print('Unsupported material type:', node.attrib['type'])
+        assert(False)
 
 def parse_shape(node, material_dict, shape_id):
     if node.attrib['type'] == 'obj' or node.attrib['type'] == 'serialized':
@@ -150,7 +195,12 @@ def parse_shape(node, material_dict, shape_id):
                                           light_intensity[0]])
 
         if node.attrib['type'] == 'obj':
-            vertices, indices, uvs, normals = pyredner.load_obj(filename)
+            # vertices, indices, uvs, normals = pyredner.load_obj(filename)
+            _, mesh_list, _ = pyredner.load_obj(filename)
+            vertices = mesh_list[0][1].vertices
+            indices = mesh_list[0][1].indices
+            uvs = mesh_list[0][1].uvs
+            normals = mesh_list[0][1].normals
         else:
             assert(node.attrib['type'] == 'serialized')
             mitsuba_tri_mesh = redner.load_serialized(filename, serialized_shape_id)

@@ -50,7 +50,7 @@ def load_mtl(filename):
         mtllib[current_mtl.name] = current_mtl
     return mtllib
 
-def load_obj(filename):
+def load_obj(filename, obj_group = True):
     """
         Load from a Wavefront obj file as PyTorch tensors.
         XXX: this is slow, maybe move to C++?
@@ -94,7 +94,7 @@ def load_obj(filename):
         if splitted[0] == 'mtllib':
             current_mtllib = load_mtl(splitted[1])
         elif splitted[0] == 'usemtl':
-            if len(indices) > 0:
+            if len(indices) > 0 and obj_group is True:
                 # Flush
                 mesh_list.append((current_material_name, create_mesh(indices, vertices, normals, uvs)))
                 indices = []
