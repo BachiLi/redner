@@ -390,7 +390,7 @@ void d_bsdf(const Material &material,
                 material, shading_point, d_specular_reflectance,
                 d_specular_tex, d_shading_point);
             // roughness = get_roughness(material, shading_point.uv)
-            if (roughness >= min_roughness) {
+            if (roughness > min_roughness) {
                 d_get_roughness(material,
                                 shading_point,
                                 d_roughness,
@@ -664,7 +664,7 @@ void d_bsdf_sample(const Material &material,
         // phong_exponent = roughness_to_phong(roughness)
         auto d_roughness = d_roughness_to_phong(roughness, d_phong_exponent);
         // roughness = get_roughness(material, shading_point)
-        if (roughness >= min_roughness) {
+        if (roughness > min_roughness) {
             d_get_roughness(material,
                             shading_point,
                             d_roughness,
@@ -838,7 +838,7 @@ inline void d_bsdf_pdf(const Material &material,
             d_wi += d_wi_wo;
             d_wo += d_wi_wo;
             // roughness = get_roughness(material, shading_point)
-            if (roughness >= min_roughness) {
+            if (roughness > min_roughness) {
                 d_get_roughness(material,
                                 shading_point,
                                 d_roughness,
