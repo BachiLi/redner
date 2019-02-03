@@ -537,9 +537,11 @@ struct d_primary_contribs_accumulator {
                                 Vector3{d_rendered_image[nd * pixel_id + d],
                                         d_rendered_image[nd * pixel_id + d + 1],
                                         d_rendered_image[nd * pixel_id + d + 2]};
-                        d_position[0] *= channel_multipliers[nd * pixel_id + d];
-                        d_position[1] *= channel_multipliers[nd * pixel_id + d + 1];
-                        d_position[2] *= channel_multipliers[nd * pixel_id + d + 2];
+                        if (channel_multipliers != nullptr) {
+                            d_position[0] *= channel_multipliers[nd * pixel_id + d];
+                            d_position[1] *= channel_multipliers[nd * pixel_id + d + 1];
+                            d_position[2] *= channel_multipliers[nd * pixel_id + d + 2];
+                        }
                         d_shading_points[pixel_id].position += d_position;
                     }
                     d += 3;
@@ -2017,7 +2019,7 @@ void render(const Scene &scene,
 
         if (d_rendered_image.get() != nullptr) {
             bool first = true;
-            // Traverse the path backward for the derivatives
+             // Traverse the path backward for the derivatives
             for (int depth = max_bounces - 1; depth >= 0; depth--) {
                 // Buffer views for this path vertex
                 auto num_actives = num_active_pixels[depth];
