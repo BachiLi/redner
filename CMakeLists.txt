@@ -5,10 +5,10 @@ project(redner VERSION 0.0.1 DESCRIPTION "Differentiable Path Tracer")
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/")
 
 if(WIN32)
-find_package(PythonLibs 3.6 COMPONENTS Development REQUIRED)
-add_subdirectory(pybind11)
+    find_package(PythonLibs 3.6 COMPONENTS Development REQUIRED)
+    add_subdirectory(pybind11)
 else()
-find_package(Python 3.6 COMPONENTS Development REQUIRED)
+    find_package(Python 3.6 COMPONENTS Development REQUIRED)
 endif()
 find_package(CUDA 10)
 if(CUDA_FOUND)
@@ -17,6 +17,9 @@ else()
     find_package(Thrust REQUIRED)
 endif()
 find_package(Embree REQUIRED)
+if(NOT EMBREE_FOUND)
+    add_subdirectory(embree)
+endif()
 
 include_directories(${Python_INCLUDE_DIRS})
 include_directories(${EMBREE_INCLUDE_PATH})
@@ -155,7 +158,7 @@ install(
 
 # OpenEXR
 find_package(OpenEXR REQUIRED)
-if (NOT OPENEXR_FOUND)
+if(NOT OPENEXR_FOUND)
     add_subdirectory(openexr)
 endif()
 # Install openexrpython

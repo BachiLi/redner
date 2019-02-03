@@ -7,3 +7,6 @@
 [submodule "openexr"]
 	path = openexr
 	url = https://github.com/openexr/openexr.git
+[submodule "embree"]
+	path = embree
+	url = https://github.com/embree/embree.git
