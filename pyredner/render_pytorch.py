@@ -197,11 +197,12 @@ class RenderFunction(torch.autograd.Function):
                     int(specular_reflectance.shape[0]), # num levels
                     redner.float_ptr(specular_uv_scale.data_ptr()))
             assert(roughness.is_contiguous())
-            if roughness.dim() <= 1:
+            if roughness.dim() == 1:
                 roughness = redner.Texture1(\
                     redner.float_ptr(roughness.data_ptr()), 0, 0, 0,
                     redner.float_ptr(roughness_uv_scale.data_ptr()))
             else:
+                assert(roughness.dim() == 3)
                 roughness = redner.Texture1(\
                     redner.float_ptr(roughness.data_ptr()),
                     int(roughness.shape[2]), # width
