@@ -119,6 +119,7 @@ PYBIND11_MODULE(redner, m) {
         .value("radiance", Channels::radiance)
         .value("alpha", Channels::alpha)
         .value("depth", Channels::depth)
+        .value("position", Channels::position)
         .value("geometry_normal", Channels::geometry_normal)
         .value("shading_normal", Channels::shading_normal)
         .value("uv", Channels::uv)
