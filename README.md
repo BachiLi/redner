@@ -5,7 +5,7 @@ News 02/02/2019 - The [wiki](https://github.com/BachiLi/redner/wiki) now contain
 redner is a differentiable Monte Carlo renderer that can take the derivatives of rendering output with respect to arbitrary 
 scene parameters, that is, you can backpropagate from the image to your 3D scene. One of the major usages of redner is inverse rendering (hence the name redner) through gradient descent. A distinct feature of redner is that it is physically-based -- which means it simulates photons and produce realistic lighting phenomena, such as shadow and global illumination, and it handles the derivatives of these features correctly.
 
-For more details on the renderer, what it can do, and the techniques it uses for computing the derivatives, please
+For more details on the renderer, what it can do, and the techniques it use for computing the derivatives, please
 take a look at the paper:
 "Differentiable Monte Carlo Ray Tracing through Edge Sampling", Tzu-Mao Li, Miika Aittala, Fredo Durand, Jaakko Lehtinen
 [https://people.csail.mit.edu/tzumao/diffrt/].  
