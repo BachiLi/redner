@@ -1,6 +1,7 @@
 import pyredner
 import redner
 import torch
+import math
 
 # Estimate the pose of a teapot object.
 # This tutorial demonstrates:
@@ -79,10 +80,10 @@ albedo = g_buffer[:, :, 6:9]
 # For this we define a deferred_render function:
 def deferred_render(pos, normal, albedo):
     # We assume a point light at the camera origin (0, 30, 200)
-    # The lighting consists of a geometry term cos/d^2, and the light intensity
+    # The lighting consists of a geometry term cos/d^2, albedo, and the light intensity
     light_pos = torch.tensor([0.0, 30.0, 200.0], device = pyredner.get_device())
     light_pos = light_pos.view(1, 1, 3)
-    light_intensity = torch.tensor([4000.0, 4000.0, 4000.0], device = pyredner.get_device())
+    light_intensity = torch.tensor([10000.0, 10000.0, 10000.0], device = pyredner.get_device())
     light_intensity = light_intensity.view(1, 1, 3)
     light_dir = light_pos - pos
     # the d^2 term:
@@ -91,7 +92,7 @@ def deferred_render(pos, normal, albedo):
     # Normalize light direction
     light_dir = light_dir / light_dist
     dot_l_n = torch.sum(light_dir * normal, 2, keepdim = True)
-    return light_intensity * dot_l_n / light_dist_sq 
+    return light_intensity * dot_l_n * (albedo / math.pi) / light_dist_sq 
 img = deferred_render(pos, normal, albedo)
 # Save the images
 pyredner.imwrite(img.cpu(), 'results/fast_deferred_rendering/target.exr')
