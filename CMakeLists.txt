@@ -2,7 +2,6 @@ cmake_minimum_required(VERSION 3.12)
 
 project(redner VERSION 0.0.1 DESCRIPTION "Differentiable Path Tracer")
 
-
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/")
 
 if(WIN32)
@@ -153,6 +152,12 @@ execute_process(
 install(
     TARGETS redner
     DESTINATION ${PYTHON_SITE})
+
+# OpenEXR
+find_package(OpenEXR REQUIRED)
+if (NOT OPENEXR_FOUND)
+    add_subdirectory(openexr)
+endif()
 # Install openexrpython
 if(APPLE)
     set(ENV{MACOSX_DEPLOYMENT_TARGET} 10.9)
