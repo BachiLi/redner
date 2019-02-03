@@ -1,16 +1,18 @@
+# The Python interface of redner is defined in the pyredner package
 import pyredner
 import torch
 
 # Optimize three vertices of a single triangle
-# We first render a target image, then perturb the three vertices and optimize
-# to match the target.
+# We first render a target image using redner,
+# then perturb the three vertices and optimize to match the target.
 
-# Use GPU if available
+# We need to tell redner first whether we are using GPU or not.
 pyredner.set_use_gpu(torch.cuda.is_available())
 
-# Set up the pyredner scene for rendering:
+# Now we want to setup a 3D scene, represented in PyTorch tensors,
+# then feed it into redner to render an image.
 
-# First, we set up the camera.
+# First, we set up a camera.
 # redner assumes all the camera variables live in CPU memory,
 # so you should allocate torch tensors in CPU
 cam = pyredner.Camera(position = torch.tensor([0.0, 0.0, -5.0]),
@@ -22,8 +24,8 @@ cam = pyredner.Camera(position = torch.tensor([0.0, 0.0, -5.0]),
                       fisheye = False)
 
 # Next, we setup the materials for the scene.
-# All materials in the scene are stored in a Python list,
-# the index of a material in the list is its material id.
+# All materials in the scene are stored in a single Python list.
+# The index of a material in the list is its material id.
 # Our simple scene only has a single grey material with reflectance 0.5.
 # If you are using GPU, make sure to copy the reflectance to GPU memory.
 mat_grey = pyredner.Material(\
@@ -34,7 +36,7 @@ materials = [mat_grey]
 
 # Next, we setup the geometry for the scene.
 # 3D objects in redner are called "Shape".
-# All shapes in the scene are stored in a Python list,
+# All shapes in the scene are stored in a single Python list,
 # the index of a shape in the list is its shape id.
 # Right now, a shape is always a triangle mesh, which has a list of
 # triangle vertices and a list of triangle indices.
@@ -44,7 +46,7 @@ materials = [mat_grey]
 # and a normal for Phong interpolation.
 # Each shape also needs to be assigned a material using material id,
 # which is the index of the material in the material array.
-# If you are using GPU, make sure to copy all tensors of the shape to GPU memory.
+# If you are using GPU, make sure to store all tensors of the shape in GPU memory.
 shape_triangle = pyredner.Shape(\
     vertices = torch.tensor([[-1.7, 1.0, 0.0], [1.0, 1.0, 0.0], [-0.5, -1.0, 0.0]],
         device = pyredner.get_device()),
@@ -66,11 +68,11 @@ shape_light = pyredner.Shape(\
     uvs = None,
     normals = None,
     material_id = 0)
-# The shape list of the scene
+# The shape list of our scene contains two shapes:
 shapes = [shape_triangle, shape_light]
 
 # Now we assign some of the shapes in the scene as light sources.
-# All area light sources in the scene are stored in a Python list.
+# All area light sources in the scene are stored in a single Python list.
 # Each area light is attached to a shape using shape id, additionally we need to
 # assign the intensity of the light, which is a length 3 float tensor in CPU. 
 light = pyredner.AreaLight(shape_id = 1, 
@@ -80,7 +82,7 @@ area_lights = [light]
 scene = pyredner.Scene(cam, shapes, materials, area_lights)
 # All PyTorch functions take a flat array of PyTorch tensors as input,
 # therefore we need to serialize the scene into an array. The following
-# function is doing this. We also specify how many Monte Carlo samples we want to 
+# function does this. We also specify how many Monte Carlo samples we want to 
 # use per pixel and the number of bounces for indirect illumination here
 # (one bounce means only direct illumination).
 scene_args = pyredner.RenderFunction.serialize_scene(\
@@ -88,22 +90,24 @@ scene_args = pyredner.RenderFunction.serialize_scene(\
     num_samples = 16,
     max_bounces = 1)
 
-# Render the scene as our target image.
+# Now we render the scene as our target image.
 # To render the scene, we use our custom PyTorch function in pyredner/render_pytorch.py
 # First setup the alias of the render function
 render = pyredner.RenderFunction.apply
-# Render. The first argument is the seed for RNG in the renderer.
+# Next we call the render function to render.
+# The first argument is the seed for RNG in the renderer.
 img = render(0, *scene_args)
-# Save the images.
+# This generates a PyTorch tensor with size [width, height, 3]. 
 # The output image is in the GPU memory if you are using GPU.
+# Now we save the generated image to disk.
 pyredner.imwrite(img.cpu(), 'results/optimize_single_triangle/target.exr')
 pyredner.imwrite(img.cpu(), 'results/optimize_single_triangle/target.png')
-# Read the target image we just saved.
+# Now we read back the target image we just saved, and copy to GPU if necessary
 target = pyredner.imread('results/optimize_single_triangle/target.exr')
 if pyredner.get_use_gpu():
     target = target.cuda()
 
-# Perturb the scene, this is our initial guess.
+# Next we want to produce the initial guess. We do this by perturb the scene.
 shape_triangle.vertices = torch.tensor(\
     [[-2.0,1.5,0.3], [0.9,1.2,-0.3], [-0.4,-1.4,0.2]],
     device = pyredner.get_device(),
@@ -113,21 +117,22 @@ scene_args = pyredner.RenderFunction.serialize_scene(\
     scene = scene,
     num_samples = 16,
     max_bounces = 1)
-# Render the initial guess.
+# Render the initial guess
 img = render(1, *scene_args)
-# Save the images.
+# Save the image
 pyredner.imwrite(img.cpu(), 'results/optimize_single_triangle/init.png')
 # Compute the difference and save the images.
 diff = torch.abs(target - img)
 pyredner.imwrite(diff.cpu(), 'results/optimize_single_triangle/init_diff.png')
 
-# Optimize for triangle vertices.
+# Now we want to refine the initial guess using gradient-based optimization.
+# We use PyTorch's optimizer to do this. 
 optimizer = torch.optim.Adam([shape_triangle.vertices], lr=5e-2)
 # Run 200 Adam iterations.
 for t in range(200):
     print('iteration:', t)
     optimizer.zero_grad()
-    # Forward pass: render the image.
+    # Forward pass: render the image
     scene_args = pyredner.RenderFunction.serialize_scene(\
         scene = scene,
         num_samples = 4, # We use less samples in the Adam loop.

@@ -2,11 +2,12 @@ import pyredner
 import torch
 
 # Estimate the pose of a teapot object.
-# This tutorial demonstrates:
-# 1. how to load a Wavefront object file
-# 2. how to generate smooth vertex normals
-# 3. how to use an environment light
-# 4. how to apply mesh operations (rotation and translation in this case) in PyTorch
+# In this tutorial we will learn a few more advanced features of redner, 
+# through a pose estimation example. In particular, we demonstrate:
+# 1. How to load a Wavefront object file
+# 2. How to generate smooth vertex normals
+# 3. apply environment lighting
+# 4. How to apply mesh operations (rotation and translation in this case) in PyTorch
 # Like the first tutorial, we first render a target image, then perturb the
 # rotation/translation parameters and optimize to match the target.
 
@@ -22,7 +23,7 @@ pyredner.set_use_gpu(torch.cuda.is_available())
 # Each element in the list is a tuple with length 2, the first is the name of material,
 # the second is a pyredner.TriangleMesh with mesh information.
 #
-# light_map is a dict, where the key is the material names with non zeros Ke,
+# light_map is a Python dict, where the key is the material names with non zeros Ke,
 # and the values are the Ke
 material_map, mesh_list, light_map = pyredner.load_obj('teapot.obj')
 # The teapot we loaded is relatively low-poly and doesn't have vertex normal.
@@ -41,7 +42,9 @@ cam = pyredner.Camera(position = torch.tensor([0.0, 30.0, 200.0]),
                       resolution = (256, 256),
                       fisheye = False)
 
-# Get a list of materials, while building a mapping between material names and their index
+# Next, we convert the materials loaded from the Wavefront object files to a
+# Python list of material. At the same time we keep track of the id of the materials,
+# so that we can assign them to the shapes later.
 material_id_map = {}
 materials = []
 count = 0
@@ -50,7 +53,7 @@ for key, value in material_map.items():
     count += 1
     materials.append(value)
 
-# Get a list of shapes
+# Now we build a list of shapes using the list loaded from the Wavefront object file
 shapes = []
 for mtl_name, mesh in mesh_list:
     shapes.append(pyredner.Shape(\
@@ -85,14 +88,17 @@ target = pyredner.imread('results/pose_estimation/target.exr')
 if pyredner.get_use_gpu():
     target = target.cuda()
 
-# Perturb the scene by a translation and a rotation to the object
+# Now we want to generate the initial guess.
+# We want to rotate and translate the teapot. We do this by declaring
+# PyTorch tensors of translation and rotation parameters,
+# then apply them to all teapot vertices.
 # The translation and rotation parameters have very different ranges, so we normalize them
 # by multiplying the translation parameters 100 to map to the actual translation amounts.
 translation_params = torch.tensor([0.1, -0.1, 0.1],
     device = pyredner.get_device(), requires_grad=True)
 translation = translation_params * 100.0
 euler_angles = torch.tensor([0.1, -0.1, 0.1], requires_grad=True)
-# These are the vertices we want to apply the transformation
+# We obtain the teapot vertices we want to apply the transformation on.
 shape0_vertices = shapes[0].vertices.clone()
 shape1_vertices = shapes[1].vertices.clone()
 # We can use pyredner.gen_rotate_matrix to generate 3x3 rotation matrices
@@ -100,8 +106,8 @@ rotation_matrix = pyredner.gen_rotate_matrix(euler_angles)
 if pyredner.get_use_gpu():
     rotation_matrix = rotation_matrix.cuda()
 center = torch.mean(torch.cat([shape0_vertices, shape1_vertices]), 0)
-# Shift the vertices to the center, apply rotation matrix,
-# shift back to the original space
+# We shift the vertices to the center, apply rotation matrix,
+# then shift back to the original space.
 shapes[0].vertices = \
     (shape0_vertices - center) @ torch.t(rotation_matrix) + \
     center + translation

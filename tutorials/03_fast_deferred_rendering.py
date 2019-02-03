@@ -202,7 +202,11 @@ scene_args = pyredner.RenderFunction.serialize_scene(\
     channels = [redner.channels.position,
                 redner.channels.shading_normal,
                 redner.channels.diffuse_reflectance])
-img = render(202, *scene_args)
+g_buffer = render(202, *scene_args)
+pos = g_buffer[:, :, :3]
+normal = g_buffer[:, :, 3:6]
+albedo = g_buffer[:, :, 6:9]
+img = deferred_render(pos, normal, albedo)
 # Save the images and differences.
 pyredner.imwrite(img.cpu(), 'results/fast_deferred_rendering/final.exr')
 pyredner.imwrite(img.cpu(), 'results/fast_deferred_rendering/final.png')
