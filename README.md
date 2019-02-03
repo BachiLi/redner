@@ -12,9 +12,8 @@ take a look at the paper:
 Since the submission we have improved the renderer a bit. In particular we implemented a CUDA backend and accelerated
 the continuous derivatives significantly by replacing automatic differentiation with hand derivatives.
 
-redner is expected to be used with [PyTorch](https://pytorch.org/), and can be used seamlessly with PyTorch operators. 
+redner is expected to be used with [PyTorch](https://pytorch.org/), and can be used seamlessly with PyTorch operators. A good starting point to learn how to use redner is to look at the [wiki](https://github.com/BachiLi/redner/wiki).
 While the documentation is work in progress, you can take a look at the [tests directory](tests) to have some ideas.
-A series of tutorials is appearing now. A good starting point is to look at the [wiki](https://github.com/BachiLi/redner/wiki).
 redner inherits a subset of [Mitsuba](http://www.mitsuba-renderer.org) scene format,
 see [tests/test_teapot_reflectance.py](https://github.com/BachiLi/redner/blob/master/tests/test_teapot_reflectance.py) and [tests/test_teapot_specular.py](https://github.com/BachiLi/redner/blob/master/tests/test_teapot_specular.py) for examples of loading Mitsuba scene files. There is also a Wavefront obj file loader for individual meshes, take a look at [tutorials/02_pose_estimation.py](https://github.com/BachiLi/redner/blob/master/tutorials/02_pose_estimation.py).
 
