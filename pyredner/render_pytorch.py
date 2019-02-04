@@ -202,7 +202,7 @@ class RenderFunction(torch.autograd.Function):
                     redner.float_ptr(roughness.data_ptr()), 0, 0, 0,
                     redner.float_ptr(roughness_uv_scale.data_ptr()))
             else:
-                assert(roughness.dim() == 3)
+                assert(roughness.dim() == 4)
                 roughness = redner.Texture1(\
                     redner.float_ptr(roughness.data_ptr()),
                     int(roughness.shape[2]), # width
