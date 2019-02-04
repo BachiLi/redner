@@ -908,7 +908,7 @@ struct path_contribs_accumulator {
             // Hit environment map
             auto wo = bsdf_ray.dir;
             auto pdf_bsdf = bsdf_pdf(material, shading_point, wi, wo, min_rough);
-            if (pdf_bsdf > 0) {
+            if (pdf_bsdf > 1e-20f) {
                 // XXX: For now we don't use ray differentials for envmap
                 //      A proper approach might be to use a filter radius based on sampling density?
                 RayDifferential ray_diff{Vector3{0, 0, 0}, Vector3{0, 0, 0},
@@ -918,6 +918,8 @@ struct path_contribs_accumulator {
                 auto pdf_nee = envmap_pdf(*scene.envmap, wo);
                 auto mis_weight = square(pdf_bsdf) / (square(pdf_nee) + square(pdf_bsdf));
                 scatter_contrib = (mis_weight / pdf_bsdf) * bsdf_val * light_contrib;
+            } else {
+                next_throughput = Vector3{0, 0, 0};
             }
         }
 
