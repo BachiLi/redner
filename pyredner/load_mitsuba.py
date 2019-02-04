@@ -107,7 +107,7 @@ def parse_material(node, two_sided = False):
                 elif child.tag == 'rgb' or child.tag == 'spectrum':
                     specular_reflectance = parse_vector(child.attrib['value'])
             elif child.attrib['name'] == 'roughness':
-                roughness = torch.tensor(float(child.attrib['value']))
+                roughness = torch.tensor([float(child.attrib['value'])])
         if pyredner.get_use_gpu():
             # Copy to GPU
             diffuse_reflectance = diffuse_reflectance.cuda()
@@ -149,7 +149,7 @@ def parse_material(node, two_sided = False):
                     specular_reflectance = parse_vector(child.attrib['value'])
             elif child.attrib['name'] == 'alpha':
                 alpha = float(child.attrib['value'])
-                roughness = torch.tensor(alpha * alpha)
+                roughness = torch.tensor([alpha * alpha])
         if pyredner.get_use_gpu():
             # Copy to GPU
             diffuse_reflectance = diffuse_reflectance.cuda()
