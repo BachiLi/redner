@@ -25,13 +25,7 @@
 		</film>
 	</sensor>
 
-	<bsdf type="roughplastic" id="small_box">
-		<spectrum name="diffuseReflectance" value="0.442, 0.349, 0.333"/>
-		<spectrum name="specularReflectance" value="0.4, 0.4, 0.4"/>
-		<float name="alpha" value="0.01"/>
-	</bsdf>
-
-	<bsdf type="roughplastic" id="large_box">
+	<bsdf type="roughplastic" id="box">
 		<spectrum name="diffuseReflectance" value="0.442, 0.349, 0.333"/>
 		<spectrum name="specularReflectance" value="0.4, 0.4, 0.4"/>
 		<float name="alpha" value="0.01"/>
@@ -98,11 +92,11 @@
 
 	<shape type="obj">
 		<string name="filename" value="meshes/cbox_smallbox.obj"/>
-		<ref id="small_box"/>
+		<ref id="box"/>
 	</shape>
 
 	<shape type="obj">
 		<string name="filename" value="meshes/cbox_largebox.obj"/>
-		<ref id="large_box"/>
+		<ref id="box"/>
 	</shape>
 </scene>
