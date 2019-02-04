@@ -18,7 +18,7 @@ import numpy as np
 # we only support two kinds of materials: diffuse and roughplastic. Note that the
 # "alpha" values in roughplastic is the square root of the roughness. See cbox.xml
 # for how a Mitsuba scene file should look like.
-# We can load a scene using pyredner.load_mitsuba() utility.
+# We can load a scene using pyredner.load_mitsuba() utility, and render it as usual.
 scene = pyredner.load_mitsuba('cbox/cbox.xml')
 scene_args = pyredner.RenderFunction.serialize_scene(\
     scene = scene,
@@ -33,8 +33,8 @@ if pyredner.get_use_gpu():
     target = target.cuda()
 
 # Now let's generate an initial guess by perturbing the reference.
-# Let's assume we already know the materials except the box.
-# The material of the box is stored at scene.materials[0]
+# Let's set all the diffuse color to gray by manipulating material.diffuse_reflectance.
+# We also store all the material variables to optimize in a list.
 material_vars = []
 for mi, m in enumerate(scene.materials):
     var = torch.tensor([0.5, 0.5, 0.5],
