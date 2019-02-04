@@ -25,9 +25,9 @@ scene_args = pyredner.RenderFunction.serialize_scene(\
     num_samples = 512,
     max_bounces = 6) # Set max_bounces = 6 for global illumination
 render = pyredner.RenderFunction.apply
-# img = render(0, *scene_args)
-# pyredner.imwrite(img.cpu(), 'results/coarse_to_fine_estimation/target.exr')
-# pyredner.imwrite(img.cpu(), 'results/coarse_to_fine_estimation/target.png')
+img = render(0, *scene_args)
+pyredner.imwrite(img.cpu(), 'results/coarse_to_fine_estimation/target.exr')
+pyredner.imwrite(img.cpu(), 'results/coarse_to_fine_estimation/target.png')
 target = pyredner.imread('results/coarse_to_fine_estimation/target.exr').numpy()
 
 # Now let's generate an initial guess by perturbing the reference.

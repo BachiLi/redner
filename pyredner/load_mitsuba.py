@@ -195,12 +195,15 @@ def parse_shape(node, material_dict, shape_id):
                                           light_intensity[0]])
 
         if node.attrib['type'] == 'obj':
-            # vertices, indices, uvs, normals = pyredner.load_obj(filename)
             _, mesh_list, _ = pyredner.load_obj(filename)
-            vertices = mesh_list[0][1].vertices
-            indices = mesh_list[0][1].indices
+            vertices = mesh_list[0][1].vertices.cpu()
+            indices = mesh_list[0][1].indices.cpu()
             uvs = mesh_list[0][1].uvs
             normals = mesh_list[0][1].normals
+            if uvs is not None:
+                uvs = uvs.cpu()
+            if normals is not None:
+                normals = normals.cpu()
         else:
             assert(node.attrib['type'] == 'serialized')
             mitsuba_tri_mesh = redner.load_serialized(filename, serialized_shape_id)
