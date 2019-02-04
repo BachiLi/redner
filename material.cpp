@@ -43,7 +43,7 @@ struct diffuse_accumulator {
             atomic_add(lower_texels[3 * (yi1 * w + xi1) + 0], d_tex.t110[0]);
             atomic_add(lower_texels[3 * (yi1 * w + xi1) + 1], d_tex.t110[1]);
             atomic_add(lower_texels[3 * (yi1 * w + xi1) + 2], d_tex.t110[2]);
-            if (d_tex.li >= 0 && d_tex.li < num_levels) {
+            if (d_tex.li >= 0 && d_tex.li < num_levels - 1) {
                 auto higher_texels = texels + (level + 1) * w * h * 3;
                 atomic_add(higher_texels[3 * (yi0 * w + xi0) + 0], d_tex.t001[0]);
                 atomic_add(higher_texels[3 * (yi0 * w + xi0) + 1], d_tex.t001[1]);
@@ -73,7 +73,7 @@ struct diffuse_accumulator {
             lower_texels[3 * (yi1 * w + xi1) + 0] += d_tex.t110[0];
             lower_texels[3 * (yi1 * w + xi1) + 1] += d_tex.t110[1];
             lower_texels[3 * (yi1 * w + xi1) + 2] += d_tex.t110[2];
-            if (d_tex.li >= 0 && d_tex.li < num_levels) {
+            if (d_tex.li >= 0 && d_tex.li < num_levels - 1) {
                 auto higher_texels = texels + (level + 1) * w * h * 3;
                 higher_texels[3 * (yi0 * w + xi0) + 0] += d_tex.t001[0];
                 higher_texels[3 * (yi0 * w + xi0) + 1] += d_tex.t001[1];
@@ -137,7 +137,7 @@ struct specular_accumulator {
             atomic_add(lower_texels[3 * (yi1 * w + xi1) + 0], d_tex.t110[0]);
             atomic_add(lower_texels[3 * (yi1 * w + xi1) + 1], d_tex.t110[1]);
             atomic_add(lower_texels[3 * (yi1 * w + xi1) + 2], d_tex.t110[2]);
-            if (d_tex.li >= 0 && d_tex.li < num_levels) {
+            if (d_tex.li >= 0 && d_tex.li < num_levels - 1) {
                 auto higher_texels = texels + (level + 1) * w * h * 3;
                 atomic_add(higher_texels[3 * (yi0 * w + xi0) + 0], d_tex.t001[0]);
                 atomic_add(higher_texels[3 * (yi0 * w + xi0) + 1], d_tex.t001[1]);
@@ -167,7 +167,7 @@ struct specular_accumulator {
             lower_texels[3 * (yi1 * w + xi1) + 0] += d_tex.t110[0];
             lower_texels[3 * (yi1 * w + xi1) + 1] += d_tex.t110[1];
             lower_texels[3 * (yi1 * w + xi1) + 2] += d_tex.t110[2];
-            if (d_tex.li >= 0 && d_tex.li < num_levels) {
+            if (d_tex.li >= 0 && d_tex.li < num_levels - 1) {
                 auto higher_texels = texels + (level + 1) * w * h * 3;
                 higher_texels[3 * (yi0 * w + xi0) + 0] += d_tex.t001[0];
                 higher_texels[3 * (yi0 * w + xi0) + 1] += d_tex.t001[1];
@@ -221,7 +221,7 @@ struct roughness_accumulator {
             atomic_add(lower_texels[yi0 * w + xi1], d_tex.t100);
             atomic_add(lower_texels[yi1 * w + xi0], d_tex.t010);
             atomic_add(lower_texels[yi1 * w + xi1], d_tex.t110);
-            if (d_tex.li >= 0 && d_tex.li < num_levels) {
+            if (d_tex.li >= 0 && d_tex.li < num_levels - 1) {
                 auto higher_texels = texels + (level + 1) * w * h;
                 atomic_add(higher_texels[yi0 * w + xi0], d_tex.t001);
                 atomic_add(higher_texels[yi0 * w + xi1], d_tex.t101);
@@ -235,7 +235,7 @@ struct roughness_accumulator {
             lower_texels[yi0 * w + xi1] += d_tex.t100;
             lower_texels[yi1 * w + xi0] += d_tex.t010;
             lower_texels[yi1 * w + xi1] += d_tex.t110;
-            if (d_tex.li >= 0 && d_tex.li < num_levels) {
+            if (d_tex.li >= 0 && d_tex.li < num_levels - 1) {
                 auto higher_texels = texels + (level + 1) * w * h;
                 higher_texels[yi0 * w + xi0] += d_tex.t001;
                 higher_texels[yi0 * w + xi1] += d_tex.t101;
