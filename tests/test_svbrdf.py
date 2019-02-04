@@ -76,7 +76,11 @@ cam = pyredner.Camera(position = position,
                      fov = fov,
                      clip_near = clip_near,
                      resolution = resolution)
-
+if pyredner.get_use_gpu():
+    diffuse = diffuse.cuda()
+    specular = specular.cuda()
+    roughness = roughness.cuda()
+print(roughness.dim())
 mat_perlin = pyredner.Material(\
     diffuse_reflectance = diffuse,
     specular_reflectance = specular,
