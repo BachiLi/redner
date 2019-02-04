@@ -23,45 +23,35 @@ scene = pyredner.load_mitsuba('cbox/cbox.xml')
 scene_args = pyredner.RenderFunction.serialize_scene(\
     scene = scene,
     num_samples = 512,
-    max_bounces = 6) # Set max_bounces = 6 for global illumination
+    max_bounces = 5) # Set max_bounces = 5 for global illumination
 render = pyredner.RenderFunction.apply
 img = render(0, *scene_args)
 pyredner.imwrite(img.cpu(), 'results/coarse_to_fine_estimation/target.exr')
 pyredner.imwrite(img.cpu(), 'results/coarse_to_fine_estimation/target.png')
-target = pyredner.imread('results/coarse_to_fine_estimation/target.exr').numpy()
+target = pyredner.imread('results/coarse_to_fine_estimation/target.exr')
+if pyredner.get_use_gpu():
+    target = target.cuda()
 
 # Now let's generate an initial guess by perturbing the reference.
 # Let's assume we already know the materials except the box.
 # The material of the box is stored at scene.materials[0]
 material_vars = []
 for mi, m in enumerate(scene.materials):
-    # if mi <= 1: # Optimize specularities for the first material
     var = torch.tensor([0.5, 0.5, 0.5],
                        device = pyredner.get_device(),
                        requires_grad = True)
     material_vars.append(var)
     m.diffuse_reflectance = pyredner.Texture(var)
         
-        # var = torch.tensor([0.1, 0.1, 0.1],
-        #                    device = pyredner.get_device(),
-        #                    requires_grad = True)
-        # material_vars.append(var)
-        # m.specular_reflectance = pyredner.Texture(var)
-        # var = torch.tensor([0.2],
-        #                    device = pyredner.get_device(),
-        #                    requires_grad = True)
-        # material_vars.append(var)
-        # m.roughness = pyredner.Texture(var)
-
 # And let's also slightly perturb the camera pose a bit
-position = torch.tensor([0.27, 0.27, -0.85], requires_grad = True)
-look_at = torch.tensor([0.27, 0.27, 0.], requires_grad = True)
+position = torch.tensor([275., 275., -805.], requires_grad = True)
+look_at = torch.tensor([275., 275., 0.], requires_grad = True)
 up = torch.tensor([0.1, 0.9, -0.1], requires_grad = True)
 fov = torch.tensor([40.0], requires_grad = True)
 cam_vars = [position, look_at, up, fov]
 scene.camera = pyredner.Camera(\
-    position = 1000.0 * position,
-    look_at = 1000.0 * look_at,
+    position = position,
+    look_at = look_at,
     up = up,
     fov = fov,
     clip_near = scene.camera.clip_near,
@@ -70,26 +60,26 @@ scene.camera = pyredner.Camera(\
 scene_args = pyredner.RenderFunction.serialize_scene(\
     scene = scene,
     num_samples = 512,
-    max_bounces = 6)
-# img = render(1, *scene_args)
-# pyredner.imwrite(img.cpu(), 'results/coarse_to_fine_estimation/init.png')
+    max_bounces = 5)
+img = render(1, *scene_args)
+pyredner.imwrite(img.cpu(), 'results/coarse_to_fine_estimation/init.png')
 
 # Optimize for parameters.
 optimizer = torch.optim.Adam(material_vars + cam_vars, lr=5e-3)
 # We run a coarse-to-fine estimation here to prevent being trapped in local minimum
-# The final resolution is 512x512, but we will start from an 64x64 image
-res = [256, 512]
+# The final resolution is 256x256, but we will start from an 128x128 image
+res = [128, 256]
 iters = [100, 100]
-spp = [8, 4]
-bounces = [6, 6]
+spp = [16, 4]
+bounces = [5, 5]
 iter_count = 0
 for ri, r in enumerate(res):
     scene.camera.resolution = (r, r)
     # Downsample the target to match our current resolution
-    resampled_target = target
-    if r != 512:
+    resampled_target = target.cpu().numpy()
+    if r != 256:
         resampled_target = scipy.ndimage.interpolation.zoom(\
-            target, (r/512.0, r/512.0, 1.0),
+            resampled_target, (r/256.0, r/256.0, 1.0),
             order=1)
     resampled_target = torch.from_numpy(resampled_target)
     if pyredner.get_use_gpu():
@@ -101,8 +91,8 @@ for ri, r in enumerate(res):
         # Forward pass: serialize the scene and render the image
         # Need to redefine the camera
         scene.camera = pyredner.Camera(\
-            position = 1000 * position,
-            look_at = 1000 * look_at,
+            position = position,
+            look_at = look_at,
             up = up,
             fov = fov,
             clip_near = scene.camera.clip_near,
@@ -126,7 +116,7 @@ for ri, r in enumerate(res):
         # Compute the loss function. Here we use a Gaussian pyramid loss function
         # We also clamp the difference between -1 and 1 to prevent
         # light source from being dominating the loss function
-        diff = (img - resampled_target).clamp(-0.5, 0.5)
+        diff = (img - resampled_target).clamp(-1.0, 1.0)
 
         # Now we convolve diff with Gaussian filter and downsample.
         # We use PyTorch's conv2d function and AvgPool2d to achieve this.
@@ -171,8 +161,8 @@ for ri, r in enumerate(res):
 
 # Render the final result.
 scene.camera = pyredner.Camera(\
-    position = 1000 * position,
-    look_at = 1000 * look_at,
+    position = position,
+    look_at = look_at,
     up = up,
     fov = fov,
     clip_near = scene.camera.clip_near,
@@ -181,7 +171,7 @@ scene_args = pyredner.RenderFunction.serialize_scene(\
     scene = scene,
     num_samples = 512,
     max_bounces = 6)
-img = render(302, *scene_args)
+img = render(202, *scene_args)
 # Save the images and differences.
 pyredner.imwrite(img.cpu(), 'results/coarse_to_fine_estimation/final.exr')
 pyredner.imwrite(img.cpu(), 'results/coarse_to_fine_estimation/final.png')

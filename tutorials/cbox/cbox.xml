@@ -18,8 +18,8 @@
 		</sampler>
 
 		<film type="hdrfilm">
-			<integer name="width" value="512"/>
-			<integer name="height" value="512"/>
+			<integer name="width" value="256"/>
+			<integer name="height" value="256"/>
 
 			<rfilter type="box"/>
 		</film>
