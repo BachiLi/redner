@@ -816,6 +816,7 @@ struct path_contribs_accumulator {
     DEVICE void operator()(int idx) {
         auto pixel_id = active_pixels[idx];
         const auto &throughput = throughputs[pixel_id];
+        assert(isfinite(throughput));
         const auto &incoming_ray = incoming_rays[pixel_id];
         const auto &shading_isect = shading_isects[pixel_id];
         const auto &shading_point = shading_points[pixel_id];
@@ -884,7 +885,7 @@ struct path_contribs_accumulator {
             auto dist_sq = length_squared(dir);
             auto wo = dir / sqrt(dist_sq);
             auto pdf_bsdf = bsdf_pdf(material, shading_point, wi, wo, min_rough);
-            if (pdf_bsdf > 0) {
+            if (pdf_bsdf > 1e-20f) {
                 auto bsdf_val = bsdf(material, shading_point, wi, wo, min_rough);
                 if (bsdf_shape.light_id >= 0) {
                     const auto &light = scene.area_lights[bsdf_shape.light_id];
@@ -900,6 +901,8 @@ struct path_contribs_accumulator {
                 }
                 scatter_bsdf = bsdf_val / pdf_bsdf;
                 next_throughput = throughput * scatter_bsdf;
+            } else {
+                next_throughput = Vector3{0, 0, 0};
             }
         } else if (scene.envmap != nullptr) {
             // Hit environment map
@@ -919,6 +922,8 @@ struct path_contribs_accumulator {
         }
 
         auto path_contrib = throughput * (nee_contrib + scatter_contrib);
+        assert(isfinite(nee_contrib));
+        assert(isfinite(scatter_contrib));
         if (rendered_image != nullptr) {
             auto nd = channel_info.num_total_dimensions;
             auto d = channel_info.radiance_dimension;
@@ -2493,8 +2498,8 @@ void render(const Scene &scene,
                 //     debug_image[3 * pixel_id + 2] += (d_v0[0] + d_v1[0] + d_v2[0]) / 3.f;
                 // }
 
-                // for (int i = 0; i < active_pixels.size(); i++) {
-                //     auto pixel_id = active_pixels[i];
+                // for (int i = 0; i < primary_active_pixels.size(); i++) {
+                //     auto pixel_id = primary_active_pixels[i];
                 //     auto d_c2w = d_cameras[i].cam_to_world;
                 //     debug_image[3 * pixel_id + 0] += d_c2w(0, 3);
                 //     debug_image[3 * pixel_id + 1] += d_c2w(0, 3);

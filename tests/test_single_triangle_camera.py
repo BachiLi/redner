@@ -16,11 +16,11 @@ clip_near = 1e-2
 
 resolution = (256, 256)
 cam = pyredner.Camera(position = position,
-                     look_at = look_at,
-                     up = up,
-                     fov = fov,
-                     clip_near = clip_near,
-                     resolution = resolution)
+                      look_at = look_at,
+                      up = up,
+                      fov = fov,
+                      clip_near = clip_near,
+                      resolution = resolution)
 
 mat_grey = pyredner.Material(\
     diffuse_reflectance = torch.tensor([0.5, 0.5, 0.5],

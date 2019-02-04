@@ -291,6 +291,9 @@ struct primary_edge_sampler {
             auto upper_weight = d_color / edges_pmf[edge_id];
             auto lower_weight = -d_color / edges_pmf[edge_id];
 
+            assert(isfinite(d_color));
+            assert(isfinite(upper_weight));
+
             throughputs[2 * idx + 0] = upper_weight;
             throughputs[2 * idx + 1] = lower_weight;
 
@@ -389,6 +392,8 @@ struct primary_edge_sampler {
             auto jacobian = line_jacobian * dirac_jacobian;
             upper_weight *= jacobian;
             lower_weight *= jacobian;
+
+            assert(isfinite(upper_weight));
 
             throughputs[2 * idx + 0] = upper_weight;
             throughputs[2 * idx + 1] = lower_weight;
@@ -892,6 +897,10 @@ struct secondary_edge_sampler {
         // and the ray intersection into account. We'll compute this later
         auto edge_weight = resample_weight / (m_pmf * line_pdf(l));
         auto nt = throughput * eval_bsdf * d_color * edge_weight;
+        assert(isfinite(throughput));
+        assert(isfinite(eval_bsdf));
+        assert(isfinite(d_color));
+        assert(isfinite(edge_weight));
         new_throughputs[2 * idx + 0] = nt;
         new_throughputs[2 * idx + 1] = -nt;
     }
@@ -1031,6 +1040,8 @@ struct secondary_edge_weights_updater {
             auto w = line_jacobian / dirac_jacobian;
 
             edge_throughput *= geometry_term * w;
+            assert(isfinite(geometry_term));
+            assert(isfinite(w));
         } else if (scene.envmap != nullptr) {
             // Hit an environment light
             auto p = shading_point.position;
@@ -1135,6 +1146,9 @@ struct secondary_edge_derivatives_accumulator {
         };
         grad(shading_point.position, edge_surface_point0, edge_contrib0);
         grad(shading_point.position, edge_surface_point1, edge_contrib1);
+        assert(isfinite(edge_contrib0));
+        assert(isfinite(edge_contrib1));
+        assert(isfinite(dcolor_dp));
 
         d_points[pixel_id].position += dcolor_dp;
         d_vertices[2 * idx + 0].shape_id = edge_record.edge.shape_id;
