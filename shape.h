@@ -58,7 +58,7 @@ struct DShape {
 };
 
 struct DVertex {
-    DVertex(int shape_id = -1, int vertex_id = -1,
+    DEVICE DVertex(int shape_id = -1, int vertex_id = -1,
         const Vector3 &d_v = Vector3{0, 0, 0},
         const Vector2 &d_uv = Vector2{0, 0},
         const Vector3 &d_n = Vector3{0, 0, 0})

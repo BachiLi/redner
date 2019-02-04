@@ -8,8 +8,8 @@
 struct Scene;
 
 struct Edge {
-   Edge() : shape_id(-1), v0(0), v1(0), f0(0), f1(0) {}
-   Edge(int si, int v0, int v1, int f0, int f1) :
+   DEVICE Edge() : shape_id(-1), v0(0), v1(0), f0(0), f1(0) {}
+   DEVICE Edge(int si, int v0, int v1, int f0, int f1) :
       shape_id(si),
       v0(v0),
       v1(v1),

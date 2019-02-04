@@ -34,7 +34,7 @@ struct DAreaLight {
 };
 
 struct DAreaLightInst {
-    DAreaLightInst(int light_id = -1,
+    DEVICE DAreaLightInst(int light_id = -1,
                   const Vector3 &intensity = Vector3{ 0, 0, 0 })
         : light_id(light_id), intensity(intensity) {}
 

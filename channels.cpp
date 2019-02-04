@@ -1,4 +1,5 @@
 #include "channels.h"
+#include "cuda_utils.h"
 #include <iostream>
 
 ChannelInfo::ChannelInfo(const std::vector<Channels> &channels, bool use_gpu) : use_gpu(use_gpu) {
@@ -28,7 +29,7 @@ ChannelInfo::ChannelInfo(const std::vector<Channels> &channels, bool use_gpu) : 
 void ChannelInfo::free() {
     if (use_gpu) {
 #ifdef __CUDACC__
-        checkCuda(cudaFree(data));
+        checkCuda(cudaFree(channels));
 #else
         assert(false);
 #endif

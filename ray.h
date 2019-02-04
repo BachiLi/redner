@@ -33,8 +33,8 @@ struct TRayDifferential {
 
 template <typename T>
 struct DTRay {
-    DTRay(const TVector3<T> &o = TVector3<T>{0,0,0},
-          const TVector3<T> &d = TVector3<T>{0,0,0})
+    DEVICE DTRay(const TVector3<T> &o = TVector3<T>{0,0,0},
+                 const TVector3<T> &d = TVector3<T>{0,0,0})
         : org(o), dir(d) {}
     TVector3<T> org;
     TVector3<T> dir;

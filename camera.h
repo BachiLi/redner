@@ -48,9 +48,9 @@ struct DCamera {
 };
 
 struct DCameraInst {
-    DCameraInst(const Matrix4x4& ctw = Matrix4x4(),
-                const Matrix4x4& wtc = Matrix4x4(),
-                float fov = 0.f)
+    DEVICE DCameraInst(const Matrix4x4& ctw = Matrix4x4(),
+                       const Matrix4x4& wtc = Matrix4x4(),
+                       float fov = 0.f)
         : cam_to_world(ctw), world_to_cam(wtc), fov_factor(fov) {}
 
     Matrix4x4 cam_to_world;

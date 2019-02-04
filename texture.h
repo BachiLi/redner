@@ -24,7 +24,8 @@ struct Texture1 {
 };
 
 struct DTexture1 {
-    DTexture1(int mi = -1, int xi = -1, int yi = -1, int li = -1,
+    DEVICE DTexture1(
+        int mi = -1, int xi = -1, int yi = -1, int li = -1,
         Real t000 = 0, Real t010 = 0, Real t100 = 0, Real t110 = 0,
         Real t001 = 0, Real t011 = 0, Real t101 = 0, Real t111 = 0) :
             material_id(mi),
@@ -88,7 +89,8 @@ struct Texture3 {
 };
 
 struct DTexture3 {
-    DTexture3(int mi = -1, int xi = -1, int yi = -1, int li = -1,
+    DEVICE DTexture3(
+        int mi = -1, int xi = -1, int yi = -1, int li = -1,
         const Vector3f &t000 = Vector3f{0, 0, 0},
         const Vector3f &t010 = Vector3f{0, 0, 0},
         const Vector3f &t100 = Vector3f{0, 0, 0},
