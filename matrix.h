@@ -63,6 +63,14 @@ struct TMatrix3x3 {
     T& operator()(int i, int j) {
         return data[i][j];
     }
+    DEVICE
+    static TMatrix3x3<T> identity() {
+        TMatrix3x3<T> m(1, 0, 0,
+                        0, 1, 0,
+                        0, 0, 1);
+        return m;
+    }
+
     T data[3][3];
 };
 
@@ -144,6 +152,18 @@ struct TMatrix4x4 {
 
 using Matrix4x4 = TMatrix4x4<Real>;
 using Matrix4x4f = TMatrix4x4<float>;
+
+template <typename T0, typename T1>
+DEVICE
+inline auto operator+(const TMatrix3x3<T0> &m0, const TMatrix3x3<T1> &m1) {
+    TMatrix3x3<decltype(m0(0, 0) + m1(0, 0))> m;
+    for (int i = 0; i < 3; i++) {
+        for (int j = 0; j < 3; j++) {
+            m(i, j) = m0(i, j) + m1(i, j);
+        }
+    }
+    return m;
+}
 
 template <typename T>
 DEVICE

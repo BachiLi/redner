@@ -26,12 +26,16 @@ PYBIND11_MODULE(redner, m) {
                       int,
                       ptr<float>,
                       ptr<float>,
-                      float,
+                      ptr<float>,
+                      ptr<float>,
                       float,
                       bool>());
 
     py::class_<DCamera>(m, "DCamera")
-        .def(py::init<ptr<float>, ptr<float>, ptr<float>>());
+        .def(py::init<ptr<float>,
+                      ptr<float>,
+                      ptr<float>,
+                      ptr<float>>());
 
     py::class_<Scene>(m, "Scene")
         .def(py::init<const Camera &,

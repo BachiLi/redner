@@ -14,21 +14,24 @@ struct Camera {
            int height,
            ptr<float> cam_to_world,
            ptr<float> world_to_cam,
-           float fov_factor,
+           ptr<float> ndc_to_cam,
+           ptr<float> cam_to_ndc,
            float clip_near,
            bool fisheye)
         : width(width),
           height(height),
           cam_to_world(cam_to_world.get()),
           world_to_cam(world_to_cam.get()),
-          fov_factor(fov_factor),
+          ndc_to_cam(ndc_to_cam.get()),
+          cam_to_ndc(cam_to_ndc.get()),
           clip_near(clip_near),
           fisheye(fisheye) {}
 
     int width, height;
     Matrix4x4 cam_to_world;
     Matrix4x4 world_to_cam;
-    float fov_factor;
+    Matrix3x3 ndc_to_cam;
+    Matrix3x3 cam_to_ndc;
     float clip_near;
     bool fisheye;
 };
@@ -37,30 +40,37 @@ struct DCamera {
     DCamera() {}
     DCamera(ptr<float> cam_to_world,
             ptr<float> world_to_cam,
-            ptr<float> fov_factor)
+            ptr<float> ndc_to_cam,
+            ptr<float> cam_to_ndc)
         : cam_to_world(cam_to_world.get()),
           world_to_cam(world_to_cam.get()),
-          fov_factor(fov_factor.get()) {}
+          ndc_to_cam(ndc_to_cam.get()),
+          cam_to_ndc(cam_to_ndc.get()) {}
 
     float *cam_to_world;
     float *world_to_cam;
-    float *fov_factor;
+    float *ndc_to_cam;
+    float *cam_to_ndc;
 };
 
 struct DCameraInst {
     DEVICE DCameraInst(const Matrix4x4& ctw = Matrix4x4(),
                        const Matrix4x4& wtc = Matrix4x4(),
-                       float fov = 0.f)
-        : cam_to_world(ctw), world_to_cam(wtc), fov_factor(fov) {}
+                       const Matrix3x3& ntc = Matrix3x3(),
+                       const Matrix3x3& ctn = Matrix3x3())
+        : cam_to_world(ctw), world_to_cam(wtc),
+          ndc_to_cam(ntc), cam_to_ndc(ctn) {}
 
     Matrix4x4 cam_to_world;
     Matrix4x4 world_to_cam;
-    float fov_factor;
+    Matrix3x3 ndc_to_cam;
+    Matrix3x3 cam_to_ndc;
 
     DEVICE inline DCameraInst operator+(const DCameraInst &other) const {
         return DCameraInst{cam_to_world + other.cam_to_world,
                            world_to_cam + other.world_to_cam,
-                           fov_factor + other.fov_factor};
+                           ndc_to_cam + other.ndc_to_cam,
+                           cam_to_ndc + other.cam_to_ndc};
     }
 };
 
@@ -99,12 +109,12 @@ Ray sample_primary(const Camera &camera,
     } else {
         // Linear projection
         auto org = xfm_point(camera.cam_to_world, Vector3{0, 0, 0});
-        // [0, 1] x [0, 1] -> [-1, 1] x [1, -1]/aspect_ratio
+        // [0, 1] x [0, 1] -> [-1, 1/aspect_ratio] x [1, -1/aspect_ratio]
         auto aspect_ratio = Real(camera.height) / Real(camera.width);
-        auto ndc = Vector2{(screen_pos[0] - 0.5f) * 2.f,
-                           (screen_pos[1] - 0.5f) * (-2.f) / aspect_ratio};
-        // Assume film at z=1, thus w=tan(fov), h=tan(fov) / aspect_ratio
-        auto dir = Vector3{camera.fov_factor * ndc[0], camera.fov_factor * ndc[1], Real(1)};
+        auto ndc = Vector3{(screen_pos[0] - 0.5f) * 2.f,
+                           (screen_pos[1] - 0.5f) * (-2.f) / aspect_ratio,
+                           Real(1)};
+        auto dir = camera.ndc_to_cam * ndc;
         auto n_dir = normalize(dir);
         auto world_dir = xfm_vector(camera.cam_to_world, n_dir);
         return Ray{org, world_dir};
@@ -153,14 +163,13 @@ inline void d_sample_primary_ray(const Camera &camera,
     } else {
         // Linear projection
         // auto org = xfm_point(camera.cam_to_world, Vector3{0, 0, 0});
-        // [0, 1] x [0, 1] -> [-1, 1] x [1, -1]/aspect_ratio
+        // [0, 1] x [0, 1] -> [-1, 1/aspect_ratio] x [1, -1/aspect_ratio]
         auto aspect_ratio = Real(camera.height) / Real(camera.width);
-        auto ndc = Vector2{(screen_pos[0] - 0.5f) * 2.f,
-                           (screen_pos[1] - 0.5f) * (-2.f) / aspect_ratio};
-        // Assume film at z=1, thus w=tan(fov), h=tan(fov) / aspect_ratio
-        auto dir = Vector3{camera.fov_factor * ndc[0],
-                           camera.fov_factor * ndc[1],
+        auto ndc = Vector3{(screen_pos[0] - 0.5f) * 2.f,
+                           (screen_pos[1] - 0.5f) * (-2.f) / aspect_ratio,
                            Real(1)};
+        // Assume film at z=1, thus w=tan(fov), h=tan(fov) / aspect_ratio
+        auto dir = camera.ndc_to_cam * ndc;
         auto n_dir = normalize(dir);
         // auto world_dir = xfm_vector(camera.cam_to_world, n_dir);
         // ray = Ray{org, world_dir};
@@ -172,11 +181,16 @@ inline void d_sample_primary_ray(const Camera &camera,
                      d_camera.cam_to_world, d_n_dir);
         // n_dir = normalize(dir)
         auto d_dir = d_normalize(dir, d_n_dir);
-        // dir = Vector3{camera.fov_factor * ndc[0],
-        //               camera.fov_factor * ndc[1],
-        //               Real(1)};
-        d_camera.fov_factor += d_dir[0] * ndc[0];
-        d_camera.fov_factor += d_dir[1] * ndc[1];
+        // dir = camera.ndc_to_cam * ndc
+        d_camera.ndc_to_cam(0, 0) += d_dir[0] * ndc[0];
+        d_camera.ndc_to_cam(0, 1) += d_dir[0] * ndc[1];
+        d_camera.ndc_to_cam(0, 2) += d_dir[0] * ndc[2];
+        d_camera.ndc_to_cam(1, 0) += d_dir[1] * ndc[0];
+        d_camera.ndc_to_cam(1, 1) += d_dir[1] * ndc[1];
+        d_camera.ndc_to_cam(1, 2) += d_dir[1] * ndc[2];
+        d_camera.ndc_to_cam(2, 0) += d_dir[2] * ndc[0];
+        d_camera.ndc_to_cam(2, 1) += d_dir[2] * ndc[1];
+        d_camera.ndc_to_cam(2, 2) += d_dir[2] * ndc[2];
         // org = xfm_point(camera.cam_to_world, Vector3{0, 0, 0})
         auto d_cam_org = Vector3{0, 0, 0};
         d_xfm_point(camera.cam_to_world, Vector3{0, 0, 0}, d_org,
@@ -207,8 +221,15 @@ TVector2<T> camera_to_screen(const Camera &camera,
     } else {
         // Linear projection
         auto aspect_ratio = Real(camera.height) / Real(camera.width);
-        auto x = (pt[0] / (pt[2] * camera.fov_factor) + 1.f) * 0.5f;
-        auto y = (-pt[1] / (pt[2] * camera.fov_factor * aspect_ratio) + 1.f) * 0.5f;
+        auto ndc3 = camera.cam_to_ndc * pt;
+        auto ndc = Vector2{ndc3[0] / ndc3[2], ndc3[1] / ndc3[2]};
+        // [-1, 1/aspect_ratio] x [1, -1/aspect_ratio] -> [0, 1] x [0, 1]
+        auto x = (ndc[0] + 1.f) * 0.5f;
+        auto y = (-ndc[1] * aspect_ratio + 1.f) * 0.5f;
+        // auto ndc = Vector3{(screen_pos[0] - 0.5f) * 2.f,
+        //                    (screen_pos[1] - 0.5f) * (-2.f) / aspect_ratio,
+        // auto x = (pt[0] / (pt[2] * camera.fov_factor) + 1.f) * 0.5f;
+        // auto y = (-pt[1] / (pt[2] * camera.fov_factor * aspect_ratio) + 1.f) * 0.5f;
         return TVector2<T>{x, y};
     }
 }
@@ -245,18 +266,37 @@ inline void d_camera_to_screen(const Camera &camera,
         d_pt += d_normalize(pt, ddir);
     } else {
         auto aspect_ratio = Real(camera.height) / Real(camera.width);
-        // x = 0.5 * pt[0] / (pt[2] * camera.fov_factor) + 0.5
-        d_pt[0] += ((dx * 0.5f) / (pt[2] * camera.fov_factor));
-        d_pt[2] -= (0.5f * dx * pt[0] / (square(pt[2]) * camera.fov_factor));
-        d_camera.fov_factor -=
-            (0.5f * dx * pt[0] / (pt[2] * square(camera.fov_factor)));
+        auto ndc3 = camera.cam_to_ndc * pt;
+        auto ndc = Vector2{ndc3[0] / ndc3[2], ndc3[1] / ndc3[2]};
+        // [-1, 1/aspect_ratio] x [1, -1/aspect_ratio] -> [0, 1] x [0, 1]
+        // auto x = (ndc[0] + 1.f) * 0.5f;
+        // auto y = (-ndc[1] * aspect_ratio + 1.f) * 0.5f;
 
-        // y = (-pt[1] / (pt[2] * camera.fov_factor * aspect_ratio) + 1.f) * 0.5f
-        d_pt[1] -= (dy * 0.5f) /
-            (pt[2] * camera.fov_factor * aspect_ratio);
-        d_pt[2] += (0.5f * dy * pt[1] / (square(pt[2]) * camera.fov_factor * aspect_ratio));
-        d_camera.fov_factor +=
-            (0.5f * dy * pt[1] / (pt[2] * square(camera.fov_factor) * aspect_ratio));
+        auto d_ndc = Vector2{dx * 0.5f, dy * -0.5f * aspect_ratio};
+        // ndc = Vector2{ndc3[0] / ndc3[2], ndc3[1] / ndc3[2]}
+        auto d_ndc3 = Vector3{d_ndc[0] / ndc3[2],
+                              d_ndc[1] / ndc3[2],
+                              - (d_ndc[0] * ndc[0] / ndc3[2] +
+                                 d_ndc[1] * ndc[1] / ndc3[2])};
+        // ndc3 = camera.cam_to_ndc * pt
+        d_camera.cam_to_ndc(0, 0) += d_ndc3[0] * pt[0];
+        d_camera.cam_to_ndc(0, 1) += d_ndc3[0] * pt[1];
+        d_camera.cam_to_ndc(0, 2) += d_ndc3[0] * pt[2];
+        d_camera.cam_to_ndc(1, 0) += d_ndc3[1] * pt[0];
+        d_camera.cam_to_ndc(1, 1) += d_ndc3[1] * pt[1];
+        d_camera.cam_to_ndc(1, 2) += d_ndc3[1] * pt[2];
+        d_camera.cam_to_ndc(2, 0) += d_ndc3[2] * pt[0];
+        d_camera.cam_to_ndc(2, 1) += d_ndc3[2] * pt[1];
+        d_camera.cam_to_ndc(2, 2) += d_ndc3[2] * pt[2];
+        d_pt[0] += d_ndc3[0] * camera.cam_to_ndc(0, 0) +
+                   d_ndc3[1] * camera.cam_to_ndc(1, 0) +
+                   d_ndc3[2] * camera.cam_to_ndc(2, 0);
+        d_pt[1] += d_ndc3[0] * camera.cam_to_ndc(0, 1) +
+                   d_ndc3[1] * camera.cam_to_ndc(1, 1) +
+                   d_ndc3[2] * camera.cam_to_ndc(2, 1);
+        d_pt[2] += d_ndc3[0] * camera.cam_to_ndc(0, 2) +
+                   d_ndc3[1] * camera.cam_to_ndc(1, 2) +
+                   d_ndc3[2] * camera.cam_to_ndc(2, 2);
     }
 }
 
@@ -398,14 +438,14 @@ inline TVector3<T> screen_to_camera(const Camera &camera,
     } else {
         // Linear projection
         // [0, 1] x [0, 1] -> [1, -1] -> [1, -1]/aspect_ratio
-        auto ndc = TVector2<T>{
+        auto aspect_ratio = Real(camera.height) / Real(camera.width);
+        auto ndc = TVector3<T>{
             (screen_pos[0] - 0.5f) * 2.f,
-            (screen_pos[1] - 0.5f) * -2.f /
-                (camera.height / Real(camera.width))};
-        // Assume film at z=1, thus w=tan(fov), h=tan(fov) / aspect_ratio
-        auto dir = TVector3<T>{
-            camera.fov_factor * ndc[0], camera.fov_factor * ndc[1], T(1)};
-        return dir;
+            (screen_pos[1] - 0.5f) * -2.f / aspect_ratio,
+            T(1)};
+        auto dir = camera.ndc_to_cam * ndc;
+        auto dir_n = TVector3<T>{dir[0] / dir[2], dir[1] / dir[2], T(1)};
+        return dir_n;
     }
 }
 
@@ -449,8 +489,24 @@ inline void d_screen_to_camera(const Camera &camera,
             d_dir_z_d_theta * d_theta_d_y};
     } else {
         auto aspect_ratio = Real(camera.height) / Real(camera.width);
-        d_x = TVector3<T>{T(2) * camera.fov_factor, T(0), T(0)};
-        d_y = TVector3<T>{T(0), T(-2) * camera.fov_factor / aspect_ratio, T(0)};
+        auto ndc = TVector3<T>{
+            (screen_pos[0] - 0.5f) * 2.f,
+            (screen_pos[1] - 0.5f) * -2.f / aspect_ratio,
+            T(1)};
+        auto d_ndc_d_x = TVector3<T>{
+            2.f * screen_pos[0], T(0), T(0)};
+        auto d_ndc_d_y = TVector3<T>{
+            T(0), -2.f * screen_pos[1] / aspect_ratio, T(0)};
+        auto dir = camera.ndc_to_cam * ndc;
+        auto d_dir_dx = camera.ndc_to_cam * d_ndc_d_x;
+        auto d_dir_dy = camera.ndc_to_cam * d_ndc_d_y;
+        // auto dir_n = TVector3<T>{dir[0] / dir[2], dir[1] / dir[2], T(1)};
+        d_x = TVector3<T>{dir[2] * d_dir_dx[0] - d_dir_dx[2] * dir[0],
+                          dir[2] * d_dir_dx[1] - d_dir_dx[2] * dir[1],
+                          T(0)} / square(dir[2]);
+        d_y = TVector3<T>{dir[2] * d_dir_dy[0] - d_dir_dy[2] * dir[0],
+                          dir[2] * d_dir_dy[1] - d_dir_dy[2] * dir[1],
+                          T(0)} / square(dir[2]);
     }
 }
 

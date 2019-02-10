@@ -46,7 +46,8 @@ class RenderFunction(torch.autograd.Function):
         args.append(num_lights)
         args.append(cam.cam_to_world)
         args.append(cam.world_to_cam)
-        args.append(cam.fov_factor)
+        args.append(cam.ndc_to_cam)
+        args.append(cam.cam_to_ndc)
         args.append(cam.clip_near)
         args.append(cam.resolution)
         args.append(cam.fisheye)
@@ -110,7 +111,9 @@ class RenderFunction(torch.autograd.Function):
         current_index += 1
         world_to_cam = args[current_index]
         current_index += 1
-        fov_factor = args[current_index]
+        ndc_to_cam = args[current_index]
+        current_index += 1
+        cam_to_ndc = args[current_index]
         current_index += 1
         clip_near = args[current_index]
         current_index += 1
@@ -124,7 +127,8 @@ class RenderFunction(torch.autograd.Function):
                                resolution[0],
                                redner.float_ptr(cam_to_world.data_ptr()),
                                redner.float_ptr(world_to_cam.data_ptr()),
-                               fov_factor.item(),
+                               redner.float_ptr(ndc_to_cam.data_ptr()),
+                               redner.float_ptr(cam_to_ndc.data_ptr()),
                                clip_near,
                                fisheye)
         shapes = []
@@ -312,12 +316,14 @@ class RenderFunction(torch.autograd.Function):
         scene = ctx.scene
         options = ctx.options
 
-        d_fov_factor = torch.zeros(1)
         d_cam_to_world = torch.zeros(4, 4)
         d_world_to_cam = torch.zeros(4, 4)
+        d_ndc_to_cam = torch.zeros(3, 3)
+        d_cam_to_ndc = torch.zeros(3, 3)
         d_camera = redner.DCamera(redner.float_ptr(d_cam_to_world.data_ptr()),
                                   redner.float_ptr(d_world_to_cam.data_ptr()),
-                                  redner.float_ptr(d_fov_factor.data_ptr()))
+                                  redner.float_ptr(d_ndc_to_cam.data_ptr()),
+                                  redner.float_ptr(d_cam_to_ndc.data_ptr()))
         d_vertices_list = []
         d_uvs_list = []
         d_normals_list = []
@@ -451,7 +457,8 @@ class RenderFunction(torch.autograd.Function):
         ret_list.append(None) # num_lights
         ret_list.append(d_cam_to_world)
         ret_list.append(d_world_to_cam)
-        ret_list.append(d_fov_factor)
+        ret_list.append(d_ndc_to_cam)
+        ret_list.append(d_cam_to_ndc)
         ret_list.append(None) # clip near
         ret_list.append(None) # resolution
         ret_list.append(None) # fisheye
