@@ -435,6 +435,11 @@ void intersect_shape(const Shape *shapes,
 }
 #endif
 
+#ifdef __NVCC__
+Buffer<OptiXRay> optix_rays;
+Buffer<OptiXHit> optix_hits;
+#endif
+
 void intersect(const Scene &scene,
                const BufferView<int> &active_pixels,
                const BufferView<Ray> &rays,
@@ -449,10 +454,12 @@ void intersect(const Scene &scene,
 #ifdef __NVCC__
         // OptiX prime query
         // Convert the rays to OptiX format
-        Buffer<OptiXRay> optix_rays(scene.use_gpu, active_pixels.size());
+        if (optix_rays.size() < active_pixels.size()) {
+            optix_rays = Buffer<OptiXRay>(scene.use_gpu, active_pixels.size());
+            optix_hits = Buffer<OptiXHit>(scene.use_gpu, active_pixels.size());
+        }
         to_optix_ray(active_pixels, rays,
                      optix_rays.view(0, active_pixels.size()));
-        Buffer<OptiXHit> optix_hits(scene.use_gpu, active_pixels.size());
         optix::prime::Query query =
             scene.optix_scene->createQuery(RTP_QUERY_TYPE_CLOSEST);
         query->setRays(optix_rays.size(),

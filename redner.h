@@ -79,8 +79,8 @@ inline T min(const T &a, const T &b) {
 }
 
 /// Return ceil(x/y) for integers x and y
-inline int idiv_ceil( int x, int y ) {
-  return (x + y-1) / y;
+inline int idiv_ceil(int x, int y) {
+    return (x + y-1) / y;
 }
 
 template <typename T>
@@ -91,6 +91,6 @@ inline void swap(T &a, T &b) {
     b = tmp;
 }
 
-inline Real log2(Real x) {
+inline double log2(double x) {
     return log(x) / log(Real(2));
 }
