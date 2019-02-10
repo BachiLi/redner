@@ -20,7 +20,7 @@ struct Camera {
         : width(width),
           height(height),
           cam_to_world(cam_to_world.get()),
-          world_to_cam(inverse(this->cam_to_world)),
+          world_to_cam(world_to_cam.get()),
           fov_factor(fov_factor),
           clip_near(clip_near),
           fisheye(fisheye) {}
