@@ -3,6 +3,7 @@ from torch.autograd import Variable
 import numpy as np
 import redner
 import pyredner
+import time
 
 # There is a bias-variance trade off in the backward pass.
 # If the forward pass and the backward pass are correlated
@@ -19,6 +20,8 @@ def set_use_correlated_random_number(v):
 def get_use_correlated_random_number():
     global use_correlated_random_number
     return use_correlated_random_number
+
+print_timing = True
 
 class RenderFunction(torch.autograd.Function):
     """
@@ -282,12 +285,16 @@ class RenderFunction(torch.autograd.Function):
         num_channels = redner.compute_num_channels(channels)
         rendered_image = torch.zeros(resolution[0], resolution[1], num_channels,
             device = pyredner.get_device())
+        start = time.time()
         redner.render(scene,
                       options,
                       redner.float_ptr(rendered_image.data_ptr()),
                       redner.float_ptr(0),
                       None,
                       redner.float_ptr(0))
+        time_elapsed = time.time() - start
+        if print_timing:
+            print('Forward pass, time: %.5f s' % time_elapsed)
 
         # # For debugging
         # debug_img = torch.zeros(256, 256, 3)
@@ -431,11 +438,15 @@ class RenderFunction(torch.autograd.Function):
         if not get_use_correlated_random_number():
             # Decouple the forward/backward random numbers by adding a big prime number
             options.seed += 1000003
+        start = time.time()
         redner.render(scene, options,
                       redner.float_ptr(0),
                       redner.float_ptr(grad_img.data_ptr()),
                       d_scene,
                       redner.float_ptr(0))
+        time_elapsed = time.time() - start
+        if print_timing:
+            print('Backward pass, time: %.5f s' % time_elapsed)
 
         # # For debugging
         # pyredner.imwrite(grad_img, 'grad_img.exr')
