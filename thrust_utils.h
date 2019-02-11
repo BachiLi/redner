@@ -1,21 +1,34 @@
 #pragma once
 
-#include <thrust/system/cuda/vector.h>
-#include <thrust/system/cuda/execution_policy.h>
+#ifdef __CUDACC__
+    #include <thrust/system/cuda/vector.h>
+    #include <thrust/system/cuda/execution_policy.h>
+#endif
 #include <unordered_map>
 
-#ifdef WIN32
-#define DISPATCH(use_gpu, f, ...) \
-    ((use_gpu) ? f(thrust::device, ##__VA_ARGS__) : f(thrust::host, ##__VA_ARGS__))
-#define DISPATCH_CACHED(use_gpu, alloc, f, ...) \
-    ((use_gpu) ? f(thrust::cuda::par(alloc), ##__VA_ARGS__) : f(thrust::host, ##__VA_ARGS__))
+#ifdef __CUDACC__
+    #ifdef WIN32
+    #define DISPATCH(use_gpu, f, ...) \
+        ((use_gpu) ? f(thrust::device, ##__VA_ARGS__) : f(thrust::host, ##__VA_ARGS__))
+    #define DISPATCH_CACHED(use_gpu, alloc, f, ...) \
+        ((use_gpu) ? f(thrust::cuda::par(alloc), ##__VA_ARGS__) : f(thrust::host, ##__VA_ARGS__))
+    #else
+    #define DISPATCH(use_gpu, f, args...) \
+        ((use_gpu) ? f(thrust::device, args) : f(thrust::host, args))
+    #define DISPATCH_CACHED(use_gpu, alloc, f, args...) \
+        ((use_gpu) ? f(thrust::cuda::par(alloc), args) : f(thrust::host, args))
+    #endif
 #else
-#define DISPATCH(use_gpu, f, args...) \
-    ((use_gpu) ? f(thrust::device, args) : f(thrust::host, args))
-#define DISPATCH_CACHED(use_gpu, alloc, f, args...) \
-    ((use_gpu) ? f(thrust::cuda::par(alloc), args) : f(thrust::host, args))
+    #ifdef WIN32
+    #define DISPATCH(use_gpu, f, ...) f(thrust::host, ##__VA_ARGS__)
+    #define DISPATCH_CACHED(use_gpu, alloc, f, ...) f(thrust::host, ##__VA_ARGS__)
+    #else
+    #define DISPATCH(use_gpu, f, args...) f(thrust::host, args)
+    #define DISPATCH_CACHED(use_gpu, alloc, f, args...) f(thrust::host, args)
+    #endif
 #endif
 
+#ifdef __CUDACC__
 // Assume thrust only allocate one temporary buffer
 struct ThrustCachedAllocator {
     using value_type = char;
@@ -56,4 +69,9 @@ struct ThrustCachedAllocator {
         used = false;
     }
 };
-
+#else
+// Dummy class
+struct ThrustCachedAllocator {
+    ThrustCachedAllocator(int init_block_size = 0) {}
+};
+#endif
