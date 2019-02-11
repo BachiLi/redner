@@ -414,7 +414,7 @@ void intersect_shape(const Shape *shapes,
                      BufferView<Intersection> isects,
                      BufferView<SurfacePoint> points,
                      BufferView<RayDifferential> new_ray_differentials) {
-    auto block_size = 256;
+    auto block_size = 64;
     auto block_count = idiv_ceil(active_pixels.size(), block_size);
     intersect_shape_kernel<<<block_count, block_size>>>(
         active_pixels.size(),
