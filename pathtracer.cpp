@@ -20,6 +20,8 @@
 #include <thrust/sort.h>
 #include <thrust/reduce.h>
 #include <thrust/remove.h>
+#include <thrust/iterator/constant_iterator.h>
+#include <thrust/iterator/discard_iterator.h>
 
 void init_paths(BufferView<Vector3> throughputs,
                 BufferView<Real> min_roughness,
@@ -1700,9 +1702,9 @@ void accumulate_vertex(BufferView<DVertex> d_vertices,
     auto buffer_beg = reduce_buffer.begin();
     auto new_end = DISPATCH_CACHED(use_gpu, thrust_alloc, thrust::reduce_by_key,
         beg, end, // input keysi
-        beg,      // input values
+        thrust::make_constant_iterator(0), // input values
         buffer_beg, // output keys
-        buffer_beg).first; // output values
+        thrust::make_discard_iterator()).first; // output values
     DISPATCH(use_gpu, thrust::copy, buffer_beg, new_end, beg);
     d_vertices.count = new_end - buffer_beg;
     // Accumulate to output derivatives
@@ -1726,9 +1728,9 @@ void accumulate_diffuse(const Scene &scene,
     auto buffer_beg = reduce_buffer.begin();
     auto new_end = DISPATCH_CACHED(scene.use_gpu, thrust_alloc, thrust::reduce_by_key,
         beg, end, // input keys
-        beg,      // input values
+        thrust::make_constant_iterator(0), // input values
         buffer_beg, // output keys
-        buffer_beg).first; // output values
+        thrust::make_discard_iterator()).first; // output values
     DISPATCH(scene.use_gpu, thrust::copy, buffer_beg, new_end, beg);
     d_diffuse.count = new_end - buffer_beg;
     // Accumulate to output derivatives
@@ -1753,9 +1755,9 @@ void accumulate_specular(const Scene &scene,
     auto buffer_beg = reduce_buffer.begin();
     auto new_end = DISPATCH_CACHED(scene.use_gpu, thrust_alloc, thrust::reduce_by_key,
         beg, end, // input keys
-        beg,      // input values
+        thrust::make_constant_iterator(0), // input values
         buffer_beg, // output keys
-        buffer_beg).first; // output values
+        thrust::make_discard_iterator()).first; // output values
     DISPATCH(scene.use_gpu, thrust::copy, buffer_beg, new_end, beg);
     d_specular.count = new_end - buffer_beg;
     // Accumulate to output derivatives
@@ -1779,9 +1781,9 @@ void accumulate_roughness(const Scene &scene,
     auto buffer_beg = reduce_buffer.begin();
     auto new_end = DISPATCH_CACHED(scene.use_gpu, thrust_alloc, thrust::reduce_by_key,
         beg, end, // input keys
-        beg,      // input values
+        thrust::make_constant_iterator(0), // input values
         buffer_beg, // output keys
-        buffer_beg).first; // output values
+        thrust::make_discard_iterator()).first; // output values
     DISPATCH(scene.use_gpu, thrust::copy, buffer_beg, new_end, beg);
     d_roughness.count = new_end - buffer_beg;
     // Accumulate to output derivatives
@@ -1804,9 +1806,9 @@ void accumulate_area_light(BufferView<DAreaLightInst> &d_light_insts,
     auto buffer_beg = reduce_buffer.begin();
     auto new_end = DISPATCH_CACHED(use_gpu, thrust_alloc, thrust::reduce_by_key,
         beg, end, // input keys
-        beg,      // input values
+        thrust::make_constant_iterator(0), // input values
         buffer_beg, // output keys
-        buffer_beg).first; // output values
+        thrust::make_discard_iterator()).first; // output values
     DISPATCH(use_gpu, thrust::copy, buffer_beg, new_end, beg);
     d_light_insts.count = new_end - buffer_beg;
     // Accumulate to output derivatives
@@ -1831,9 +1833,9 @@ void accumulate_envmap(const Scene &scene,
         auto buffer_beg = reduce_buffer.begin();
         auto new_end = DISPATCH_CACHED(scene.use_gpu, thrust_alloc, thrust::reduce_by_key,
             beg, end, // input keys
-            beg,      // input values
+            thrust::make_constant_iterator(0), // input values
             buffer_beg, // output keys
-            buffer_beg).first; // output values
+            thrust::make_discard_iterator()).first; // output values
         DISPATCH(scene.use_gpu, thrust::copy, buffer_beg, new_end, beg);
        
         d_envmap_vals.count = new_end - buffer_beg;
@@ -1843,7 +1845,7 @@ void accumulate_envmap(const Scene &scene,
         // Reduce to a single matrix
         auto beg = d_world_to_envs.begin();
         auto end = d_world_to_envs.begin();
-        d_world_to_env = DISPATCH(scene.use_gpu, thrust::reduce, beg, end, Matrix4x4());
+        d_world_to_env = DISPATCH_CACHED(scene.use_gpu, thrust_alloc, thrust::reduce, beg, end, Matrix4x4());
     }
     // Accumulate to output derivatives
     accumulate_envmap(scene, d_envmap_vals, d_world_to_env, *d_envmap);
