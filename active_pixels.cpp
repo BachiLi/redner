@@ -1,6 +1,5 @@
 #include "active_pixels.h"
 #include "test_utils.h"
-#include "thrust_utils.h"
 
 #include <thrust/execution_policy.h>
 #include <thrust/sequence.h>
@@ -17,11 +16,12 @@ struct is_invalid_ray {
 
 void init_active_pixels(const BufferView<Ray> &rays,
                         BufferView<int> &active_pixels,
-                        bool use_gpu) {
+                        bool use_gpu,
+                        ThrustCachedAllocator &thrust_alloc) {
     assert(rays.size() == active_pixels.size());
     DISPATCH(use_gpu, thrust::sequence, active_pixels.begin(), active_pixels.end());
     auto op = is_invalid_ray{rays.begin()};
-    auto new_end = DISPATCH(use_gpu, thrust::remove_if,
+    auto new_end = DISPATCH_CACHED(use_gpu, thrust_alloc, thrust::remove_if,
         active_pixels.begin(), active_pixels.end(),
         active_pixels.begin(), op);
     active_pixels.count = new_end - active_pixels.begin();
@@ -57,7 +57,8 @@ void test_active_pixels(bool use_gpu) {
     }
     auto active_pixels_buffer = Buffer<int>(use_gpu, num_pixels);
     auto active_pixels = active_pixels_buffer.view(0, num_pixels);
-    init_active_pixels(rays, active_pixels, use_gpu);
+    ThrustCachedAllocator thrust_alloc;
+    init_active_pixels(rays, active_pixels, use_gpu, thrust_alloc);
     equal_or_error(__FILE__, __LINE__, num_pixels, active_pixels.size());
     auto isects_buffer = Buffer<Intersection>(use_gpu, num_pixels);
     auto isects = isects_buffer.view(0, num_pixels);

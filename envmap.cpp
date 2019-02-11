@@ -41,7 +41,7 @@ struct envmap_accumulator {
             atomic_add(lower_texels[3 * (yi1 * w + xi1) + 0], d_tex.t110[0]);
             atomic_add(lower_texels[3 * (yi1 * w + xi1) + 1], d_tex.t110[1]);
             atomic_add(lower_texels[3 * (yi1 * w + xi1) + 2], d_tex.t110[2]);
-            if (d_tex.li >= 0 && d_tex.li < num_levels) {
+            if (d_tex.li >= 0 && d_tex.li < num_levels - 1) {
                 auto higher_texels = texels + (level + 1) * w * h * 3;
                 atomic_add(higher_texels[3 * (yi0 * w + xi0) + 0], d_tex.t001[0]);
                 atomic_add(higher_texels[3 * (yi0 * w + xi0) + 1], d_tex.t001[1]);
@@ -98,8 +98,7 @@ struct envmap_accumulator {
 void accumulate_envmap(const Scene &scene,
                        const BufferView<DTexture3> &d_envmap_vals,
                        const Matrix4x4 &d_world_to_env,
-                       DEnvironmentMap &d_envmap,
-                       bool use_gpu) {
+                       DEnvironmentMap &d_envmap) {
     parallel_for(envmap_accumulator{
         d_envmap_vals.begin(), &d_envmap, (void*)&scene.envmap_mutex},
         d_envmap_vals.size(), scene.use_gpu);

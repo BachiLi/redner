@@ -264,5 +264,5 @@ inline Real envmap_pdf(const EnvironmentMap &envmap, const Vector3 &dir) {
 void accumulate_envmap(const Scene &scene,
                        const BufferView<DTexture3> &d_envmap_vals,
                        const Matrix4x4 &d_world_to_env,
-                       DEnvironmentMap &d_envmap,
-                       bool use_gpu);
+                       DEnvironmentMap &d_envmap);
+
