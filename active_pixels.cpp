@@ -57,7 +57,7 @@ void test_active_pixels(bool use_gpu) {
     }
     auto active_pixels_buffer = Buffer<int>(use_gpu, num_pixels);
     auto active_pixels = active_pixels_buffer.view(0, num_pixels);
-    ThrustCachedAllocator thrust_alloc;
+    ThrustCachedAllocator thrust_alloc(use_gpu);
     init_active_pixels(rays, active_pixels, use_gpu, thrust_alloc);
     equal_or_error(__FILE__, __LINE__, num_pixels, active_pixels.size());
     auto isects_buffer = Buffer<Intersection>(use_gpu, num_pixels);

@@ -1897,7 +1897,7 @@ void render(const Scene &scene,
     auto optix_rays = path_buffer.optix_rays.view(0, 2 * num_pixels);
     auto optix_hits = path_buffer.optix_hits.view(0, 2 * num_pixels);
 
-    ThrustCachedAllocator thrust_alloc(num_pixels * sizeof(DTexture3));
+    ThrustCachedAllocator thrust_alloc(scene.use_gpu, num_pixels * sizeof(DTexture3));
 
     // For each sample
     for (int sample_id = 0; sample_id < options.num_samples; sample_id++) {
