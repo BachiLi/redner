@@ -1571,11 +1571,14 @@ struct PathBuffer {
         edge_light_points = Buffer<SurfacePoint>(use_gpu, 2 * num_pixels);
         throughputs = Buffer<Vector3>(use_gpu, (max_bounces + 1) * num_pixels);
         edge_throughputs = Buffer<Vector3>(use_gpu, 4 * num_pixels);
-
         channel_multipliers = Buffer<Real>(use_gpu,
             2 * channel_info.num_total_dimensions * num_pixels);
         min_roughness = Buffer<Real>(use_gpu, (max_bounces + 1) * num_pixels);
         edge_min_roughness = Buffer<Real>(use_gpu, 4 * num_pixels);
+
+        // OptiX buffers
+        optix_rays = Buffer<OptiXRay>(use_gpu, 2 * num_pixels);
+        optix_hits = Buffer<OptiXHit>(use_gpu, 2 * num_pixels);
 
         // Derivatives buffers
         d_next_throughputs = Buffer<Vector3>(use_gpu, num_pixels);
@@ -1635,6 +1638,10 @@ struct PathBuffer {
     Buffer<Vector3> throughputs, edge_throughputs;
     Buffer<Real> channel_multipliers;
     Buffer<Real> min_roughness, edge_min_roughness;
+
+    // OptiX related
+    Buffer<OptiXRay> optix_rays;
+    Buffer<OptiXHit> optix_hits;
 
     // Derivatives related
     Buffer<Vector3> d_next_throughputs;
@@ -1878,6 +1885,8 @@ void render(const Scene &scene,
     auto num_active_pixels = std::vector<int>((max_bounces + 1) * num_pixels, 0);
     auto sampler = Sampler(scene.use_gpu, options.seed, num_pixels);
     auto edge_sampler = Sampler(scene.use_gpu, options.seed + 131071U, num_pixels);
+    auto optix_rays = path_buffer.optix_rays.view(0, 2 * num_pixels);
+    auto optix_hits = path_buffer.optix_hits.view(0, 2 * num_pixels);
 
     // For each sample
     for (int sample_id = 0; sample_id < options.num_samples; sample_id++) {
@@ -1908,7 +1917,9 @@ void render(const Scene &scene,
                   primary_differentials,
                   shading_isects,
                   shading_points,
-                  ray_differentials);
+                  ray_differentials,
+                  optix_rays,
+                  optix_hits);
         accumulate_primary_contribs(scene,
                                     primary_active_pixels,
                                     throughputs,
@@ -1971,7 +1982,7 @@ void render(const Scene &scene,
                                   light_isects,
                                   light_points,
                                   nee_rays);
-            occluded(scene, active_pixels, nee_rays);
+            occluded(scene, active_pixels, nee_rays, optix_rays, optix_hits);
             
             // Sample directions based on BRDF
             sampler.next_bsdf_samples(bsdf_samples);
@@ -1993,7 +2004,9 @@ void render(const Scene &scene,
                       bsdf_ray_differentials,
                       bsdf_isects,
                       bsdf_points,
-                      next_ray_differentials);
+                      next_ray_differentials,
+                      optix_rays,
+                      optix_hits);
 
             // Compute path contribution & update throughput
             accumulate_path_contribs(
@@ -2175,7 +2188,9 @@ void render(const Scene &scene,
                           edge_ray_differentials,
                           edge_shading_isects,
                           edge_shading_points,
-                          edge_ray_differentials);
+                          edge_ray_differentials,
+                          optix_rays,
+                          optix_hits);
                 // Update edge throughputs: take geometry terms and Jacobians into account
                 update_secondary_edge_weights(scene,
                                               active_pixels,
@@ -2262,7 +2277,7 @@ void render(const Scene &scene,
                     sample_point_on_light(
                         scene, active_pixels, shading_points,
                         light_samples, light_isects, light_points, nee_rays);
-                    occluded(scene, active_pixels, nee_rays);
+                    occluded(scene, active_pixels, nee_rays, optix_rays, optix_hits);
 
                     // Sample directions based on BRDF
                     edge_sampler.next_bsdf_samples(tmp_bsdf_samples);
@@ -2288,7 +2303,9 @@ void render(const Scene &scene,
                               ray_differentials,
                               bsdf_isects,
                               bsdf_points,
-                              ray_differentials);
+                              ray_differentials,
+                              optix_rays,
+                              optix_hits);
 
                     // Compute path contribution & update throughput
                     accumulate_path_contribs(
@@ -2594,7 +2611,9 @@ void render(const Scene &scene,
                           ray_differentials,
                           shading_isects,
                           shading_points,
-                          ray_differentials);
+                          ray_differentials,
+                          optix_rays,
+                          optix_hits);
                 update_primary_edge_weights(scene,
                                             edge_records,
                                             shading_isects,
@@ -2662,7 +2681,7 @@ void render(const Scene &scene,
                     sample_point_on_light(
                         scene, active_pixels, shading_points,
                         light_samples, light_isects, light_points, nee_rays);
-                    occluded(scene, active_pixels, nee_rays);
+                    occluded(scene, active_pixels, nee_rays, optix_rays, optix_hits);
 
                     // Sample directions based on BRDF
                     edge_sampler.next_bsdf_samples(tmp_bsdf_samples);
@@ -2688,7 +2707,9 @@ void render(const Scene &scene,
                               ray_differentials,
                               bsdf_isects,
                               bsdf_points,
-                              ray_differentials);
+                              ray_differentials,
+                              optix_rays,
+                              optix_hits);
                     // Compute path contribution & update throughput
                     accumulate_path_contribs(
                         scene,

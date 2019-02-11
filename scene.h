@@ -107,11 +107,15 @@ void intersect(const Scene &scene,
                const BufferView<RayDifferential> &ray_differentials,
                BufferView<Intersection> intersections,
                BufferView<SurfacePoint> surface_points,
-               BufferView<RayDifferential> new_ray_differentials);
+               BufferView<RayDifferential> new_ray_differentials,
+               BufferView<OptiXRay> optix_rays,
+               BufferView<OptiXHit> optix_hits);
 // Set ray.tmax to negative if occluded
 void occluded(const Scene &scene,
               const BufferView<int> &active_pixels,
-              BufferView<Ray> rays);
+              BufferView<Ray> rays,
+              BufferView<OptiXRay> optix_rays,
+              BufferView<OptiXHit> optix_hits);
 void sample_point_on_light(const Scene &scene,
                            const BufferView<int> &active_pixels,
                            const BufferView<SurfacePoint> &shading_points,

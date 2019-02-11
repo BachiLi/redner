@@ -250,6 +250,9 @@ struct primary_edge_sampler {
         if (!project(camera, v0, v1, v0_ss, v1_ss)) {
             return;
         }
+        if (edges_pmf[edge_id] <= 0.f) {
+            return;
+        }
 
         if (!camera.fisheye) {
             // Uniform sample on the edge

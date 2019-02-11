@@ -40,6 +40,12 @@ struct DTRay {
     TVector3<T> dir;
 };
 
+struct OptiXHit {
+    float t;
+    int   tri_id;
+    int   inst_id;
+};
+
 using Ray = TRay<Real>;
 using RayDifferential = TRayDifferential<Real>;
 using DRay = DTRay<Real>;

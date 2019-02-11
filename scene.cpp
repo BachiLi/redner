@@ -372,12 +372,6 @@ void to_optix_ray(const BufferView<int> &active_pixels,
         rays.begin(), optix_rays.begin());
 }
 
-struct OptiXHit {
-    float t;
-    int   tri_id;
-    int   inst_id;
-};
-
 __global__ void intersect_shape_kernel(
         int N,
         const Shape *shapes,
@@ -441,7 +435,9 @@ void intersect(const Scene &scene,
                const BufferView<RayDifferential> &ray_differentials,
                BufferView<Intersection> intersections,
                BufferView<SurfacePoint> points,
-               BufferView<RayDifferential> new_ray_differentials) {
+               BufferView<RayDifferential> new_ray_differentials,
+               BufferView<OptiXRay> optix_rays,
+               BufferView<OptiXHit> optix_hits) {
     if (active_pixels.size() == 0) {
         return;
     }
@@ -449,17 +445,15 @@ void intersect(const Scene &scene,
 #ifdef __NVCC__
         // OptiX prime query
         // Convert the rays to OptiX format
-        Buffer<OptiXRay> optix_rays(scene.use_gpu, active_pixels.size());
-        Buffer<OptiXHit> optix_hits(scene.use_gpu, active_pixels.size());
         to_optix_ray(active_pixels, rays,
-                     optix_rays.view(0, active_pixels.size()));
+                     optix_rays);
         optix::prime::Query query =
             scene.optix_scene->createQuery(RTP_QUERY_TYPE_CLOSEST);
-        query->setRays(optix_rays.size(),
+        query->setRays(active_pixels.size(),
                        RTP_BUFFER_FORMAT_RAY_ORIGIN_TMIN_DIRECTION_TMAX,
                        RTP_BUFFER_TYPE_CUDA_LINEAR,
                        optix_rays.data);
-        query->setHits(optix_hits.size(),
+        query->setHits(active_pixels.size(),
                        RTP_BUFFER_FORMAT_HIT_T_TRIID_INSTID,
                        RTP_BUFFER_TYPE_CUDA_LINEAR,
                        optix_hits.data);
@@ -467,7 +461,7 @@ void intersect(const Scene &scene,
         query->execute(0);
         intersect_shape(scene.shapes.data,
                         active_pixels,
-                        optix_hits.view(0, optix_hits.size()),
+                        optix_hits,
                         rays,
                         ray_differentials,
                         intersections,
@@ -562,28 +556,28 @@ void update_occluded_rays(const BufferView<int> &active_pixels,
 
 void occluded(const Scene &scene,
               const BufferView<int> &active_pixels,
-              BufferView<Ray> rays) {
+              BufferView<Ray> rays,
+              BufferView<OptiXRay> optix_rays,
+              BufferView<OptiXHit> optix_hits) {
     if (scene.use_gpu) {
 #ifdef __NVCC__
         // OptiX prime query
         // Convert the rays to OptiX format
-        Buffer<OptiXRay> optix_rays(scene.use_gpu, active_pixels.size());
-        to_optix_ray(active_pixels, rays, optix_rays.view(0, rays.size()));
-        Buffer<OptiXHit> optix_hits(scene.use_gpu, active_pixels.size());
+        to_optix_ray(active_pixels, rays, optix_rays);
         optix::prime::Query query =
             scene.optix_scene->createQuery(RTP_QUERY_TYPE_ANY);
-        query->setRays(optix_rays.size(),
+        query->setRays(active_pixels.size(),
                        RTP_BUFFER_FORMAT_RAY_ORIGIN_TMIN_DIRECTION_TMAX,
                        RTP_BUFFER_TYPE_CUDA_LINEAR,
                        optix_rays.data);
-        query->setHits(optix_hits.size(),
+        query->setHits(active_pixels.size(),
                        RTP_BUFFER_FORMAT_HIT_T_TRIID_INSTID,
                        RTP_BUFFER_TYPE_CUDA_LINEAR,
                        optix_hits.data);
         // XXX: should use watertight intersection here?
         query->execute(0);
         update_occluded_rays(active_pixels,
-                             optix_hits.view(0, optix_hits.size()),
+                             optix_hits,
                              rays);
 #else
         assert(false);
@@ -732,13 +726,17 @@ void test_scene_intersect(bool use_gpu) {
     active_pixels[1] = 1;
     Buffer<Intersection> isects(use_gpu, 2);
     Buffer<SurfacePoint> surface_points(use_gpu, 2);
+    Buffer<OptiXRay> optix_rays(use_gpu, 2);
+    Buffer<OptiXHit> optix_hits(use_gpu, 2);
     intersect(scene,
               active_pixels.view(0, active_pixels.size()), 
               rays.view(0, rays.size()),
               ray_diffs.view(0, rays.size()),
               isects.view(0, rays.size()),
               surface_points.view(0, rays.size()),
-              ray_diffs.view(0, rays.size()));
+              ray_diffs.view(0, rays.size()),
+              optix_rays.view(0, rays.size()),
+              optix_hits.view(0, rays.size()));
     cuda_synchronize();
     equal_or_error(__FILE__, __LINE__, isects[0].shape_id, 0);
     equal_or_error(__FILE__, __LINE__, isects[0].tri_id, 0);
