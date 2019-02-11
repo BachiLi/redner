@@ -16,48 +16,44 @@
     ((use_gpu) ? f(thrust::cuda::par(alloc), args) : f(thrust::host, args))
 #endif
 
-// Adopted from https://parallel-computing.pro/index.php/9-cuda/34-thrust-cuda-tip-reuse-temporary-buffers-across-transforms
-// Probably can reuse more memory: 
+// Assume thrust only allocate one temporary buffer
 struct ThrustCachedAllocator {
     using value_type = char;
 
-    std::unordered_multimap<std::ptrdiff_t, char*> free_blocks;
-    std::unordered_map<char*, std::ptrdiff_t> allocated_blocks;
+    int block_size;
+    char* block_ptr;
+    bool used;
 
-    ThrustCachedAllocator() {}
+    ThrustCachedAllocator(int init_block_size = 0) {
+        block_size = init_block_size;
+        block_ptr = nullptr;
+        if (block_size > 0) {
+            block_ptr = thrust::cuda::malloc<char>(init_block_size).get();
+        }
+        used = false;
+    }
 
     ~ThrustCachedAllocator() {
-        free_all();
+        if (block_ptr != nullptr) {
+            thrust::cuda::free(thrust::cuda::pointer<char>(block_ptr));
+        }
     }
 
     char* allocate(std::ptrdiff_t num_bytes) {
-        char* result = nullptr;
-        // Find a free block with matching number of bytes
-        auto free_block = free_blocks.find(num_bytes);
-        if (free_block != free_blocks.end()) {
-            result = free_block->second;
-            free_blocks.erase(free_block);
-        } else {
-            result = thrust::cuda::malloc<char>(num_bytes).get();
+        assert(!used);
+        if (num_bytes > block_size) {
+            if (block_ptr != nullptr) {
+                thrust::cuda::free(thrust::cuda::pointer<char>(block_ptr));
+            }
+            block_size = num_bytes;
+            block_ptr = thrust::cuda::malloc<char>(block_size).get();
         }
-        allocated_blocks.insert({result, num_bytes});
-        return result;
+        used = true;
+        return block_ptr;
     }
 
     void deallocate(char* ptr, size_t n) {
-        auto it = allocated_blocks.find(ptr);
-        auto num_bytes = it->second;
-        allocated_blocks.erase(it);
-        free_blocks.insert({num_bytes, ptr});
-    }
-
-    void free_all() {
-        for (auto &it : free_blocks) {
-            thrust::cuda::free(thrust::cuda::pointer<char>(it.second));
-        }
-        for (auto &it : allocated_blocks) {
-            thrust::cuda::free(thrust::cuda::pointer<char>(it.first));
-        }
+        used = false;
     }
 };
 
