@@ -20,8 +20,6 @@
 #include <thrust/sort.h>
 #include <thrust/reduce.h>
 #include <thrust/remove.h>
-#include <thrust/iterator/constant_iterator.h>
-#include <thrust/iterator/discard_iterator.h>
 
 void init_paths(BufferView<Vector3> throughputs,
                 BufferView<Real> min_roughness,
@@ -1703,9 +1701,9 @@ void accumulate_vertex(BufferView<DVertex> d_vertices,
     DISPATCH_CACHED(use_gpu, thrust_alloc, thrust::sort, buffer_beg, buffer_end);
     auto new_end = DISPATCH_CACHED(use_gpu, thrust_alloc, thrust::reduce_by_key,
         buffer_beg, buffer_end, // input keys
-        thrust::make_constant_iterator(0), // input values
+        buffer_beg, // input values
         beg, // output keys
-        thrust::make_discard_iterator()).first; // output values
+        beg).first; // output values
     d_vertices.count = new_end - beg;
     // Accumulate to output derivatives
     accumulate_vertex(d_vertices, d_shapes, use_gpu);
@@ -1728,9 +1726,9 @@ void accumulate_diffuse(const Scene &scene,
     DISPATCH_CACHED(scene.use_gpu, thrust_alloc, thrust::sort, buffer_beg, buffer_end);
     auto new_end = DISPATCH_CACHED(scene.use_gpu, thrust_alloc, thrust::reduce_by_key,
         buffer_beg, buffer_end, // input keys
-        thrust::make_constant_iterator(0), // input values
+        buffer_beg, // input values
         beg, // output keys
-        thrust::make_discard_iterator()).first; // output values
+        beg).first; // output values
     d_diffuse.count = new_end - beg;
     // Accumulate to output derivatives
     accumulate_diffuse(scene, d_diffuse, d_materials);
@@ -1753,9 +1751,9 @@ void accumulate_specular(const Scene &scene,
     DISPATCH_CACHED(scene.use_gpu, thrust_alloc, thrust::sort, buffer_beg, buffer_end);
     auto new_end = DISPATCH_CACHED(scene.use_gpu, thrust_alloc, thrust::reduce_by_key,
         buffer_beg, buffer_end, // input keys
-        thrust::make_constant_iterator(0), // input values
+        buffer_beg, // input values
         beg, // output keys
-        thrust::make_discard_iterator()).first; // output values
+        beg).first; // output values
     d_specular.count = new_end - beg;
     // Accumulate to output derivatives
     accumulate_specular(scene, d_specular, d_materials);
@@ -1778,9 +1776,9 @@ void accumulate_roughness(const Scene &scene,
     DISPATCH_CACHED(scene.use_gpu, thrust_alloc, thrust::sort, buffer_beg, buffer_end);
     auto new_end = DISPATCH_CACHED(scene.use_gpu, thrust_alloc, thrust::reduce_by_key,
         buffer_beg, buffer_end, // input keys
-        thrust::make_constant_iterator(0), // input values
+        buffer_beg, // input values
         beg, // output keys
-        thrust::make_discard_iterator()).first; // output values
+        beg).first; // output values
     d_roughness.count = new_end - beg;
     // Accumulate to output derivatives
     accumulate_roughness(scene, d_roughness, d_materials);
@@ -1803,9 +1801,9 @@ void accumulate_area_light(BufferView<DAreaLightInst> &d_light_insts,
     DISPATCH_CACHED(use_gpu, thrust_alloc, thrust::sort, buffer_beg, buffer_end);
     auto new_end = DISPATCH_CACHED(use_gpu, thrust_alloc, thrust::reduce_by_key,
         buffer_beg, buffer_end, // input keys
-        thrust::make_constant_iterator(0), // input values
+        buffer_beg, // input values
         beg, // output keys
-        thrust::make_discard_iterator()).first; // output values
+        beg).first; // output values
     d_light_insts.count = new_end - beg;
     // Accumulate to output derivatives
     accumulate_area_light(d_light_insts, d_lights, use_gpu);
@@ -1830,9 +1828,9 @@ void accumulate_envmap(const Scene &scene,
         DISPATCH_CACHED(scene.use_gpu, thrust_alloc, thrust::sort, buffer_beg, buffer_end);
         auto new_end = DISPATCH_CACHED(scene.use_gpu, thrust_alloc, thrust::reduce_by_key,
             buffer_beg, buffer_end, // input keys
-            thrust::make_constant_iterator(0), // input values
+            buffer_beg, // input values
             beg, // output keys
-            thrust::make_discard_iterator()).first; // output values
+            beg).first; // output values
         d_envmap_vals.count = new_end - beg;
     }
     auto d_world_to_env = Matrix4x4();
