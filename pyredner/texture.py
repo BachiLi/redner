@@ -9,6 +9,7 @@ class Texture:
     def __init__(self,
                  texels,
                  uv_scale = torch.tensor([1.0, 1.0])):
+        self.texels = texels
         if len(texels.shape) >= 2:
             # Build a mipmap for texels
             width = max(texels.shape[0], texels.shape[1])
@@ -43,5 +44,5 @@ class Texture:
             mipmap = mipmap.permute(0, 2, 3, 1)
             texels = mipmap.contiguous()
 
-        self.texels = texels
+        self.mipmap = texels
         self.uv_scale = uv_scale

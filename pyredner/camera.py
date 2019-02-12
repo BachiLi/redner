@@ -44,20 +44,76 @@ class Camera:
             assert(len(fov.shape) == 1 and fov.shape[0] == 1)
         assert(isinstance(clip_near, float))
 
-        self.position = position
-        self.look_at = look_at
-        self.up = up
-        self.fov = fov
+        self._position = position
+        self._look_at = look_at
+        self._up = up
+        self._fov = fov
         self.cam_to_world = transform.gen_look_at_matrix(position, look_at, up)
         self.world_to_cam = torch.inverse(self.cam_to_world).contiguous()
         if cam_to_ndc is None:
             fov_factor = 1.0 / torch.tan(transform.radians(0.5 * fov))
             o = torch.ones([1], dtype=torch.float32)
             diag = torch.cat([fov_factor, fov_factor, o], 0)
-            self.cam_to_ndc = torch.diag(diag)
+            self._cam_to_ndc = torch.diag(diag)
         else:
-            self.cam_to_ndc = cam_to_ndc
+            self._cam_to_ndc = cam_to_ndc
         self.ndc_to_cam = torch.inverse(self.cam_to_ndc)
         self.clip_near = clip_near
         self.resolution = resolution
         self.fisheye = fisheye
+
+    @property
+    def position(self):
+        return self._position
+
+    @position.setter
+    def position(self, value):
+        self._position = value
+        self.cam_to_world = \
+            transform.gen_look_at_matrix(self._position, self._look_at, self._up)
+        self.world_to_cam = torch.inverse(self.cam_to_world).contiguous()
+
+    @property
+    def look_at(self):
+        return self._look_at
+    
+    @look_at.setter
+    def look_at(self, value):
+        self._look_at = value
+        self.cam_to_world = \
+            transform.gen_look_at_matrix(self._position, self._look_at, self._up)
+        self.world_to_cam = torch.inverse(self.cam_to_world).contiguous()
+
+    @property
+    def up(self):
+        return self._up
+
+    @up.setter
+    def up(self, value):
+        self._up = value
+        self.cam_to_world = \
+            transform.gen_look_at_matrix(self._position, self._look_at, self._up)
+        self.world_to_cam = torch.inverse(self.cam_to_world).contiguous()
+
+    @property
+    def fov(self):
+        return self._fov
+
+    @fov.setter
+    def fov(self, value):
+        self._fov = value
+        fov_factor = 1.0 / torch.tan(transform.radians(0.5 * self._fov))
+        o = torch.ones([1], dtype=torch.float32)
+        diag = torch.cat([fov_factor, fov_factor, o], 0)
+        self._cam_to_ndc = torch.diag(diag)
+        self.ndc_to_cam = torch.inverse(self._cam_to_ndc)
+
+    @property
+    def cam_to_ndc(self):
+        return self._cam_to_ndc
+
+    @cam_to_ndc.setter
+    def cam_to_ndc(self, value):
+        self._cam_to_ndc = value
+        self.ndc_to_cam = torch.inverse(self._cam_to_ndc)
+

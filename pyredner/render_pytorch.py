@@ -62,11 +62,11 @@ class RenderFunction(torch.autograd.Function):
             args.append(shape.material_id)
             args.append(shape.light_id)
         for material in scene.materials:
-            args.append(material.diffuse_reflectance.texels)
+            args.append(material.diffuse_reflectance.mipmap)
             args.append(material.diffuse_reflectance.uv_scale)
-            args.append(material.specular_reflectance.texels)
+            args.append(material.specular_reflectance.mipmap)
             args.append(material.specular_reflectance.uv_scale)
-            args.append(material.roughness.texels)
+            args.append(material.roughness.mipmap)
             args.append(material.roughness.uv_scale)
             args.append(material.two_sided)
         for light in scene.area_lights:
@@ -74,7 +74,7 @@ class RenderFunction(torch.autograd.Function):
             args.append(light.intensity)
             args.append(light.two_sided)
         if scene.envmap is not None:
-            args.append(scene.envmap.values.texels)
+            args.append(scene.envmap.values.mipmap)
             args.append(scene.envmap.values.uv_scale)
             args.append(scene.envmap.env_to_world)
             args.append(scene.envmap.world_to_env)

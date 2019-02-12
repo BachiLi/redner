@@ -16,9 +16,9 @@ class EnvironmentMap:
             assert(not values.texels.is_cuda)
 
         # Build sampling table
-        luminance = 0.212671 * values.texels[0, :, :, 0] + \
-        			0.715160 * values.texels[0, :, :, 1] + \
-        			0.072169 * values.texels[0, :, :, 2]
+        luminance = 0.212671 * values.texels[:, :, 0] + \
+                    0.715160 * values.texels[:, :, 1] + \
+                    0.072169 * values.texels[:, :, 2]
         # For each y, compute CDF over x
         sample_cdf_xs_ = torch.cumsum(luminance, dim = 1)
         y_weight = torch.sin(\
@@ -42,3 +42,4 @@ class EnvironmentMap:
         self.sample_cdf_ys = sample_cdf_ys.contiguous()
         self.sample_cdf_xs = sample_cdf_xs.contiguous()
         self.pdf_norm = pdf_norm
+
