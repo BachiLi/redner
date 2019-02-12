@@ -1697,22 +1697,22 @@ void accumulate_vertex(BufferView<DVertex> d_vertices,
     // Reduce into unique sequence
     auto beg = d_vertices.begin();
     auto end = d_vertices.end();
-    end = DISPATCH_CACHED(use_gpu, thrust_alloc, thrust::remove, beg, end, DVertex{-1, -1});
-    DISPATCH_CACHED(use_gpu, thrust_alloc, thrust::sort, beg, end);
     auto buffer_beg = reduce_buffer.begin();
+    auto buffer_end = DISPATCH_CACHED(use_gpu, thrust_alloc,
+        thrust::remove_copy, beg, end, buffer_beg, DVertex{-1, -1});
+    DISPATCH_CACHED(use_gpu, thrust_alloc, thrust::sort, buffer_beg, buffer_end);
     auto new_end = DISPATCH_CACHED(use_gpu, thrust_alloc, thrust::reduce_by_key,
-        beg, end, // input keysi
+        buffer_beg, buffer_end, // input keys
         thrust::make_constant_iterator(0), // input values
-        buffer_beg, // output keys
+        beg, // output keys
         thrust::make_discard_iterator()).first; // output values
-    DISPATCH(use_gpu, thrust::copy, buffer_beg, new_end, beg);
-    d_vertices.count = new_end - buffer_beg;
+    d_vertices.count = new_end - beg;
     // Accumulate to output derivatives
     accumulate_vertex(d_vertices, d_shapes, use_gpu);
 }
 
 void accumulate_diffuse(const Scene &scene,
-                        BufferView<DTexture3> &d_diffuse,
+                        BufferView<DTexture3> d_diffuse,
                         BufferView<DTexture3> reduce_buffer,
                         BufferView<DMaterial> d_materials,
                         ThrustCachedAllocator &thrust_alloc) {
@@ -1722,23 +1722,22 @@ void accumulate_diffuse(const Scene &scene,
     // Reduce into unique sequence
     auto beg = d_diffuse.begin();
     auto end = d_diffuse.end();
-    end = DISPATCH_CACHED(scene.use_gpu,
-        thrust_alloc, thrust::remove, beg, end, DTexture3{-1, -1, -1, -1});
-    DISPATCH_CACHED(scene.use_gpu, thrust_alloc, thrust::sort, beg, end);
     auto buffer_beg = reduce_buffer.begin();
+    auto buffer_end = DISPATCH_CACHED(scene.use_gpu, thrust_alloc,
+        thrust::remove_copy, beg, end, buffer_beg, DTexture3{-1, -1, -1, -1});
+    DISPATCH_CACHED(scene.use_gpu, thrust_alloc, thrust::sort, buffer_beg, buffer_end);
     auto new_end = DISPATCH_CACHED(scene.use_gpu, thrust_alloc, thrust::reduce_by_key,
-        beg, end, // input keys
+        buffer_beg, buffer_end, // input keys
         thrust::make_constant_iterator(0), // input values
-        buffer_beg, // output keys
+        beg, // output keys
         thrust::make_discard_iterator()).first; // output values
-    DISPATCH(scene.use_gpu, thrust::copy, buffer_beg, new_end, beg);
-    d_diffuse.count = new_end - buffer_beg;
+    d_diffuse.count = new_end - beg;
     // Accumulate to output derivatives
     accumulate_diffuse(scene, d_diffuse, d_materials);
 }
 
 void accumulate_specular(const Scene &scene,
-                         BufferView<DTexture3> &d_specular,
+                         BufferView<DTexture3> d_specular,
                          BufferView<DTexture3> reduce_buffer,
                          BufferView<DMaterial> d_materials,
                          ThrustCachedAllocator &thrust_alloc) {
@@ -1748,24 +1747,22 @@ void accumulate_specular(const Scene &scene,
     // Reduce into unique sequence
     auto beg = d_specular.begin();
     auto end = d_specular.end();
-    end = DISPATCH_CACHED(scene.use_gpu,
-        thrust_alloc, thrust::remove, beg, end, DTexture3{-1, -1, -1, -1});
-    DISPATCH_CACHED(scene.use_gpu,
-        thrust_alloc, thrust::sort, beg, end);
     auto buffer_beg = reduce_buffer.begin();
+    auto buffer_end = DISPATCH_CACHED(scene.use_gpu, thrust_alloc,
+        thrust::remove_copy, beg, end, buffer_beg, DTexture3{-1, -1, -1, -1});
+    DISPATCH_CACHED(scene.use_gpu, thrust_alloc, thrust::sort, buffer_beg, buffer_end);
     auto new_end = DISPATCH_CACHED(scene.use_gpu, thrust_alloc, thrust::reduce_by_key,
-        beg, end, // input keys
+        buffer_beg, buffer_end, // input keys
         thrust::make_constant_iterator(0), // input values
-        buffer_beg, // output keys
+        beg, // output keys
         thrust::make_discard_iterator()).first; // output values
-    DISPATCH(scene.use_gpu, thrust::copy, buffer_beg, new_end, beg);
-    d_specular.count = new_end - buffer_beg;
+    d_specular.count = new_end - beg;
     // Accumulate to output derivatives
     accumulate_specular(scene, d_specular, d_materials);
 }
 
 void accumulate_roughness(const Scene &scene,
-                          BufferView<DTexture1> &d_roughness,
+                          BufferView<DTexture1> d_roughness,
                           BufferView<DTexture1> reduce_buffer,
                           BufferView<DMaterial> d_materials,
                           ThrustCachedAllocator &thrust_alloc) {
@@ -1775,17 +1772,16 @@ void accumulate_roughness(const Scene &scene,
     // Reduce into unique sequence
     auto beg = d_roughness.begin();
     auto end = d_roughness.end();
-    end = DISPATCH_CACHED(scene.use_gpu,
-        thrust_alloc, thrust::remove, beg, end, DTexture1{-1, -1, -1, -1});
-    DISPATCH_CACHED(scene.use_gpu, thrust_alloc, thrust::sort, beg, end);
     auto buffer_beg = reduce_buffer.begin();
+    auto buffer_end = DISPATCH_CACHED(scene.use_gpu, thrust_alloc,
+        thrust::remove_copy, beg, end, buffer_beg, DTexture1{-1, -1, -1, -1});
+    DISPATCH_CACHED(scene.use_gpu, thrust_alloc, thrust::sort, buffer_beg, buffer_end);
     auto new_end = DISPATCH_CACHED(scene.use_gpu, thrust_alloc, thrust::reduce_by_key,
-        beg, end, // input keys
+        buffer_beg, buffer_end, // input keys
         thrust::make_constant_iterator(0), // input values
-        buffer_beg, // output keys
+        beg, // output keys
         thrust::make_discard_iterator()).first; // output values
-    DISPATCH(scene.use_gpu, thrust::copy, buffer_beg, new_end, beg);
-    d_roughness.count = new_end - buffer_beg;
+    d_roughness.count = new_end - beg;
     // Accumulate to output derivatives
     accumulate_roughness(scene, d_roughness, d_materials);
 }
@@ -1801,16 +1797,16 @@ void accumulate_area_light(BufferView<DAreaLightInst> &d_light_insts,
     // Reduce into unique sequence
     auto beg = d_light_insts.begin();
     auto end = d_light_insts.end();
-    end = DISPATCH_CACHED(use_gpu, thrust_alloc, thrust::remove, beg, end, DAreaLightInst{-1});
-    DISPATCH_CACHED(use_gpu, thrust_alloc, thrust::sort, beg, end);
     auto buffer_beg = reduce_buffer.begin();
+    auto buffer_end = DISPATCH_CACHED(use_gpu, thrust_alloc,
+        thrust::remove_copy, beg, end, buffer_beg, DAreaLightInst{-1});
+    DISPATCH_CACHED(use_gpu, thrust_alloc, thrust::sort, buffer_beg, buffer_end);
     auto new_end = DISPATCH_CACHED(use_gpu, thrust_alloc, thrust::reduce_by_key,
-        beg, end, // input keys
+        buffer_beg, buffer_end, // input keys
         thrust::make_constant_iterator(0), // input values
-        buffer_beg, // output keys
+        beg, // output keys
         thrust::make_discard_iterator()).first; // output values
-    DISPATCH(use_gpu, thrust::copy, buffer_beg, new_end, beg);
-    d_light_insts.count = new_end - buffer_beg;
+    d_light_insts.count = new_end - beg;
     // Accumulate to output derivatives
     accumulate_area_light(d_light_insts, d_lights, use_gpu);
 }
@@ -1828,24 +1824,24 @@ void accumulate_envmap(const Scene &scene,
         // Reduce into unique sequence
         auto beg = d_envmap_vals.begin();
         auto end = d_envmap_vals.end();
-        end = DISPATCH_CACHED(scene.use_gpu, thrust_alloc, thrust::remove, beg, end, DTexture3{-1});
-        DISPATCH_CACHED(scene.use_gpu, thrust_alloc, thrust::sort, beg, end);
         auto buffer_beg = reduce_buffer.begin();
+        auto buffer_end = DISPATCH_CACHED(scene.use_gpu, thrust_alloc,
+            thrust::remove_copy, beg, end, buffer_beg, DTexture3{-1});
+        DISPATCH_CACHED(scene.use_gpu, thrust_alloc, thrust::sort, buffer_beg, buffer_end);
         auto new_end = DISPATCH_CACHED(scene.use_gpu, thrust_alloc, thrust::reduce_by_key,
-            beg, end, // input keys
+            buffer_beg, buffer_end, // input keys
             thrust::make_constant_iterator(0), // input values
-            buffer_beg, // output keys
+            beg, // output keys
             thrust::make_discard_iterator()).first; // output values
-        DISPATCH(scene.use_gpu, thrust::copy, buffer_beg, new_end, beg);
-       
-        d_envmap_vals.count = new_end - buffer_beg;
+        d_envmap_vals.count = new_end - beg;
     }
     auto d_world_to_env = Matrix4x4();
     {
         // Reduce to a single matrix
         auto beg = d_world_to_envs.begin();
         auto end = d_world_to_envs.begin();
-        d_world_to_env = DISPATCH_CACHED(scene.use_gpu, thrust_alloc, thrust::reduce, beg, end, Matrix4x4());
+        d_world_to_env = DISPATCH_CACHED(scene.use_gpu, thrust_alloc,
+            thrust::reduce, beg, end, Matrix4x4());
     }
     // Accumulate to output derivatives
     accumulate_envmap(scene, d_envmap_vals, d_world_to_env, *d_envmap);
