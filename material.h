@@ -22,21 +22,24 @@ struct Material {
           two_sided(two_sided) {}
 
     inline std::tuple<int, int, int> get_diffuse_size() const {
-        return {diffuse_reflectance.width,
-                diffuse_reflectance.height,
-                diffuse_reflectance.num_levels};
+        return std::make_tuple(
+            diffuse_reflectance.width,
+            diffuse_reflectance.height,
+            diffuse_reflectance.num_levels);
     }
 
     inline std::tuple<int, int, int> get_specular_size() const {
-        return {specular_reflectance.width,
-                specular_reflectance.height,
-                specular_reflectance.num_levels};
+        return std::make_tuple(
+            specular_reflectance.width,
+            specular_reflectance.height,
+            specular_reflectance.num_levels);
     }
 
     inline std::tuple<int, int, int> get_roughness_size() const {
-        return {roughness.width,
-                roughness.height,
-                roughness.num_levels};
+        return std::make_tuple(
+            roughness.width,
+            roughness.height,
+            roughness.num_levels);
     }
 
     Texture3 diffuse_reflectance;
