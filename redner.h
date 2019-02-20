@@ -94,3 +94,11 @@ inline void swap(T &a, T &b) {
 inline double log2(double x) {
     return log(x) / log(Real(2));
 }
+
+template <typename T>
+DEVICE
+inline T safe_acos(const T &x) {
+    if (x >= 1) return T(0);
+    else if(x <= -1) return T(M_PI);
+    return acos(x);
+}

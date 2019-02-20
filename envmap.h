@@ -59,7 +59,7 @@ inline Vector3 envmap_eval(const EnvironmentMap &envmap,
     // Project to spherical coordinate, y is up vector
     auto uv = Vector2{
         atan2(local_dir.x, -local_dir.z) / Real(2 * M_PI),
-        acos(local_dir.y) / Real(M_PI)
+        safe_acos(local_dir.y) / Real(M_PI)
     };
 
     // Compute ray differentials
@@ -93,7 +93,7 @@ inline void d_envmap_eval(const EnvironmentMap &envmap,
     // Project to spherical coordinate, y is up vector
     auto uv = Vector2{
         atan2(local_dir.x, -local_dir.z) / Real(2 * M_PI),
-        acos(local_dir.y) / Real(M_PI)
+        safe_acos(local_dir.y) / Real(M_PI)
     };
 
     // Compute ray differentials
@@ -155,9 +155,13 @@ inline void d_envmap_eval(const EnvironmentMap &envmap,
     //     acos(local_dir.y) / Real(M_PI)
     // }
     auto x2_z2 = square(local_dir.x) + square(local_dir.z);
-    d_local_dir.x += (- d_uv.x * local_dir.z / (x2_z2 * Real(2 * M_PI)));
-    d_local_dir.y += (- d_uv.y / (sqrt(1 - square(local_dir.y)) * (Real(2 * M_PI))));
-    d_local_dir.z += (- d_uv.x * local_dir.x / (x2_z2 * Real(2 * M_PI)));
+    if (x2_z2 > 0.f) {
+        d_local_dir.x += (- d_uv.x * local_dir.z / (x2_z2 * Real(2 * M_PI)));
+        d_local_dir.z += (- d_uv.x * local_dir.x / (x2_z2 * Real(2 * M_PI)));
+    }
+    if (local_dir.y < 1.f) {
+        d_local_dir.y += (- d_uv.y / (sqrt(1 - square(local_dir.y)) * (Real(2 * M_PI))));
+    }
     // local_dir = normalize(n_local_dir)
     auto d_n_local_dir = d_normalize(n_local_dir, d_local_dir);
     // n_local_dir = xfm_vector(envmap.world_to_env, dir)
@@ -222,7 +226,7 @@ inline Real envmap_pdf(const EnvironmentMap &envmap, const Vector3 &dir) {
     auto local_dir = xfm_vector(envmap.world_to_env, dir);
     auto uv = Vector2{
         atan2(local_dir.x, -local_dir.z) / Real(2 * M_PI),
-        acos(local_dir.y) / Real(M_PI)
+        safe_acos(local_dir.y) / Real(M_PI)
     };
     auto w = envmap.values.width;
     auto h = envmap.values.height;
