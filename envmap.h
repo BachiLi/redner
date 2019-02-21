@@ -28,9 +28,9 @@ struct EnvironmentMap {
           pdf_norm((Real)pdf_norm) {}
 
     inline std::tuple<int, int, int> get_size() const {
-        return {values.width,
+        return std::make_tuple(values.width,
                 values.height,
-                values.num_levels};
+                values.num_levels);
     }
 
     Texture3 values;
