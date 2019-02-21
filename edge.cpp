@@ -900,9 +900,9 @@ struct secondary_edge_sampler {
         // and the ray intersection into account. We'll compute this later
         auto edge_weight = resample_weight / (m_pmf * line_pdf(l));
         auto nt = throughput * eval_bsdf * d_color * edge_weight;
-        assert(isfinite(throughput));
-        assert(isfinite(eval_bsdf));
-        assert(isfinite(d_color));
+        // assert(isfinite(throughput));
+        // assert(isfinite(eval_bsdf));
+        // assert(isfinite(d_color));
         assert(isfinite(edge_weight));
         new_throughputs[2 * idx + 0] = nt;
         new_throughputs[2 * idx + 1] = -nt;
