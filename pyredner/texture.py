@@ -30,8 +30,12 @@ class Texture:
                 # Pad for circular boundary condition
                 # This is slow. The hope is at some point PyTorch will support
                 # circular boundary condition for conv2d
-                prev_lvl = torch.cat([prev_lvl, prev_lvl[:,:,0:dilation_size]], dim=2)
-                prev_lvl = torch.cat([prev_lvl, prev_lvl[:,:,:,0:dilation_size]], dim=3)
+                desired_height = prev_lvl.shape[2] + dilation_size
+                while prev_lvl.shape[2] < desired_height:
+                    prev_lvl = torch.cat([prev_lvl, prev_lvl[:,:,0:(desired_height - prev_lvl.shape[2])]], dim=2)
+                desired_width = prev_lvl.shape[3] + dilation_size
+                while prev_lvl.shape[3] < desired_width:
+                    prev_lvl = torch.cat([prev_lvl, prev_lvl[:,:,:,0:dilation_size]], dim=3)
                 current_lvl = torch.nn.functional.conv2d(\
                     prev_lvl, box_filter,
                     dilation = dilation_size,
