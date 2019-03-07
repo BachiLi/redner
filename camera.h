@@ -110,7 +110,7 @@ Ray sample_primary(const Camera &camera,
         // Linear projection
         auto org = xfm_point(camera.cam_to_world, Vector3{0, 0, 0});
         // [0, 1] x [0, 1] -> [-1, 1/aspect_ratio] x [1, -1/aspect_ratio]
-        auto aspect_ratio = Real(camera.height) / Real(camera.width);
+        auto aspect_ratio = Real(camera.width) / Real(camera.height);
         auto ndc = Vector3{(screen_pos[0] - 0.5f) * 2.f,
                            (screen_pos[1] - 0.5f) * (-2.f) / aspect_ratio,
                            Real(1)};
@@ -164,7 +164,7 @@ inline void d_sample_primary_ray(const Camera &camera,
         // Linear projection
         // auto org = xfm_point(camera.cam_to_world, Vector3{0, 0, 0});
         // [0, 1] x [0, 1] -> [-1, 1/aspect_ratio] x [1, -1/aspect_ratio]
-        auto aspect_ratio = Real(camera.height) / Real(camera.width);
+        auto aspect_ratio = Real(camera.width) / Real(camera.height);
         auto ndc = Vector3{(screen_pos[0] - 0.5f) * 2.f,
                            (screen_pos[1] - 0.5f) * (-2.f) / aspect_ratio,
                            Real(1)};
@@ -220,7 +220,7 @@ TVector2<T> camera_to_screen(const Camera &camera,
         return TVector2<T>{x, y};
     } else {
         // Linear projection
-        auto aspect_ratio = Real(camera.height) / Real(camera.width);
+        auto aspect_ratio = Real(camera.width) / Real(camera.height);
         auto ndc3 = camera.cam_to_ndc * pt;
         auto ndc = Vector2{ndc3[0] / ndc3[2], ndc3[1] / ndc3[2]};
         // [-1, 1/aspect_ratio] x [1, -1/aspect_ratio] -> [0, 1] x [0, 1]
@@ -265,7 +265,7 @@ inline void d_camera_to_screen(const Camera &camera,
         auto ddir = Vector3{ddir0, ddir1, ddir2};
         d_pt += d_normalize(pt, ddir);
     } else {
-        auto aspect_ratio = Real(camera.height) / Real(camera.width);
+        auto aspect_ratio = Real(camera.width) / Real(camera.height);
         auto ndc3 = camera.cam_to_ndc * pt;
         auto ndc = Vector2{ndc3[0] / ndc3[2], ndc3[1] / ndc3[2]};
         // [-1, 1/aspect_ratio] x [1, -1/aspect_ratio] -> [0, 1] x [0, 1]
@@ -438,7 +438,7 @@ inline TVector3<T> screen_to_camera(const Camera &camera,
     } else {
         // Linear projection
         // [0, 1] x [0, 1] -> [1, -1] -> [1, -1]/aspect_ratio
-        auto aspect_ratio = Real(camera.height) / Real(camera.width);
+        auto aspect_ratio = Real(camera.width) / Real(camera.height);
         auto ndc = TVector3<T>{
             (screen_pos[0] - 0.5f) * 2.f,
             (screen_pos[1] - 0.5f) * -2.f / aspect_ratio,
@@ -488,7 +488,7 @@ inline void d_screen_to_camera(const Camera &camera,
             d_dir_y_d_phi * d_phi_d_y + d_dir_y_d_theta * d_theta_d_y,
             d_dir_z_d_theta * d_theta_d_y};
     } else {
-        auto aspect_ratio = Real(camera.height) / Real(camera.width);
+        auto aspect_ratio = Real(camera.width) / Real(camera.height);
         auto ndc = TVector3<T>{
             (screen_pos[0] - 0.5f) * 2.f,
             (screen_pos[1] - 0.5f) * -2.f / aspect_ratio,

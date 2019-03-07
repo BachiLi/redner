@@ -18,10 +18,10 @@ class Camera:
             fov (length 1 float tensor): the field of view of the camera in angle, 
                                          no effect if the camera is a fisheye camera
             clip_near (float): the near clipping plane of the camera, need to > 0
-            resolution (length 2 tuple): the size of the output image in (width, height)
+            resolution (length 2 tuple): the size of the output image in (height, width)
             cam_to_ndc (3x3 matrix): a matrix that transforms
                 [-1, 1/aspect_ratio] x [1, -1/aspect_ratio] to [0, 1] x [0, 1]
-                where aspect_ratio = height / width
+                where aspect_ratio = width / height
             fisheye (bool): whether the camera is a fisheye camera.
     """
     def __init__(self,
