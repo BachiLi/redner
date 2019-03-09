@@ -12,7 +12,8 @@ def parse_transform(node):
         if child.tag == 'matrix':
             value = torch.from_numpy(\
                 np.reshape(\
-                    np.fromstring(child.attrib['value'], dtype=np.float32, sep=' '),
+                    # support both ',' and ' ' seperator
+                    np.fromstring(child.attrib['value'], dtype=np.float32, sep=',' if ',' in child.attrib['value'] else ' '),
                     (4, 4)))
             ret = value @ ret
         elif child.tag == 'translate':
@@ -22,9 +23,13 @@ def parse_transform(node):
             value = transform.gen_translate_matrix(torch.tensor([x, y, z]))
             ret = value @ ret
         elif child.tag == 'scale':
-            x = float(child.attrib['x'])
-            y = float(child.attrib['y'])
-            z = float(child.attrib['z'])
+            # single scale value
+            if 'value' in child.attrib:
+                x = y = z = float(child.attrib['value'])
+            else:
+                x = float(child.attrib['x'])
+                y = float(child.attrib['y'])
+                z = float(child.attrib['z'])
             value = transform.gen_scale_matrix(torch.tensor([x, y, z]))
             ret = value @ ret
     return ret
@@ -74,6 +79,39 @@ def parse_camera(node):
                            resolution   = resolution)
 
 def parse_material(node, two_sided = False):
+
+    def parse_material_bitmap(node, scale = None):
+        reflectance_texture = None
+        uv_scale = torch.tensor([1.0, 1.0])
+        for grandchild in node:
+            if grandchild.attrib['name'] == 'filename':
+                reflectance_texture = pyredner.imread(grandchild.attrib['value'])
+                if scale:
+                    reflectance_texture = reflectance_texture * scale
+            elif grandchild.attrib['name'] == 'uscale':
+                uv_scale[0] = float(grandchild.attrib['value'])
+            elif grandchild.attrib['name'] == 'vscale':
+                uv_scale[1] = float(grandchild.attrib['value'])
+        assert reflectance_texture is not None
+        return reflectance_texture, uv_scale
+    
+    # support mitsuba pulgin 'scale' for texture
+    def parse_texture(node):
+        if node.attrib['type'] == 'scale':
+            scale_value = None
+            for grandchild in node:
+                if grandchild.attrib['name'] == 'scale' and grandchild.tag == 'float':
+                    scale_value = float(grandchild.attrib['value'])
+                elif grandchild.attrib['type'] == 'bitmap' and grandchild.tag == 'texture':
+                    assert scale_value is not None # avoid 'scale' element is declared below the 'bitmap'
+                    return parse_material_bitmap(grandchild, scale_value)
+                else:
+                    raise NotImplementedError('Unsupported scale param type {}'.format(grandchild.child['type']))
+        elif node.attrib['type'] == 'bitmap':
+            return parse_material_bitmap(node)
+        else:
+            raise NotImplementedError('Unsupported Texture type {}'.format(node.attrib['type']))
+    
     node_id = None
     if 'id' in node.attrib:
         node_id = node.attrib['id']
@@ -86,24 +124,12 @@ def parse_material(node, two_sided = False):
         for child in node:
             if child.attrib['name'] == 'reflectance':
                 if child.tag == 'texture':
-                    for grandchild in child:
-                        if grandchild.attrib['name'] == 'filename':
-                            diffuse_reflectance = pyredner.imread(grandchild.attrib['value'])
-                        elif grandchild.attrib['name'] == 'uscale':
-                            diffuse_uv_scale[0] = float(grandchild.attrib['value'])
-                        elif grandchild.attrib['name'] == 'vscale':
-                            diffuse_uv_scale[1] = float(grandchild.attrib['value'])
+                    diffuse_reflectance, diffuse_uv_scale = parse_texture(child)
                 elif child.tag == 'rgb' or child.tag == 'spectrum':
                     diffuse_reflectance = parse_vector(child.attrib['value'])
             elif child.attrib['name'] == 'specular':
                 if child.tag == 'texture':
-                    for grandchild in child:
-                        if grandchild.attrib['name'] == 'filename':
-                            specular_reflectance = pyredner.imread(grandchild.attrib['value'])
-                        elif grandchild.attrib['name'] == 'uscale':
-                            specular_uv_scale[0] = float(grandchild.attrib['value'])
-                        elif grandchild.attrib['name'] == 'vscale':
-                            specular_uv_scale[1] = float(grandchild.attrib['value'])
+                    specular_reflectance, specular_uv_scale = parse_texture(child)
                 elif child.tag == 'rgb' or child.tag == 'spectrum':
                     specular_reflectance = parse_vector(child.attrib['value'])
             elif child.attrib['name'] == 'roughness':
@@ -124,32 +150,26 @@ def parse_material(node, two_sided = False):
         specular_reflectance = torch.tensor([0.0, 0.0, 0.0])
         specular_uv_scale = torch.tensor([1.0, 1.0])
         roughness = torch.tensor([1.0])
+        roughness_uv_scale = torch.tensor([1.0, 1.0])
+
         for child in node:
             if child.attrib['name'] == 'diffuseReflectance':
                 if child.tag == 'texture':
-                    for grandchild in child:
-                        if grandchild.attrib['name'] == 'filename':
-                            diffuse_reflectance = pyredner.imread(grandchild.attrib['value'])
-                        elif grandchild.attrib['name'] == 'uscale':
-                            diffuse_uv_scale[0] = float(grandchild.attrib['value'])
-                        elif grandchild.attrib['name'] == 'vscale':
-                            diffuse_uv_scale[1] = float(grandchild.attrib['value'])
+                    diffuse_reflectance, diffuse_uv_scale = parse_texture(child)
                 elif child.tag == 'rgb' or child.tag == 'spectrum':
                     diffuse_reflectance = parse_vector(child.attrib['value'])
             elif child.attrib['name'] == 'specularReflectance':
                 if child.tag == 'texture':
-                    for grandchild in child:
-                        if grandchild.attrib['name'] == 'filename':
-                            specular_reflectance = pyredner.imread(grandchild.attrib['value'])
-                        elif grandchild.attrib['name'] == 'uscale':
-                            specular_uv_scale[0] = float(grandchild.attrib['value'])
-                        elif grandchild.attrib['name'] == 'vscale':
-                            specular_uv_scale[1] = float(grandchild.attrib['value'])
+                    specular_reflectance, specular_uv_scale = parse_texture(child)
                 elif child.tag == 'rgb' or child.tag == 'spectrum':
                     specular_reflectance = parse_vector(child.attrib['value'])
             elif child.attrib['name'] == 'alpha':
-                alpha = float(child.attrib['value'])
-                roughness = torch.tensor([alpha * alpha])
+                # Add 'alpha texture' support
+                if child.tag == 'texture':
+                    roughness, roughness_uv_scale = parse_texture(child) #? not sure to do square here
+                elif child.tag == 'float':
+                    alpha = float(child.attrib['value'])
+                    roughness = torch.tensor([alpha * alpha])
         if pyredner.get_use_gpu():
             # Copy to GPU
             diffuse_reflectance = diffuse_reflectance.cuda()
@@ -158,16 +178,20 @@ def parse_material(node, two_sided = False):
         return (node_id, pyredner.Material(\
                 diffuse_reflectance = pyredner.Texture(diffuse_reflectance, diffuse_uv_scale),
                 specular_reflectance = pyredner.Texture(specular_reflectance, specular_uv_scale),
-                roughness = pyredner.Texture(roughness),
+                roughness = pyredner.Texture(roughness, roughness_uv_scale),
                 two_sided = two_sided))
     elif node.attrib['type'] == 'twosided':
         ret = parse_material(node[0], True)
+        return (node_id, ret[1])
+    # Simply bypass mask's opacity
+    elif node.attrib['type'] == 'mask': #TODO add opacity!!!
+        ret = parse_material(node[0])
         return (node_id, ret[1])
     else:
         print('Unsupported material type:', node.attrib['type'])
         assert(False)
 
-def parse_shape(node, material_dict, shape_id):
+def parse_shape(node, material_dict, shape_id, shape_group_dict = None):
     if node.attrib['type'] == 'obj' or node.attrib['type'] == 'serialized':
         to_world = torch.eye(4)
         serialized_shape_id = 0
@@ -279,7 +303,7 @@ def parse_shape(node, material_dict, shape_id):
         assert(indices is not None)
         lgt = None
         if light_intensity is not None:
-            lgt = pyrender.Light(shape_id, light_intensity)
+            lgt = pyredner.AreaLight(shape_id, light_intensity)
 
         if pyredner.get_use_gpu():
             # Copy to GPU
@@ -289,8 +313,39 @@ def parse_shape(node, material_dict, shape_id):
                 uvs = uvs.cuda()
             if normals is not None:
                 normals = normals.cuda()
-        return shape.Shape(vertices, indices, uvs, normals, mat_id), lgt
+        return pyredner.Shape(vertices, indices, uvs, normals, mat_id), lgt
+    # Add instance support 
+    # TODO (simply transform & create a new shape now)
+    elif node.attrib['type'] == 'instance':
+        shape = None
+        for child in node:
+            if 'name' in child.attrib:
+                if child.attrib['name'] == 'toWorld':
+                    to_world = parse_transform(child)
+                    if pyredner.get_use_gpu():
+                        to_world = to_world.cuda()
+            if child.tag == 'ref':
+                shape = shape_group_dict[child.attrib['id']]
+        # transform instance
+        vertices = shape.vertices
+        normals = shape.normals
+        vector1 = torch.ones(vertices.shape[0], 1)
+        vertices = torch.cat((vertices, vector1.cuda() if pyredner.get_use_gpu() else vector1), dim = 1)
+        vertices = vertices @ torch.transpose(to_world, 0, 1)
+        vertices = vertices / vertices[:, 3:4]
+        vertices = vertices[:, 0:3].contiguous()
+        if normals is not None:
+            normals = normals @ (torch.inverse(torch.transpose(to_world, 0, 1))[:3, :3])
+            normals = normals.contiguous()
+        # assert(vertices is not None)
+        # assert(indices is not None)
+        # lgt = None
+        # if light_intensity is not None:
+        #     lgt = pyredner.AreaLight(shape_id, light_intensity)
+
+        return pyredner.Shape(vertices, shape.indices, shape.uvs, normals, shape.material_id), None
     else:
+        print('Shape type {} is not supported!'.format(node.attrib['type']))
         assert(False)
 
 def parse_scene(node):
@@ -300,6 +355,9 @@ def parse_scene(node):
     material_dict = {}
     shapes = []
     lights = []
+    shape_group_dict = {}
+    envmap = None
+
     for child in node:
         if child.tag == 'sensor':
             cam = parse_camera(child)
@@ -308,12 +366,37 @@ def parse_scene(node):
             if node_id is not None:
                 material_dict[node_id] = len(materials)
                 materials.append(material)
+        # shapegroup for instancing
+        elif child.tag == 'shape' and child.attrib['type'] == 'shapegroup':
+            for child_s in child:
+                if child_s.tag == 'shape':
+                    shape_group_dict[child.attrib['id']] = parse_shape(child_s, material_dict, None)[0]
         elif child.tag == 'shape':
-            shape, light = parse_shape(child, material_dict, len(shapes))
+            shape, light = parse_shape(child, material_dict, len(shapes), shape_group_dict if child.attrib['type'] == 'instance' else None)
             shapes.append(shape)
             if light is not None:
                 lights.append(light)
-    return pyredner.Scene(cam, shapes, materials, lights)
+        # Add envmap loading support
+        elif child.tag == 'emitter' and child.attrib['type'] == 'envmap':
+            # read envmap params from xml
+            scale = 1.0
+            envmap_filename = None
+            to_world = torch.eye(4)
+            for child_s in child:
+                if child_s.attrib['name'] == 'scale':
+                    assert child_s.tag == 'float'
+                    scale = float(child_s.attrib['value'])
+                if child_s.attrib['name'] == 'filename':
+                    assert child_s.tag == 'string'
+                    envmap_filename = child_s.attrib['value']
+                if child_s.attrib['name'] == 'toWorld':
+                    to_world = parse_transform(child_s)
+            # load envmap
+            envmap = scale * pyredner.imread(envmap_filename)
+            if pyredner.get_use_gpu():
+                envmap = envmap.cuda()
+            envmap = pyredner.EnvironmentMap(envmap, env_to_world=to_world)
+    return pyredner.Scene(cam, shapes, materials, lights, envmap)
 
 def load_mitsuba(filename):
     """
