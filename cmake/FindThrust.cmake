@@ -25,10 +25,14 @@
 # THRUST_VERSION -      Version of thrust in the form "major.minor.patch".
 #
 
-find_path(THRUST_INCLUDE_DIR /usr/include/cuda
-    /usr/local/include
-    /usr/local/cuda/include
-    ${CUDA_INCLUDE_DIRS}
+find_path(THRUST_INCLUDE_DIR
+	HINTS /usr/include/cuda
+	      /usr/local/include
+	      /usr/local/cuda/include
+	      ${CUDA_INCLUDE_DIRS}
+	      ./thrust
+	      ../thrust
+	NAMES thrust/version.h
 )
 
 if (THRUST_INCLUDE_DIR)
