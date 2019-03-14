@@ -63,20 +63,29 @@ inline Vector3 envmap_eval(const EnvironmentMap &envmap,
     };
 
     // Compute ray differentials
-    // TODO: handle scaling in world_to_env
-    auto local_dir_dx = xfm_vector(envmap.world_to_env, ray_diff.dir_dx);
-    auto local_dir_dy = xfm_vector(envmap.world_to_env, ray_diff.dir_dy);
-    auto du_dlocal_dir_x = local_dir.x /
-        (Real(2 * M_PI) * (square(local_dir.x) + square(local_dir.z)));
-    auto du_dlocal_dir_z = local_dir.z /
-        (Real(2 * M_PI) * (square(local_dir.x) + square(local_dir.z)));
-    auto du_dxy = Vector2{du_dlocal_dir_x * local_dir_dx.x + du_dlocal_dir_z * local_dir_dx.z,
-                          du_dlocal_dir_x * local_dir_dy.x + du_dlocal_dir_z * local_dir_dy.z};
-    auto dv_dlocal_dir_y = -1 / (Real(M_PI) * sqrt(1 - square(local_dir.y)));
-    auto dv_dxy = Vector2{dv_dlocal_dir_y * local_dir_dx.y,
-                          dv_dlocal_dir_y * local_dir_dy.y};
-    auto val = get_texture_value(envmap.values, uv, du_dxy, dv_dxy);
-    return val;
+    // There is a singularity at (0, 1, 0)
+    if (local_dir.y < 1) {
+        // TODO: handle scaling in world_to_env
+        auto local_dir_dx = xfm_vector(envmap.world_to_env, ray_diff.dir_dx);
+        auto local_dir_dy = xfm_vector(envmap.world_to_env, ray_diff.dir_dy);
+        auto du_dlocal_dir_x = local_dir.x /
+            (Real(2 * M_PI) * (square(local_dir.x) + square(local_dir.z)));
+        auto du_dlocal_dir_z = local_dir.z /
+            (Real(2 * M_PI) * (square(local_dir.x) + square(local_dir.z)));
+        auto du_dxy = Vector2{du_dlocal_dir_x * local_dir_dx.x + du_dlocal_dir_z * local_dir_dx.z,
+                              du_dlocal_dir_x * local_dir_dy.x + du_dlocal_dir_z * local_dir_dy.z};
+        auto dv_dlocal_dir_y = -1 / (Real(M_PI) * sqrt(1 - square(local_dir.y)));
+        auto dv_dxy = Vector2{dv_dlocal_dir_y * local_dir_dx.y,
+                              dv_dlocal_dir_y * local_dir_dy.y};
+        auto val = get_texture_value(envmap.values, uv, du_dxy, dv_dxy);
+        return val;
+    } else {
+        // TODO: this is too conservative
+        auto du_dxy = Vector2{0, 0};
+        auto dv_dxy = Vector2{0, 0};
+        auto val = get_texture_value(envmap.values, uv, du_dxy, dv_dxy);
+        return val;
+    }
 }
 
 DEVICE
@@ -259,7 +268,10 @@ inline Real envmap_pdf(const EnvironmentMap &envmap, const Vector3 &dir) {
                   lum_cf *        dx  * (1.f - dy);
     auto lum_cy = lum_fc * (1.f - dx) *        dy  +
                   lum_cc *        dx  *        dy;
-    auto sin_theta = sqrt(1 - square(local_dir.y));
+    auto sin_theta = sqrt(max(1 - square(local_dir.y), Real(0)));
+    if (sin_theta == 0.f) {
+        return 0.f;
+    }
     auto sin_theta_fy = fabs(sin(Real(M_PI) * (yfi + 0.5f) / h));
     auto sin_theta_cy = fabs(sin(Real(M_PI) * (yci + 0.5f) / h));
     return envmap.pdf_norm * fabs(lum_fy * sin_theta_fy + lum_cy * sin_theta_cy) / sin_theta;
