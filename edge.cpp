@@ -93,18 +93,18 @@ struct primary_edge_weighter {
 struct secondary_edge_weighter {
     DEVICE void operator()(int idx) {
         const auto &edge = edges[idx];
-        // We use the length * cos(dihedral angle) to sample the edges
-        // If the dihedral angle is large, it's less likely that the edge would be an silhouette        
+        // We use the length * (pi - dihedral angle) to sample the edges
+        // If the dihedral angle is large, it's less likely that the edge would be a silhouette
         auto &secondary_edge_weight = secondary_edge_weights[idx];
-        auto cos_dihedral = Real(1);
+        auto exterior_dihedral = Real(M_PI);
         if (edge.f1 != -1) {
             auto n0 = get_n0(shapes, edge);
             auto n1 = get_n1(shapes, edge);
-            cos_dihedral = fabs(dot(n0, n1));
+            exterior_dihedral = acos(clamp(dot(n0, n1), Real(-1), Real(1)));
         }
         auto v0 = get_v0(shapes, edge);
         auto v1 = get_v1(shapes, edge);
-        secondary_edge_weight = distance(v0, v1) * cos_dihedral;
+        secondary_edge_weight = distance(v0, v1) * exterior_dihedral;
     }
 
     const Shape *shapes;

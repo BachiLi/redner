@@ -67,16 +67,6 @@ inline Vector3f get_v1(const Shape *shapes, const Edge &edge) {
 }
 
 DEVICE
-inline Vector3 get_n0(const Shape *shapes, const Edge &edge) {
-    return get_normal(shapes[edge.shape_id], edge.f0);
-}
-
-DEVICE
-inline Vector3 get_n1(const Shape *shapes, const Edge &edge) {
-    return get_normal(shapes[edge.shape_id], edge.f1);
-}
-
-DEVICE
 inline Vector3f get_non_shared_v0(
         const Shape *shapes, const Edge &edge) {
     auto ind = get_indices(shapes[edge.shape_id], edge.f0);
@@ -98,6 +88,22 @@ inline Vector3f get_non_shared_v1(
         }
     }
     return Vector3{0.f, 0.f, 0.f};
+}
+
+DEVICE
+inline Vector3 get_n0(const Shape *shapes, const Edge &edge) {
+    auto v0 = Vector3{get_v0(shapes, edge)};
+    auto v1 = Vector3{get_v1(shapes, edge)};
+    auto ns_v0 = Vector3{get_non_shared_v0(shapes, edge)};
+    return normalize(cross(v0 - ns_v0, v1 - ns_v0));
+}
+
+DEVICE
+inline Vector3 get_n1(const Shape *shapes, const Edge &edge) {
+    auto v0 = Vector3{get_v0(shapes, edge)};
+    auto v1 = Vector3{get_v1(shapes, edge)};
+    auto ns_v1 = Vector3{get_non_shared_v1(shapes, edge)};
+    return normalize(cross(v1 - ns_v1, v0 - ns_v1));
 }
 
 DEVICE
