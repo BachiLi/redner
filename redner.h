@@ -22,6 +22,8 @@
 #define M_PI 3.14159265358979323846
 #endif
 
+#include <cstdint>
+
 // We use Real for most of the internal computation.
 // However, for PyTorch interfaces, Optix Prime and Embree queries
 // we use float
@@ -101,4 +103,13 @@ inline T safe_acos(const T &x) {
     if (x >= 1) return T(0);
     else if(x <= -1) return T(M_PI);
     return acos(x);
+}
+
+inline int clz(uint64_t x) {
+#ifdef __CUDA_ARCH__
+    return __clzll(x);
+#else
+    // TODO: use _BitScanReverse in windows
+    return x == 0 ? 64 : __builtin_clzll(x);
+#endif
 }

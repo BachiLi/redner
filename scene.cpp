@@ -33,7 +33,7 @@ struct vector3f_max {
 
 struct area_computer {
     DEVICE void operator()(int idx) {
-        area[idx] = get_area(shape, idx);      
+        area[idx] = get_area(shape, idx);
     }
 
     Shape shape;
@@ -225,6 +225,7 @@ Scene::Scene(const Camera &camera,
     }
 
     // Flatten the scene into array
+    // TODO: use cudaMemcpyAsync for gpu code path
     if (shapes.size() > 0) {
         this->shapes = Buffer<Shape>(use_gpu, shapes.size());
         for (int shape_id = 0; shape_id < (int)shapes.size(); shape_id++) {

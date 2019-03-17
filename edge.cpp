@@ -96,12 +96,7 @@ struct secondary_edge_weighter {
         // We use the length * (pi - dihedral angle) to sample the edges
         // If the dihedral angle is large, it's less likely that the edge would be a silhouette
         auto &secondary_edge_weight = secondary_edge_weights[idx];
-        auto exterior_dihedral = Real(M_PI);
-        if (edge.f1 != -1) {
-            auto n0 = get_n0(shapes, edge);
-            auto n1 = get_n1(shapes, edge);
-            exterior_dihedral = acos(clamp(dot(n0, n1), Real(-1), Real(1)));
-        }
+        auto exterior_dihedral = compute_exterior_dihedral_angle(shapes, edge);
         auto v0 = get_v0(shapes, edge);
         auto v1 = get_v1(shapes, edge);
         secondary_edge_weight = distance(v0, v1) * exterior_dihedral;
@@ -217,6 +212,12 @@ EdgeSampler::EdgeSampler(const std::vector<const Shape*> &shapes,
             secondary_edges_cdf.begin(),
             thrust::identity<Real>(), Real(0), thrust::plus<Real>());
     }
+
+    edge_tree = std::unique_ptr<EdgeTree>(
+        new EdgeTree(scene.use_gpu,
+                     scene.camera,
+                     shapes_buffer,
+                     edges.view(0, edges.size())));
 }
 
 struct primary_edge_sampler {

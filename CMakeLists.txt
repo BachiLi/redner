@@ -38,11 +38,13 @@ endif()
 
 set(SRCS active_pixels.h
          area_light.h
+         atomic.h
          buffer.h
          camera.h
          channels.h
          cuda_utils.h
          edge.h
+         edge_tree.h
          envmap.h
          frame.h
          intersection.h
@@ -69,6 +71,7 @@ set(SRCS active_pixels.h
          camera.cpp
          channels.cpp
          edge.cpp
+         edge_tree.cpp
          envmap.cpp
          load_serialized.cpp
          material.cpp
@@ -99,11 +102,12 @@ if(CUDA_FOUND)
     add_compile_definitions(COMPILE_WITH_CUDA)
     set_source_files_properties(
         active_pixels.cpp
+        area_light.cpp
         camera.cpp
         channels.cpp
         edge.cpp
+        edge_tree.cpp
         envmap.cpp
-        area_light.cpp
         material.cpp
         parallel.cpp
         pathtracer.cpp
