@@ -10,38 +10,6 @@
 #include <thrust/fill.h>
 #include <thrust/partition.h>
 
-DEVICE AABB3 merge(const AABB3 &b0, const AABB3 &b1) {
-    return AABB3{
-        Vector3{
-            min(b0.p_min[0], b1.p_min[0]),
-            min(b0.p_min[1], b1.p_min[1]),
-            min(b0.p_min[2], b1.p_min[2])},
-        Vector3{
-            max(b0.p_max[0], b1.p_max[0]),
-            max(b0.p_max[1], b1.p_max[1]),
-            max(b0.p_max[2], b1.p_max[2])}};
-}
-
-DEVICE AABB6 merge(const AABB6 &b0, const AABB6 &b1) {
-    return AABB6{
-        Vector3{
-            min(b0.p_min[0], b1.p_min[0]),
-            min(b0.p_min[1], b1.p_min[1]),
-            min(b0.p_min[2], b1.p_min[2])},
-        Vector3{
-            min(b0.d_min[0], b1.d_min[0]),
-            min(b0.d_min[1], b1.d_min[1]),
-            min(b0.d_min[2], b1.d_min[2])},
-        Vector3{
-            max(b0.p_max[0], b1.p_max[0]),
-            max(b0.p_max[1], b1.p_max[1]),
-            max(b0.p_max[2], b1.p_max[2])},
-        Vector3{
-            max(b0.d_max[0], b1.d_max[0]),
-            max(b0.d_max[1], b1.d_max[1]),
-            max(b0.d_max[2], b1.d_max[2])}};
-}
-
 struct edge_partitioner {
     DEVICE bool operator()(int edge_id) const {
         bool result = is_silhouette(shapes, cam_org, edges[edge_id]);
@@ -392,6 +360,7 @@ struct bvh_computer {
         auto v1 = get_v1(shapes, edge);
         auto exterior_dihedral = compute_exterior_dihedral_angle(shapes, edge);
         leaf->weighted_total_length = distance(v0, v1) * exterior_dihedral;
+        leaf->edge_id = edge_ids[idx];
 
         // Trace from leaf to root and merge bounding boxes & length
         auto current = leaf->parent;
@@ -399,7 +368,10 @@ struct bvh_computer {
         if (current != nullptr) {
             while(true) {
                 auto res = atomic_increment(node_counters + node_idx);
-                if (res > 1) {
+                if (res == 1) {
+                    // Terminate the first thread entering this node to avoid duplicate computation
+                    // It is important to terminate the first not the second so we ensure all children
+                    // are processed
                     return;
                 }
                 auto bbox = current->children[0]->bounds;
@@ -476,8 +448,6 @@ EdgeTree::EdgeTree(bool use_gpu,
     // We call the set of edges in 1) "cs_edges" and the set 2) "ncs_edges"
     BufferView<int> cs_edge_ids(edge_ids.begin(), partition_result - edge_ids.begin());
     BufferView<int> ncs_edge_ids(partition_result, edge_ids.end() - partition_result);
-    std::cerr << "cs_edge_ids.size():" << cs_edge_ids.size() << std::endl;
-    std::cerr << "ncs_edge_ids.size():" << ncs_edge_ids.size() << std::endl;
     Buffer<int> node_counters(use_gpu, edge_ids.size());
 
     // We build a 3D BVH over the camera silhouette edges, and build
@@ -509,7 +479,7 @@ EdgeTree::EdgeTree(bool use_gpu,
         cs_bvh_nodes = Buffer<BVHNode3>(use_gpu, max(cs_morton_codes.size() - 1, 1));
         cs_bvh_leaves = Buffer<BVHNode3>(use_gpu, cs_morton_codes.size());
         // Initialize nodes
-        BVHNode3 init_node{AABB3(), nullptr, {nullptr, nullptr}, Real(0)};
+        BVHNode3 init_node{AABB3(), Real(0), nullptr, {nullptr, nullptr}, -1};
         DISPATCH(use_gpu, thrust::fill, cs_bvh_nodes.begin(), cs_bvh_nodes.end(), init_node);
         DISPATCH(use_gpu, thrust::fill, cs_bvh_leaves.begin(), cs_bvh_leaves.end(), init_node);
         // Build tree (see
@@ -559,7 +529,7 @@ EdgeTree::EdgeTree(bool use_gpu,
         ncs_bvh_nodes = Buffer<BVHNode6>(use_gpu, max(ncs_morton_codes.size() - 1, 1));
         ncs_bvh_leaves = Buffer<BVHNode6>(use_gpu, ncs_morton_codes.size());
         // Initialize nodes
-        BVHNode6 init_node{AABB6(), nullptr, {nullptr, nullptr}, Real(0)};
+        BVHNode6 init_node{AABB6(), Real(0), nullptr, {nullptr, nullptr}, -1};
         DISPATCH(use_gpu, thrust::fill, ncs_bvh_nodes.begin(), ncs_bvh_nodes.end(), init_node);
         DISPATCH(use_gpu, thrust::fill, ncs_bvh_leaves.begin(), ncs_bvh_leaves.end(), init_node);
         // Build tree (see
@@ -581,6 +551,4 @@ EdgeTree::EdgeTree(bool use_gpu,
                     ncs_bvh_leaves.view(0, ncs_bvh_leaves.size()),
                     use_gpu);
     }
-    std::cerr << "Done" << std::endl;
-    exit(0);
 }

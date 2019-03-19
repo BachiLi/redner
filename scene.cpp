@@ -14,11 +14,6 @@
 #include <embree3/rtcore_ray.h>
 #include <algorithm>
 
-struct BoundingSphere {
-    Vector3 center;
-    Real radius;
-};
-
 struct vector3f_min {
     DEVICE Vector3f operator()(const Vector3f &a, const Vector3f &b) const {
         return Vector3{min(a.x, b.x), min(a.y, b.y), min(a.z, b.z)};
@@ -127,7 +122,7 @@ Scene::Scene(const Camera &camera,
     }
 
     // Compute bounding sphere
-    BoundingSphere bsphere;
+    Sphere bsphere;
     auto scene_min_pos = Vector3f{
         std::numeric_limits<float>::infinity(),
         std::numeric_limits<float>::infinity(),

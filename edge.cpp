@@ -4,12 +4,16 @@
 #include "parallel.h"
 #include "thrust_utils.h"
 #include "ltc.inc"
+#include "ltc_sphere.inc"
 
 #include <thrust/iterator/constant_iterator.h>
 #include <thrust/execution_policy.h>
 #include <thrust/sort.h>
 #include <thrust/transform_scan.h>
 #include <thrust/binary_search.h>
+
+// Set this to false to fallback to importance resampling if edge tree doesn't work
+constexpr bool c_use_edge_tree = true;
 
 struct edge_collector {
     DEVICE inline void operator()(int idx) {
@@ -181,43 +185,47 @@ EdgeSampler::EdgeSampler(const std::vector<const Shape*> &shapes,
             thrust::identity<Real>(), Real(0), thrust::plus<Real>());
     }
 
-    // Secondary edge sampler:
-    secondary_edges_pmf = Buffer<Real>(scene.use_gpu, edges.count);
-    secondary_edges_cdf = Buffer<Real>(scene.use_gpu, edges.count);
-    // For each edge we compute the length and store the length in 
-    // secondary_edges_pmf
-    parallel_for(secondary_edge_weighter{
-        scene.shapes.data,
-        edges.begin(),
-        secondary_edges_pmf.begin()
-    }, edges.size(), scene.use_gpu);
-    {
-        // Compute PMF & CDF
-        // First normalize secondary_edges_pmf.
-        auto total_length = DISPATCH(scene.use_gpu, thrust::reduce,
-            secondary_edges_pmf.begin(),
-            secondary_edges_pmf.end(),
-            Real(0),
-            thrust::plus<Real>());
-        DISPATCH(scene.use_gpu, thrust::transform,
-            secondary_edges_pmf.begin(),
-            secondary_edges_pmf.end(),
-            thrust::make_constant_iterator(total_length),
-            secondary_edges_pmf.begin(),
-            thrust::divides<Real>());
-        // Next we compute a prefix sum
-        DISPATCH(scene.use_gpu, thrust::transform_exclusive_scan,
-            secondary_edges_pmf.begin(),
-            secondary_edges_pmf.end(),
-            secondary_edges_cdf.begin(),
-            thrust::identity<Real>(), Real(0), thrust::plus<Real>());
+    // Secondary edge sampler
+    if (!c_use_edge_tree) {
+        // Build a global distribution if we are not using edge tree
+        secondary_edges_pmf = Buffer<Real>(scene.use_gpu, edges.count);
+        secondary_edges_cdf = Buffer<Real>(scene.use_gpu, edges.count);
+        // For each edge we compute the length and store the length in 
+        // secondary_edges_pmf
+        parallel_for(secondary_edge_weighter{
+            scene.shapes.data,
+            edges.begin(),
+            secondary_edges_pmf.begin()
+        }, edges.size(), scene.use_gpu);
+        {
+            // Compute PMF & CDF
+            // First normalize secondary_edges_pmf.
+            auto total_length = DISPATCH(scene.use_gpu, thrust::reduce,
+                secondary_edges_pmf.begin(),
+                secondary_edges_pmf.end(),
+                Real(0),
+                thrust::plus<Real>());
+            DISPATCH(scene.use_gpu, thrust::transform,
+                secondary_edges_pmf.begin(),
+                secondary_edges_pmf.end(),
+                thrust::make_constant_iterator(total_length),
+                secondary_edges_pmf.begin(),
+                thrust::divides<Real>());
+            // Next we compute a prefix sum
+            DISPATCH(scene.use_gpu, thrust::transform_exclusive_scan,
+                secondary_edges_pmf.begin(),
+                secondary_edges_pmf.end(),
+                secondary_edges_cdf.begin(),
+                thrust::identity<Real>(), Real(0), thrust::plus<Real>());
+        }
+    } else {
+        // Build a hierarchical data structure for edge sampling
+        edge_tree = std::unique_ptr<EdgeTree>(
+            new EdgeTree(scene.use_gpu,
+                         scene.camera,
+                         shapes_buffer,
+                         edges.view(0, edges.size())));
     }
-
-    edge_tree = std::unique_ptr<EdgeTree>(
-        new EdgeTree(scene.use_gpu,
-                     scene.camera,
-                     shapes_buffer,
-                     edges.view(0, edges.size())));
 }
 
 struct primary_edge_sampler {
@@ -625,6 +633,311 @@ inline Matrix3x3 get_ltc_matrix(const Material &material,
 }
 
 struct secondary_edge_sampler {
+    DEVICE
+    Real get_sphere_tab(Real cos_theta, Real form_factor) {
+        auto N = ltc::tab_sphere_size;
+        auto uid = clamp(int(cos_theta * 0.5f + 0.5f * (N - 1)), 0, N - 1);
+        auto vid = clamp(int(form_factor * (N - 1)), 0, N - 1);
+        return ltc::tabSphere[uid + vid * N];
+    }
+
+    DEVICE Vector3 solve_cubic(Real c0, Real c1, Real c2, Real c3) {
+        // https://blog.selfshadow.com/ltc/webgl/ltc_disk.html
+        // http://momentsingraphics.de/?p=105
+
+        // Normalize the polynomial
+        auto inv_c3 = 1.f / c3;
+        c0 *= inv_c3;
+        c1 *= inv_c3;
+        c2 *= inv_c3;
+        // Divide middle coefficients by three
+        c1 /= 3.f;
+        c2 /= 3.f;
+
+        auto A = c3;
+        auto B = c2;
+        auto C = c1;
+        auto D = c0;
+
+        // Compute the Hessian and the discriminant
+        auto delta = Vector3{
+            -square(c2) + c1,
+            -c1 * c2 + c0,
+            dot(Vector2{c2, -c1}, Vector2{c0, c1})
+        };
+
+        auto discriminant = dot(
+            Vector2{4.0f * delta.x, -delta.y},
+            Vector2{delta.z, delta.y});
+
+        auto xlc = Vector2{0, 0};
+        auto xsc = Vector2{0, 0};
+
+        // Algorithm A
+        {
+            // auto A_a = Real(1);
+            auto C_a = delta.x;
+            auto D_a = -2.0f * B * delta.x + delta.y;
+
+            // Take the cubic root of a normalized complex number
+            auto theta = atan2(sqrt(discriminant), -D_a) / 3.0f;
+
+            auto x_1a = 2.0f * sqrt(-C_a) * cos(theta);
+            auto x_3a = 2.0f * sqrt(-C_a) * cos(theta + (2.0/3.0) * Real(M_PI));
+
+            auto xl = Real(0);
+            if ((x_1a + x_3a) > 2.0f * B) {
+                xl = x_1a;
+            } else {
+                xl = x_3a;
+            }
+
+            xlc = Vector2{xl - B, A};
+        }
+
+        // Algorithm D
+        {
+            // auto A_d = D;
+            auto C_d = delta.z;
+            auto D_d = -D * delta.y + 2.0 * C * delta.z;
+
+            // Take the cubic root of a normalized complex number
+            auto theta = atan2(D * sqrt(discriminant), -D_d) / 3.0f;
+
+            auto x_1d = 2.0f * sqrt(-C_d) * cos(theta);
+            auto x_3d = 2.0f * sqrt(-C_d) * cos(theta + (2.0f/3.0f)*Real(M_PI));
+
+            auto xs = Real(0);
+            if (x_1d + x_3d < 2.0f*C) {
+                xs = x_1d;
+            } else {
+                xs = x_3d;
+            }
+
+            xsc = Vector2{-D, xs + C};
+        }
+
+        auto E =  xlc.y*xsc.y;
+        auto F = -xlc.x*xsc.y - xlc.y*xsc.x;
+        auto G =  xlc.x*xsc.x;
+
+        auto xmc = Vector2{C*F - B*G, -B*F + C*E};
+
+        auto root = Vector3{xsc.x/xsc.y, xmc.x/xmc.y, xlc.x/xlc.y};
+
+        if (root.x < root.y && root.x < root.z) {
+            root = Vector3{root.y, root.x, root.z};
+        } else if (root.z < root.x && root.z < root.y) {
+            root = Vector3{root.x, root.z, root.y};
+        }
+
+        return root;
+    }
+
+    DEVICE Real ltc_sphere_integral(const Sphere &b_sphere,
+                                    const SurfacePoint &p,
+                                    const Matrix3x3 &m_inv) {
+        // TODO: there might be a faster way to do this for pure diffuse case
+        // https://blog.selfshadow.com/ltc/webgl/ltc_disk.html
+        // We integrate over the sphere by creating a disk having the same solid angle
+        // then we apply m_inv to transform it
+        // C = center of the disk
+        auto C = to_local(p.shading_frame, b_sphere.center);
+        // V1, V2 = coordinate frame
+        auto V1 = Vector3{0, 0, 0}, V2 = Vector3{0, 0, 0};
+        coordinate_system(C, V1, V2);
+        V1 *= b_sphere.radius;
+        V2 *= b_sphere.radius;
+        C = m_inv * C;
+        V1 = m_inv * V1;
+        V2 = m_inv * V2;
+        if (dot(cross(V1, V2), C) <= 0) {
+            return 0;
+        }
+        // V1 & V2 are not orthogonal after transformation
+        // Therefore we compute eigen decomposition
+        auto a = Real(0);
+        auto b = Real(0);
+        auto d11 = dot(V1, V1);
+        auto d22 = dot(V2, V2);
+        auto d12 = dot(V1, V2);
+        if (fabs(d12) / sqrt(d11 * d22) > 1e-4f) {
+            auto tr = d11 + d22;
+            auto det = -d12*d12 + d11*d22;
+
+            // Use sqrt matrix to solve for eigenvalues
+            det = sqrt(det);
+            auto u = 0.5f * sqrt(tr - 2.0f * det);
+            auto v = 0.5f * sqrt(tr + 2.0f * det);
+            auto e_max = square(u + v);
+            auto e_min = square(u - v);
+
+            auto V1_ = Vector3{0, 0, 0};
+            auto V2_ = Vector3{0, 0, 0};
+
+            if (d11 > d22) {
+                V1_ = d12*V1 + (e_max - d11)*V2;
+                V2_ = d12*V1 + (e_min - d11)*V2;
+            } else {
+                V1_ = d12*V2 + (e_max - d22)*V1;
+                V2_ = d12*V2 + (e_min - d22)*V1;
+            }
+
+            a = 1.f / e_max;
+            b = 1.f / e_min;
+            V1 = normalize(V1_);
+            V2 = normalize(V2_);
+        } else {
+            a = 1.f / d11;
+            b = 1.f / d22;
+            V1 *= sqrt(a);
+            V2 *= sqrt(b);
+        }
+
+        auto V3 = cross(V1, V2);
+        if (dot(C, V3) < 0.f) {
+            V3 = -V3;
+        }
+
+        auto L = dot(V3, C);
+        auto x0 = dot(V1, C) / L;
+        auto y0 = dot(V2, C) / L;
+
+        a *= square(L);
+        b *= square(L);
+
+        // Find the sphere that has the same solid angle as the ellipse
+        auto c0 = a * b;
+        auto c1 = a * b * (1.f + square(x0) + square(y0)) - a - b;
+        auto c2 = 1.f - a * (1.f + square(x0)) - b * (1.f + square(y0));
+        auto c3 = Real(1);
+        auto roots = solve_cubic(c0, c1, c2, c3);
+        auto e1 = roots.x;
+        auto e2 = roots.y;
+        auto e3 = roots.z;
+        auto avg_dir = Vector3{a*x0/(a - e2), b*y0/(b - e2), Real(1)};
+        auto rotate = Matrix3x3{
+            V1.x, V2.x, V3.x,
+            V1.y, V2.y, V3.y,
+            V1.z, V2.z, V3.z};
+        avg_dir = normalize(rotate * avg_dir);
+        auto L1 = sqrt(-e2 / e3);
+        auto L2 = sqrt(-e2 / e1);
+        auto form_factor = L1 * L2 / sqrt((1.f + square(L1)) * (1.f + square(L2)));
+        return get_sphere_tab(avg_dir.z, form_factor) * form_factor;
+    }
+
+    DEVICE Real importance(const BVHNode3 &node,
+                           const SurfacePoint &p,
+                           const Matrix3x3 &m_inv) {
+        // importance = BRDF * weighted length / dist^2
+        // For BRDF we take the bounding sphere of the AABB and integrate the LTC over it
+        // (see https://blogs.unity3d.com/2017/07/21/real-time-line-and-disk-light-shading-with-linearly-transformed-cosines/)
+        auto b_sphere = compute_bounding_sphere(node.bounds);
+        auto brdf_term = Real(M_PI);
+        if (!inside(b_sphere, p.position)) {
+            brdf_term = ltc_sphere_integral(b_sphere, p, m_inv);
+        }
+        return brdf_term * node.weighted_total_length
+            / max(distance_squared(b_sphere.center, p.position), Real(1e-6f));
+    }
+
+    DEVICE Real importance(const BVHNode6 &node,
+                           const SurfacePoint &p,
+                           const Matrix3x3 &m_inv) {
+        // importance = BRDF * weighted length / dist^2
+        // Except if the sphere centered at p which has radius of distance(p, cam_org)
+        // does not intersect the directional bounding box of node, 
+        // the importance is zero (see Olson and Zhang 2006)
+        auto d_bounds = AABB3{node.bounds.d_min, node.bounds.d_max};
+        if (!intersect(Sphere{p.position, distance(p.position, cam_org)}, d_bounds)) {
+            return 0;
+        }
+        auto p_bounds = AABB3{node.bounds.p_min, node.bounds.p_max};
+        auto b_sphere = compute_bounding_sphere(p_bounds);
+        auto brdf_term = Real(M_PI);
+        if (!inside(b_sphere, p.position)) {
+            brdf_term = ltc_sphere_integral(b_sphere, p, m_inv);
+        }
+        return brdf_term * node.weighted_total_length
+            / max(distance_squared(b_sphere.center, p.position), Real(1e-6f));
+    }
+
+    template <typename BVHNodeType>
+    DEVICE int sample_edge(const BVHNodeType &node,
+                           const SurfacePoint &p,
+                           const Matrix3x3 &m_inv,
+                           Real sample,
+                           Real &pmf) {
+        if (node.edge_id != -1) {
+            return node.edge_id;
+        }
+        assert(node.children[0] != nullptr &&
+               node.children[1] != nullptr);
+        auto imp0 = importance(*node.children[0], p, m_inv);
+        auto imp1 = importance(*node.children[1], p, m_inv);
+        auto prob_0 = imp0 / (imp0 + imp1);
+        if (sample < prob_0) {
+            pmf *= prob_0;
+            // Rescale to [0, 1]
+            sample = sample * (imp0 + imp1) / imp0;
+            return sample_edge(*node.children[0],
+                               p,
+                               m_inv,
+                               sample,
+                               pmf);
+        } else {
+            auto prob_1 = 1.f - prob_0;
+            pmf *= prob_1;
+            // Rescale to [0, 1]
+            sample = (sample * (imp0 + imp1) - imp0) / imp1;
+            return sample_edge(*node.children[1],
+                               p,
+                               m_inv,
+                               sample,
+                               pmf);
+        }
+    }
+
+    DEVICE int sample_edge(const EdgeTreeRoots &edge_tree_roots,
+                           const SurfacePoint &p,
+                           const Matrix3x3 &m_inv,
+                           Real sample,
+                           Real &pmf) {
+        auto imp_cs = Real(0);
+        if (edge_tree_roots.cs_bvh_root != nullptr) {
+            imp_cs = importance(*edge_tree_roots.cs_bvh_root,
+                                p,
+                                m_inv);
+        }
+        auto imp_ncs = Real(0);
+        if (edge_tree_roots.ncs_bvh_root != nullptr) {
+            imp_ncs = importance(*edge_tree_roots.ncs_bvh_root,
+                                 p,
+                                 m_inv);
+        }
+        auto prob_cs = imp_cs / (imp_cs + imp_ncs);
+        if (sample < prob_cs) {
+            pmf = prob_cs;
+            // Rescale to [0, 1]
+            sample = sample * (imp_cs + imp_ncs) / imp_cs;
+            return sample_edge(*edge_tree_roots.cs_bvh_root,
+                               p,
+                               m_inv,
+                               sample,
+                               pmf);
+        } else {
+            pmf = 1.f - prob_cs;
+            // Rescale to [0, 1]
+            sample = (sample * (imp_cs + imp_ncs) - imp_cs) / imp_ncs;
+            return sample_edge(*edge_tree_roots.ncs_bvh_root,
+                               p,
+                               m_inv,
+                               sample,
+                               pmf);
+        }
+    }
+
     DEVICE void operator()(int idx) {
         auto pixel_id = active_pixels[idx];
         const auto &edge_sample = edge_samples[idx];
@@ -672,11 +985,13 @@ struct secondary_edge_sampler {
         auto isotropic_frame = Frame{frame_x, frame_y, n};
         auto m = Matrix3x3{};
         auto m_inv = Matrix3x3{};
+        auto ltc_magnitude = Real(0);
         if (edge_sample.bsdf_component <= diffuse_pmf) {
             // M is shading frame * identity
             m_inv = Matrix3x3(isotropic_frame);
             m = inverse(m_inv);
             m_pmf = diffuse_pmf;
+            ltc_magnitude = Real(1);
         } else {
             m_inv = inverse(get_ltc_matrix(material, shading_point, wi, min_rough)) *
                     Matrix3x3(isotropic_frame);
@@ -684,91 +999,102 @@ struct secondary_edge_sampler {
             m_pmf = specular_pmf;
         }
 
-        // Sample an edge by importance resampling:
-        // We randomly sample M edges, estimate contribution based on LTC, 
-        // then sample based on the estimated contribution.
-        // TODO: a properer strategy is to traverse a tree to fill up the M slots
-        constexpr int M = 64;
-        int edge_ids[M];
-        Real edge_weights[M];
-        Real resample_cdf[M];
-        for (int sample_id = 0; sample_id < M; sample_id++) {
-            // Sample an edge by binary search on cdf
-            // We use some form of stratification over the M samples here: 
-            // the random number we use is mod(edge_sample.edge_sel + i / M, 1)
-            // It enables us to choose M edges with a single random number
-            const Real *edge_ptr = thrust::upper_bound(thrust::seq,
-                edges_cdf, edges_cdf + num_edges,
-                modulo(edge_sample.edge_sel + Real(sample_id) / M, Real(1)));
-            auto edge_id = clamp((int)(edge_ptr - edges_cdf - 1), 0, num_edges - 1);
-            edge_ids[sample_id] = edge_id;
-            edge_weights[sample_id] = 0;
-            const auto &edge = edges[edge_id];
-            // If the edge lies on the same triangle of shading isects, the weight is 0
-            // If not a silhouette edge, the weight is 0
-            bool same_tri = edge.shape_id == shading_isect.shape_id &&
-                (edge.v0 == shading_isect.tri_id || edge.v1 == shading_isect.tri_id);
-            if (edges_pmf[edge_id] > 0 &&
-                    is_silhouette(shapes, shading_point.position, edge) &&
-                    !same_tri) {
-                auto v0 = Vector3{get_v0(shapes, edge)};
-                auto v1 = Vector3{get_v1(shapes, edge)};
-                // If degenerate, the weight is 0
-                if (length_squared(v1 - v0) > 1e-10f) {
-                    // Transform the vertices to local coordinates
-                    auto v0o = m_inv * (v0 - shading_point.position);
-                    auto v1o = m_inv * (v1 - shading_point.position);
-                    // If below surface, the weight is 0
-                    if (v0o[2] > 0.f || v1o[2] > 0.f) {
-                        // Clip to the surface tangent plane
-                        if (v0o[2] < 0.f) {
-                            v0o = (v0o*v1o[2] - v1o*v0o[2]) / (v1o[2] - v0o[2]);
+        auto edge_id = -1;
+        auto edge_sample_weight = Real(0);
+        if (edges_pmf != nullptr) {
+            // Sample an edge by importance resampling:
+            // We randomly sample M edges, estimate contribution based on LTC, 
+            // then sample based on the estimated contribution.
+            constexpr int M = 64;
+            int edge_ids[M];
+            Real edge_weights[M];
+            Real resample_cdf[M];
+            for (int sample_id = 0; sample_id < M; sample_id++) {
+                // Sample an edge by binary search on cdf
+                // We use some form of stratification over the M samples here: 
+                // the random number we use is mod(edge_sample.edge_sel + i / M, 1)
+                // It enables us to choose M edges with a single random number
+                const Real *edge_ptr = thrust::upper_bound(thrust::seq,
+                    edges_cdf, edges_cdf + num_edges,
+                    modulo(edge_sample.edge_sel + Real(sample_id) / M, Real(1)));
+                auto edge_id = clamp((int)(edge_ptr - edges_cdf - 1), 0, num_edges - 1);
+                edge_ids[sample_id] = edge_id;
+                edge_weights[sample_id] = 0;
+                const auto &edge = edges[edge_id];
+                // If the edge lies on the same triangle of shading isects, the weight is 0
+                // If not a silhouette edge, the weight is 0
+                bool same_tri = edge.shape_id == shading_isect.shape_id &&
+                    (edge.v0 == shading_isect.tri_id || edge.v1 == shading_isect.tri_id);
+                if (edges_pmf[edge_id] > 0 &&
+                        is_silhouette(shapes, shading_point.position, edge) &&
+                        !same_tri) {
+                    auto v0 = Vector3{get_v0(shapes, edge)};
+                    auto v1 = Vector3{get_v1(shapes, edge)};
+                    // If degenerate, the weight is 0
+                    if (length_squared(v1 - v0) > 1e-10f) {
+                        // Transform the vertices to local coordinates
+                        auto v0o = m_inv * (v0 - shading_point.position);
+                        auto v1o = m_inv * (v1 - shading_point.position);
+                        // If below surface, the weight is 0
+                        if (v0o[2] > 0.f || v1o[2] > 0.f) {
+                            // Clip to the surface tangent plane
+                            if (v0o[2] < 0.f) {
+                                v0o = (v0o*v1o[2] - v1o*v0o[2]) / (v1o[2] - v0o[2]);
+                            }
+                            if (v1o[2] < 0.f) {
+                                v1o = (v0o*v1o[2] - v1o*v0o[2]) / (v1o[2] - v0o[2]);
+                            }
+                            // Integrate over the edge using LTC
+                            auto vodir = v1o - v0o;
+                            auto wt = normalize(vodir);
+                            auto l0 = dot(v0o, wt);
+                            auto l1 = dot(v1o, wt);
+                            auto vo = v0o - l0 * wt;
+                            auto d = length(vo);
+                            auto I = [&](Real l) {
+                                return (l/(d*(d*d+l*l))+atan(l/d)/(d*d))*vo[2] +
+                                       (l*l/(d*(d*d+l*l)))*wt[2];
+                            };
+                            auto Il0 = I(l0);
+                            auto Il1 = I(l1);
+                            edge_weights[sample_id] = max((Il1 - Il0) / edges_pmf[edge_id], Real(0));
                         }
-                        if (v1o[2] < 0.f) {
-                            v1o = (v0o*v1o[2] - v1o*v0o[2]) / (v1o[2] - v0o[2]);
-                        }
-                        // Integrate over the edge using LTC
-                        auto vodir = v1o - v0o;
-                        auto wt = normalize(vodir);
-                        auto l0 = dot(v0o, wt);
-                        auto l1 = dot(v1o, wt);
-                        auto vo = v0o - l0 * wt;
-                        auto d = length(vo);
-                        auto I = [&](Real l) {
-                            return (l/(d*(d*d+l*l))+atan(l/d)/(d*d))*vo[2] +
-                                   (l*l/(d*(d*d+l*l)))*wt[2];
-                        };
-                        auto Il0 = I(l0);
-                        auto Il1 = I(l1);
-                        edge_weights[sample_id] = max((Il1 - Il0) / edges_pmf[edge_id], Real(0));
                     }
                 }
+                if (sample_id == 0) {
+                    resample_cdf[sample_id] = edge_weights[sample_id];
+                } else { // sample_id > 0
+                    resample_cdf[sample_id] = resample_cdf[sample_id - 1] + edge_weights[sample_id];
+                }
             }
-            if (sample_id == 0) {
-                resample_cdf[sample_id] = edge_weights[sample_id];
-            } else { // sample_id > 0
-                resample_cdf[sample_id] = resample_cdf[sample_id - 1] + edge_weights[sample_id];
+            if (resample_cdf[M - 1] <= 0) {
+                return;
             }
-        }
-        if (resample_cdf[M - 1] <= 0) {
-            return;
-        }
-        // Use resample_cdf to pick one edge
-        auto resample_u = edge_sample.resample_sel * resample_cdf[M - 1];
-        auto resample_id = -1;
-        for (int sample_id = 0; sample_id < M; sample_id++) {
-            if (resample_u <= resample_cdf[sample_id]) {
-                resample_id = sample_id;
-                break;
+            // Use resample_cdf to pick one edge
+            auto resample_u = edge_sample.resample_sel * resample_cdf[M - 1];
+            auto resample_id = -1;
+            for (int sample_id = 0; sample_id < M; sample_id++) {
+                if (resample_u <= resample_cdf[sample_id]) {
+                    resample_id = sample_id;
+                    break;
+                }
             }
+            if (edge_weights[resample_id] <= 0 || resample_id == -1) {
+                // Just in case if there's some numerical error
+                return;
+            }
+            edge_sample_weight = (resample_cdf[M - 1] / M) /
+                (edge_weights[resample_id] * edges_pmf[edge_ids[resample_id]]);
+            edge_id = edge_ids[resample_id];
+        } else {
+            // sample using a tree traversal
+            auto pmf = Real(0);
+            edge_id = sample_edge(edge_tree_roots,
+                shading_point, m_inv, edge_sample.edge_sel, pmf);
+            edge_sample_weight = 1 / pmf;
         }
-        if (edge_weights[resample_id] <= 0 || resample_id == -1) {
-            // Just in case if there's some numerical error
-            return;
-        }
-        auto resample_weight = (resample_cdf[M - 1] / M) /
-            (edge_weights[resample_id] * edges_pmf[edge_ids[resample_id]]);
-        const auto &edge = edges[edge_ids[resample_id]];
+
+        const auto &edge = edges[edge_id];
 
         auto v0 = Vector3{get_v0(shapes, edge)};
         auto v1 = Vector3{get_v1(shapes, edge)};
@@ -899,7 +1225,7 @@ struct secondary_edge_sampler {
         bsdf_differentials[2 * idx + 1] = bsdf_ray_differential;
         // edge_weight doesn't take the Jacobian between the shading point
         // and the ray intersection into account. We'll compute this later
-        auto edge_weight = resample_weight / (m_pmf * line_pdf(l));
+        auto edge_weight = edge_sample_weight / (m_pmf * line_pdf(l));
         auto nt = throughput * eval_bsdf * d_color * edge_weight;
         // assert(isfinite(throughput));
         // assert(isfinite(eval_bsdf));
@@ -913,8 +1239,10 @@ struct secondary_edge_sampler {
     const Material *materials;
     const Edge *edges;
     int num_edges;
+    const Vector3 cam_org;
     const Real *edges_pmf;
     const Real *edges_cdf;
+    const EdgeTreeRoots edge_tree_roots;
     const int *active_pixels;
     const SecondaryEdgeSample *edge_samples;
     const Ray *incoming_rays;
@@ -948,13 +1276,16 @@ void sample_secondary_edges(const Scene &scene,
                             BufferView<RayDifferential> &bsdf_differentials,
                             BufferView<Vector3> new_throughputs,
                             BufferView<Real> edge_min_roughness) {
+    auto cam_org = xfm_point(scene.camera.cam_to_world, Vector3{0, 0, 0});
     parallel_for(secondary_edge_sampler{
         scene.shapes.data,
         scene.materials.data,
         scene.edge_sampler.edges.begin(),
         (int)scene.edge_sampler.edges.size(),
+        cam_org,
         scene.edge_sampler.secondary_edges_pmf.begin(),
         scene.edge_sampler.secondary_edges_cdf.begin(),
+        get_edge_tree_roots(scene.edge_sampler.edge_tree.get()),
         active_pixels.begin(),
         samples.begin(),
         incoming_rays.begin(),

@@ -355,7 +355,7 @@ inline TVector3<T> d_length(const TVector3<T> &v0, const T &d_l) {
 template <typename T0, typename T1>
 DEVICE
 inline auto distance_squared(const TVector3<T0> &v0,
-                     const TVector3<T1> &v1) {
+                             const TVector3<T1> &v1) {
     return length_squared(v1 - v0);
 }
 
@@ -405,6 +405,13 @@ inline TVector3<T> d_normalize(const TVector3<T> &v0, const TVector3<T> &d_n) {
     auto d_v0 = d_n / l;
     auto d_l = -(d_n[0] * n[0] + d_n[1] * n[1] + d_n[2] * n[2]) / l;
     return d_v0 + d_length(v0, d_l);
+}
+
+template <typename T0, typename T1>
+DEVICE
+inline auto dot(const TVector2<T0> &v0, const TVector2<T1> &v1) {
+    return v0[0] * v1[0] +
+           v0[1] * v1[1];
 }
 
 template <typename T0, typename T1>

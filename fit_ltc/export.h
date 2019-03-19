@@ -137,4 +137,31 @@ void writeDDS(mat3 * tab, vec2 * tabAmplitude, int N)
 	delete [] data;
 }
 
+void writeSphereTabC(float * tab, int N)
+{
+	ofstream file("results/ltc_sphere.inc");
+
+	file << std::fixed;
+	file << std::setprecision(6);
+
+	file << "namespace ltc {" << endl;
+
+	file << "static const int tab_sphere_size = " << N  << ";" << endl << endl;
+
+	file << "static const float tabSphere[tab_sphere_size*tab_sphere_size] = {" << endl;
+	for(int t = 0 ; t < N ; ++t)
+	for(int a = 0 ; a < N ; ++a)
+	{
+		file << tab[a + t*N];
+		if(a != N-1 || t != N-1)
+			file << ", ";
+		file << endl;
+	}
+	file << "};" << endl << endl;
+
+	file << "}" << endl;
+
+	file.close();
+}
+
 #endif
