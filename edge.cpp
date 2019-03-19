@@ -850,7 +850,6 @@ struct secondary_edge_sampler {
         // importance = BRDF * weighted length / dist^2
         // For BRDF we take the bounding sphere of the AABB and integrate the LTC over it
         // (see https://blogs.unity3d.com/2017/07/21/real-time-line-and-disk-light-shading-with-linearly-transformed-cosines/)
-        std::cerr << "node.bounds:" << node.bounds << std::endl;
         auto b_sphere = compute_bounding_sphere(node.bounds);
         auto brdf_term = Real(M_PI);
         if (!inside(b_sphere, p.position)) {
@@ -878,7 +877,6 @@ struct secondary_edge_sampler {
                               0.5f * distance(p.position, cam_org)}, d_bounds)) {
             return 0;
         }
-        std::cerr << "p_bounds:" << p_bounds << std::endl;
         auto b_sphere = compute_bounding_sphere(p_bounds);
         auto brdf_term = Real(M_PI);
         if (!inside(b_sphere, p.position)) {
@@ -908,7 +906,6 @@ struct secondary_edge_sampler {
         auto prob_0 = imp0 / (imp0 + imp1);
         if (sample < prob_0) {
             pmf *= prob_0;
-            std::cerr << "pmf:" << pmf << std::endl;
             // Rescale to [0, 1]
             sample = sample * (imp0 + imp1) / imp0;
             return sample_edge(*node.children[0],
@@ -950,15 +947,10 @@ struct secondary_edge_sampler {
             return -1;
         }
         auto prob_cs = imp_cs / (imp_cs + imp_ncs);
-        std::cerr << "imp_cs:" << imp_cs << std::endl;
-        std::cerr << "imp_ncs:" << imp_ncs << std::endl;
-        std::cerr << "sample:" << sample << ", prob_cs:" << prob_cs << std::endl;
         if (sample < prob_cs) {
             pmf = prob_cs;
             // Rescale to [0, 1]
             sample = sample * (imp_cs + imp_ncs) / imp_cs;
-            std::cerr << "sample:" << sample << std::endl;
-            std::cerr << "pmf:" << pmf << std::endl;
             return sample_edge(*edge_tree_roots.cs_bvh_root,
                                p,
                                m_inv,
@@ -1037,7 +1029,6 @@ struct secondary_edge_sampler {
             m_pmf = specular_pmf;
         }
 
-        std::cerr << "test" << std::endl;
         auto edge_id = -1;
         auto edge_sample_weight = Real(0);
         if (edges_pmf != nullptr) {
@@ -1145,12 +1136,10 @@ struct secondary_edge_sampler {
 
         auto v0 = Vector3{get_v0(shapes, edge)};
         auto v1 = Vector3{get_v1(shapes, edge)};
-        std::cerr << "v0:" << v0 << ", v1:" << v1 << std::endl;
 
         // Transform the vertices to local coordinates
         auto v0o = m_inv * (v0 - shading_point.position);
         auto v1o = m_inv * (v1 - shading_point.position);
-        std::cerr << "v0o:" << v0o << ", v1o:" << v1o << std::endl;
         if (v0o[2] <= 0.f && v1o[2] <= 0.f) {
             // Edge is below the shading point
             return;
@@ -1164,9 +1153,7 @@ struct secondary_edge_sampler {
             v1o = (v0o*v1o[2] - v1o*v0o[2]) / (v1o[2] - v0o[2]);
         }
         auto vodir = v1o - v0o;
-        std::cerr << "vodir:" << vodir << std::endl;
         auto wt = normalize(vodir);
-        std::cerr << "wt:" << wt << std::endl;
         auto l0 = dot(v0o, wt);
         auto l1 = dot(v1o, wt);
         auto vo = v0o - l0 * wt;
@@ -1211,8 +1198,6 @@ struct secondary_edge_sampler {
             auto derivative = line_pdf(l);
             l -= value / derivative;
         }
-        std::cerr << "lb:" << lb << ", ub:" << ub << std::endl;
-        std::cerr << "l:" << l << ", line_cdf(l):" << line_cdf(l) << ", line_pdf(l):" << line_pdf(l) << std::endl;
         if (line_pdf(l) <= 0.f) {
             // Numerical issue
             return;
@@ -1288,9 +1273,6 @@ struct secondary_edge_sampler {
         // assert(isfinite(throughput));
         // assert(isfinite(eval_bsdf));
         // assert(isfinite(d_color));
-        std::cerr << "edge_sample_weight:" << edge_sample_weight << std::endl;
-        std::cerr << "m_pmf:" << m_pmf << std::endl;
-        std::cerr << "line_pdf(l):" << line_pdf(l) << std::endl;
         assert(isfinite(edge_weight));
         new_throughputs[2 * idx + 0] = nt;
         new_throughputs[2 * idx + 1] = -nt;

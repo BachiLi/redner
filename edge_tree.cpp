@@ -166,7 +166,7 @@ void compute_morton_codes(const AABB3 &scene_bounds,
                           bool use_gpu) {
     parallel_for(morton_code_3d_computer{
                      scene_bounds, edge_bounds.begin(), morton_codes.begin()},
-                 edge_bounds.size(),
+                 morton_codes.size(),
                  use_gpu);
 }
 
@@ -211,7 +211,7 @@ struct morton_code_6d_computer {
 
     DEVICE void operator()(int idx) {
         // This might be suboptimal -- should probably use raw edge information directly
-        const AABB6 &box = edge_aabbs[idx];
+        const auto &box = edge_aabbs[idx];
         morton_codes[idx] = morton6D(0.5f * (box.p_min + box.p_max),
                                      0.5f * (box.d_min + box.d_max));
     }
@@ -226,7 +226,7 @@ void compute_morton_codes(const AABB6 &scene_bounds,
                           BufferView<uint64_t> morton_codes,
                           bool use_gpu) {
     parallel_for(morton_code_6d_computer{scene_bounds, edge_aabbs.begin(), morton_codes.begin()},
-                 edge_aabbs.size(),
+                 morton_codes.size(),
                  use_gpu);
 }
 
