@@ -6,6 +6,7 @@
 #include "parallel.h"
 #include "thrust_utils.h"
 
+#include <thrust/transform_reduce.h>
 #include <thrust/sequence.h>
 #include <thrust/fill.h>
 #include <thrust/partition.h>
@@ -44,7 +45,7 @@ struct edge_6d_bounds_computer {
         } else {
             n1 = get_n1(shapes, edge);
         }
-        auto p = 0.5f * (v0 + v1);
+        auto p = 0.5f * (v0 + v1) - cam_org;
         // plane 0 is n0.x * x + n0.y * y + n0.z * z = dot(p, n0)
         auto p0d = dot(p, n0);
         auto p1d = dot(p, n1);
@@ -64,52 +65,38 @@ struct edge_6d_bounds_computer {
     const Shape *shapes;
     const Edge *edges;
     const int *edge_ids;
+    const Vector3 cam_org;
     AABB6 *edge_aabbs;
 };
 
 void compute_edge_bounds(const Shape *shapes,
                          const BufferView<Edge> &edges,
                          const BufferView<int> &edge_ids,
+                         const Vector3 cam_org,
                          BufferView<AABB6> edge_aabbs,
                          bool use_gpu) {
     parallel_for(edge_6d_bounds_computer{
-                     shapes, edges.begin(), edge_ids.begin(), edge_aabbs.begin()},
+                     shapes, edges.begin(), edge_ids.begin(), cam_org, edge_aabbs.begin()},
                  edge_ids.size(),
                  use_gpu);
 }
 
-struct edge_3d_bounds_computer {
-    DEVICE void operator()(int idx) {
-        const auto &edge = edges[edge_ids[idx]];
-        // Compute position bound
-        auto v0 = get_v0(shapes, edge);
-        auto v1 = get_v1(shapes, edge);
-        auto p_min = Vector3{0, 0, 0};
-        auto p_max = Vector3{0, 0, 0};
-        for (int i = 0; i < 3; i++) {
-            p_min[i] = std::min(v0[i], v1[i]);
-            p_max[i] = std::max(v0[i], v1[i]);
-        }
-        edge_aabbs[idx].p_min = p_min;
-        edge_aabbs[idx].p_max = p_max;
+struct id_to_aabb3 {
+    DEVICE AABB3 operator()(int id) const {
+        auto b = bounds[id];
+        return AABB3{b.p_min, b.p_max};
     }
 
-    const Shape *shapes;
-    const Edge *edges;
-    const int *edge_ids;
-    AABB3 *edge_aabbs;
+    const AABB6 *bounds;
 };
 
-void compute_edge_bounds(const Shape *shapes,
-                         const BufferView<Edge> &edges,
-                         const BufferView<int> &edge_ids,
-                         BufferView<AABB3> edge_aabbs,
-                         bool use_gpu) {
-    parallel_for(edge_3d_bounds_computer{
-                     shapes, edges.begin(), edge_ids.begin(), edge_aabbs.begin()},
-                 edge_ids.size(),
-                 use_gpu);
-}
+struct id_to_aabb6 {
+    DEVICE AABB6 operator()(int id) const {
+        return bounds[id];
+    }
+
+    const AABB6 *bounds;
+};
 
 struct union_bounding_box {
     DEVICE AABB6 operator()(const AABB6 &b0, const AABB6 &b1) const {
@@ -151,7 +138,7 @@ struct morton_code_3d_computer {
     }
 
     DEVICE uint64_t morton3D(const Vector3 &p) {
-        Vector3 pp = (p - scene_bounds.p_min) / (scene_bounds.p_max - scene_bounds.p_min);
+        auto pp = (p - scene_bounds.p_min) / (scene_bounds.p_max - scene_bounds.p_min);
         for (int i = 0; i < 3; i++) {
             if (scene_bounds.p_max[i] - scene_bounds.p_min[i] <= 0.f) {
                 pp[i] = 0.5f;
@@ -163,18 +150,18 @@ struct morton_code_3d_computer {
     }
 
     DEVICE void operator()(int idx) {
-        // This is suboptimal -- should probably use raw edge information directly
-        const AABB3 &box = edge_aabbs[idx];
+        // This might be suboptimal -- should probably use raw edge information directly
+        auto box = convert_aabb<AABB3>(edge_aabbs[idx]);
         morton_codes[idx] = morton3D(0.5f * (box.p_min + box.p_max));
     }
 
     const AABB3 scene_bounds;
-    const AABB3 *edge_aabbs;
+    const AABB6 *edge_aabbs;
     uint64_t *morton_codes;
 };
 
 void compute_morton_codes(const AABB3 &scene_bounds,
-                          const BufferView<AABB3> &edge_bounds,
+                          const BufferView<AABB6> &edge_bounds,
                           BufferView<uint64_t> morton_codes,
                           bool use_gpu) {
     parallel_for(morton_code_3d_computer{
@@ -223,7 +210,7 @@ struct morton_code_6d_computer {
     }
 
     DEVICE void operator()(int idx) {
-        // This is suboptimal -- should probably use raw edge information directly
+        // This might be suboptimal -- should probably use raw edge information directly
         const AABB6 &box = edge_aabbs[idx];
         morton_codes[idx] = morton6D(0.5f * (box.p_min + box.p_max),
                                      0.5f * (box.d_min + box.d_max));
@@ -349,12 +336,12 @@ void build_radix_tree(const BufferView<uint64_t> &morton_codes,
         use_gpu);
 }
 
-template <typename BoundsType, typename BVHNodeType>
+template <typename BVHNodeType>
 struct bvh_computer {
     DEVICE void operator()(int idx) {
         const auto &edge = edges[edge_ids[idx]];
         auto leaf = &leaves[idx];
-        leaf->bounds = bounds[edge_ids[idx]];
+        leaf->bounds = convert_aabb<decltype(leaf->bounds)>(bounds[edge_ids[idx]]);
         // length * (pi - dihedral angle)
         auto v0 = get_v0(shapes, edge);
         auto v1 = get_v1(shapes, edge);
@@ -394,22 +381,22 @@ struct bvh_computer {
     const Shape *shapes;
     const Edge *edges;
     const int *edge_ids;
-    const BoundsType *bounds;
+    const AABB6 *bounds;
     int *node_counters;
     BVHNodeType *nodes;
     BVHNodeType *leaves;
 };
 
-template <typename BoundsType, typename BVHNodeType>
+template <typename BVHNodeType>
 void compute_bvh(const BufferView<Shape> &shapes,
                  const BufferView<Edge> &edges,
                  const BufferView<int> &edge_ids,
-                 const BufferView<BoundsType> &bounds,
+                 const BufferView<AABB6> &bounds,
                  BufferView<int> node_counters,
                  BufferView<BVHNodeType> nodes,
                  BufferView<BVHNodeType> leaves,
                  bool use_gpu) {
-    parallel_for(bvh_computer<BoundsType, BVHNodeType>{
+    parallel_for(bvh_computer<BVHNodeType>{
             shapes.begin(), edges.begin(), edge_ids.begin(), bounds.begin(),
             node_counters.begin(), nodes.begin(), leaves.begin()},
         leaves.size(),
@@ -449,28 +436,29 @@ EdgeTree::EdgeTree(bool use_gpu,
     BufferView<int> cs_edge_ids(edge_ids.begin(), partition_result - edge_ids.begin());
     BufferView<int> ncs_edge_ids(partition_result, edge_ids.end() - partition_result);
     Buffer<int> node_counters(use_gpu, edge_ids.size());
+    Buffer<AABB6> edge_bounds(use_gpu, edge_ids.size());
+    compute_edge_bounds(shapes.begin(),
+                        edges,
+                        edge_ids.view(0, edge_ids.size()),
+                        cam_org,
+                        edge_bounds.view(0, edge_ids.size()),
+                        use_gpu);
 
     // We build a 3D BVH over the camera silhouette edges, and build
     // a 6D BVH over the non camera silhouette edges
     // camera silhouette edges
     if (cs_edge_ids.size() > 0) {
-        Buffer<AABB3> cs_edge_bounds(use_gpu, cs_edge_ids.size());
-        compute_edge_bounds(shapes.begin(),
-                            edges,
-                            cs_edge_ids,
-                            cs_edge_bounds.view(0, cs_edge_ids.size()),
-                            use_gpu);
         // Compute scene bounding box for BVH
         AABB3 cs_scene_bounds = DISPATCH(use_gpu,
-            thrust::reduce, cs_edge_bounds.begin(), cs_edge_bounds.end(),
-            AABB3(), union_bounding_box{});
+            thrust::transform_reduce, cs_edge_ids.begin(), cs_edge_ids.end(),
+            id_to_aabb3{edge_bounds.begin()}, AABB3(), union_bounding_box{});
         assert(cs_scene_bounds.p_max.x - cs_scene_bounds.p_min.x >= 0.f &&
                cs_scene_bounds.p_max.y - cs_scene_bounds.p_min.y >= 0.f &&
                cs_scene_bounds.p_max.z - cs_scene_bounds.p_min.z >= 0.f);
         // Compute Morton code for LBVH
         Buffer<uint64_t> cs_morton_codes(use_gpu, cs_edge_ids.size());
         compute_morton_codes(cs_scene_bounds,
-                             cs_edge_bounds.view(0, cs_edge_ids.size()),
+                             edge_bounds.view(0, cs_edge_ids.size()),
                              cs_morton_codes.view(0, cs_edge_ids.size()),
                              use_gpu);
         // Sort by Morton code
@@ -495,7 +483,7 @@ EdgeTree::EdgeTree(bool use_gpu,
         compute_bvh(shapes,
                     edges,
                     cs_edge_ids,
-                    cs_edge_bounds.view(0, cs_edge_bounds.size()),
+                    edge_bounds.view(0, edge_bounds.size()),
                     node_counters.view(0, cs_edge_ids.size()),
                     cs_bvh_nodes.view(0, cs_bvh_nodes.size()),
                     cs_bvh_leaves.view(0, cs_bvh_leaves.size()),
@@ -504,23 +492,20 @@ EdgeTree::EdgeTree(bool use_gpu,
 
     // Do the same thing for non camera silhouette edges
     if (ncs_edge_ids.size() > 0) {
-        Buffer<AABB6> ncs_edge_bounds(use_gpu, ncs_edge_ids.size());
-        compute_edge_bounds(shapes.begin(),
-                            edges,
-                            ncs_edge_ids,
-                            ncs_edge_bounds.view(0, ncs_edge_ids.size()),
-                            use_gpu);
         // Compute scene bounding box for BVH
         AABB6 ncs_scene_bounds = DISPATCH(use_gpu,
-            thrust::reduce, ncs_edge_bounds.begin(), ncs_edge_bounds.end(),
-            AABB6(), union_bounding_box{});
+            thrust::transform_reduce, ncs_edge_ids.begin(), ncs_edge_ids.end(),
+            id_to_aabb6{edge_bounds.begin()}, AABB6(), union_bounding_box{});
         assert(ncs_scene_bounds.p_max.x - ncs_scene_bounds.p_min.x >= 0.f &&
                ncs_scene_bounds.p_max.y - ncs_scene_bounds.p_min.y >= 0.f &&
                ncs_scene_bounds.p_max.z - ncs_scene_bounds.p_min.z >= 0.f);
+        assert(ncs_scene_bounds.d_max.x - ncs_scene_bounds.d_min.x >= 0.f &&
+               ncs_scene_bounds.d_max.y - ncs_scene_bounds.d_min.y >= 0.f &&
+               ncs_scene_bounds.d_max.z - ncs_scene_bounds.d_min.z >= 0.f);
         // Compute Morton code for LBVH
         Buffer<uint64_t> ncs_morton_codes(use_gpu, ncs_edge_ids.size());
         compute_morton_codes(ncs_scene_bounds,
-                             ncs_edge_bounds.view(0, ncs_edge_ids.size()),
+                             edge_bounds.view(0, edge_bounds.size()),
                              ncs_morton_codes.view(0, ncs_edge_ids.size()),
                              use_gpu);
         // Sort by Morton code
@@ -545,7 +530,7 @@ EdgeTree::EdgeTree(bool use_gpu,
         compute_bvh(shapes,
                     edges,
                     ncs_edge_ids,
-                    ncs_edge_bounds.view(0, ncs_edge_bounds.size()),
+                    edge_bounds.view(0, edge_bounds.size()),
                     node_counters.view(0, ncs_edge_ids.size()),
                     ncs_bvh_nodes.view(0, ncs_bvh_nodes.size()),
                     ncs_bvh_leaves.view(0, ncs_bvh_leaves.size()),

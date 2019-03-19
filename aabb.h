@@ -28,10 +28,37 @@ struct AABB6 {
     Vector3 p_max, d_max;
 };
 
+DEVICE
+template<typename T>
+inline T convert_aabb(const AABB6 &b) {
+    assert(false);
+}
+
+DEVICE
+template<>
+inline AABB3 convert_aabb(const AABB6 &b) {
+    return AABB3{b.p_min, b.p_max};
+}
+
+DEVICE
+template<>
+inline AABB6 convert_aabb(const AABB6 &b) {
+    return b;
+}
+
 struct Sphere {
     Vector3 center;
     Real radius;
 };
+
+DEVICE
+inline Vector3 corner(const AABB3 &b, int i) {
+    Vector3 ret;
+    ret[0] = ((i & 1) == 0) ? b.p_min[0] : b.p_max[0];
+    ret[1] = ((i & 2) == 0) ? b.p_min[1] : b.p_max[1];
+    ret[2] = ((i & 4) == 0) ? b.p_min[2] : b.p_max[2];
+    return ret;
+}
 
 DEVICE
 inline AABB3 merge(const AABB3 &b0, const AABB3 &b1) {

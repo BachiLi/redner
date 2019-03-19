@@ -824,15 +824,33 @@ struct secondary_edge_sampler {
         auto L1 = sqrt(-e2 / e3);
         auto L2 = sqrt(-e2 / e1);
         auto form_factor = L1 * L2 / sqrt((1.f + square(L1)) * (1.f + square(L2)));
+        assert(isfinite(form_factor));
         return get_sphere_tab(avg_dir.z, form_factor) * form_factor;
+    }
+
+    DEVICE bool is_bound_below_surface(const AABB3 &bounds,
+                                       const SurfacePoint &p) {
+        for (int i = 0; i < 8; i++) {
+            auto c = corner(bounds, i);
+            if (dot(p.shading_frame[2],
+                    c - p.position) > 0.f) {
+                return false;
+            }
+        }
+        return true;
     }
 
     DEVICE Real importance(const BVHNode3 &node,
                            const SurfacePoint &p,
                            const Matrix3x3 &m_inv) {
+        // If the node is below the surface point, the importance is 0
+        if (is_bound_below_surface(node.bounds, p)) {
+            return 0;
+        }
         // importance = BRDF * weighted length / dist^2
         // For BRDF we take the bounding sphere of the AABB and integrate the LTC over it
         // (see https://blogs.unity3d.com/2017/07/21/real-time-line-and-disk-light-shading-with-linearly-transformed-cosines/)
+        std::cerr << "node.bounds:" << node.bounds << std::endl;
         auto b_sphere = compute_bounding_sphere(node.bounds);
         auto brdf_term = Real(M_PI);
         if (!inside(b_sphere, p.position)) {
@@ -845,15 +863,22 @@ struct secondary_edge_sampler {
     DEVICE Real importance(const BVHNode6 &node,
                            const SurfacePoint &p,
                            const Matrix3x3 &m_inv) {
+        // If the node is below the surface point, the importance is 0
+        auto p_bounds = AABB3{node.bounds.p_min, node.bounds.p_max};
+        if (is_bound_below_surface(p_bounds, p)) {
+            return 0;
+        }
         // importance = BRDF * weighted length / dist^2
-        // Except if the sphere centered at p which has radius of distance(p, cam_org)
+        // Except if the sphere centered at 0.5 * (p + cam_org),
+        // which has radius of 0.5 * distance(p, cam_org)
         // does not intersect the directional bounding box of node, 
         // the importance is zero (see Olson and Zhang 2006)
         auto d_bounds = AABB3{node.bounds.d_min, node.bounds.d_max};
-        if (!intersect(Sphere{p.position, distance(p.position, cam_org)}, d_bounds)) {
+        if (!intersect(Sphere{0.5f * (p.position + cam_org),
+                              0.5f * distance(p.position, cam_org)}, d_bounds)) {
             return 0;
         }
-        auto p_bounds = AABB3{node.bounds.p_min, node.bounds.p_max};
+        std::cerr << "p_bounds:" << p_bounds << std::endl;
         auto b_sphere = compute_bounding_sphere(p_bounds);
         auto brdf_term = Real(M_PI);
         if (!inside(b_sphere, p.position)) {
@@ -870,15 +895,20 @@ struct secondary_edge_sampler {
                            Real sample,
                            Real &pmf) {
         if (node.edge_id != -1) {
+            assert(node.children[0] == nullptr &&
+                   node.children[1] == nullptr);
             return node.edge_id;
         }
-        assert(node.children[0] != nullptr &&
-               node.children[1] != nullptr);
+        assert(node.children[0] != nullptr && node.children[1] != nullptr);
         auto imp0 = importance(*node.children[0], p, m_inv);
         auto imp1 = importance(*node.children[1], p, m_inv);
+        if (imp0 <= 0 && imp1 <= 0) {
+            return -1;
+        }
         auto prob_0 = imp0 / (imp0 + imp1);
         if (sample < prob_0) {
             pmf *= prob_0;
+            std::cerr << "pmf:" << pmf << std::endl;
             // Rescale to [0, 1]
             sample = sample * (imp0 + imp1) / imp0;
             return sample_edge(*node.children[0],
@@ -916,11 +946,19 @@ struct secondary_edge_sampler {
                                  p,
                                  m_inv);
         }
+        if (imp_cs <= 0 && imp_ncs <= 0) {
+            return -1;
+        }
         auto prob_cs = imp_cs / (imp_cs + imp_ncs);
+        std::cerr << "imp_cs:" << imp_cs << std::endl;
+        std::cerr << "imp_ncs:" << imp_ncs << std::endl;
+        std::cerr << "sample:" << sample << ", prob_cs:" << prob_cs << std::endl;
         if (sample < prob_cs) {
             pmf = prob_cs;
             // Rescale to [0, 1]
             sample = sample * (imp_cs + imp_ncs) / imp_cs;
+            std::cerr << "sample:" << sample << std::endl;
+            std::cerr << "pmf:" << pmf << std::endl;
             return sample_edge(*edge_tree_roots.cs_bvh_root,
                                p,
                                m_inv,
@@ -999,6 +1037,7 @@ struct secondary_edge_sampler {
             m_pmf = specular_pmf;
         }
 
+        std::cerr << "test" << std::endl;
         auto edge_id = -1;
         auto edge_sample_weight = Real(0);
         if (edges_pmf != nullptr) {
@@ -1091,17 +1130,32 @@ struct secondary_edge_sampler {
             auto pmf = Real(0);
             edge_id = sample_edge(edge_tree_roots,
                 shading_point, m_inv, edge_sample.edge_sel, pmf);
+            if (edge_id == -1) {
+                return;
+            }
+            assert(pmf > 0);
+            assert(edge_id >= 0);
             edge_sample_weight = 1 / pmf;
         }
 
         const auto &edge = edges[edge_id];
+        if (!is_silhouette(shapes, shading_point.position, edge)) {
+            return;
+        }
 
         auto v0 = Vector3{get_v0(shapes, edge)};
         auto v1 = Vector3{get_v1(shapes, edge)};
+        std::cerr << "v0:" << v0 << ", v1:" << v1 << std::endl;
 
         // Transform the vertices to local coordinates
         auto v0o = m_inv * (v0 - shading_point.position);
         auto v1o = m_inv * (v1 - shading_point.position);
+        std::cerr << "v0o:" << v0o << ", v1o:" << v1o << std::endl;
+        if (v0o[2] <= 0.f && v1o[2] <= 0.f) {
+            // Edge is below the shading point
+            return;
+        }
+
         // Clip to the surface tangent plane
         if (v0o[2] < 0.f) {
             v0o = (v0o*v1o[2] - v1o*v0o[2]) / (v1o[2] - v0o[2]);
@@ -1110,7 +1164,9 @@ struct secondary_edge_sampler {
             v1o = (v0o*v1o[2] - v1o*v0o[2]) / (v1o[2] - v0o[2]);
         }
         auto vodir = v1o - v0o;
+        std::cerr << "vodir:" << vodir << std::endl;
         auto wt = normalize(vodir);
+        std::cerr << "wt:" << wt << std::endl;
         auto l0 = dot(v0o, wt);
         auto l1 = dot(v1o, wt);
         auto vo = v0o - l0 * wt;
@@ -1155,6 +1211,8 @@ struct secondary_edge_sampler {
             auto derivative = line_pdf(l);
             l -= value / derivative;
         }
+        std::cerr << "lb:" << lb << ", ub:" << ub << std::endl;
+        std::cerr << "l:" << l << ", line_cdf(l):" << line_cdf(l) << ", line_pdf(l):" << line_pdf(l) << std::endl;
         if (line_pdf(l) <= 0.f) {
             // Numerical issue
             return;
@@ -1230,6 +1288,9 @@ struct secondary_edge_sampler {
         // assert(isfinite(throughput));
         // assert(isfinite(eval_bsdf));
         // assert(isfinite(d_color));
+        std::cerr << "edge_sample_weight:" << edge_sample_weight << std::endl;
+        std::cerr << "m_pmf:" << m_pmf << std::endl;
+        std::cerr << "line_pdf(l):" << line_pdf(l) << std::endl;
         assert(isfinite(edge_weight));
         new_throughputs[2 * idx + 0] = nt;
         new_throughputs[2 * idx + 1] = -nt;
