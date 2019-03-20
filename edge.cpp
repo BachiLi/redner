@@ -666,9 +666,9 @@ struct secondary_edge_sampler {
             dot(Vector2{c2, -c1}, Vector2{c0, c1})
         };
 
-        auto discriminant = dot(
+        auto discriminant = max(dot(
             Vector2{4.0f * delta.x, -delta.y},
-            Vector2{delta.z, delta.y});
+            Vector2{delta.z, delta.y}), Real(0));
 
         auto xlc = Vector2{0, 0};
         auto xsc = Vector2{0, 0};
@@ -1125,7 +1125,6 @@ struct secondary_edge_sampler {
                 return;
             }
             assert(pmf > 0);
-            assert(edge_id >= 0);
             edge_sample_weight = 1 / pmf;
         }
 
