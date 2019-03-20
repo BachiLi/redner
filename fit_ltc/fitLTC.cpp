@@ -275,73 +275,6 @@ void fitTab(mat3 * tab, vec2 * tabAmplitude, const int N, const Brdf& brdf)
 	}
 }
 
-float sqr(float x)
-{
-    return x*x;
-}
-
-float G(float w, float s, float g)
-{
-    return -2.0f*sinf(w)*cosf(s)*cosf(g) + float(M_PI)/2.0f - g + sinf(g)*cosf(g);
-}
-
-float H(float w, float s, float g)
-{
-    float sinsSq = sqr(sin(s));
-    float cosgSq = sqr(cos(g));
-
-    return cosf(w)*(cosf(g)*sqrtf(sinsSq - cosgSq) + sinsSq*asinf(cosf(g)/sinf(s)));
-}
-
-float ihemi(float w, float s)
-{
-    float g = asinf(cosf(s)/sinf(w));
-    float sinsSq = sqr(sinf(s));
-
-    if (w >= 0.0f && w <= (float(M_PI)/2.0f - s))
-        return float(M_PI)*cosf(w)*sinsSq;
-
-    if (w >= (float(M_PI)/2.0f - s) && w < float(M_PI)/2.0f)
-        return float(M_PI)*cosf(w)*sinsSq + G(w, s, g) - H(w, s, g);
-
-    if (w >= float(M_PI)/2.0f && w < (float(M_PI)/2.0f + s))
-        return G(w, s, g) + H(w, s, g);
-
-    return 0.0f;
-}
-
-void genSphereTab(float* tabSphere, int N)
-{
-    for (int j = 0; j < N; ++j)
-    for (int i = 0; i < N; ++i)
-    {
-        const float U1 = float(i)/(N - 1);
-        const float U2 = float(j)/(N - 1);
-
-        // z = cos(elevation angle)
-        float z = 2.0f*U1 - 1.0f;
-
-        // length of average dir., proportional to sin(sigma)^2
-        float len = U2;
-
-        float sigma = asinf(sqrtf(len));
-        float omega = acosf(z);
-
-        // compute projected (cosine-weighted) solid angle of spherical cap
-        float value = 0.0f;
-
-        if (sigma > 0.0f)
-            value = ihemi(omega, sigma)/(float(M_PI)*len);
-        else
-            value = std::max<float>(z, 0.0f);
-
-        if (value != value)
-            printf("nan!\n");
-
-        tabSphere[i + j*N] = value;
-    }
-}
-
 int main(int argc, char* argv[])
 {
 	// BRDF to fit
@@ -368,12 +301,6 @@ int main(int argc, char* argv[])
 	// delete data
 	delete [] tab;
 	delete [] tabAmplitude;
-
-	int tabSphereSize = 64;
-	float* tabSphere = new float[tabSphereSize*tabSphereSize];
-    // projected solid angle of a spherical cap, clipped to the horizon
-    genSphereTab(tabSphere, tabSphereSize);
-    writeSphereTabC(tabSphere, tabSphereSize);
 
 	return 0;
 }

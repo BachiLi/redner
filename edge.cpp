@@ -4,7 +4,6 @@
 #include "parallel.h"
 #include "thrust_utils.h"
 #include "ltc.inc"
-#include "ltc_sphere.inc"
 
 #include <thrust/iterator/constant_iterator.h>
 #include <thrust/execution_policy.h>
@@ -633,199 +632,43 @@ inline Matrix3x3 get_ltc_matrix(const Material &material,
 }
 
 struct secondary_edge_sampler {
-    DEVICE
-    Real get_sphere_tab(Real cos_theta, Real form_factor) {
-        auto N = ltc::tab_sphere_size;
-        auto uid = clamp(int(cos_theta * 0.5f + 0.5f * (N - 1)), 0, N - 1);
-        auto vid = clamp(int(form_factor * (N - 1)), 0, N - 1);
-        return ltc::tabSphere[uid + vid * N];
+    DEVICE inline Real min_abs_bound(Real min, Real max) {
+        if (min <= 0.f && max >= 0.f) {
+            return Real(0);
+        }
+        if (min < 0.f && max < 0.f) {
+            return max;
+        }
+        assert(min > 0.f && max > 0.f);
+        return min;
     }
 
-    DEVICE Vector3 solve_cubic(Real c0, Real c1, Real c2, Real c3) {
-        // https://blog.selfshadow.com/ltc/webgl/ltc_disk.html
-        // http://momentsingraphics.de/?p=105
-
-        // Normalize the polynomial
-        auto inv_c3 = 1.f / c3;
-        c0 *= inv_c3;
-        c1 *= inv_c3;
-        c2 *= inv_c3;
-        // Divide middle coefficients by three
-        c1 /= 3.f;
-        c2 /= 3.f;
-
-        auto A = c3;
-        auto B = c2;
-        auto C = c1;
-        auto D = c0;
-
-        // Compute the Hessian and the discriminant
-        auto delta = Vector3{
-            -square(c2) + c1,
-            -c1 * c2 + c0,
-            dot(Vector2{c2, -c1}, Vector2{c0, c1})
-        };
-
-        auto discriminant = max(dot(
-            Vector2{4.0f * delta.x, -delta.y},
-            Vector2{delta.z, delta.y}), Real(0));
-
-        auto xlc = Vector2{0, 0};
-        auto xsc = Vector2{0, 0};
-
-        // Algorithm A
-        {
-            // auto A_a = Real(1);
-            auto C_a = delta.x;
-            auto D_a = -2.0f * B * delta.x + delta.y;
-
-            // Take the cubic root of a normalized complex number
-            auto theta = atan2(sqrt(discriminant), -D_a) / 3.0f;
-
-            auto x_1a = 2.0f * sqrt(-C_a) * cos(theta);
-            auto x_3a = 2.0f * sqrt(-C_a) * cos(theta + (2.0/3.0) * Real(M_PI));
-
-            auto xl = Real(0);
-            if ((x_1a + x_3a) > 2.0f * B) {
-                xl = x_1a;
-            } else {
-                xl = x_3a;
+    DEVICE inline Real ltc_bound(const AABB3 &bounds,
+                                 const SurfacePoint &p,
+                                 const Matrix3x3 &m,
+                                 const Matrix3x3 &m_inv) {
+        // Due to the linear invariance, the maximum remains
+        // the same after applying M^{-1}
+        // Therefore we transform the bounds using M^{-1},
+        // find the largest possible z and smallest possible
+        // x, y in terms of magnitude.
+        auto dir = Vector3{0, 0, 1};
+        if (!inside(bounds, p.position)) {
+            AABB3 b;
+            for (int i = 0; i < 8; i++) {
+                b = merge(b, m_inv * (corner(bounds, i) - p.position));
             }
 
-            xlc = Vector2{xl - B, A};
+            dir.x = min_abs_bound(b.p_min.x, b.p_max.x);
+            dir.y = min_abs_bound(b.p_min.y, b.p_max.y);
+            dir.z = b.p_max.z;
+            dir = normalize(dir);
         }
 
-        // Algorithm D
-        {
-            // auto A_d = D;
-            auto C_d = delta.z;
-            auto D_d = -D * delta.y + 2.0 * C * delta.z;
-
-            // Take the cubic root of a normalized complex number
-            auto theta = atan2(D * sqrt(discriminant), -D_d) / 3.0f;
-
-            auto x_1d = 2.0f * sqrt(-C_d) * cos(theta);
-            auto x_3d = 2.0f * sqrt(-C_d) * cos(theta + (2.0f/3.0f)*Real(M_PI));
-
-            auto xs = Real(0);
-            if (x_1d + x_3d < 2.0f*C) {
-                xs = x_1d;
-            } else {
-                xs = x_3d;
-            }
-
-            xsc = Vector2{-D, xs + C};
-        }
-
-        auto E =  xlc.y*xsc.y;
-        auto F = -xlc.x*xsc.y - xlc.y*xsc.x;
-        auto G =  xlc.x*xsc.x;
-
-        auto xmc = Vector2{C*F - B*G, -B*F + C*E};
-
-        auto root = Vector3{xsc.x/xsc.y, xmc.x/xmc.y, xlc.x/xlc.y};
-
-        if (root.x < root.y && root.x < root.z) {
-            root = Vector3{root.y, root.x, root.z};
-        } else if (root.z < root.x && root.z < root.y) {
-            root = Vector3{root.x, root.z, root.y};
-        }
-
-        return root;
-    }
-
-    DEVICE Real ltc_sphere_integral(const Sphere &b_sphere,
-                                    const SurfacePoint &p,
-                                    const Matrix3x3 &m_inv) {
-        // TODO: there might be a faster way to do this for pure diffuse case
-        // https://blog.selfshadow.com/ltc/webgl/ltc_disk.html
-        // We integrate over the sphere by creating a disk having the same solid angle
-        // then we apply m_inv to transform it
-        // C = center of the disk
-        auto C = to_local(p.shading_frame, b_sphere.center);
-        // V1, V2 = coordinate frame
-        auto V1 = Vector3{0, 0, 0}, V2 = Vector3{0, 0, 0};
-        coordinate_system(C, V1, V2);
-        V1 *= b_sphere.radius;
-        V2 *= b_sphere.radius;
-        C = m_inv * C;
-        V1 = m_inv * V1;
-        V2 = m_inv * V2;
-        if (dot(cross(V1, V2), C) <= 0) {
-            return 0;
-        }
-        // V1 & V2 are not orthogonal after transformation
-        // Therefore we compute eigen decomposition
-        auto a = Real(0);
-        auto b = Real(0);
-        auto d11 = dot(V1, V1);
-        auto d22 = dot(V2, V2);
-        auto d12 = dot(V1, V2);
-        if (fabs(d12) / sqrt(d11 * d22) > 1e-4f) {
-            auto tr = d11 + d22;
-            auto det = -d12*d12 + d11*d22;
-
-            // Use sqrt matrix to solve for eigenvalues
-            det = sqrt(det);
-            auto u = 0.5f * sqrt(tr - 2.0f * det);
-            auto v = 0.5f * sqrt(tr + 2.0f * det);
-            auto e_max = square(u + v);
-            auto e_min = square(u - v);
-
-            auto V1_ = Vector3{0, 0, 0};
-            auto V2_ = Vector3{0, 0, 0};
-
-            if (d11 > d22) {
-                V1_ = d12*V1 + (e_max - d11)*V2;
-                V2_ = d12*V1 + (e_min - d11)*V2;
-            } else {
-                V1_ = d12*V2 + (e_max - d22)*V1;
-                V2_ = d12*V2 + (e_min - d22)*V1;
-            }
-
-            a = 1.f / e_max;
-            b = 1.f / e_min;
-            V1 = normalize(V1_);
-            V2 = normalize(V2_);
-        } else {
-            a = 1.f / d11;
-            b = 1.f / d22;
-            V1 *= sqrt(a);
-            V2 *= sqrt(b);
-        }
-
-        auto V3 = cross(V1, V2);
-        if (dot(C, V3) < 0.f) {
-            V3 = -V3;
-        }
-
-        auto L = dot(V3, C);
-        auto x0 = dot(V1, C) / L;
-        auto y0 = dot(V2, C) / L;
-
-        a *= square(L);
-        b *= square(L);
-
-        // Find the sphere that has the same solid angle as the ellipse
-        auto c0 = a * b;
-        auto c1 = a * b * (1.f + square(x0) + square(y0)) - a - b;
-        auto c2 = 1.f - a * (1.f + square(x0)) - b * (1.f + square(y0));
-        auto c3 = Real(1);
-        auto roots = solve_cubic(c0, c1, c2, c3);
-        auto e1 = roots.x;
-        auto e2 = roots.y;
-        auto e3 = roots.z;
-        auto avg_dir = Vector3{a*x0/(a - e2), b*y0/(b - e2), Real(1)};
-        auto rotate = Matrix3x3{
-            V1.x, V2.x, V3.x,
-            V1.y, V2.y, V3.y,
-            V1.z, V2.z, V3.z};
-        avg_dir = normalize(rotate * avg_dir);
-        auto L1 = sqrt(-e2 / e3);
-        auto L2 = sqrt(-e2 / e1);
-        auto form_factor = L1 * L2 / sqrt((1.f + square(L1)) * (1.f + square(L2)));
-        assert(isfinite(form_factor));
-        return get_sphere_tab(avg_dir.z, form_factor) * form_factor;
+        auto max_dir = normalize(m * dir);
+        auto max_dir_local = m_inv * max_dir;
+        auto n = square(length_squared(max_dir_local));
+        return max_dir_local.z / n;
     }
 
     DEVICE bool is_bound_below_surface(const AABB3 &bounds,
@@ -842,25 +685,22 @@ struct secondary_edge_sampler {
 
     DEVICE Real importance(const BVHNode3 &node,
                            const SurfacePoint &p,
+                           const Matrix3x3 &m,
                            const Matrix3x3 &m_inv) {
         // If the node is below the surface point, the importance is 0
         if (is_bound_below_surface(node.bounds, p)) {
             return 0;
         }
         // importance = BRDF * weighted length / dist^2
-        // For BRDF we take the bounding sphere of the AABB and integrate the LTC over it
-        // (see https://blogs.unity3d.com/2017/07/21/real-time-line-and-disk-light-shading-with-linearly-transformed-cosines/)
-        auto b_sphere = compute_bounding_sphere(node.bounds);
-        auto brdf_term = Real(M_PI);
-        if (!inside(b_sphere, p.position)) {
-            brdf_term = ltc_sphere_integral(b_sphere, p, m_inv);
-        }
+        // For BRDF we estimate the bound using linearly transformed cosine distribution
+        auto brdf_term = ltc_bound(node.bounds, p, m, m_inv);
         return brdf_term * node.weighted_total_length
-            / max(distance_squared(b_sphere.center, p.position), Real(1e-6f));
+            / max(distance_squared(center(node.bounds), p.position), Real(1e-6f));
     }
 
     DEVICE Real importance(const BVHNode6 &node,
                            const SurfacePoint &p,
+                           const Matrix3x3 &m,
                            const Matrix3x3 &m_inv) {
         // If the node is below the surface point, the importance is 0
         auto p_bounds = AABB3{node.bounds.p_min, node.bounds.p_max};
@@ -877,18 +717,15 @@ struct secondary_edge_sampler {
                               0.5f * distance(p.position, cam_org)}, d_bounds)) {
             return 0;
         }
-        auto b_sphere = compute_bounding_sphere(p_bounds);
-        auto brdf_term = Real(M_PI);
-        if (!inside(b_sphere, p.position)) {
-            brdf_term = ltc_sphere_integral(b_sphere, p, m_inv);
-        }
+        auto brdf_term = ltc_bound(p_bounds, p, m, m_inv);
         return brdf_term * node.weighted_total_length
-            / max(distance_squared(b_sphere.center, p.position), Real(1e-6f));
+            / max(distance_squared(center(p_bounds), p.position), Real(1e-6f));
     }
 
     template <typename BVHNodeType>
     DEVICE int sample_edge(const BVHNodeType &node,
                            const SurfacePoint &p,
+                           const Matrix3x3 &m,
                            const Matrix3x3 &m_inv,
                            Real sample,
                            Real &pmf) {
@@ -898,8 +735,8 @@ struct secondary_edge_sampler {
             return node.edge_id;
         }
         assert(node.children[0] != nullptr && node.children[1] != nullptr);
-        auto imp0 = importance(*node.children[0], p, m_inv);
-        auto imp1 = importance(*node.children[1], p, m_inv);
+        auto imp0 = importance(*node.children[0], p, m, m_inv);
+        auto imp1 = importance(*node.children[1], p, m, m_inv);
         if (imp0 <= 0 && imp1 <= 0) {
             return -1;
         }
@@ -910,6 +747,7 @@ struct secondary_edge_sampler {
             sample = sample * (imp0 + imp1) / imp0;
             return sample_edge(*node.children[0],
                                p,
+                               m,
                                m_inv,
                                sample,
                                pmf);
@@ -920,6 +758,7 @@ struct secondary_edge_sampler {
             sample = (sample * (imp0 + imp1) - imp0) / imp1;
             return sample_edge(*node.children[1],
                                p,
+                               m,
                                m_inv,
                                sample,
                                pmf);
@@ -928,6 +767,7 @@ struct secondary_edge_sampler {
 
     DEVICE int sample_edge(const EdgeTreeRoots &edge_tree_roots,
                            const SurfacePoint &p,
+                           const Matrix3x3 &m,
                            const Matrix3x3 &m_inv,
                            Real sample,
                            Real &pmf) {
@@ -935,12 +775,14 @@ struct secondary_edge_sampler {
         if (edge_tree_roots.cs_bvh_root != nullptr) {
             imp_cs = importance(*edge_tree_roots.cs_bvh_root,
                                 p,
+                                m,
                                 m_inv);
         }
         auto imp_ncs = Real(0);
         if (edge_tree_roots.ncs_bvh_root != nullptr) {
             imp_ncs = importance(*edge_tree_roots.ncs_bvh_root,
                                  p,
+                                 m,
                                  m_inv);
         }
         if (imp_cs <= 0 && imp_ncs <= 0) {
@@ -953,6 +795,7 @@ struct secondary_edge_sampler {
             sample = sample * (imp_cs + imp_ncs) / imp_cs;
             return sample_edge(*edge_tree_roots.cs_bvh_root,
                                p,
+                               m,
                                m_inv,
                                sample,
                                pmf);
@@ -962,6 +805,7 @@ struct secondary_edge_sampler {
             sample = (sample * (imp_cs + imp_ncs) - imp_cs) / imp_ncs;
             return sample_edge(*edge_tree_roots.ncs_bvh_root,
                                p,
+                               m,
                                m_inv,
                                sample,
                                pmf);
@@ -1120,7 +964,7 @@ struct secondary_edge_sampler {
             // sample using a tree traversal
             auto pmf = Real(0);
             edge_id = sample_edge(edge_tree_roots,
-                shading_point, m_inv, edge_sample.edge_sel, pmf);
+                shading_point, m, m_inv, edge_sample.edge_sel, pmf);
             if (edge_id == -1) {
                 return;
             }

@@ -61,6 +61,19 @@ inline Vector3 corner(const AABB3 &b, int i) {
 }
 
 DEVICE
+inline AABB3 merge(const AABB3 &b, const Vector3 &p) {
+    return AABB3{
+        Vector3{
+            min(b.p_min[0], p[0]),
+            min(b.p_min[1], p[1]),
+            min(b.p_min[2], p[2])},
+        Vector3{
+            max(b.p_max[0], p[0]),
+            max(b.p_max[1], p[1]),
+            max(b.p_max[2], p[2])}};
+}
+
+DEVICE
 inline AABB3 merge(const AABB3 &b0, const AABB3 &b1) {
     return AABB3{
         Vector3{
@@ -109,8 +122,20 @@ inline Sphere compute_bounding_sphere(const AABB6 &b) {
 }
 
 DEVICE
+inline bool inside(const AABB3 &b, const Vector3 &p) {
+    return p.x >= b.p_min.x && p.x <= b.p_max.x &&
+           p.y >= b.p_min.y && p.y <= b.p_max.y &&
+           p.z >= b.p_min.z && p.z <= b.p_max.z;
+}
+
+DEVICE
 inline bool inside(const Sphere &b, const Vector3 &p) {
     return distance(p, b.center) <= b.radius;
+}
+
+DEVICE
+inline Vector3 center(const AABB3 &b) {
+    return 0.5f * (b.p_max + b.p_min);
 }
 
 
