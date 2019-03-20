@@ -268,12 +268,17 @@ class RenderFunction(torch.autograd.Function):
         else:
             current_index += 7
 
+        start = time.time()
         scene = redner.Scene(camera,
                              shapes,
                              materials,
                              area_lights,
                              envmap,
                              pyredner.get_use_gpu())
+        time_elapsed = time.time() - start
+        if print_timing:
+            print('Scene construction, time: %.5f s' % time_elapsed)
+
         num_samples = args[current_index]
         current_index += 1
         max_bounces = args[current_index]
