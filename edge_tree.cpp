@@ -24,15 +24,15 @@ struct edge_partitioner {
 
 struct edge_6d_bounds_computer {
     DEVICE void operator()(int idx) {
-        const auto &edge = edges[edge_ids[idx]];
+        const auto &edge = edges[idx];
         // Compute position bound
         auto v0 = get_v0(shapes, edge);
         auto v1 = get_v1(shapes, edge);
         auto p_min = Vector3{0, 0, 0};
         auto p_max = Vector3{0, 0, 0};
         for (int i = 0; i < 3; i++) {
-            p_min[i] = std::min(v0[i], v1[i]);
-            p_max[i] = std::max(v0[i], v1[i]);
+            p_min[i] = min(v0[i], v1[i]);
+            p_max[i] = max(v0[i], v1[i]);
         }
         edge_aabbs[idx].p_min = p_min;
         edge_aabbs[idx].p_max = p_max;
@@ -64,20 +64,18 @@ struct edge_6d_bounds_computer {
 
     const Shape *shapes;
     const Edge *edges;
-    const int *edge_ids;
     const Vector3 cam_org;
     AABB6 *edge_aabbs;
 };
 
 void compute_edge_bounds(const Shape *shapes,
                          const BufferView<Edge> &edges,
-                         const BufferView<int> &edge_ids,
                          const Vector3 cam_org,
                          BufferView<AABB6> edge_aabbs,
                          bool use_gpu) {
     parallel_for(edge_6d_bounds_computer{
-                     shapes, edges.begin(), edge_ids.begin(), cam_org, edge_aabbs.begin()},
-                 edge_ids.size(),
+                     shapes, edges.begin(), cam_org, edge_aabbs.begin()},
+                 edges.size(),
                  use_gpu);
 }
 
@@ -435,11 +433,10 @@ EdgeTree::EdgeTree(bool use_gpu,
     // We call the set of edges in 1) "cs_edges" and the set 2) "ncs_edges"
     BufferView<int> cs_edge_ids(edge_ids.begin(), partition_result - edge_ids.begin());
     BufferView<int> ncs_edge_ids(partition_result, edge_ids.end() - partition_result);
-    Buffer<int> node_counters(use_gpu, edge_ids.size());
-    Buffer<AABB6> edge_bounds(use_gpu, edge_ids.size());
+    Buffer<int> node_counters(use_gpu, edges.size());
+    Buffer<AABB6> edge_bounds(use_gpu, edges.size());
     compute_edge_bounds(shapes.begin(),
                         edges,
-                        edge_ids.view(0, edge_ids.size()),
                         cam_org,
                         edge_bounds.view(0, edge_ids.size()),
                         use_gpu);

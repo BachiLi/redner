@@ -730,39 +730,135 @@ struct secondary_edge_sampler {
                            Real sample,
                            Real &pmf) {
         if (node.edge_id != -1) {
-            assert(node.children[0] == nullptr &&
-                   node.children[1] == nullptr);
+            assert(node.children[0] == nullptr && node.children[1] == nullptr);
             return node.edge_id;
         }
         assert(node.children[0] != nullptr && node.children[1] != nullptr);
-        auto imp0 = importance(*node.children[0], p, m, m_inv);
-        auto imp1 = importance(*node.children[1], p, m, m_inv);
-        if (imp0 <= 0 && imp1 <= 0) {
+        // Expand the tree by a factor of 8, compute importance
+        // TODO: Sorry for the stupid code. Should fix this by writing a recursive DFS.
+        Real I[8];
+        const BVHNodeType *next[8];
+        auto child0 = node.children[0];
+        if (child0->children[0] != nullptr) {
+            auto child00 = child0->children[0];
+            if (child00->children[0] != nullptr) {
+                auto child000 = child00->children[0];
+                auto child001 = child00->children[1];
+                I[0] = importance(*child000, p, m, m_inv);
+                next[0] = child000;
+                I[1] = importance(*child001, p, m, m_inv);
+                next[1] = child001;
+            } else {
+                // child00 is leaf
+                I[0] = importance(*child00, p, m, m_inv);
+                next[0] = child00;
+                I[1] = 0;
+                next[1] = nullptr;
+            }
+            auto child01 = child0->children[1];
+            if (child01->children[0] != nullptr) {
+                auto child010 = child01->children[0];
+                auto child011 = child01->children[1];
+                I[2] = importance(*child010, p, m, m_inv);
+                next[2] = child010;
+                I[3] = importance(*child011, p, m, m_inv);
+                next[3] = child011;
+            } else {
+                // child01 is leaf
+                I[2] = importance(*child01, p, m, m_inv);
+                next[2] = child01;
+                I[3] = 0;
+                next[3] = nullptr;
+            }
+        } else {
+            // child0 is leaf
+            I[0] = importance(*child0, p, m, m_inv);
+            next[0] = child0;
+            I[1] = 0;
+            next[1] = nullptr;
+            I[2] = 0;
+            next[2] = nullptr;
+            I[3] = 0;
+            next[3] = nullptr;
+        }
+        auto child1 = node.children[1];
+        if (child1->children[0] != nullptr) {
+            auto child10 = child1->children[0];
+            if (child10->children[0] != nullptr) {
+                auto child100 = child10->children[0];
+                auto child101 = child10->children[1];
+                I[4] = importance(*child100, p, m, m_inv);
+                next[4] = child100;
+                I[5] = importance(*child101, p, m, m_inv);
+                next[5] = child101;
+            } else {
+                I[4] = importance(*child10, p, m, m_inv);
+                next[4] = child10;
+                I[5] = 0;
+                next[5] = nullptr;
+            }
+            auto child11 = child1->children[1];
+            if (child11->children[0] != nullptr) {
+                auto child110 = child11->children[0];
+                auto child111 = child11->children[1];
+                I[6] = importance(*child110, p, m, m_inv);
+                next[6] = child110;
+                I[7] = importance(*child111, p, m, m_inv);
+                next[7] = child111;
+            } else {
+                I[6] = importance(*child11, p, m, m_inv);
+                next[6] = child11;
+                I[7] = 0;
+                next[7] = nullptr;
+            }
+        } else {
+            I[4] = importance(*child1, p, m, m_inv);
+            next[4] = child1;
+            I[5] = 0;
+            next[5] = nullptr;
+            I[6] = 0;
+            next[6] = nullptr;
+            I[7] = 0;
+            next[7] = nullptr;
+        }
+        Real I_cdf[8];
+        I_cdf[0] = I[0];
+        // Exclusive scan
+        for (int i = 1; i < 8; i++) {
+            I_cdf[i] = I_cdf[i - 1] + I[i];
+        }
+        auto I_sum = I_cdf[7];
+        if (I_sum <= 0) {
             return -1;
         }
-        auto prob_0 = imp0 / (imp0 + imp1);
-        if (sample < prob_0) {
-            pmf *= prob_0;
-            // Rescale to [0, 1]
-            sample = sample * (imp0 + imp1) / imp0;
-            return sample_edge(*node.children[0],
-                               p,
-                               m,
-                               m_inv,
-                               sample,
-                               pmf);
-        } else {
-            auto prob_1 = 1.f - prob_0;
-            pmf *= prob_1;
-            // Rescale to [0, 1]
-            sample = (sample * (imp0 + imp1) - imp0) / imp1;
-            return sample_edge(*node.children[1],
-                               p,
-                               m,
-                               m_inv,
-                               sample,
-                               pmf);
+
+        // Search for inverted cdf
+        auto next_id = -1;
+        auto u = sample * I_sum;
+        for (int i = 0; i < 8; i++) {
+            if (u <= I_cdf[i]) {
+                next_id = i;
+                break;
+            }
         }
+        assert(next_id != -1 && I_cdf[next_id] > 0);
+
+        // Rescale sample to [0, 1]
+        auto pmf_next = I[next_id] / I_sum;
+        if (next_id == 0) {
+            sample = sample / pmf_next;
+        } else {
+            sample = (sample - I_cdf[next_id - 1] / I_sum) / pmf_next;
+        }
+
+        // Keep track of pmf
+        pmf *= pmf_next;
+        return sample_edge(*next[next_id],
+                           p,
+                           m,
+                           m_inv,
+                           sample,
+                           pmf);
     }
 
     DEVICE int sample_edge(const EdgeTreeRoots &edge_tree_roots,
