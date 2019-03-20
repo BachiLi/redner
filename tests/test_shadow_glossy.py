@@ -88,7 +88,7 @@ diff = torch.abs(target - img)
 pyredner.imwrite(diff.cpu(), 'results/test_shadow_glossy/init_diff.png')
 
 # Optimize for blocker vertices
-optimizer = torch.optim.Adam([shape_blocker.vertices], lr=5e-2)
+optimizer = torch.optim.Adam([shape_blocker.vertices], lr=2e-2)
 for t in range(200):
     print('iteration:', t)
     optimizer.zero_grad()
