@@ -200,7 +200,7 @@ pyredner.imwrite(normal.cpu(),
     'results/test_g_buffer/final_normal.png',
     normalize = True)
 diff_depth = torch.abs(target_depth - depth)
-diff_normal = torch.abs(target_normal - depth)
+diff_normal = torch.abs(target_normal - normal)
 pyredner.imwrite(diff_depth.cpu(),
     'results/test_g_buffer/init_depth_diff.png')
 pyredner.imwrite(diff_normal.cpu(),
