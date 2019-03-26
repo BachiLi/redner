@@ -17,6 +17,7 @@ struct BVHNode3 {
     BVHNode3 *parent;
     BVHNode3 *children[2];
     int edge_id;
+    bool has_light;
 };
 
 struct BVHNode6 {
@@ -25,7 +26,69 @@ struct BVHNode6 {
     BVHNode6 *parent;
     BVHNode6 *children[2];
     int edge_id;
+    bool has_light;
 };
+
+struct BVHNodePtr {
+    DEVICE BVHNodePtr() {}
+    DEVICE BVHNodePtr(const BVHNode3 *ptr3)
+        : is_bvh_node3(true), ptr3(ptr3) {}
+    DEVICE BVHNodePtr(const BVHNode6 *ptr6)
+        : is_bvh_node3(false), ptr6(ptr6) {}
+
+    bool is_bvh_node3;
+    union {
+        const BVHNode3 *ptr3;
+        const BVHNode6 *ptr6;
+    };
+};
+
+DEVICE
+inline bool is_leaf(const BVHNodePtr &node_ptr) {
+    if (node_ptr.is_bvh_node3) {
+        return node_ptr.ptr3->edge_id != -1;
+    } else {
+        return node_ptr.ptr6->edge_id != -1;
+    }
+}
+
+DEVICE
+inline int get_edge_id(const BVHNodePtr &node_ptr) {
+    if (node_ptr.is_bvh_node3) {
+        return node_ptr.ptr3->edge_id;
+    } else {
+        return node_ptr.ptr6->edge_id;
+    }
+}
+
+DEVICE
+inline void get_children(const BVHNodePtr &node_ptr, BVHNodePtr children[2]) {
+    if (node_ptr.is_bvh_node3) {
+        children[0] = BVHNodePtr(node_ptr.ptr3->children[0]);
+        children[1] = BVHNodePtr(node_ptr.ptr3->children[1]);
+    } else {
+        children[0] = BVHNodePtr(node_ptr.ptr6->children[0]);
+        children[1] = BVHNodePtr(node_ptr.ptr6->children[1]);
+    }
+}
+
+DEVICE
+inline bool intersect(const BVHNodePtr &node_ptr, const Ray &ray) {
+    if (node_ptr.is_bvh_node3) {
+        return intersect(node_ptr.ptr3->bounds, ray);
+    } else {
+        return intersect(node_ptr.ptr6->bounds, ray);
+    }
+}
+
+DEVICE
+inline bool intersect(const BVHNodePtr &node_ptr, const Ray &ray, const Real edge_bounds_expand) {
+    if (node_ptr.is_bvh_node3) {
+        return intersect(node_ptr.ptr3->bounds, ray, edge_bounds_expand);
+    } else {
+        return intersect(node_ptr.ptr6->bounds, ray, edge_bounds_expand);
+    }
+}
 
 struct EdgeTree {
     EdgeTree(bool use_gpu,
@@ -37,6 +100,7 @@ struct EdgeTree {
     Buffer<BVHNode3> cs_bvh_leaves;
     Buffer<BVHNode6> ncs_bvh_nodes;
     Buffer<BVHNode6> ncs_bvh_leaves;
+    Real edge_bounds_expand;
 };
 
 struct EdgeTreeRoots {

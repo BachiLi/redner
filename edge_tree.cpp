@@ -36,6 +36,8 @@ struct edge_6d_bounds_computer {
         }
         edge_aabbs[idx].p_min = p_min;
         edge_aabbs[idx].p_max = p_max;
+        assert(isfinite(p_min));
+        assert(isfinite(p_max));
 
         // Compute directional bound
         auto n0 = get_n0(shapes, edge);
@@ -49,7 +51,8 @@ struct edge_6d_bounds_computer {
         // plane 0 is n0.x * x + n0.y * y + n0.z * z = dot(p, n0)
         auto p0d = dot(p, n0);
         auto p1d = dot(p, n1);
-        // 3D Hough transform, see "Silhouette extraction in hough space", Olson and Zhang
+        // 3D Hough transform, see "Silhouette extraction in hough space", 
+        // Olson and Zhang
         auto h0 = Vector3{n0.x * p0d, n0.y * p0d, n0.z * p0d};
         auto h1 = Vector3{n1.x * p1d, n1.y * p1d, n1.z * p1d};
         auto d_min = Vector3{0, 0, 0};
@@ -126,13 +129,16 @@ struct union_bounding_box {
 
 struct morton_code_3d_computer {
     DEVICE uint64_t expand_bits(uint64_t x) {
-        // Insert two zero after every bit given a 10-bit integer
-        // https://devblogs.nvidia.com/thinking-parallel-part-iii-tree-construction-gpu/
-        x = (x * 0x00010001u) & 0xFF0000FFu;
-        x = (x * 0x00000101u) & 0x0F00F00Fu;
-        x = (x * 0x00000011u) & 0xC30C30C3u;
-        x = (x * 0x00000005u) & 0x49249249u;
-        return x;
+        // Insert two zero after every bit given a 21-bit integer
+        // https://github.com/leonardo-domingues/atrbvh/blob/master/BVHRT-Core/src/Commons.cuh#L599
+        uint64_t expanded = x;
+        expanded &= 0x1fffff;
+        expanded = (expanded | expanded << 32) & 0x1f00000000ffff;
+        expanded = (expanded | expanded << 16) & 0x1f0000ff0000ff;
+        expanded = (expanded | expanded << 8) & 0x100f00f00f00f00f;
+        expanded = (expanded | expanded << 4) & 0x10c30c30c30c30c3;
+        expanded = (expanded | expanded << 2) & 0x1249249249249249;
+        return expanded;
     }
 
     DEVICE uint64_t morton3D(const Vector3 &p) {
@@ -142,49 +148,53 @@ struct morton_code_3d_computer {
                 pp[i] = 0.5f;
             }
         }
-        return (expand_bits(pp.x) << 2u) |
-               (expand_bits(pp.y) << 1u) |
-               (expand_bits(pp.z) << 0u);
+        auto scale = (1 << 21) - 1;
+        TVector3<uint64_t> pp_i{pp.x * scale, pp.y * scale, pp.z * scale};
+        return (expand_bits(pp_i.x) << 2u) |
+               (expand_bits(pp_i.y) << 1u) |
+               (expand_bits(pp_i.z) << 0u);
     }
 
     DEVICE void operator()(int idx) {
         // This might be suboptimal -- should probably use raw edge information directly
-        auto box = convert_aabb<AABB3>(edge_aabbs[idx]);
+        auto box = convert_aabb<AABB3>(edge_aabbs[edge_ids[idx]]);
         morton_codes[idx] = morton3D(0.5f * (box.p_min + box.p_max));
     }
 
     const AABB3 scene_bounds;
     const AABB6 *edge_aabbs;
+    const int *edge_ids;
     uint64_t *morton_codes;
 };
 
 void compute_morton_codes(const AABB3 &scene_bounds,
                           const BufferView<AABB6> &edge_bounds,
+                          const BufferView<int> &edge_ids,
                           BufferView<uint64_t> morton_codes,
                           bool use_gpu) {
     parallel_for(morton_code_3d_computer{
-                     scene_bounds, edge_bounds.begin(), morton_codes.begin()},
+                     scene_bounds, edge_bounds.begin(), edge_ids.begin(), morton_codes.begin()},
                  morton_codes.size(),
                  use_gpu);
 }
 
 struct morton_code_6d_computer {
-    // For 6D Morton code, insert 5 zeros between each bit of a 10-bit integer
+    // For 6D Morton code, insert 5 zeros before each bit of a 10-bit integer
     // I'm doing this in a very slow way by manipulating each bit.
     // This is not the bottleneck anyway and I want readability.
     DEVICE uint64_t expand_bits(uint64_t x) {
         constexpr uint64_t mask = 0x1u;
         // We start from LSB (bit 63)
-        auto result = (x & (mask << 0u)) << 5u;
-        result |= (x & (mask << 1u)) << 10u;
-        result |= (x & (mask << 2u)) << 15u;
-        result |= (x & (mask << 3u)) << 20u;
-        result |= (x & (mask << 4u)) << 25u;
-        result |= (x & (mask << 5u)) << 30u;
-        result |= (x & (mask << 6u)) << 35u;
-        result |= (x & (mask << 7u)) << 40u;
-        result |= (x & (mask << 8u)) << 45u;
-        result |= (x & (mask << 9u)) << 50u;
+        auto result = (x & (mask << 0u));
+        result |= ((x & (mask << 1u)) << 5u);
+        result |= ((x & (mask << 2u)) << 10u);
+        result |= ((x & (mask << 3u)) << 15u);
+        result |= ((x & (mask << 4u)) << 20u);
+        result |= ((x & (mask << 5u)) << 25u);
+        result |= ((x & (mask << 6u)) << 30u);
+        result |= ((x & (mask << 7u)) << 35u);
+        result |= ((x & (mask << 8u)) << 40u);
+        result |= ((x & (mask << 9u)) << 45u);
         return result;
     }
 
@@ -199,31 +209,36 @@ struct morton_code_6d_computer {
                 dd[i] = 0.5f;
             }
         }
-        return (expand_bits(pp.x) << 5u) |
-               (expand_bits(pp.y) << 4u) |
-               (expand_bits(pp.z) << 3u) |
-               (expand_bits(dd.x) << 2u) |
-               (expand_bits(dd.y) << 1u) |
-               (expand_bits(dd.z) << 0u);
+        TVector3<uint64_t> pp_i{pp.x * 1023, pp.y * 1023, pp.z * 1023};
+        TVector3<uint64_t> dd_i{dd.x * 1023, dd.y * 1023, dd.z * 1023};
+        return (expand_bits(pp_i.x) << 5u) |
+               (expand_bits(pp_i.y) << 4u) |
+               (expand_bits(pp_i.z) << 3u) |
+               (expand_bits(dd_i.x) << 2u) |
+               (expand_bits(dd_i.y) << 1u) |
+               (expand_bits(dd_i.z) << 0u);
     }
 
     DEVICE void operator()(int idx) {
         // This might be suboptimal -- should probably use raw edge information directly
-        const auto &box = edge_aabbs[idx];
+        const auto &box = edge_aabbs[edge_ids[idx]];
         morton_codes[idx] = morton6D(0.5f * (box.p_min + box.p_max),
                                      0.5f * (box.d_min + box.d_max));
     }
 
     const AABB6 scene_bounds;
     const AABB6 *edge_aabbs;
+    const int *edge_ids;
     uint64_t *morton_codes;
 };
 
 void compute_morton_codes(const AABB6 &scene_bounds,
                           const BufferView<AABB6> &edge_aabbs,
+                          const BufferView<int> &edge_ids,
                           BufferView<uint64_t> morton_codes,
                           bool use_gpu) {
-    parallel_for(morton_code_6d_computer{scene_bounds, edge_aabbs.begin(), morton_codes.begin()},
+    parallel_for(morton_code_6d_computer{
+        scene_bounds, edge_aabbs.begin(), edge_ids.begin(), morton_codes.begin()},
                  morton_codes.size(),
                  use_gpu);
 }
@@ -273,13 +288,14 @@ struct radix_tree_builder {
         // Find the other end using binary search
         auto l = 0;
         auto divider = 2;
-        for (int t = lmax / divider; t >= 1; divider *= 2) {
+        for (int t = lmax / divider; t >= 1;) {
             if (longest_common_prefix(idx, idx + (l + t) * d) > delta_min) {
                 l += t;
             }
             if (t == 1) {
                 break;
             }
+            divider *= 2;
             t = lmax / divider;
         }
         auto j = idx + l * d;
@@ -287,13 +303,14 @@ struct radix_tree_builder {
         auto delta_node = longest_common_prefix(idx, j);
         auto s = 0;
         divider = 2;
-        for (int t = (l + (divider - 1)) / divider; t >= 1; divider *= 2) {
+        for (int t = (l + (divider - 1)) / divider; t >= 1;) {
             if (longest_common_prefix(idx, idx + (s + t) * d) > delta_node) {
                 s += t;
             }
             if (t == 1) {
                 break;
             }
+            divider *= 2;
             t = (l + (divider - 1)) / divider;
         }
         auto gamma = idx + s * d + min(d, 0);
@@ -346,6 +363,7 @@ struct bvh_computer {
         auto exterior_dihedral = compute_exterior_dihedral_angle(shapes, edge);
         leaf->weighted_total_length = distance(v0, v1) * exterior_dihedral;
         leaf->edge_id = edge_ids[idx];
+        leaf->has_light = shapes[edge.shape_id].light_id != -1;
 
         // Trace from leaf to root and merge bounding boxes & length
         auto current = leaf->parent;
@@ -367,6 +385,8 @@ struct bvh_computer {
                 }
                 current->bounds = bbox;
                 current->weighted_total_length = weighted_length;
+                current->has_light = current->children[0]->has_light ||
+                                     current->children[1]->has_light;
                 if (current->parent == nullptr) {
                     return;
                 }
@@ -440,6 +460,10 @@ EdgeTree::EdgeTree(bool use_gpu,
                         cam_org,
                         edge_bounds.view(0, edge_ids.size()),
                         use_gpu);
+    AABB3 scene_bounds = DISPATCH(use_gpu,
+        thrust::transform_reduce, edge_ids.begin(), edge_ids.end(),
+        id_to_aabb3{edge_bounds.begin()}, AABB3(), union_bounding_box{});
+    edge_bounds_expand = 0.001 * distance(scene_bounds.p_max, scene_bounds.p_min);
 
     // We build a 3D BVH over the camera silhouette edges, and build
     // a 6D BVH over the non camera silhouette edges
@@ -455,12 +479,14 @@ EdgeTree::EdgeTree(bool use_gpu,
         // Compute Morton code for LBVH
         Buffer<uint64_t> cs_morton_codes(use_gpu, cs_edge_ids.size());
         compute_morton_codes(cs_scene_bounds,
-                             edge_bounds.view(0, cs_edge_ids.size()),
+                             edge_bounds.view(0, edge_bounds.size()),
+                             cs_edge_ids,
                              cs_morton_codes.view(0, cs_edge_ids.size()),
                              use_gpu);
         // Sort by Morton code
         DISPATCH(use_gpu, thrust::stable_sort_by_key,
             cs_morton_codes.begin(), cs_morton_codes.end(), cs_edge_ids.begin());
+
         cs_bvh_nodes = Buffer<BVHNode3>(use_gpu, max(cs_morton_codes.size() - 1, 1));
         cs_bvh_leaves = Buffer<BVHNode3>(use_gpu, cs_morton_codes.size());
         // Initialize nodes
@@ -503,6 +529,7 @@ EdgeTree::EdgeTree(bool use_gpu,
         Buffer<uint64_t> ncs_morton_codes(use_gpu, ncs_edge_ids.size());
         compute_morton_codes(ncs_scene_bounds,
                              edge_bounds.view(0, edge_bounds.size()),
+                             ncs_edge_ids,
                              ncs_morton_codes.view(0, ncs_edge_ids.size()),
                              use_gpu);
         // Sort by Morton code

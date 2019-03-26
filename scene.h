@@ -103,7 +103,7 @@ FlattenScene get_flatten_scene(const Scene &scene);
 
 void intersect(const Scene &scene,
                const BufferView<int> &active_pixels,
-               const BufferView<Ray> &rays,
+               BufferView<Ray> rays,
                const BufferView<RayDifferential> &ray_differentials,
                BufferView<Intersection> intersections,
                BufferView<SurfacePoint> surface_points,

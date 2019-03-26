@@ -10,6 +10,7 @@
 #include <thrust/sort.h>
 #include <thrust/transform_scan.h>
 #include <thrust/binary_search.h>
+#include <thrust/remove.h>
 
 // Set this to false to fallback to importance resampling if edge tree doesn't work
 constexpr bool c_use_edge_tree = true;
@@ -61,6 +62,24 @@ struct edge_merger {
     DEVICE inline Edge operator()(const Edge &e0, const Edge &e1) {
         return Edge{e0.shape_id, e0.v0, e0.v1, e0.f0, e1.f0};
     }
+};
+
+struct edge_remover {
+    DEVICE inline bool operator()(const Edge &e) {
+        if (e.f0 == -1 || e.f1 == -1) {
+            // Only adjacent to one face
+            return false;
+        }
+        auto v0 = Vector3{get_v0(shapes, e)};
+        auto v1 = Vector3{get_v1(shapes, e)};
+        auto ns_v0 = Vector3{get_non_shared_v0(shapes, e)};
+        auto ns_v1 = Vector3{get_non_shared_v1(shapes, e)};
+        auto n0 = normalize(cross(v0 - ns_v0, v1 - ns_v0));
+        auto n1 = normalize(cross(v1 - ns_v1, v0 - ns_v1));
+        return dot(n0, n1) >= (1 - 1e-6f);
+    }
+
+    const Shape *shapes;
 };
 
 struct primary_edge_weighter {
@@ -149,7 +168,9 @@ EdgeSampler::EdgeSampler(const std::vector<const Shape*> &shapes,
         DISPATCH(scene.use_gpu, thrust::copy, edges_buffer_begin, new_end, edges_begin);
         current_num_edges += num_edges;
     }
-    edges.count = current_num_edges;
+    auto edges_end = DISPATCH(scene.use_gpu, thrust::remove_if, edges.begin(),
+        edges.begin() + current_num_edges, edge_remover{shapes_buffer.begin()});
+    edges.count = edges_end - edges.begin();
     // Primary edge sampler:
     primary_edges_pmf = Buffer<Real>(scene.use_gpu, edges.count);
     primary_edges_cdf = Buffer<Real>(scene.use_gpu, edges.count);
@@ -631,6 +652,11 @@ inline Matrix3x3 get_ltc_matrix(const Material &material,
     return Matrix3x3(ltc::tabM[rid+tid*ltc::size]);
 }
 
+struct BVHStackItem {
+    BVHNodePtr node_ptr;
+    Real pmf;
+};
+
 struct secondary_edge_sampler {
     DEVICE inline Real min_abs_bound(Real min, Real max) {
         if (min <= 0.f && max >= 0.f) {
@@ -658,6 +684,9 @@ struct secondary_edge_sampler {
             for (int i = 0; i < 8; i++) {
                 b = merge(b, m_inv * (corner(bounds, i) - p.position));
             }
+            if (b.p_max.z < 0) {
+                return 0;
+            }
 
             dir.x = min_abs_bound(b.p_min.x, b.p_max.x);
             dir.y = min_abs_bound(b.p_min.y, b.p_max.y);
@@ -671,241 +700,272 @@ struct secondary_edge_sampler {
         return max_dir_local.z / n;
     }
 
-    DEVICE bool is_bound_below_surface(const AABB3 &bounds,
-                                       const SurfacePoint &p) {
-        for (int i = 0; i < 8; i++) {
-            auto c = corner(bounds, i);
-            if (dot(p.shading_frame[2],
-                    c - p.position) > 0.f) {
-                return false;
-            }
+    DEVICE inline Real ltc_bound(const AABB6 &bounds,
+                                 const SurfacePoint &p,
+                                 const Matrix3x3 &m,
+                                 const Matrix3x3 &m_inv) {
+        auto p_bounds = AABB3{bounds.p_min, bounds.p_max};
+        return ltc_bound(p_bounds, p, m, m_inv);
+    }
+
+    DEVICE inline Real ltc_bound(const Edge &edge,
+                                 const SurfacePoint &p,
+                                 const Matrix3x3 &m,
+                                 const Matrix3x3 &m_inv) {
+        auto v0 = get_v0(shapes, edge);
+        auto v1 = get_v0(shapes, edge);
+        auto v0o = m_inv * (v0 - p.position);
+        auto v1o = m_inv * (v1 - p.position);
+        if (v0o.z <= 0 && v1o.z <= 0) {
+            return 0;
         }
-        return true;
+        auto min_o = Vector3{min(v0o.x, v1o.x),
+                             min(v0o.y, v1o.y),
+                             min(v0o.z, v1o.z)};
+        auto max_o = Vector3{max(v0o.x, v1o.x),
+                             max(v0o.y, v1o.y),
+                             max(v0o.z, v1o.z)};
+        auto dir = Vector3{0, 0, 0};
+        dir.x = min_abs_bound(min_o.x, max_o.x);
+        dir.y = min_abs_bound(min_o.y, max_o.y);
+        dir.z = max_o.z;
+
+        auto max_dir = normalize(m * dir);
+        auto max_dir_local = m_inv * max_dir;
+        auto n = square(length_squared(max_dir_local));
+        return max_dir_local.z / n;
     }
 
     DEVICE Real importance(const BVHNode3 &node,
                            const SurfacePoint &p,
                            const Matrix3x3 &m,
                            const Matrix3x3 &m_inv) {
-        // If the node is below the surface point, the importance is 0
-        if (is_bound_below_surface(node.bounds, p)) {
-            return 0;
-        }
-        // importance = BRDF * weighted length / dist^2
+        // importance = BRDF * weighted length / dist
         // For BRDF we estimate the bound using linearly transformed cosine distribution
         auto brdf_term = ltc_bound(node.bounds, p, m, m_inv);
         return brdf_term * node.weighted_total_length
-            / max(distance_squared(center(node.bounds), p.position), Real(1e-6f));
+            / max(distance(center(node.bounds), p.position), Real(1e-3));
     }
 
     DEVICE Real importance(const BVHNode6 &node,
                            const SurfacePoint &p,
                            const Matrix3x3 &m,
                            const Matrix3x3 &m_inv) {
-        // If the node is below the surface point, the importance is 0
-        auto p_bounds = AABB3{node.bounds.p_min, node.bounds.p_max};
-        if (is_bound_below_surface(p_bounds, p)) {
-            return 0;
-        }
-        // importance = BRDF * weighted length / dist^2
+        // importance = BRDF * weighted length / dist
         // Except if the sphere centered at 0.5 * (p + cam_org),
         // which has radius of 0.5 * distance(p, cam_org)
         // does not intersect the directional bounding box of node, 
         // the importance is zero (see Olson and Zhang 2006)
         auto d_bounds = AABB3{node.bounds.d_min, node.bounds.d_max};
-        if (!intersect(Sphere{0.5f * (p.position + cam_org),
+        if (!intersect(Sphere{0.5f * (p.position - cam_org),
                               0.5f * distance(p.position, cam_org)}, d_bounds)) {
             return 0;
         }
+        auto p_bounds = AABB3{node.bounds.p_min, node.bounds.p_max};
         auto brdf_term = ltc_bound(p_bounds, p, m, m_inv);
         return brdf_term * node.weighted_total_length
-            / max(distance_squared(center(p_bounds), p.position), Real(1e-6f));
+            / max(distance(center(p_bounds), p.position), Real(1e-3));
+    }
+
+    DEVICE Real importance(const BVHNodePtr &node_ptr,
+                           const SurfacePoint &p,
+                           const Matrix3x3 &m,
+                           const Matrix3x3 &m_inv) {
+        if (node_ptr.is_bvh_node3) {
+            return importance(*node_ptr.ptr3, p, m, m_inv);
+        } else {
+            return importance(*node_ptr.ptr6, p, m, m_inv);
+        }
     }
 
     template <typename BVHNodeType>
-    DEVICE int sample_edge(const BVHNodeType &node,
-                           const SurfacePoint &p,
-                           const Matrix3x3 &m,
-                           const Matrix3x3 &m_inv,
-                           Real sample,
-                           Real &pmf) {
-        if (node.edge_id != -1) {
-            assert(node.children[0] == nullptr && node.children[1] == nullptr);
-            return node.edge_id;
+    DEVICE Real leaf_importance(const BVHNodeType &node,
+                                const SurfacePoint &p,
+                                const Matrix3x3 &m,
+                                const Matrix3x3 &m_inv) {
+        const auto &edge = edges[node.edge_id];
+        if (!is_silhouette(shapes, p.position, edge)) {
+            return 0;
         }
-        assert(node.children[0] != nullptr && node.children[1] != nullptr);
-        // Expand the tree by a factor of 8, compute importance
-        // TODO: Sorry for the stupid code. Should fix this by writing a recursive DFS.
-        Real I[8];
-        const BVHNodeType *next[8];
-        auto child0 = node.children[0];
-        if (child0->children[0] != nullptr) {
-            auto child00 = child0->children[0];
-            if (child00->children[0] != nullptr) {
-                auto child000 = child00->children[0];
-                auto child001 = child00->children[1];
-                I[0] = importance(*child000, p, m, m_inv);
-                next[0] = child000;
-                I[1] = importance(*child001, p, m, m_inv);
-                next[1] = child001;
-            } else {
-                // child00 is leaf
-                I[0] = importance(*child00, p, m, m_inv);
-                next[0] = child00;
-                I[1] = 0;
-                next[1] = nullptr;
-            }
-            auto child01 = child0->children[1];
-            if (child01->children[0] != nullptr) {
-                auto child010 = child01->children[0];
-                auto child011 = child01->children[1];
-                I[2] = importance(*child010, p, m, m_inv);
-                next[2] = child010;
-                I[3] = importance(*child011, p, m, m_inv);
-                next[3] = child011;
-            } else {
-                // child01 is leaf
-                I[2] = importance(*child01, p, m, m_inv);
-                next[2] = child01;
-                I[3] = 0;
-                next[3] = nullptr;
-            }
-        } else {
-            // child0 is leaf
-            I[0] = importance(*child0, p, m, m_inv);
-            next[0] = child0;
-            I[1] = 0;
-            next[1] = nullptr;
-            I[2] = 0;
-            next[2] = nullptr;
-            I[3] = 0;
-            next[3] = nullptr;
-        }
-        auto child1 = node.children[1];
-        if (child1->children[0] != nullptr) {
-            auto child10 = child1->children[0];
-            if (child10->children[0] != nullptr) {
-                auto child100 = child10->children[0];
-                auto child101 = child10->children[1];
-                I[4] = importance(*child100, p, m, m_inv);
-                next[4] = child100;
-                I[5] = importance(*child101, p, m, m_inv);
-                next[5] = child101;
-            } else {
-                I[4] = importance(*child10, p, m, m_inv);
-                next[4] = child10;
-                I[5] = 0;
-                next[5] = nullptr;
-            }
-            auto child11 = child1->children[1];
-            if (child11->children[0] != nullptr) {
-                auto child110 = child11->children[0];
-                auto child111 = child11->children[1];
-                I[6] = importance(*child110, p, m, m_inv);
-                next[6] = child110;
-                I[7] = importance(*child111, p, m, m_inv);
-                next[7] = child111;
-            } else {
-                I[6] = importance(*child11, p, m, m_inv);
-                next[6] = child11;
-                I[7] = 0;
-                next[7] = nullptr;
-            }
-        } else {
-            I[4] = importance(*child1, p, m, m_inv);
-            next[4] = child1;
-            I[5] = 0;
-            next[5] = nullptr;
-            I[6] = 0;
-            next[6] = nullptr;
-            I[7] = 0;
-            next[7] = nullptr;
-        }
-        Real I_cdf[8];
-        I_cdf[0] = I[0];
-        // Exclusive scan
-        for (int i = 1; i < 8; i++) {
-            I_cdf[i] = I_cdf[i - 1] + I[i];
-        }
-        auto I_sum = I_cdf[7];
-        if (I_sum <= 0) {
-            return -1;
-        }
+        auto v0 = get_v0(shapes, edge);
+        auto v1 = get_v1(shapes, edge);
 
-        // Search for inverted cdf
-        auto next_id = -1;
-        auto u = sample * I_sum;
-        for (int i = 0; i < 8; i++) {
-            if (u <= I_cdf[i]) {
-                next_id = i;
-                break;
-            }
-        }
-        assert(next_id != -1 && I_cdf[next_id] > 0);
+        auto c = 0.5f * (v0 + v1);
+        // importance = BRDF * weighted length / dist
+        // For BRDF we estimate the bound using linearly transformed cosine distribution
+        auto brdf_term = ltc_bound(edge, p, m, m_inv);
+        return brdf_term * node.weighted_total_length
+            / max(distance(c, p.position), Real(1e-3));
+    }
 
-        // Rescale sample to [0, 1]
-        auto pmf_next = I[next_id] / I_sum;
-        if (next_id == 0) {
-            sample = sample / pmf_next;
+    DEVICE Real leaf_importance(const BVHNodePtr &node_ptr,
+                                const SurfacePoint &p,
+                                const Matrix3x3 &m,
+                                const Matrix3x3 &m_inv) {
+        if (node_ptr.is_bvh_node3) {
+            return leaf_importance(*node_ptr.ptr3, p, m, m_inv);
         } else {
-            sample = (sample - I_cdf[next_id - 1] / I_sum) / pmf_next;
+            return leaf_importance(*node_ptr.ptr6, p, m, m_inv);
         }
+    }
 
-        // Keep track of pmf
-        pmf *= pmf_next;
-        return sample_edge(*next[next_id],
-                           p,
-                           m,
-                           m_inv,
-                           sample,
-                           pmf);
+    DEVICE bool contains_silhouette(const AABB6 &b, const SurfacePoint &p) {
+        auto d_bounds = AABB3{b.d_min, b.d_max};
+        return intersect(Sphere{0.5f * (p.position - cam_org),
+                                0.5f * distance(p.position, cam_org)}, d_bounds);
+    }
+
+    DEVICE bool contains_silhouette(const BVHNodePtr &node_ptr, const SurfacePoint &p) {
+        if (node_ptr.is_bvh_node3) {
+            return true;
+        } else {
+            return contains_silhouette(node_ptr.ptr6->bounds, p);
+        }
+    }
+
+    DEVICE bool split(const BVHNode6 &node,
+                      const SurfacePoint &p) {
+        auto bounds = AABB3{node.bounds.p_min, node.bounds.p_max};
+        return inside(bounds, p.position);
+    }
+
+    DEVICE bool split(const BVHNode3 &node,
+                      const SurfacePoint &p) {
+        return inside(node.bounds, p.position);
+    }
+
+    DEVICE bool split(const BVHNodePtr &node_ptr,
+                      const SurfacePoint &p) {
+        if (node_ptr.is_bvh_node3) {
+            return split(*node_ptr.ptr3, p);
+        } else {
+            return split(*node_ptr.ptr6, p);
+        }
     }
 
     DEVICE int sample_edge(const EdgeTreeRoots &edge_tree_roots,
                            const SurfacePoint &p,
                            const Matrix3x3 &m,
                            const Matrix3x3 &m_inv,
+                           const Ray &nee_ray,
+                           const Ray &/*bsdf_ray*/, //bsdf_ray is not used atm
                            Real sample,
+                           Real resample_sample,
                            Real &pmf) {
-        auto imp_cs = Real(0);
+        BVHStackItem stack[128];
+        auto stack_ptr = &stack[0];
+        auto selected_edge = -1;
+        auto wsum = Real(0);
+
+        // First pass: randomly sample an edge using edge hierarchy
+        // push both nodes into stack
+        auto hierarchical_visit = 0;
         if (edge_tree_roots.cs_bvh_root != nullptr) {
-            imp_cs = importance(*edge_tree_roots.cs_bvh_root,
-                                p,
-                                m,
-                                m_inv);
+            *stack_ptr++ = BVHStackItem{BVHNodePtr(edge_tree_roots.cs_bvh_root), 1};
         }
-        auto imp_ncs = Real(0);
         if (edge_tree_roots.ncs_bvh_root != nullptr) {
-            imp_ncs = importance(*edge_tree_roots.ncs_bvh_root,
-                                 p,
-                                 m,
-                                 m_inv);
+            *stack_ptr++ = BVHStackItem{BVHNodePtr(edge_tree_roots.ncs_bvh_root), 1};
         }
-        if (imp_cs <= 0 && imp_ncs <= 0) {
-            return -1;
+        while (stack_ptr != &stack[0]) {
+            assert(stack_ptr > &stack[0] && stack_ptr < &stack[128]);
+            // pop from stack
+            auto stack_item = *--stack_ptr;
+            hierarchical_visit++;
+            if (is_leaf(stack_item.node_ptr)) {
+                auto w = leaf_importance(stack_item.node_ptr, p, m, m_inv);
+                if (w > 0) {
+                    auto prev_wsum = wsum;
+                    wsum += w;
+                    w /= wsum;
+                    if (resample_sample <= w) {
+                        selected_edge = get_edge_id(stack_item.node_ptr);
+                        pmf = stack_item.pmf * w;
+                        // rescale sample to [0, 1]
+                        resample_sample /= w;
+                    } else {
+                        // rescale pmf
+                        pmf *= (prev_wsum / wsum);
+                        // rescale sample to [0, 1]
+                        resample_sample = (resample_sample - w) / (1 - w);
+                    }
+                }
+            } else {
+                BVHNodePtr children[2];
+                get_children(stack_item.node_ptr, children);
+                if (split(stack_item.node_ptr, p)) {
+                    *stack_ptr++ = BVHStackItem{
+                        BVHNodePtr(children[0]), stack_item.pmf};
+                    *stack_ptr++ = BVHStackItem{
+                        BVHNodePtr(children[1]), stack_item.pmf};
+                } else {
+                    auto imp0 = importance(children[0], p, m, m_inv);
+                    auto imp1 = importance(children[1], p, m, m_inv);
+                    if (imp0 > 0 || imp1 > 0) {
+                        auto prob0 = imp0 / (imp0 + imp1);
+                        if (sample <= prob0) {
+                            *stack_ptr++ = BVHStackItem{
+                                BVHNodePtr(children[0]), stack_item.pmf * prob0};
+                            sample /= prob0;
+                        } else {
+                            *stack_ptr++ = BVHStackItem{
+                                BVHNodePtr(children[1]), stack_item.pmf * (1 - prob0)};
+                            sample = (sample - prob0) / (1 - prob0);
+                        }
+                    }
+                }
+            }
         }
-        auto prob_cs = imp_cs / (imp_cs + imp_ncs);
-        if (sample < prob_cs) {
-            pmf = prob_cs;
-            // Rescale to [0, 1]
-            sample = sample * (imp_cs + imp_ncs) / imp_cs;
-            return sample_edge(*edge_tree_roots.cs_bvh_root,
-                               p,
-                               m,
-                               m_inv,
-                               sample,
-                               pmf);
-        } else {
-            pmf = 1.f - prob_cs;
-            // Rescale to [0, 1]
-            sample = (sample * (imp_cs + imp_ncs) - imp_cs) / imp_ncs;
-            return sample_edge(*edge_tree_roots.ncs_bvh_root,
-                               p,
-                               m,
-                               m_inv,
-                               sample,
-                               pmf);
+
+        // Second pass: randomly select from an edge whose bounds intersect
+        // with nee_ray
+        auto query_ray = nee_ray;
+        if (edge_tree_roots.cs_bvh_root != nullptr) {
+            *stack_ptr++ = BVHStackItem{BVHNodePtr(edge_tree_roots.cs_bvh_root), 1};
         }
+        if (edge_tree_roots.ncs_bvh_root != nullptr) {
+            *stack_ptr++ = BVHStackItem{BVHNodePtr(edge_tree_roots.ncs_bvh_root), 1};
+        }
+        while (stack_ptr != &stack[0]) {
+            assert(stack_ptr > &stack[0] && stack_ptr < &stack[128]);
+            // pop from stack
+            auto stack_item = *--stack_ptr;
+            if (is_leaf(stack_item.node_ptr)) {
+                auto w = leaf_importance(stack_item.node_ptr, p, m, m_inv);
+                if (w > 0) {
+                    auto prev_wsum = wsum;
+                    wsum += w;
+                    w /= wsum;
+                    if (resample_sample <= w) {
+                        selected_edge = get_edge_id(stack_item.node_ptr);
+                        pmf = w;
+                        // rescale sample to [0, 1]
+                        resample_sample /= w;
+                    } else {
+                        // rescale pmf
+                        pmf *= (prev_wsum / wsum);
+                        // rescale sample to [0, 1]
+                        resample_sample = (resample_sample - w) / (1 - w);
+                    }
+                }
+            } else {
+                BVHNodePtr children[2];
+                get_children(stack_item.node_ptr, children);
+                // Only include children that intersect with query ray &
+                // contains silhouette
+                if (intersect(children[0], query_ray, edge_bounds_expand) &&
+                        contains_silhouette(children[0], p)) {
+                    *stack_ptr++ = BVHStackItem{
+                        BVHNodePtr(children[0]), stack_item.pmf};
+                }
+                if (intersect(children[1], query_ray, edge_bounds_expand) &&
+                        contains_silhouette(children[1], p)) {
+                    *stack_ptr++ = BVHStackItem{
+                        BVHNodePtr(children[1]), stack_item.pmf};
+                }
+            }
+        }
+
+        return selected_edge;
     }
 
     DEVICE void operator()(int idx) {
@@ -916,6 +976,8 @@ struct secondary_edge_sampler {
         const auto &shading_point = shading_points[pixel_id];
         const auto &throughput = throughputs[pixel_id];
         const auto &min_rough = min_roughness[pixel_id];
+        const auto &nee_ray = nee_rays[pixel_id];
+        const auto &bsdf_ray = bsdf_rays[pixel_id];
 
         // Initialize output
         edge_records[idx] = SecondaryEdgeRecord{};
@@ -1060,7 +1122,8 @@ struct secondary_edge_sampler {
             // sample using a tree traversal
             auto pmf = Real(0);
             edge_id = sample_edge(edge_tree_roots,
-                shading_point, m, m_inv, edge_sample.edge_sel, pmf);
+                shading_point, m, m_inv, nee_ray, bsdf_ray,
+                edge_sample.edge_sel, edge_sample.resample_sel, pmf);
             if (edge_id == -1) {
                 return;
             }
@@ -1225,12 +1288,15 @@ struct secondary_edge_sampler {
     const Real *edges_pmf;
     const Real *edges_cdf;
     const EdgeTreeRoots edge_tree_roots;
+    const Real edge_bounds_expand;
     const int *active_pixels;
     const SecondaryEdgeSample *edge_samples;
     const Ray *incoming_rays;
     const RayDifferential *incoming_ray_differentials;
     const Intersection *shading_isects;
     const SurfacePoint *shading_points;
+    const Ray *nee_rays;
+    const Ray *bsdf_rays;
     const Vector3 *throughputs;
     const Real *min_roughness;
     const float *d_rendered_image;
@@ -1249,6 +1315,8 @@ void sample_secondary_edges(const Scene &scene,
                             const BufferView<RayDifferential> &incoming_ray_differentials,
                             const BufferView<Intersection> &shading_isects,
                             const BufferView<SurfacePoint> &shading_points,
+                            const BufferView<Ray> &nee_rays,
+                            const BufferView<Ray> &bsdf_rays,
                             const BufferView<Vector3> &throughputs,
                             const BufferView<Real> &min_roughness,
                             const float *d_rendered_image,
@@ -1259,6 +1327,7 @@ void sample_secondary_edges(const Scene &scene,
                             BufferView<Vector3> new_throughputs,
                             BufferView<Real> edge_min_roughness) {
     auto cam_org = xfm_point(scene.camera.cam_to_world, Vector3{0, 0, 0});
+    auto edge_tree = scene.edge_sampler.edge_tree.get();
     parallel_for(secondary_edge_sampler{
         scene.shapes.data,
         scene.materials.data,
@@ -1267,13 +1336,16 @@ void sample_secondary_edges(const Scene &scene,
         cam_org,
         scene.edge_sampler.secondary_edges_pmf.begin(),
         scene.edge_sampler.secondary_edges_cdf.begin(),
-        get_edge_tree_roots(scene.edge_sampler.edge_tree.get()),
+        get_edge_tree_roots(edge_tree),
+        edge_tree != nullptr ? edge_tree->edge_bounds_expand : Real(0),
         active_pixels.begin(),
         samples.begin(),
         incoming_rays.begin(),
         incoming_ray_differentials.begin(),
         shading_isects.begin(),
         shading_points.begin(),
+        nee_rays.begin(),
+        bsdf_rays.begin(),
         throughputs.begin(),
         min_roughness.begin(),
         d_rendered_image,

@@ -137,7 +137,7 @@ inline bool is_silhouette(const Shape *shapes, const Vector3 &p, const Edge &edg
     if (!has_shading_normals(shapes[edge.shape_id])) {
         // If we are not using Phong normal, every edge is silhouette,
         // except edges with dihedral angle of 0
-        if (dot(n0, n1) >= 1) {
+        if (dot(n0, n1) >= 1 - 1e-6f) {
             return false;
         }
         return true;
@@ -188,6 +188,8 @@ void sample_secondary_edges(const Scene &scene,
                             const BufferView<RayDifferential> &incoming_ray_differentials,
                             const BufferView<Intersection> &shading_isects,
                             const BufferView<SurfacePoint> &shading_points,
+                            const BufferView<Ray> &nee_rays,
+                            const BufferView<Ray> &bsdf_rays,
                             const BufferView<Vector3> &throughputs,
                             const BufferView<Real> &min_roughness,
                             const float *d_rendered_image,

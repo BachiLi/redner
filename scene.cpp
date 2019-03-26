@@ -373,7 +373,7 @@ __global__ void intersect_shape_kernel(
         const Shape *shapes,
         const int *active_pixels,
         const OptiXHit *hits,
-        const Ray *rays,
+        Ray *rays,
         const RayDifferential *ray_differentials,
         Intersection *out_isects,
         SurfacePoint *out_points,
@@ -395,6 +395,7 @@ __global__ void intersect_shape_kernel(
         out_points[pixel_id] =
             intersect_shape(shape, tri_id, ray, ray_differential,
                 new_ray_differentials[pixel_id]);
+        rays[pixel_id].tmax = hits[idx].t;
     } else {
         out_isects[pixel_id].shape_id = -1;
         out_isects[pixel_id].tri_id = -1;
@@ -405,7 +406,7 @@ __global__ void intersect_shape_kernel(
 void intersect_shape(const Shape *shapes,
                      const BufferView<int> &active_pixels,
                      const BufferView<OptiXHit> &optix_hits,
-                     const BufferView<Ray> &rays,
+                     BufferView<Ray> rays,
                      const BufferView<RayDifferential> &ray_differentials,
                      BufferView<Intersection> isects,
                      BufferView<SurfacePoint> points,
@@ -427,7 +428,7 @@ void intersect_shape(const Shape *shapes,
 
 void intersect(const Scene &scene,
                const BufferView<int> &active_pixels,
-               const BufferView<Ray> &rays,
+               BufferView<Ray> rays,
                const BufferView<RayDifferential> &ray_differentials,
                BufferView<Intersection> intersections,
                BufferView<SurfacePoint> points,
@@ -477,7 +478,7 @@ void intersect(const Scene &scene,
             for (int work_id = id_offset; work_id < work_end; work_id++) {
                 auto id = work_id;
                 auto pixel_id = active_pixels[id];
-                const Ray &ray = rays[pixel_id];
+                Ray &ray = rays[pixel_id];
                 RTCIntersectContext rtc_context;
                 rtcInitIntersectContext(&rtc_context);
                 RTCRayHit rtc_ray_hit;
@@ -506,7 +507,6 @@ void intersect(const Scene &scene,
                     intersections[pixel_id] =
                         Intersection{shape_id, tri_id};
                     const auto &shape = scene.shapes[shape_id];
-                    const auto &ray = rays[pixel_id];
                     const auto &ray_differential = ray_differentials[pixel_id];
                     points[pixel_id] =
                         intersect_shape(shape,
@@ -514,6 +514,7 @@ void intersect(const Scene &scene,
                                         ray,
                                         ray_differential,
                                         new_ray_differentials[pixel_id]);
+                    ray.tmax = rtc_ray_hit.ray.tfar;
                 }
             }
         }, num_threads);
