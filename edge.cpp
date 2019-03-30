@@ -691,11 +691,19 @@ struct secondary_edge_sampler {
             dir.x = min_abs_bound(b.p_min.x, b.p_max.x);
             dir.y = min_abs_bound(b.p_min.y, b.p_max.y);
             dir.z = b.p_max.z;
-            dir = normalize(dir);
+            auto dir_len = length(dir);
+            if (dir_len <= 0) {
+                dir = Vector3{0, 0, 1};
+            } else {
+                dir = dir / dir_len;
+            }
         }
 
         auto max_dir = normalize(m * dir);
         auto max_dir_local = m_inv * max_dir;
+        if (max_dir_local.z <= 0) {
+            return 0;
+        }
         auto n = square(length_squared(max_dir_local));
         return max_dir_local.z / n;
     }
@@ -948,7 +956,8 @@ struct secondary_edge_sampler {
                         } else if (imp1 > 0) {
                             push_queue(buffer, queue_beg, queue_size, buffer_size,
                                 BVHStackItem{
-                                    BVHNodePtr(children[1]), queue_item.pmf * (1 -prob0)});
+                                    BVHNodePtr(children[1]),
+                                    queue_item.pmf * (1 - prob0)});
                             sample = (sample - prob0) / (1 - prob0);
                         }
                     }
@@ -1180,7 +1189,6 @@ struct secondary_edge_sampler {
             if (edge_id == -1) {
                 return;
             }
-            assert(pmf > 0);
             edge_sample_weight = 1 / pmf;
         }
 
