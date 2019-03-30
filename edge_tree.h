@@ -17,7 +17,7 @@ struct BVHNode3 {
     BVHNode3 *parent;
     BVHNode3 *children[2];
     int edge_id;
-    bool has_light;
+    Real cost;
 };
 
 struct BVHNode6 {
@@ -26,7 +26,7 @@ struct BVHNode6 {
     BVHNode6 *parent;
     BVHNode6 *children[2];
     int edge_id;
-    bool has_light;
+    Real cost;
 };
 
 struct BVHNodePtr {
@@ -73,20 +73,25 @@ inline void get_children(const BVHNodePtr &node_ptr, BVHNodePtr children[2]) {
 }
 
 DEVICE
-inline bool intersect(const BVHNodePtr &node_ptr, const Ray &ray) {
-    if (node_ptr.is_bvh_node3) {
-        return intersect(node_ptr.ptr3->bounds, ray);
-    } else {
-        return intersect(node_ptr.ptr6->bounds, ray);
-    }
-}
-
-DEVICE
-inline bool intersect(const BVHNodePtr &node_ptr, const Ray &ray, const Real edge_bounds_expand) {
+inline bool intersect(const BVHNodePtr &node_ptr, const Ray &ray,
+                      const Real edge_bounds_expand = 0) {
     if (node_ptr.is_bvh_node3) {
         return intersect(node_ptr.ptr3->bounds, ray, edge_bounds_expand);
     } else {
         return intersect(node_ptr.ptr6->bounds, ray, edge_bounds_expand);
+    }
+}
+
+DEVICE
+inline bool intersect(const BVHNodePtr &node_ptr, const Ray &ray,
+                      const Vector3 &inv_dir, const TVector3<bool> dir_is_neg,
+                      const Real edge_bounds_expand = 0) {
+    if (node_ptr.is_bvh_node3) {
+        return intersect(node_ptr.ptr3->bounds, ray,
+            inv_dir, dir_is_neg, edge_bounds_expand);
+    } else {
+        return intersect(node_ptr.ptr6->bounds, ray,
+            inv_dir, dir_is_neg, edge_bounds_expand);
     }
 }
 

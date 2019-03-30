@@ -2357,26 +2357,26 @@ void render(const Scene &scene,
                                                       d_edge_vertices);
                 ////////////////////////////////////////////////////////////////////////////////
                 
-                for (int i = 0; i < active_pixels.size(); i++) {
-                    auto pixel_id = active_pixels[i];
-                    // auto d_p = d_points[pixel_id].position;
-                    // debug_image[3 * pixel_id + 0] += d_p[0];
-                    // debug_image[3 * pixel_id + 1] += d_p[0];
-                    // debug_image[3 * pixel_id + 2] += d_p[0];
-                    auto edge_record = edge_records[i];
-                    if (edge_record.edge.shape_id == 5) {
-                        auto d_v0 = d_edge_vertices[2 * i + 0].d_v;
-                        auto d_v1 = d_edge_vertices[2 * i + 1].d_v;
-                        debug_image[3 * pixel_id + 0] += d_v0[0] + d_v1[0];
-                        debug_image[3 * pixel_id + 1] += d_v0[0] + d_v1[0];
-                        debug_image[3 * pixel_id + 2] += d_v0[0] + d_v1[0];
-                        // auto ec0 = edge_contribs[2 * i + 0];
-                        // auto ec1 = edge_contribs[2 * i + 1];
-                        // debug_image[3 * pixel_id + 0] += ec0 + ec1;
-                        // debug_image[3 * pixel_id + 1] += ec0 + ec1;
-                        // debug_image[3 * pixel_id + 2] += ec0 + ec1;
-                    }
-                }
+                // for (int i = 0; i < active_pixels.size(); i++) {
+                //     auto pixel_id = active_pixels[i];
+                //     // auto d_p = d_points[pixel_id].position;
+                //     // debug_image[3 * pixel_id + 0] += d_p[0];
+                //     // debug_image[3 * pixel_id + 1] += d_p[0];
+                //     // debug_image[3 * pixel_id + 2] += d_p[0];
+                //     auto edge_record = edge_records[i];
+                //     if (edge_record.edge.shape_id == 5) {
+                //         auto d_v0 = d_edge_vertices[2 * i + 0].d_v;
+                //         auto d_v1 = d_edge_vertices[2 * i + 1].d_v;
+                //         debug_image[3 * pixel_id + 0] += d_v0[0] + d_v1[0];
+                //         debug_image[3 * pixel_id + 1] += d_v0[0] + d_v1[0];
+                //         debug_image[3 * pixel_id + 2] += d_v0[0] + d_v1[0];
+                //         // auto ec0 = edge_contribs[2 * i + 0];
+                //         // auto ec1 = edge_contribs[2 * i + 1];
+                //         // debug_image[3 * pixel_id + 0] += ec0 + ec1;
+                //         // debug_image[3 * pixel_id + 1] += ec0 + ec1;
+                //         // debug_image[3 * pixel_id + 2] += ec0 + ec1;
+                //     }
+                // }
 
                 // Deposit vertices, texture, light derivatives
                 // sort the derivatives by id & reduce by key

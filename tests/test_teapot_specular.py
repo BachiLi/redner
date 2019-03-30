@@ -24,9 +24,9 @@ args=pyredner.RenderFunction.serialize_scene(\
 
 render = pyredner.RenderFunction.apply
 # Render our target. The first argument is the seed for RNG in the renderer.
-img = render(0, *args)
-pyredner.imwrite(img.cpu(), 'results/test_teapot_specular/target.exr')
-pyredner.imwrite(img.cpu(), 'results/test_teapot_specular/target.png')
+# img = render(0, *args)
+# pyredner.imwrite(img.cpu(), 'results/test_teapot_specular/target.exr')
+# pyredner.imwrite(img.cpu(), 'results/test_teapot_specular/target.png')
 target = pyredner.imread('results/test_teapot_specular/target.exr')
 if pyredner.get_use_gpu():
     target = target.cuda()
@@ -41,10 +41,10 @@ args = pyredner.RenderFunction.serialize_scene(\
     num_samples = 512,
     max_bounces = 2)
 # Render the initial guess
-img = render(1, *args)
-pyredner.imwrite(img.cpu(), 'results/test_teapot_specular/init.png')
-diff = torch.abs(target - img)
-pyredner.imwrite(diff.cpu(), 'results/test_teapot_specular/init_diff.png')
+# img = render(1, *args)
+# pyredner.imwrite(img.cpu(), 'results/test_teapot_specular/init.png')
+# diff = torch.abs(target - img)
+# pyredner.imwrite(diff.cpu(), 'results/test_teapot_specular/init_diff.png')
 
 lr = 0.5
 optimizer = torch.optim.Adam([translation], lr=lr)
@@ -65,6 +65,8 @@ for t in range(num_iteration):
 
     loss.backward()
     print('translation.grad:', translation.grad)
+
+    torch.nn.utils.clip_grad_norm_(translation, 10)
 
     optimizer.step()
     print('translation:', translation)

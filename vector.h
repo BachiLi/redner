@@ -291,6 +291,14 @@ inline auto operator/(const TVector3<T0> &v0,
 
 template <typename T0, typename T1>
 DEVICE
+inline auto operator/(const T0 &s,
+                      const TVector3<T1> &v1) {
+    return TVector3<decltype(s / v1[0])>{
+        s / v1[0], s / v1[2], s / v1[2]};
+}
+
+template <typename T0, typename T1>
+DEVICE
 inline auto operator/(const TVector3<T0> &v0,
                       const TVector3<T1> &v1) {
     return TVector3<decltype(v0[0] / v1[0])>{

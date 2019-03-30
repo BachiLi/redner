@@ -13,6 +13,10 @@ struct AABB3 {
         const Vector3 &p_max = Vector3{-infinity<Real>(), -infinity<Real>(), -infinity<Real>()})
             : p_min(p_min), p_max(p_max) {}
 
+    const Vector3& operator[](int i) const {
+        return i == 0 ? p_min : p_max;
+    }
+
     Vector3 p_min;
     Vector3 p_max;
 };
@@ -160,33 +164,7 @@ inline bool intersect(const Sphere &s, const AABB3 &b) {
 }
 
 DEVICE
-inline bool intersect(const AABB3 &b, const Ray &r) {
-    // From https://github.com/mmp/pbrt-v3/blob/master/src/core/geometry.h
-    auto t0 = r.tmin, t1 = r.tmax;
-    for (int i = 0; i < 3; i++) {
-        // Update interval for _i_th bounding box slab
-        auto inv_ray_dir = 1 / r.dir[i];
-        auto t_near = (b.p_min[i] - r.org[i]) * inv_ray_dir;
-        auto t_far = (b.p_max[i] - r.org[i]) * inv_ray_dir;
-
-        // Update parametric interval from slab intersection $t$ values
-        if (t_near > t_far) {
-            swap(t_near, t_far);
-        }
-
-        // Update t_far to ensure robust ray bounds intersection
-        t_far *= (1 + 1e-6f);
-        t0 = t_near > t0 ? t_near : t0;
-        t1 = t_far < t1 ? t_far : t1;
-        if (t0 > t1) {
-            return false;
-        }
-    }
-    return true;
-}
-
-DEVICE
-inline bool intersect(const AABB3 &b, const Ray &r, Real expand_dist) {
+inline bool intersect(const AABB3 &b, const Ray &r, Real expand_dist = 0) {
     // From https://github.com/mmp/pbrt-v3/blob/master/src/core/geometry.h
     auto t0 = r.tmin, t1 = r.tmax;
     for (int i = 0; i < 3; i++) {
@@ -212,13 +190,48 @@ inline bool intersect(const AABB3 &b, const Ray &r, Real expand_dist) {
 }
 
 DEVICE
-inline bool intersect(const AABB6 &b, const Ray &r) {
-    return intersect(convert_aabb<AABB3>(b), r);
+inline bool intersect(const AABB6 &b, const Ray &r, Real expand_dist = 0) {
+    return intersect(convert_aabb<AABB3>(b), r, expand_dist);
 }
 
 DEVICE
-inline bool intersect(const AABB6 &b, const Ray &r, Real expand_dist) {
-    return intersect(convert_aabb<AABB3>(b), r, expand_dist);
+inline bool intersect(const AABB3 &b, const Ray &r,
+                      const Vector3 &inv_dir, const TVector3<bool> dir_is_neg,
+                      Real expand_dist = 0) {
+    // From https://github.com/mmp/pbrt-v3/blob/master/src/core/geometry.h
+    auto t_min = (b[dir_is_neg[0]].x - r.org.x) * inv_dir.x;
+    auto t_max = (b[1 - dir_is_neg[0]].x - r.org.x) * inv_dir.x;
+    auto ty_min = (b[dir_is_neg[1]].y - r.org.y) * inv_dir.y;
+    auto ty_max = (b[1 - dir_is_neg[1]].y - r.org.y) * inv_dir.y;
+    // Update tMax and tyMax to ensure robust bounds intersection
+    t_max *= (1 + 1e-6f);
+    t_min *= (1 + 1e-6f);
+    if (t_min > ty_max || ty_min > t_max) {
+        return false;
+    }
+    if (ty_min > t_min) {
+        t_min = ty_min;
+    }
+    if (ty_max < t_max) {
+        t_max = ty_max;
+    }
+    // Check for ray intersection against z slab
+    auto tz_min = (b[dir_is_neg[2]].z - r.org.z) * inv_dir.z;
+    auto tz_max = (b[1 - dir_is_neg[2]].z - r.org.z) * inv_dir.z;
+    // Update tzMax to ensure robust bounds intersection
+    tz_max *= (1 + 1e-6f);
+    if (t_min > tz_max || tz_min > t_max) return false;
+    if (tz_min > t_min) t_min = tz_min;
+    if (tz_max < t_max) t_max = tz_max;
+    return (t_min < r.tmax) && (t_max > r.tmin);
+}
+
+DEVICE
+inline bool intersect(const AABB6 &b, const Ray &r,
+                      const Vector3 &inv_dir, const TVector3<bool> dir_is_neg,
+                      Real expand_dist = 0) {
+    return intersect(convert_aabb<AABB3>(b), r,
+        inv_dir, dir_is_neg, expand_dist);
 }
 
 std::ostream& operator<<(std::ostream &os, const AABB3 &bounds);

@@ -454,14 +454,18 @@ class RenderFunction(torch.autograd.Function):
             print('Backward pass, time: %.5f s' % time_elapsed)
 
         # # For debugging
-        # pyredner.imwrite(grad_img, 'grad_img.exr')
+        # # pyredner.imwrite(grad_img, 'grad_img.exr')
         # grad_img = torch.ones(256, 256, 3)
         # debug_img = torch.zeros(256, 256, 3)
+        # start = time.time()
         # redner.render(scene, options,
         #               redner.float_ptr(0),
         #               redner.float_ptr(grad_img.data_ptr()),
         #               d_scene,
         #               redner.float_ptr(debug_img.data_ptr()))
+        # time_elapsed = time.time() - start
+        # if print_timing:
+        #     print('Backward pass, time: %.5f s' % time_elapsed)
         # pyredner.imwrite(debug_img, 'debug.exr')
         # pyredner.imwrite(-debug_img, 'debug_.exr')
         # exit()

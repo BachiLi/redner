@@ -73,13 +73,13 @@ for t in range(num_iteration):
     optimizer.zero_grad()
     # Forward pass: render the image
     # need to rerun Camera constructor for autodiff 
-    scene.camera = pyredner.Camera(position     = cam_position + cam_translation,
-                                   look_at      = cam.look_at,
-                                   up           = cam.up,
-                                   fov          = cam.fov,
-                                   clip_near    = cam.clip_near,
-                                   resolution   = cam.resolution,
-                                   fisheye      = False)
+    scene.camera = pyredner.Camera(position   = cam_position + cam_translation,
+                                   look_at    = cam.look_at,
+                                   up         = cam.up,
+                                   fov        = cam.fov,
+                                   clip_near  = cam.clip_near,
+                                   resolution = cam.resolution,
+                                   fisheye    = False)
     args = pyredner.RenderFunction.serialize_scene(\
         scene = scene,
         num_samples = 4,
@@ -94,6 +94,10 @@ for t in range(num_iteration):
     print('specular_reflectance.grad:', specular_reflectance.grad)
     print('roughness.grad:', roughness.grad)
     print('cam_translation.grad:', cam_translation.grad)
+
+    # HACK: gradient clipping to deal with outlier gradients
+    torch.nn.utils.clip_grad_norm_(roughness, 10000)
+    torch.nn.utils.clip_grad_norm_(cam_translation, 10000)
 
     optimizer.step()
     print('diffuse_reflectance:', diffuse_reflectance)

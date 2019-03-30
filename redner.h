@@ -113,3 +113,21 @@ inline int clz(uint64_t x) {
     return x == 0 ? 64 : __builtin_clzll(x);
 #endif
 }
+
+inline int ffs(uint8_t x) {
+#ifdef __CUDA_ARCH__
+    return __ffs(x);
+#else
+    // TODO: use _BitScanReverse in windows
+    return __builtin_ffs(x);
+#endif
+}
+
+inline int popc(uint8_t x) {
+#ifdef __CUDA_ARCH__
+    return __popc(x);
+#else
+    // TODO: use _popcnt in windows
+    return __builtin_popcount(x);
+#endif
+}

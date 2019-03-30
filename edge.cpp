@@ -732,8 +732,20 @@ struct secondary_edge_sampler {
 
         auto max_dir = normalize(m * dir);
         auto max_dir_local = m_inv * max_dir;
+        if (max_dir_local.z <= 0) {
+            return 0;
+        }
         auto n = square(length_squared(max_dir_local));
         return max_dir_local.z / n;
+    }
+
+    DEVICE Real min_dist(const AABB3 &b,
+                         const Vector3 &p) {
+        auto c = Vector3{
+            clamp(p.x, b.p_min.x, b.p_max.x),
+            clamp(p.y, b.p_min.y, b.p_max.y),
+            clamp(p.z, b.p_min.z, b.p_max.z)};
+        return distance(c, p);
     }
 
     DEVICE Real importance(const BVHNode3 &node,
@@ -744,7 +756,7 @@ struct secondary_edge_sampler {
         // For BRDF we estimate the bound using linearly transformed cosine distribution
         auto brdf_term = ltc_bound(node.bounds, p, m, m_inv);
         return brdf_term * node.weighted_total_length
-            / max(distance(center(node.bounds), p.position), Real(1e-3));
+            / max(min_dist(node.bounds, p.position), Real(1e-3));
     }
 
     DEVICE Real importance(const BVHNode6 &node,
@@ -764,7 +776,7 @@ struct secondary_edge_sampler {
         auto p_bounds = AABB3{node.bounds.p_min, node.bounds.p_max};
         auto brdf_term = ltc_bound(p_bounds, p, m, m_inv);
         return brdf_term * node.weighted_total_length
-            / max(distance(center(p_bounds), p.position), Real(1e-3));
+            / max(min_dist(p_bounds, p.position), Real(1e-3));
     }
 
     DEVICE Real importance(const BVHNodePtr &node_ptr,
@@ -825,13 +837,21 @@ struct secondary_edge_sampler {
 
     DEVICE bool split(const BVHNode6 &node,
                       const SurfacePoint &p) {
-        auto bounds = AABB3{node.bounds.p_min, node.bounds.p_max};
+        auto bounds = AABB3{
+            node.bounds.p_min, node.bounds.p_max};
         return inside(bounds, p.position);
+        // auto bounds0 = AABB3{
+        //     node.children[0]->bounds.p_min, node.children[0]->bounds.p_max};
+        // auto bounds1 = AABB3{
+        //     node.children[1]->bounds.p_min, node.children[1]->bounds.p_max};
+        // return inside(bounds0, p.position) && inside(bounds1, p.position);
     }
 
     DEVICE bool split(const BVHNode3 &node,
                       const SurfacePoint &p) {
         return inside(node.bounds, p.position);
+        // return inside(node.children[0]->bounds, p.position) &&
+        //        inside(node.children[1]->bounds, p.position);
     }
 
     DEVICE bool split(const BVHNodePtr &node_ptr,
@@ -843,43 +863,60 @@ struct secondary_edge_sampler {
         }
     }
 
+    DEVICE void push_queue(BVHStackItem *queue, int &beg, int &size,
+                           int queue_buffer_size, const BVHStackItem &item) {
+        queue[(beg + size) % queue_buffer_size] = item;
+        size++;
+    }
+
+    DEVICE const BVHStackItem& pop_queue(BVHStackItem *queue, int &beg, int &size,
+                                         int queue_buffer_size) {
+        const auto &item = queue[beg];
+        beg = (beg + 1) % queue_buffer_size;
+        size--;
+        return item;
+    }
+
     DEVICE int sample_edge(const EdgeTreeRoots &edge_tree_roots,
                            const SurfacePoint &p,
                            const Matrix3x3 &m,
                            const Matrix3x3 &m_inv,
                            const Ray &nee_ray,
-                           const Ray &/*bsdf_ray*/, //bsdf_ray is not used atm
+                           const Ray &bsdf_ray,
                            Real sample,
                            Real resample_sample,
-                           Real &pmf) {
-        BVHStackItem stack[128];
-        auto stack_ptr = &stack[0];
+                           Real &pmf,
+                           bool debug = false) {
+        constexpr auto buffer_size = 128;
+        BVHStackItem buffer[buffer_size];
+        auto queue_beg = 0;
+        auto queue_size = 0;
         auto selected_edge = -1;
         auto wsum = Real(0);
-
         // First pass: randomly sample an edge using edge hierarchy
         // push both nodes into stack
-        auto hierarchical_visit = 0;
         if (edge_tree_roots.cs_bvh_root != nullptr) {
-            *stack_ptr++ = BVHStackItem{BVHNodePtr(edge_tree_roots.cs_bvh_root), 1};
+            push_queue(buffer, queue_beg, queue_size, buffer_size,
+                BVHStackItem{BVHNodePtr(edge_tree_roots.cs_bvh_root), 1});
         }
         if (edge_tree_roots.ncs_bvh_root != nullptr) {
-            *stack_ptr++ = BVHStackItem{BVHNodePtr(edge_tree_roots.ncs_bvh_root), 1};
+            push_queue(buffer, queue_beg, queue_size, buffer_size,
+                BVHStackItem{BVHNodePtr(edge_tree_roots.ncs_bvh_root), 1});
         }
-        while (stack_ptr != &stack[0]) {
-            assert(stack_ptr > &stack[0] && stack_ptr < &stack[128]);
+        auto split_count = 0;
+        while (queue_size > 0) {
             // pop from stack
-            auto stack_item = *--stack_ptr;
-            hierarchical_visit++;
-            if (is_leaf(stack_item.node_ptr)) {
-                auto w = leaf_importance(stack_item.node_ptr, p, m, m_inv);
+            const auto &queue_item =
+                pop_queue(buffer, queue_beg, queue_size, buffer_size);
+            if (is_leaf(queue_item.node_ptr)) {
+                auto w = leaf_importance(queue_item.node_ptr, p, m, m_inv);
                 if (w > 0) {
                     auto prev_wsum = wsum;
                     wsum += w;
                     w /= wsum;
-                    if (resample_sample <= w) {
-                        selected_edge = get_edge_id(stack_item.node_ptr);
-                        pmf = stack_item.pmf * w;
+                    if (resample_sample <= w || prev_wsum == 0) {
+                        selected_edge = get_edge_id(queue_item.node_ptr);
+                        pmf = queue_item.pmf * w;
                         // rescale sample to [0, 1]
                         resample_sample /= w;
                     } else {
@@ -891,24 +928,27 @@ struct secondary_edge_sampler {
                 }
             } else {
                 BVHNodePtr children[2];
-                get_children(stack_item.node_ptr, children);
-                if (split(stack_item.node_ptr, p)) {
-                    *stack_ptr++ = BVHStackItem{
-                        BVHNodePtr(children[0]), stack_item.pmf};
-                    *stack_ptr++ = BVHStackItem{
-                        BVHNodePtr(children[1]), stack_item.pmf};
+                get_children(queue_item.node_ptr, children);
+                if (split_count < 16 && split(queue_item.node_ptr, p)) {
+                    push_queue(buffer, queue_beg, queue_size, buffer_size,
+                        BVHStackItem{BVHNodePtr(children[0]), queue_item.pmf});
+                    push_queue(buffer, queue_beg, queue_size, buffer_size,
+                        BVHStackItem{BVHNodePtr(children[1]), queue_item.pmf});
+                    split_count++;
                 } else {
                     auto imp0 = importance(children[0], p, m, m_inv);
                     auto imp1 = importance(children[1], p, m, m_inv);
                     if (imp0 > 0 || imp1 > 0) {
                         auto prob0 = imp0 / (imp0 + imp1);
-                        if (sample <= prob0) {
-                            *stack_ptr++ = BVHStackItem{
-                                BVHNodePtr(children[0]), stack_item.pmf * prob0};
+                        if (sample <= prob0 || imp1 <= 0) {
+                            push_queue(buffer, queue_beg, queue_size, buffer_size,
+                                BVHStackItem{
+                                    BVHNodePtr(children[0]), queue_item.pmf * prob0});
                             sample /= prob0;
-                        } else {
-                            *stack_ptr++ = BVHStackItem{
-                                BVHNodePtr(children[1]), stack_item.pmf * (1 - prob0)};
+                        } else if (imp1 > 0) {
+                            push_queue(buffer, queue_beg, queue_size, buffer_size,
+                                BVHStackItem{
+                                    BVHNodePtr(children[1]), queue_item.pmf * (1 -prob0)});
                             sample = (sample - prob0) / (1 - prob0);
                         }
                     }
@@ -917,16 +957,22 @@ struct secondary_edge_sampler {
         }
 
         // Second pass: randomly select from an edge whose bounds intersect
-        // with nee_ray
-        auto query_ray = nee_ray;
+        // with nee_ray or bsdf_ray
+        auto stack_ptr = &buffer[0];
         if (edge_tree_roots.cs_bvh_root != nullptr) {
             *stack_ptr++ = BVHStackItem{BVHNodePtr(edge_tree_roots.cs_bvh_root), 1};
         }
         if (edge_tree_roots.ncs_bvh_root != nullptr) {
             *stack_ptr++ = BVHStackItem{BVHNodePtr(edge_tree_roots.ncs_bvh_root), 1};
         }
-        while (stack_ptr != &stack[0]) {
-            assert(stack_ptr > &stack[0] && stack_ptr < &stack[128]);
+        auto inv_nee_dir = Real(1) / nee_ray.dir;
+        auto inv_bsdf_dir = Real(1) / bsdf_ray.dir;
+        auto nee_dir_is_neg =
+            TVector3<bool>{inv_nee_dir.x < 0, inv_nee_dir.y < 0, inv_nee_dir.z < 0};
+        auto bsdf_dir_is_neg =
+            TVector3<bool>{inv_bsdf_dir.x < 0, inv_bsdf_dir.y < 0, inv_bsdf_dir.z < 0};
+        while (stack_ptr != &buffer[0]) {
+            assert(stack_ptr > &buffer[0] && stack_ptr < &buffer[128]);
             // pop from stack
             auto stack_item = *--stack_ptr;
             if (is_leaf(stack_item.node_ptr)) {
@@ -935,7 +981,7 @@ struct secondary_edge_sampler {
                     auto prev_wsum = wsum;
                     wsum += w;
                     w /= wsum;
-                    if (resample_sample <= w) {
+                    if (resample_sample <= w || prev_wsum == 0) {
                         selected_edge = get_edge_id(stack_item.node_ptr);
                         pmf = w;
                         // rescale sample to [0, 1]
@@ -952,12 +998,18 @@ struct secondary_edge_sampler {
                 get_children(stack_item.node_ptr, children);
                 // Only include children that intersect with query ray &
                 // contains silhouette
-                if (intersect(children[0], query_ray, edge_bounds_expand) &&
+                if ((intersect(children[0], nee_ray, inv_nee_dir,
+                            nee_dir_is_neg, edge_bounds_expand) ||
+                     intersect(children[0], bsdf_ray, inv_bsdf_dir,
+                            bsdf_dir_is_neg, edge_bounds_expand)) &&
                         contains_silhouette(children[0], p)) {
                     *stack_ptr++ = BVHStackItem{
                         BVHNodePtr(children[0]), stack_item.pmf};
                 }
-                if (intersect(children[1], query_ray, edge_bounds_expand) &&
+                if ((intersect(children[1], nee_ray, inv_nee_dir,
+                            nee_dir_is_neg, edge_bounds_expand) ||
+                     intersect(children[1], bsdf_ray, inv_bsdf_dir,
+                            bsdf_dir_is_neg, edge_bounds_expand)) &&
                         contains_silhouette(children[1], p)) {
                     *stack_ptr++ = BVHStackItem{
                         BVHNodePtr(children[1]), stack_item.pmf};
@@ -1123,7 +1175,8 @@ struct secondary_edge_sampler {
             auto pmf = Real(0);
             edge_id = sample_edge(edge_tree_roots,
                 shading_point, m, m_inv, nee_ray, bsdf_ray,
-                edge_sample.edge_sel, edge_sample.resample_sel, pmf);
+                edge_sample.edge_sel, edge_sample.resample_sel, pmf,
+                pixel_id == (100 * 256 + 100));
             if (edge_id == -1) {
                 return;
             }

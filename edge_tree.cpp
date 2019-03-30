@@ -363,7 +363,6 @@ struct bvh_computer {
         auto exterior_dihedral = compute_exterior_dihedral_angle(shapes, edge);
         leaf->weighted_total_length = distance(v0, v1) * exterior_dihedral;
         leaf->edge_id = edge_ids[idx];
-        leaf->has_light = shapes[edge.shape_id].light_id != -1;
 
         // Trace from leaf to root and merge bounding boxes & length
         auto current = leaf->parent;
@@ -385,8 +384,6 @@ struct bvh_computer {
                 }
                 current->bounds = bbox;
                 current->weighted_total_length = weighted_length;
-                current->has_light = current->children[0]->has_light ||
-                                     current->children[1]->has_light;
                 if (current->parent == nullptr) {
                     return;
                 }
@@ -416,6 +413,253 @@ void compute_bvh(const BufferView<Shape> &shapes,
                  bool use_gpu) {
     parallel_for(bvh_computer<BVHNodeType>{
             shapes.begin(), edges.begin(), edge_ids.begin(), bounds.begin(),
+            node_counters.begin(), nodes.begin(), leaves.begin()},
+        leaves.size(),
+        use_gpu);
+}
+
+template <typename BVHNodeType>
+struct bvh_optimizer {
+    // Adapted from
+    // https://github.com/andrewwuan/smallpt-parallel-bvh-gpu/blob/master/gpu.cu
+
+    // SAH constants
+    static constexpr auto Ci = Real(1);
+    static constexpr auto Ct = Real(1);
+
+    DEVICE Real surface_area(const AABB3 &bounds) {
+        auto d = bounds.p_max - bounds.p_min;
+        return 2 * (d.x * d.y + d.x * d.z + d.y * d.z);
+    }
+
+    DEVICE Real surface_area(const AABB6 &bounds) {
+        auto dp = bounds.p_max - bounds.p_min;
+        auto dd = bounds.d_max - bounds.d_min;
+        return 2 * ((dp.x * dp.y + dp.x * dp.z + dp.y * dp.z) +
+                    (dd.x * dd.y + dd.x * dd.z + dd.y * dd.z));
+    }
+
+    DEVICE Real compute_total_area(int n,
+                                   BVHNodeType **leaves,
+                                   uint32_t s) {
+        decltype(BVHNodeType::bounds) bounds = leaves[0]->bounds;
+        for (int i = 1; i < n; i++) {
+            if (((s >> i) & 1) == 1) {
+                bounds = merge(bounds, leaves[i]->bounds);
+            }
+        }
+        return surface_area(bounds);
+    }
+
+    DEVICE void calculate_optimal_treelet(int n,
+                                          BVHNodeType **leaves,
+                                          uint8_t *p_opt) {
+        // Algorithm 2 in Karras et al.
+        auto num_subsets = (0x1 << n) - 1;
+        // TODO: move the following two arrays into shared memory
+        Real a[128];
+        Real c_opt[128];
+        // Total cost of each subset
+        for (uint32_t s = 1; s <= num_subsets; s++) {
+            a[s] = compute_total_area(n, leaves, s);
+        }
+        // Costs of leaves
+        for (uint32_t i = 0; i < n; i++) {
+            c_opt[(0x1 << i)] = leaves[i]->cost;
+        }
+        // Optimize every subsets of leaves
+        for (uint32_t k = 2; k <= n; k++) {
+            for (uint32_t s = 1; s <= num_subsets; s++) {
+                if (popc(s) == k) {
+                    // Try each way of partitioning the leaves
+                    auto c_s = infinity<Real>();
+                    auto p_s = uint32_t(0);
+                    auto d = (s - 1u) & s;
+                    auto p = (-d) & s;
+                    do {
+                        auto c = c_opt[p] + c_opt[s ^ p];
+                        if (c < c_s) {
+                            c_s = c;
+                            p_s = p;
+                        }
+                        p = (p - d) & s;
+                    } while (p != 0);
+                    // SAH
+                    c_opt[s] = Ci * a[s] + c_s;
+                    p_opt[s] = p_s;
+                }
+            }
+        }
+    }
+
+    DEVICE void propagate_cost(BVHNodeType *root,
+                               BVHNodeType **leaves,
+                               int num_leaves) {
+        for (int i = 0; i < num_leaves; i++) {
+            auto current = leaves[i];
+            while (current != root) {
+                if (current->cost < 0) {
+                    if (current->children[0]->cost >= 0 &&
+                            current->children[1]->cost >= 0) {
+                        current->bounds =
+                            merge(current->children[0]->bounds,
+                                  current->children[1]->bounds);
+                        current->cost = Ci * surface_area(current->bounds) +
+                            current->children[0]->cost + current->children[1]->cost;
+                    } else {
+                        break;
+                    }
+                }
+                current = current->parent;
+            }
+        }
+
+        root->bounds = merge(root->children[0]->bounds, root->children[1]->bounds);
+        root->cost = Ci * surface_area(root->bounds) +
+            root->children[0]->cost + root->children[1]->cost;
+    }
+
+    struct PartitionEntry {
+        uint8_t partition;
+        uint8_t child_index;
+        BVHNodeType *parent;
+    };
+
+    template <int child_index>
+    DEVICE void restruct_tree(BVHNodeType *parent,
+                              BVHNodeType **leaves,
+                              BVHNodeType **nodes,
+                              uint8_t partition,
+                              uint8_t *optimal,
+                              int &index,
+                              int num_leaves) {
+        PartitionEntry stack[8];
+        auto stack_ptr = &stack[0];
+        *stack_ptr++ = PartitionEntry{partition, child_index, parent};
+
+        while (stack_ptr != &stack[0]) {
+            assert(stack_ptr >= stack && stack_ptr < stack + 8);
+            auto &entry = *--stack_ptr;
+            auto partition = entry.partition;
+            auto child_id = entry.child_index;
+            auto parent = entry.parent;
+            if (popc(partition) == 1) {
+                // Leaf
+                auto leaf_index = ffs(partition) - 1;
+                auto leaf = leaves[leaf_index];
+                parent->children[child_id] = leaf;
+                leaf->parent = parent;
+            } else {
+                // Internal
+                auto node = nodes[index++];
+                node->cost = -1;
+                parent->children[child_id] = node;
+                node->parent = parent;
+                auto left_partition = optimal[partition];
+                auto right_partition = uint8_t((~left_partition) & partition);
+                *stack_ptr++ = PartitionEntry{left_partition, 0, node};
+                *stack_ptr++ = PartitionEntry{right_partition, 1, node};
+            }
+        }
+
+        propagate_cost(parent, leaves, num_leaves);
+    }
+
+    DEVICE void treelet_optimize(BVHNodeType *root) {
+        if (root->edge_id != -1) {
+            return;
+        }
+
+        // Form a treelet with max number of leaves being 7
+        BVHNodeType *leaves[7];
+        auto counter = 0;
+        leaves[counter++] = root->children[0];
+        leaves[counter++] = root->children[1];
+        // Also remember the internal nodes
+        // Max 7 (leaves) - 1 (root doesn't count) - 1
+        BVHNodeType *nodes[5];
+        auto nodes_counter = 0;
+        auto max_area = Real(0);
+        auto max_idx = 0;
+        while (counter < 7 && max_idx != -1) {
+            max_idx = -1;
+            max_area = Real(-1);
+
+            // Find the node with largest area and expand it
+            for (int i = 0; i < counter; i++) {
+                if (leaves[i]->edge_id == -1) {
+                    auto area = surface_area(leaves[i]->bounds);
+                    if (area > max_area) {
+                        max_area = area;
+                        max_idx = i;
+                    }
+                }
+            }
+
+            if (max_idx != -1) {
+                BVHNodeType *tmp = leaves[max_idx];
+                nodes[nodes_counter++] = tmp;
+
+                leaves[max_idx] = leaves[counter - 1];
+                leaves[counter - 1] = tmp->children[0];
+                leaves[counter] = tmp->children[1];
+                counter++;
+            }
+        }
+
+        unsigned char optimal[128];
+        calculate_optimal_treelet(counter, leaves, optimal);
+
+        // Use complement on right tree, and use original on left tree
+        auto mask = (unsigned char)((1u << counter) - 1);
+        auto index = 0;
+        auto left_index = mask;
+        auto left = optimal[left_index];
+        restruct_tree<0>(root, leaves, nodes, left, optimal, index, counter);
+        auto right = (~left) & mask;
+        restruct_tree<1>(root, leaves, nodes, right, optimal, index, counter);
+
+        // Compute bounds & cost
+        root->bounds = merge(root->children[0]->bounds, root->children[1]->bounds);
+        root->cost = Ci * surface_area(root->bounds) +
+            root->children[0]->cost + root->children[1]->cost;
+    }
+
+    DEVICE void operator()(int idx) {
+        auto leaf = &leaves[idx];
+        leaf->cost = Ci * surface_area(leaf->bounds);
+        auto current = leaf->parent;
+        auto node_idx = current - nodes;
+        if (current != nullptr) {
+            while(true) {
+                auto res = atomic_increment(node_counters + node_idx);
+                if (res == 1) {
+                    // Terminate the first thread entering this node to avoid duplicate computation
+                    // It is important to terminate the first not the second so we ensure all children
+                    // are processed
+                    return;
+                }
+                treelet_optimize(current);
+                if (current == &nodes[0]) {
+                    return;
+                }
+                current = current->parent;
+                node_idx = current - &nodes[0];
+            }
+        }
+    }
+
+    int *node_counters;
+    BVHNodeType *nodes;
+    BVHNodeType *leaves;
+};
+
+template <typename BVHNodeType>
+void optimize_bvh(BufferView<int> node_counters,
+                  BufferView<BVHNodeType> nodes,
+                  BufferView<BVHNodeType> leaves,
+                  bool use_gpu) {
+    parallel_for(bvh_optimizer<BVHNodeType>{
             node_counters.begin(), nodes.begin(), leaves.begin()},
         leaves.size(),
         use_gpu);
@@ -502,15 +746,21 @@ EdgeTree::EdgeTree(bool use_gpu,
                          use_gpu);
         // Compute BVH node information (bounding box, length of edges, etc)
         DISPATCH(use_gpu, thrust::fill,
-            node_counters.begin(), node_counters.begin() + cs_edge_ids.size(), 0);
+            node_counters.begin(), node_counters.begin() + cs_bvh_leaves.size(), 0);
         compute_bvh(shapes,
                     edges,
                     cs_edge_ids,
                     edge_bounds.view(0, edge_bounds.size()),
-                    node_counters.view(0, cs_edge_ids.size()),
+                    node_counters.view(0, cs_bvh_leaves.size()),
                     cs_bvh_nodes.view(0, cs_bvh_nodes.size()),
                     cs_bvh_leaves.view(0, cs_bvh_leaves.size()),
                     use_gpu);
+        DISPATCH(use_gpu, thrust::fill,
+            node_counters.begin(), node_counters.begin() + cs_bvh_leaves.size(), 0);
+        optimize_bvh(node_counters.view(0, cs_bvh_leaves.size()),
+                     cs_bvh_nodes.view(0, cs_bvh_nodes.size()),
+                     cs_bvh_leaves.view(0, cs_bvh_leaves.size()),
+                     use_gpu);
     }
 
     // Do the same thing for non camera silhouette edges
@@ -550,14 +800,20 @@ EdgeTree::EdgeTree(bool use_gpu,
                          use_gpu);
         // Compute BVH node information (bounding box, length of edges, etc)
         DISPATCH(use_gpu, thrust::fill,
-            node_counters.begin(), node_counters.begin() + ncs_edge_ids.size(), 0);
+            node_counters.begin(), node_counters.begin() + ncs_bvh_leaves.size(), 0);
         compute_bvh(shapes,
                     edges,
                     ncs_edge_ids,
                     edge_bounds.view(0, edge_bounds.size()),
-                    node_counters.view(0, ncs_edge_ids.size()),
+                    node_counters.view(0, ncs_bvh_leaves.size()),
                     ncs_bvh_nodes.view(0, ncs_bvh_nodes.size()),
                     ncs_bvh_leaves.view(0, ncs_bvh_leaves.size()),
                     use_gpu);
+        DISPATCH(use_gpu, thrust::fill,
+            node_counters.begin(), node_counters.begin() + ncs_bvh_leaves.size(), 0);
+        optimize_bvh(node_counters.view(0, ncs_bvh_leaves.size()),
+                     ncs_bvh_nodes.view(0, ncs_bvh_nodes.size()),
+                     ncs_bvh_leaves.view(0, ncs_bvh_leaves.size()),
+                     use_gpu);
     }
 }

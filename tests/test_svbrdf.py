@@ -80,7 +80,6 @@ if pyredner.get_use_gpu():
     diffuse = diffuse.cuda()
     specular = specular.cuda()
     roughness = roughness.cuda()
-print(roughness.dim())
 mat_perlin = pyredner.Material(\
     diffuse_reflectance = diffuse,
     specular_reflectance = specular,
