@@ -1,5 +1,6 @@
 # redner
 
+News 03/31/2019 - Brought back the hierarchical edge sampling method in the paper.
 News 02/02/2019 - The [wiki](https://github.com/BachiLi/redner/wiki) now contains a series of tutorial. The plan is to further expand the examples.
 
 ![](https://people.csail.mit.edu/tzumao/diffrt/teaser.jpg)
@@ -70,9 +71,6 @@ redner is tested under MacOS with clang 7 and Ubuntu with gcc 7. In general any 
 The current development plan is to enhance the renderer. Following features will be added in the near future (not listed in any particular order):
 - Stratification of random number
 - More BSDFs e.g. glass/GGX
-- A properer secondary edge sampling strategy 
-  (to make the renderer computation friendlier to GPU, we temporarily dropped the hierarchical edge sampling algorithm described in the paper, and instead used an importance resampling strategy.
-   see [edge.cpp](https://github.com/BachiLi/redner/blob/master/edge.cpp) )
 - Support for edge shared by more than two triangles
   (The code currently assumes every triangle edge is shared by at most two triangles.
    If your mesh doesn't satisfy this, you can preprocess it in other mesh processing softwares such as [MeshLab](http://www.meshlab.net))
