@@ -13,6 +13,7 @@ struct AABB3 {
         const Vector3 &p_max = Vector3{-infinity<Real>(), -infinity<Real>(), -infinity<Real>()})
             : p_min(p_min), p_max(p_max) {}
 
+    DEVICE
     const Vector3& operator[](int i) const {
         return i == 0 ? p_min : p_max;
     }
@@ -33,20 +34,20 @@ struct AABB6 {
     Vector3 p_max, d_max;
 };
 
-DEVICE
 template<typename T>
+DEVICE
 inline T convert_aabb(const AABB6 &b) {
     assert(false);
 }
 
-DEVICE
 template<>
+DEVICE
 inline AABB3 convert_aabb(const AABB6 &b) {
     return AABB3{b.p_min, b.p_max};
 }
 
-DEVICE
 template<>
+DEVICE
 inline AABB6 convert_aabb(const AABB6 &b) {
     return b;
 }
@@ -175,7 +176,7 @@ inline bool intersect(const AABB3 &b, const Ray &r, Real expand_dist = 0) {
 
         // Update parametric interval from slab intersection $t$ values
         if (t_near > t_far) {
-            swap(t_near, t_far);
+            swap_(t_near, t_far);
         }
 
         // Update t_far to ensure robust ray bounds intersection

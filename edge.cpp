@@ -4,6 +4,7 @@
 #include "parallel.h"
 #include "thrust_utils.h"
 #include "ltc.inc"
+#include <memory>
 
 #include <thrust/iterator/constant_iterator.h>
 #include <thrust/execution_policy.h>
@@ -1078,13 +1079,11 @@ struct secondary_edge_sampler {
         auto isotropic_frame = Frame{frame_x, frame_y, n};
         auto m = Matrix3x3{};
         auto m_inv = Matrix3x3{};
-        auto ltc_magnitude = Real(0);
         if (edge_sample.bsdf_component <= diffuse_pmf) {
             // M is shading frame * identity
             m_inv = Matrix3x3(isotropic_frame);
             m = inverse(m_inv);
             m_pmf = diffuse_pmf;
-            ltc_magnitude = Real(1);
         } else {
             m_inv = inverse(get_ltc_matrix(material, shading_point, wi, min_rough)) *
                     Matrix3x3(isotropic_frame);
@@ -1240,7 +1239,7 @@ struct secondary_edge_sampler {
         auto lb = l0;
         auto ub = l1;
         if (lb > ub) {
-            swap(lb, ub);
+            swap_(lb, ub);
         }
         auto l = 0.5f * (lb + ub);
         for (int it = 0; it < 20; it++) {

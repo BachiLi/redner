@@ -460,17 +460,17 @@ struct bvh_optimizer {
         Real a[128];
         Real c_opt[128];
         // Total cost of each subset
-        for (uint32_t s = 1; s <= num_subsets; s++) {
+        for (uint32_t s = 1; s <= (uint32_t)num_subsets; s++) {
             a[s] = compute_total_area(n, leaves, s);
         }
         // Costs of leaves
-        for (uint32_t i = 0; i < n; i++) {
+        for (uint32_t i = 0; i < (uint32_t)n; i++) {
             c_opt[(0x1 << i)] = leaves[i]->cost;
         }
         // Optimize every subsets of leaves
-        for (uint32_t k = 2; k <= n; k++) {
-            for (uint32_t s = 1; s <= num_subsets; s++) {
-                if (popc(s) == k) {
+        for (uint32_t k = 2; k <= (uint32_t)n; k++) {
+            for (uint32_t s = 1; s <= (uint32_t)num_subsets; s++) {
+                if (popc(s) == (int)k) {
                     // Try each way of partitioning the leaves
                     auto c_s = infinity<Real>();
                     auto p_s = uint32_t(0);

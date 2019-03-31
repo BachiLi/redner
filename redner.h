@@ -87,7 +87,7 @@ inline int idiv_ceil(int x, int y) {
 
 template <typename T>
 DEVICE
-inline void swap(T &a, T &b) {
+inline void swap_(T &a, T &b) {
     T tmp = a;
     a = b;
     b = tmp;
@@ -105,6 +105,7 @@ inline T safe_acos(const T &x) {
     return acos(x);
 }
 
+DEVICE
 inline int clz(uint64_t x) {
 #ifdef __CUDA_ARCH__
     return __clzll(x);
@@ -114,6 +115,7 @@ inline int clz(uint64_t x) {
 #endif
 }
 
+DEVICE
 inline int ffs(uint8_t x) {
 #ifdef __CUDA_ARCH__
     return __ffs(x);
@@ -123,6 +125,7 @@ inline int ffs(uint8_t x) {
 #endif
 }
 
+DEVICE
 inline int popc(uint8_t x) {
 #ifdef __CUDA_ARCH__
     return __popc(x);
