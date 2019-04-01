@@ -1,7 +1,8 @@
 # redner
 
-News 03/31/2019 - Brought back the hierarchical edge sampling method in the paper.
-News 02/02/2019 - The [wiki](https://github.com/BachiLi/redner/wiki) now contains a series of tutorial. The plan is to further expand the examples.
+News  
+03/31/2019 - Brought back the hierarchical edge sampling method in the paper.  
+02/02/2019 - The [wiki](https://github.com/BachiLi/redner/wiki) now contains a series of tutorial. The plan is to further expand the examples.
 
 ![](https://people.csail.mit.edu/tzumao/diffrt/teaser.jpg)
 
