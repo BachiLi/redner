@@ -5,8 +5,7 @@ import torch
 # Optimize for a textured plane in a specular reflection
 
 # Use GPU if available
-#pyredner.set_use_gpu(torch.cuda.is_available())
-pyredner.set_device(torch.device('cuda', 1))
+pyredner.set_use_gpu(torch.cuda.is_available())
 
 # Load the scene from a Mitsuba scene file
 scene = pyredner.load_mitsuba('scenes/teapot_specular.xml')
