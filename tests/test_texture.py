@@ -24,7 +24,7 @@ cam = pyredner.Camera(position = position,
 
 checkerboard_texture = pyredner.imread('checkerboard.exr')
 if pyredner.get_use_gpu():
-	checkerboard_texture = checkerboard_texture.cuda()
+	checkerboard_texture = checkerboard_texture.cuda(device = pyredner.get_device())
 
 mat_checkerboard = pyredner.Material(\
     diffuse_reflectance = checkerboard_texture)
@@ -62,7 +62,7 @@ pyredner.imwrite(img.cpu(), 'results/test_texture/target.exr')
 pyredner.imwrite(img.cpu(), 'results/test_texture/target.png')
 target = pyredner.imread('results/test_texture/target.exr')
 if pyredner.get_use_gpu():
-    target = target.cuda()
+    target = target.cuda(device = pyredner.get_device())
 
 # Perturb the scene, this is our initial guess
 shape_plane.vertices = torch.tensor(\

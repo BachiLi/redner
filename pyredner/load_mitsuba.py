@@ -136,9 +136,9 @@ def parse_material(node, two_sided = False):
                 roughness = torch.tensor([float(child.attrib['value'])])
         if pyredner.get_use_gpu():
             # Copy to GPU
-            diffuse_reflectance = diffuse_reflectance.cuda()
-            specular_reflectance = specular_reflectance.cuda()
-            roughness = roughness.cuda()
+            diffuse_reflectance = diffuse_reflectance.cuda(device=pyredner.get_device())
+            specular_reflectance = specular_reflectance.cuda(device=pyredner.get_device())
+            roughness = roughness.cuda(device=pyredner.get_device())
         return (node_id, pyredner.Material(\
                 diffuse_reflectance = pyredner.Texture(diffuse_reflectance, diffuse_uv_scale),
                 specular_reflectance = pyredner.Texture(specular_reflectance, specular_uv_scale),
@@ -172,9 +172,9 @@ def parse_material(node, two_sided = False):
                     roughness = torch.tensor([alpha * alpha])
         if pyredner.get_use_gpu():
             # Copy to GPU
-            diffuse_reflectance = diffuse_reflectance.cuda()
-            specular_reflectance = specular_reflectance.cuda()
-            roughness = roughness.cuda()
+            diffuse_reflectance = diffuse_reflectance.cuda(device=pyredner.get_device())
+            specular_reflectance = specular_reflectance.cuda(device=pyredner.get_device())
+            roughness = roughness.cuda(device=pyredner.get_device())
         return (node_id, pyredner.Material(\
                 diffuse_reflectance = pyredner.Texture(diffuse_reflectance, diffuse_uv_scale),
                 specular_reflectance = pyredner.Texture(specular_reflectance, specular_uv_scale),
@@ -256,12 +256,12 @@ def parse_shape(node, material_dict, shape_id, shape_group_dict = None):
 
         if pyredner.get_use_gpu():
             # Copy to GPU
-            vertices = vertices.cuda()
-            indices = indices.cuda()
+            vertices = vertices.cuda(device=pyredner.get_device())
+            indices = indices.cuda(device=pyredner.get_device())
             if uvs is not None:
-                uvs = uvs.cuda()
+                uvs = uvs.cuda(device=pyredner.get_device())
             if normals is not None:
-                normals = normals.cuda()
+                normals = normals.cuda(device=pyredner.get_device())
         return pyredner.Shape(vertices, indices, uvs, normals, mat_id), lgt
     elif node.attrib['type'] == 'rectangle':
         indices = torch.tensor([[0, 2, 1], [1, 2, 3]],
@@ -307,12 +307,12 @@ def parse_shape(node, material_dict, shape_id, shape_group_dict = None):
 
         if pyredner.get_use_gpu():
             # Copy to GPU
-            vertices = vertices.cuda()
-            indices = indices.cuda()
+            vertices = vertices.cuda(device=pyredner.get_device())
+            indices = indices.cuda(device=pyredner.get_device())
             if uvs is not None:
-                uvs = uvs.cuda()
+                uvs = uvs.cuda(device=pyredner.get_device())
             if normals is not None:
-                normals = normals.cuda()
+                normals = normals.cuda(device=pyredner.get_device())
         return pyredner.Shape(vertices, indices, uvs, normals, mat_id), lgt
     # Add instance support 
     # TODO (simply transform & create a new shape now)

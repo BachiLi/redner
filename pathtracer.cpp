@@ -1874,6 +1874,13 @@ void render(const Scene &scene,
             ptr<float> d_rendered_image,
             std::shared_ptr<DScene> d_scene,
             ptr<float> debug_image) {
+#ifdef __NVCC__
+    int old_device_id = -1;
+    if (scene.use_gpu) {
+        checkCuda(cudaGetDevice(&old_device_id));
+        checkCuda(cudaSetDevice(scene.gpu_index));
+    }
+#endif
     parallel_init();
     ChannelInfo channel_info(options.channels, scene.use_gpu);
 
@@ -2813,4 +2820,10 @@ void render(const Scene &scene,
     }
     channel_info.free();
     parallel_cleanup();
+
+#ifdef __NVCC__
+    if (old_device_id != -1) {
+        checkCuda(cudaSetDevice(old_device_id));
+    }
+#endif
 }

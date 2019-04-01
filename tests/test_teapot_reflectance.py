@@ -30,7 +30,7 @@ pyredner.imwrite(img.cpu(), 'results/test_teapot_reflectance/target.exr')
 pyredner.imwrite(img.cpu(), 'results/test_teapot_reflectance/target.png')
 target = pyredner.imread('results/test_teapot_reflectance/target.exr')
 if pyredner.get_use_gpu():
-    target = target.cuda()
+    target = target.cuda(device = pyredner.get_device())
 
 # Perturb the scene, this is our initial guess
 cam = scene.camera

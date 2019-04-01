@@ -43,7 +43,8 @@ PYBIND11_MODULE(redner, m) {
                       const std::vector<const Material*> &,
                       const std::vector<const AreaLight*> &,
                       const std::shared_ptr<const EnvironmentMap> &,
-                      bool>());
+                      bool,
+                      int>());
 
     py::class_<DScene, std::shared_ptr<DScene>>(m, "DScene")
         .def(py::init<const DCamera &,
@@ -51,7 +52,8 @@ PYBIND11_MODULE(redner, m) {
                       const std::vector<DMaterial*> &,
                       const std::vector<DAreaLight*> &,
                       const std::shared_ptr<DEnvironmentMap> &,
-                      bool>());
+                      bool,
+                      int>());
 
     py::class_<Shape>(m, "Shape")
         .def(py::init<ptr<float>,

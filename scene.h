@@ -26,7 +26,8 @@ struct Scene {
           const std::vector<const Material*> &materials,
           const std::vector<const AreaLight*> &area_lights,
           const std::shared_ptr<const EnvironmentMap> &envmap,
-          bool use_gpu);
+          bool use_gpu,
+          int gpu_index);
     ~Scene();
 
     // Flatten arrays of scene content
@@ -38,6 +39,7 @@ struct Scene {
 
     // Is the scene stored in GPU or CPU
     bool use_gpu;
+    int gpu_index;
 
 #ifdef COMPILE_WITH_CUDA
     // Optix handles
@@ -88,7 +90,8 @@ struct DScene {
            const std::vector<DMaterial*> &materials,
            const std::vector<DAreaLight*> &lights,
            const std::shared_ptr<DEnvironmentMap> &envmap,
-           bool use_gpu);
+           bool use_gpu,
+           int gpu_index);
     ~DScene();
 
     DCamera camera;
@@ -97,6 +100,7 @@ struct DScene {
     Buffer<DAreaLight> area_lights;
     DEnvironmentMap *envmap;
     bool use_gpu;
+    int gpu_index;
 };
 
 FlattenScene get_flatten_scene(const Scene &scene);

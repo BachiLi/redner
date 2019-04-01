@@ -102,7 +102,7 @@ pyredner.imwrite(img.cpu(), 'results/test_single_triangle/target.png')
 # Read the target image we just saved.
 target = pyredner.imread('results/test_single_triangle/target.exr')
 if pyredner.get_use_gpu():
-    target = target.cuda()
+    target = target.cuda(device = pyredner.get_device())
 
 # Perturb the scene, this is our initial guess.
 shape_triangle.vertices = torch.tensor(\

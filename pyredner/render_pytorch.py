@@ -274,7 +274,8 @@ class RenderFunction(torch.autograd.Function):
                              materials,
                              area_lights,
                              envmap,
-                             pyredner.get_use_gpu())
+                             pyredner.get_use_gpu(),
+                             pyredner.get_device().index)
         time_elapsed = time.time() - start
         if print_timing:
             print('Scene construction, time: %.5f s' % time_elapsed)
@@ -439,7 +440,8 @@ class RenderFunction(torch.autograd.Function):
                                 d_materials,
                                 d_area_lights,
                                 d_envmap,
-                                pyredner.get_use_gpu())
+                                pyredner.get_use_gpu(),
+                                pyredner.get_device().index)
         if not get_use_correlated_random_number():
             # Decouple the forward/backward random numbers by adding a big prime number
             options.seed += 1000003

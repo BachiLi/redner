@@ -35,7 +35,7 @@ shapes = [shape_sphere]
 
 envmap = pyredner.imread('sunsky.exr')
 if pyredner.get_use_gpu():
-    envmap = envmap.cuda()
+    envmap = envmap.cuda(device = pyredner.get_device())
 envmap = pyredner.EnvironmentMap(envmap)
 scene = pyredner.Scene(cam, shapes, materials, [], envmap)
 scene_args = pyredner.RenderFunction.serialize_scene(\

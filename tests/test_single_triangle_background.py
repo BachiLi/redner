@@ -74,7 +74,7 @@ img = render(0, *scene_args)
 background = pyredner.imread('scenes/textures/siggraph.jpg')
 background = torch.from_numpy(skimage.transform.resize(background.numpy(), (256, 256, 3)))
 if pyredner.get_use_gpu():
-    background = background.cuda()
+    background = background.cuda(device = pyredner.get_device())
 background = background.type_as(img)
 img = img[:, :, :3] * img[:, :, 3:4] + background * (1 - img[:, :, 3:4])
 
@@ -85,7 +85,7 @@ pyredner.imwrite(img.cpu(), 'results/test_single_triangle_background/target.png'
 # Read the target image we just saved.
 target = pyredner.imread('results/test_single_triangle_background/target.exr')
 if pyredner.get_use_gpu():
-    target = target.cuda()
+    target = target.cuda(device = pyredner.get_device())
 
 # Perturb the scene, this is our initial guess.
 shape_triangle.vertices = torch.tensor(\

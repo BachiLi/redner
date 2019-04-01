@@ -63,12 +63,17 @@ Scene::Scene(const Camera &camera,
              const std::vector<const Material*> &materials,
              const std::vector<const AreaLight*> &area_lights,
              const std::shared_ptr<const EnvironmentMap> &envmap,
-             bool use_gpu)
-        : camera(camera), use_gpu(use_gpu) {
+             bool use_gpu,
+             int gpu_index)
+        : camera(camera), use_gpu(use_gpu), gpu_index(gpu_index) {
+    int old_device_id = -1;
     if (use_gpu) {
 #ifdef __NVCC__
+        checkCuda(cudaGetDevice(&old_device_id));
+        checkCuda(cudaSetDevice(gpu_index));
         // Initialize Optix prime scene
         optix_context = optix::prime::Context::create(RTP_CONTEXT_TYPE_CUDA);
+        optix_context->setCudaDeviceNumbers({(uint32_t)gpu_index});
         optix_models.resize(shapes.size());
         optix_instances.resize(shapes.size());
         transforms.resize(shapes.size(), Matrix4x4f::identity());
@@ -88,6 +93,7 @@ Scene::Scene(const Camera &camera,
             RTP_BUFFER_FORMAT_TRANSFORM_FLOAT4x4, RTP_BUFFER_TYPE_HOST, &transforms[0]);
         // This update is blocking
         optix_scene->update(RTP_MODEL_HINT_NONE);
+        std::cerr << "optix done" << std::endl;
 #else
         assert(false);
 #endif
@@ -259,6 +265,12 @@ Scene::Scene(const Camera &camera,
     material_mutexes = std::vector<std::mutex>(materials.size());
 
     edge_sampler = EdgeSampler(shapes, *this);
+
+#ifdef __NVCC__
+    if (old_device_id != -1) {
+        checkCuda(cudaSetDevice(old_device_id));
+    }
+#endif
 }
 
 Scene::~Scene() {
@@ -268,7 +280,11 @@ Scene::~Scene() {
         delete envmap;
     } else {
 #ifdef __NVCC__
+        int old_device_id = -1;
+        checkCuda(cudaGetDevice(&old_device_id));
+        checkCuda(cudaSetDevice(gpu_index));
         checkCuda(cudaFree(envmap));
+        checkCuda(cudaSetDevice(old_device_id));
 #else
         assert(false);
 #endif
@@ -281,8 +297,14 @@ DScene::DScene(const DCamera &camera,
                const std::vector<DMaterial*> &materials,
                const std::vector<DAreaLight*> &area_lights,
                const std::shared_ptr<DEnvironmentMap> &envmap,
-               bool use_gpu) : use_gpu(use_gpu) {
+               bool use_gpu,
+               int gpu_index) : use_gpu(use_gpu), gpu_index(gpu_index) {
+    int old_device_id = -1;
     if (use_gpu) {
+#ifdef __NVCC__
+        cudaGetDevice(&old_device_id);
+        cudaSetDevice(gpu_index);
+#endif
         cuda_synchronize();
     }
     // Flatten the scene into array
@@ -320,6 +342,12 @@ DScene::DScene(const DCamera &camera,
     } else {
         this->envmap = nullptr;
     }
+#ifdef __NVCC__
+    if (old_device_id != -1) {
+        checkCuda(cudaSetDevice(old_device_id));
+    }
+#endif
+
 }
 
 DScene::~DScene() {
@@ -327,7 +355,11 @@ DScene::~DScene() {
         delete envmap;
     } else {
 #ifdef __NVCC__
+        int old_device_id = -1;
+        checkCuda(cudaGetDevice(&old_device_id));
+        checkCuda(cudaSetDevice(gpu_index));
         checkCuda(cudaFree(envmap));
+        checkCuda(cudaSetDevice(old_device_id));
 #else
         assert(false);
 #endif
@@ -715,7 +747,7 @@ void test_scene_intersect(bool use_gpu) {
                    1, // num_triangles
                    0,
                    -1};
-    Scene scene{Camera{}, {&triangle}, {}, {}, {}, use_gpu};
+    Scene scene{Camera{}, {&triangle}, {}, {}, {}, use_gpu, 0};
     parallel_init();
 
     Buffer<int> active_pixels(use_gpu, 2);
@@ -800,7 +832,7 @@ void test_sample_point_on_light(bool use_gpu) {
         std::vector<const AreaLight*>{&light0, &light1});
     std::shared_ptr<Camera> camera = std::make_shared<Camera>();
 
-    Scene scene{Camera{}, {&shape0, &shape1}, {}, {&light0, &light1}, {}, use_gpu};
+    Scene scene{Camera{}, {&shape0, &shape1}, {}, {&light0, &light1}, {}, use_gpu, 0};
     cuda_synchronize();
     // Power of the first light source: 1.5
     // Power of the second light source: 2

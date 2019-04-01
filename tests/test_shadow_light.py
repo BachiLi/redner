@@ -66,7 +66,7 @@ pyredner.imwrite(img.cpu(), 'results/test_shadow_light/target.exr')
 pyredner.imwrite(img.cpu(), 'results/test_shadow_light/target.png')
 target = pyredner.imread('results/test_shadow_light/target.exr')
 if pyredner.get_use_gpu():
-    target = target.cuda()
+    target = target.cuda(device = pyredner.get_device())
 
 # Perturb the scene, this is our initial guess
 light_translation = torch.tensor([-0.4, -0.4, -0.4],

@@ -77,9 +77,9 @@ cam = pyredner.Camera(position = position,
                      clip_near = clip_near,
                      resolution = resolution)
 if pyredner.get_use_gpu():
-    diffuse = diffuse.cuda()
-    specular = specular.cuda()
-    roughness = roughness.cuda()
+    diffuse = diffuse.cuda(device = pyredner.get_device())
+    specular = specular.cuda(device = pyredner.get_device())
+    roughness = roughness.cuda(device = pyredner.get_device())
 mat_perlin = pyredner.Material(\
     diffuse_reflectance = diffuse,
     specular_reflectance = specular,
@@ -117,7 +117,7 @@ pyredner.imwrite(img.cpu(), 'results/test_svbrdf/target.exr')
 pyredner.imwrite(img.cpu(), 'results/test_svbrdf/target.png')
 target = pyredner.imread('results/test_svbrdf/target.exr')
 if pyredner.get_use_gpu():
-    target = target.cuda()
+    target = target.cuda(device = pyredner.get_device())
 
 # Our initial guess is three gray textures 
 diffuse_tex = torch.tensor(\

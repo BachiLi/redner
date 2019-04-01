@@ -5,7 +5,8 @@ import torch
 # Optimize for a textured plane in a specular reflection
 
 # Use GPU if available
-pyredner.set_use_gpu(torch.cuda.is_available())
+#pyredner.set_use_gpu(torch.cuda.is_available())
+pyredner.set_device(torch.device('cuda', 1))
 
 # Load the scene from a Mitsuba scene file
 scene = pyredner.load_mitsuba('scenes/teapot_specular.xml')
@@ -29,7 +30,7 @@ pyredner.imwrite(img.cpu(), 'results/test_teapot_specular/target.exr')
 pyredner.imwrite(img.cpu(), 'results/test_teapot_specular/target.png')
 target = pyredner.imread('results/test_teapot_specular/target.exr')
 if pyredner.get_use_gpu():
-    target = target.cuda()
+    target = target.cuda(device = pyredner.get_device())
 
 # Perturb the scene, this is our initial guess
 # We perturb the last shape, which is the SIGGRAPH logo

@@ -70,7 +70,7 @@ pyredner.imwrite(img.cpu(), 'results/test_shadow_glossy/target.exr')
 pyredner.imwrite(img.cpu(), 'results/test_shadow_glossy/target.png')
 target = pyredner.imread('results/test_shadow_glossy/target.exr')
 if pyredner.get_use_gpu():
-    target = target.cuda()
+    target = target.cuda(device = pyredner.get_device())
 
 # Perturb the scene, this is our initial guess
 shape_blocker.vertices = torch.tensor(\

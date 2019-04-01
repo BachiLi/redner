@@ -74,8 +74,8 @@ target_depth = pyredner.imread('results/test_g_buffer/target_depth.exr')
 target_depth = target_depth[:, :, 0]
 target_normal = pyredner.imread('results/test_g_buffer/target_normal.exr')
 if pyredner.get_use_gpu():
-    target_depth = target_depth.cuda()
-    target_normal = target_normal.cuda()
+    target_depth = target_depth.cuda(device = pyredner.get_device())
+    target_normal = target_normal.cuda(device = pyredner.get_device())
 
 # Perturb the teapot by a translation and a rotation to the object
 translation_params = torch.tensor([0.1, -0.1, 0.1],
@@ -136,7 +136,7 @@ for t in range(200):
     translation = translation_params * 100.0
     rotation_matrix = pyredner.gen_rotate_matrix(euler_angles)
     if pyredner.get_use_gpu():
-        rotation_matrix = rotation_matrix.cuda()
+        rotation_matrix = rotation_matrix.cuda(device = pyredner.get_device())
     center = torch.mean(torch.cat([shape0_vertices, shape1_vertices]), 0)
     shapes[0].vertices = \
         (shape0_vertices - center) @ torch.t(rotation_matrix) + \

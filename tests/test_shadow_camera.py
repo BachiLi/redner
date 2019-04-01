@@ -66,7 +66,7 @@ pyredner.imwrite(img.cpu(), 'results/test_shadow_camera/target.exr')
 pyredner.imwrite(img.cpu(), 'results/test_shadow_camera/target.png')
 target = pyredner.imread('results/test_shadow_camera/target.exr')
 if pyredner.get_use_gpu():
-    target = target.cuda()
+    target = target.cuda(device = pyredner.get_device())
 
 # Perturb the scene, this is our initial guess
 position = torch.tensor([-2.0, 7.0, 2.0], requires_grad = True)
