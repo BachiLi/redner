@@ -1,7 +1,7 @@
 # redner
 
 News  
-04/01/2019 - Now support multi-GPU
+04/01/2019 - Now support multi-GPU (see pyredner.set\_device).  
 03/31/2019 - Brought back the hierarchical edge sampling method in the paper.  
 02/02/2019 - The [wiki](https://github.com/BachiLi/redner/wiki) now contains a series of tutorial. The plan is to further expand the examples.
 
