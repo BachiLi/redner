@@ -66,7 +66,9 @@ Scene::Scene(const Camera &camera,
              bool use_gpu,
              int gpu_index)
         : camera(camera), use_gpu(use_gpu), gpu_index(gpu_index) {
+#ifdef __NVCC__
     int old_device_id = -1;
+#endif
     if (use_gpu) {
 #ifdef __NVCC__
         checkCuda(cudaGetDevice(&old_device_id));
@@ -298,7 +300,9 @@ DScene::DScene(const DCamera &camera,
                const std::shared_ptr<DEnvironmentMap> &envmap,
                bool use_gpu,
                int gpu_index) : use_gpu(use_gpu), gpu_index(gpu_index) {
+#ifdef __NVCC__
     int old_device_id = -1;
+#endif
     if (use_gpu) {
 #ifdef __NVCC__
         cudaGetDevice(&old_device_id);
@@ -415,7 +419,7 @@ __global__ void intersect_shape_kernel(
     }
     auto pixel_id = active_pixels[idx];
 
-    if (hits[idx].t >= 0.f) {
+    if (hits[idx].t >= 0.f && length_squared(rays[pixel_id].dir) > 1e-3f) {
         auto shape_id = hits[idx].inst_id;
         auto tri_id = hits[idx].tri_id;
         out_isects[pixel_id].shape_id = shape_id;
@@ -529,7 +533,8 @@ void intersect(const Scene &scene,
                 rtc_ray_hit.hit.instID[0] = RTC_INVALID_GEOMETRY_ID;
                 // TODO: switch to rtcIntersect16
                 rtcIntersect1(scene.embree_scene, &rtc_context, &rtc_ray_hit);
-                if (rtc_ray_hit.hit.geomID == RTC_INVALID_GEOMETRY_ID) {
+                if (rtc_ray_hit.hit.geomID == RTC_INVALID_GEOMETRY_ID ||
+                         length_squared(ray.dir) <= 1e-3f) {
                     intersections[pixel_id] = Intersection{-1, -1};
                     new_ray_differentials[pixel_id] = ray_differentials[pixel_id];
                 } else {
@@ -604,9 +609,7 @@ void occluded(const Scene &scene,
                        optix_hits.data);
         // XXX: should use watertight intersection here?
         query->execute(0);
-        update_occluded_rays(active_pixels,
-                             optix_hits,
-                             rays);
+        update_occluded_rays(active_pixels, optix_hits, rays);
 #else
         assert(false);
 #endif

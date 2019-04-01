@@ -663,10 +663,10 @@ struct secondary_edge_sampler {
         if (min <= 0.f && max >= 0.f) {
             return Real(0);
         }
-        if (min < 0.f && max < 0.f) {
+        if (min <= 0.f && max <= 0.f) {
             return max;
         }
-        assert(min > 0.f && max > 0.f);
+        assert(min >= 0.f && max >= 0.f);
         return min;
     }
 
@@ -1076,6 +1076,9 @@ struct secondary_edge_sampler {
         auto n = shading_point.shading_frame.n;
         auto frame_x = normalize(wi - n * dot(wi, n));
         auto frame_y = cross(n, frame_x);
+        if (dot(wi, n) > 1 - 1e-6f) {
+            coordinate_system(n, frame_x, frame_y);
+        }
         auto isotropic_frame = Frame{frame_x, frame_y, n};
         auto m = Matrix3x3{};
         auto m_inv = Matrix3x3{};
