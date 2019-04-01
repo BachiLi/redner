@@ -93,7 +93,6 @@ Scene::Scene(const Camera &camera,
             RTP_BUFFER_FORMAT_TRANSFORM_FLOAT4x4, RTP_BUFFER_TYPE_HOST, &transforms[0]);
         // This update is blocking
         optix_scene->update(RTP_MODEL_HINT_NONE);
-        std::cerr << "optix done" << std::endl;
 #else
         assert(false);
 #endif
