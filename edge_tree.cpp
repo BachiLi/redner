@@ -356,7 +356,7 @@ struct bvh_computer {
     DEVICE void operator()(int idx) {
         const auto &edge = edges[edge_ids[idx]];
         auto leaf = &leaves[idx];
-        leaf->bounds = convert_aabb<decltype(leaf->bounds)>(bounds[edge_ids[idx]]);
+        leaf->bounds = convert_aabb<decltype(BVHNodeType::bounds)>(bounds[edge_ids[idx]]);
         // length * (pi - dihedral angle)
         auto v0 = get_v0(shapes, edge);
         auto v1 = get_v1(shapes, edge);
