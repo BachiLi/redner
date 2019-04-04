@@ -504,6 +504,9 @@ struct bvh_optimizer {
                         current->bounds =
                             merge(current->children[0]->bounds,
                                   current->children[1]->bounds);
+                        current->weighted_total_length =
+                            current->children[0]->weighted_total_length +
+                            current->children[1]->weighted_total_length;
                         current->cost = Ci * surface_area(current->bounds) +
                             current->children[0]->cost + current->children[1]->cost;
                     } else {
@@ -515,6 +518,9 @@ struct bvh_optimizer {
         }
 
         root->bounds = merge(root->children[0]->bounds, root->children[1]->bounds);
+        root->weighted_total_length =
+            root->children[0]->weighted_total_length +
+            root->children[1]->weighted_total_length;
         root->cost = Ci * surface_area(root->bounds) +
             root->children[0]->cost + root->children[1]->cost;
     }
@@ -621,6 +627,9 @@ struct bvh_optimizer {
 
         // Compute bounds & cost
         root->bounds = merge(root->children[0]->bounds, root->children[1]->bounds);
+        root->weighted_total_length =
+            root->children[0]->weighted_total_length +
+            root->children[1]->weighted_total_length;
         root->cost = Ci * surface_area(root->bounds) +
             root->children[0]->cost + root->children[1]->cost;
     }

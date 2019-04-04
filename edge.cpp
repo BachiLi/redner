@@ -15,6 +15,7 @@
 
 // Set this to false to fallback to importance resampling if edge tree doesn't work
 constexpr bool c_use_edge_tree = true;
+constexpr bool c_uniform_sampling = false;
 
 struct edge_collector {
     DEVICE inline void operator()(int idx) {
@@ -655,6 +656,7 @@ inline Matrix3x3 get_ltc_matrix(const Material &material,
 
 struct BVHStackItem {
     BVHNodePtr node_ptr;
+    int num_samples;
     Real pmf;
 };
 
@@ -680,7 +682,7 @@ struct secondary_edge_sampler {
         // find the largest possible z and smallest possible
         // x, y in terms of magnitude.
         auto dir = Vector3{0, 0, 1};
-        if (!inside(bounds, p.position)) {
+        if (!::inside(bounds, p.position)) {
             AABB3 b;
             for (int i = 0; i < 8; i++) {
                 b = merge(b, m_inv * (corner(bounds, i) - p.position));
@@ -764,8 +766,9 @@ struct secondary_edge_sampler {
         // importance = BRDF * weighted length / dist
         // For BRDF we estimate the bound using linearly transformed cosine distribution
         auto brdf_term = ltc_bound(node.bounds, p, m, m_inv);
+        auto center = 0.5f * (node.bounds.p_min + node.bounds.p_max);
         return brdf_term * node.weighted_total_length
-            / max(min_dist(node.bounds, p.position), Real(1e-3));
+            / max(distance(center, p.position), Real(1e-3));
     }
 
     DEVICE Real importance(const BVHNode6 &node,
@@ -773,19 +776,21 @@ struct secondary_edge_sampler {
                            const Matrix3x3 &m,
                            const Matrix3x3 &m_inv) {
         // importance = BRDF * weighted length / dist
-        // Except if the sphere centered at 0.5 * (p + cam_org),
+        // Except if the sphere centered at 0.5 * (p - cam_org),
         // which has radius of 0.5 * distance(p, cam_org)
         // does not intersect the directional bounding box of node, 
         // the importance is zero (see Olson and Zhang 2006)
         auto d_bounds = AABB3{node.bounds.d_min, node.bounds.d_max};
         if (!intersect(Sphere{0.5f * (p.position - cam_org),
                               0.5f * distance(p.position, cam_org)}, d_bounds)) {
+            // Not silhouette
             return 0;
         }
         auto p_bounds = AABB3{node.bounds.p_min, node.bounds.p_max};
         auto brdf_term = ltc_bound(p_bounds, p, m, m_inv);
+        auto center = 0.5f * (p_bounds.p_min + p_bounds.p_max);
         return brdf_term * node.weighted_total_length
-            / max(min_dist(p_bounds, p.position), Real(1e-3));
+            / max(distance(center, p.position), Real(1e-3));
     }
 
     DEVICE Real importance(const BVHNodePtr &node_ptr,
@@ -810,13 +815,37 @@ struct secondary_edge_sampler {
         }
         auto v0 = get_v0(shapes, edge);
         auto v1 = get_v1(shapes, edge);
-
-        auto c = 0.5f * (v0 + v1);
-        // importance = BRDF * weighted length / dist
-        // For BRDF we estimate the bound using linearly transformed cosine distribution
-        auto brdf_term = ltc_bound(edge, p, m, m_inv);
-        return brdf_term * node.weighted_total_length
-            / max(distance(c, p.position), Real(1e-3));
+        // If degenerate, the weight is 0
+        if (length_squared(v1 - v0) > 1e-10f) {
+            // Transform the vertices to local coordinates
+            auto v0o = m_inv * (v0 - p.position);
+            auto v1o = m_inv * (v1 - p.position);
+            // If below surface, the weight is 0
+            if (v0o[2] > 0.f || v1o[2] > 0.f) {
+                // Clip to the surface tangent plane
+                if (v0o[2] < 0.f) {
+                    v0o = (v0o*v1o[2] - v1o*v0o[2]) / (v1o[2] - v0o[2]);
+                }
+                if (v1o[2] < 0.f) {
+                    v1o = (v0o*v1o[2] - v1o*v0o[2]) / (v1o[2] - v0o[2]);
+                }
+                // Integrate over the edge using LTC
+                auto vodir = v1o - v0o;
+                auto wt = normalize(vodir);
+                auto l0 = dot(v0o, wt);
+                auto l1 = dot(v1o, wt);
+                auto vo = v0o - l0 * wt;
+                auto d = length(vo);
+                auto I = [&](Real l) {
+                    return (l/(d*(d*d+l*l))+atan(l/d)/(d*d))*vo[2] +
+                        (l*l/(d*(d*d+l*l)))*wt[2];
+                };
+                auto Il0 = I(l0);
+                auto Il1 = I(l1);
+                return max(Il1 - Il0, Real(0));
+            }
+        }
+        return 0;
     }
 
     DEVICE Real leaf_importance(const BVHNodePtr &node_ptr,
@@ -844,46 +873,12 @@ struct secondary_edge_sampler {
         }
     }
 
-    DEVICE bool split(const BVHNode6 &node,
-                      const SurfacePoint &p) {
-        auto bounds = AABB3{
-            node.bounds.p_min, node.bounds.p_max};
-        return inside(bounds, p.position);
-        // auto bounds0 = AABB3{
-        //     node.children[0]->bounds.p_min, node.children[0]->bounds.p_max};
-        // auto bounds1 = AABB3{
-        //     node.children[1]->bounds.p_min, node.children[1]->bounds.p_max};
-        // return inside(bounds0, p.position) && inside(bounds1, p.position);
-    }
-
-    DEVICE bool split(const BVHNode3 &node,
-                      const SurfacePoint &p) {
-        return inside(node.bounds, p.position);
-        // return inside(node.children[0]->bounds, p.position) &&
-        //        inside(node.children[1]->bounds, p.position);
-    }
-
-    DEVICE bool split(const BVHNodePtr &node_ptr,
-                      const SurfacePoint &p) {
+    DEVICE bool inside(const BVHNodePtr &node_ptr, const SurfacePoint &p) {
         if (node_ptr.is_bvh_node3) {
-            return split(*node_ptr.ptr3, p);
+            return ::inside(node_ptr.ptr3->bounds, p.position);
         } else {
-            return split(*node_ptr.ptr6, p);
+            return ::inside(node_ptr.ptr6->bounds, p.position);
         }
-    }
-
-    DEVICE void push_queue(BVHStackItem *queue, int &beg, int &size,
-                           int queue_buffer_size, const BVHStackItem &item) {
-        queue[(beg + size) % queue_buffer_size] = item;
-        size++;
-    }
-
-    DEVICE const BVHStackItem& pop_queue(BVHStackItem *queue, int &beg, int &size,
-                                         int queue_buffer_size) {
-        const auto &item = queue[beg];
-        beg = (beg + 1) % queue_buffer_size;
-        size--;
-        return item;
     }
 
     DEVICE int sample_edge(const EdgeTreeRoots &edge_tree_roots,
@@ -896,84 +891,119 @@ struct secondary_edge_sampler {
                            Real resample_sample,
                            Real &pmf,
                            bool debug = false) {
-        constexpr auto buffer_size = 128;
+        constexpr auto buffer_size = 64;
         BVHStackItem buffer[buffer_size];
-        auto queue_beg = 0;
-        auto queue_size = 0;
         auto selected_edge = -1;
         auto wsum = Real(0);
         // First pass: randomly sample an edge using edge hierarchy
         // push both nodes into stack
+        auto stack_ptr = &buffer[0];
+        auto imp_cs = Real(0);
+        auto imp_ncs = Real(0);
         if (edge_tree_roots.cs_bvh_root != nullptr) {
-            push_queue(buffer, queue_beg, queue_size, buffer_size,
-                BVHStackItem{BVHNodePtr(edge_tree_roots.cs_bvh_root), 1});
+            imp_cs = 1;
         }
         if (edge_tree_roots.ncs_bvh_root != nullptr) {
-            push_queue(buffer, queue_beg, queue_size, buffer_size,
-                BVHStackItem{BVHNodePtr(edge_tree_roots.ncs_bvh_root), 1});
+            imp_ncs = 1;
         }
-        auto split_count = 0;
-        while (queue_size > 0) {
+        if (imp_cs <= 0 && imp_ncs <= 0) {
+            return -1;
+        }
+        auto num_samples = 16;
+        auto prob_cs = imp_cs / (imp_cs + imp_ncs);
+        auto prob_ncs = 1 - prob_cs;
+        auto expected_cs = num_samples * prob_cs;
+        auto expected_ncs = num_samples * prob_ncs;
+        auto samples_cs = int(floor(expected_cs));
+        auto samples_ncs = int(floor(expected_ncs));
+        if (samples_cs + samples_ncs < num_samples) {
+            auto prob = expected_cs - samples_cs;
+            if (sample < prob) {
+                samples_cs++;
+                sample /= prob;
+            } else {
+                samples_ncs++;
+                sample = (sample - prob) / (1 - prob);
+            }
+        }
+
+        if (samples_cs > 0) {
+            *stack_ptr++ = BVHStackItem{
+                BVHNodePtr{edge_tree_roots.cs_bvh_root}, samples_cs, prob_cs};
+        }
+        if (samples_ncs > 0) {
+            *stack_ptr++ = BVHStackItem{
+                BVHNodePtr{edge_tree_roots.ncs_bvh_root}, samples_ncs, prob_ncs};
+        }
+        auto edge_weight = Real(0);
+        while (stack_ptr != &buffer[0]) {
+            assert(stack_ptr > &buffer[0] && stack_ptr < &buffer[buffer_size]);
             // pop from stack
-            const auto &queue_item =
-                pop_queue(buffer, queue_beg, queue_size, buffer_size);
-            if (is_leaf(queue_item.node_ptr)) {
-                auto w = leaf_importance(queue_item.node_ptr, p, m, m_inv);
+            const auto &stack_item = *--stack_ptr;
+            if (is_leaf(stack_item.node_ptr)) {
+                auto w = stack_item.num_samples *
+                    leaf_importance(stack_item.node_ptr, p, m, m_inv) / stack_item.pmf;
                 if (w > 0) {
                     auto prev_wsum = wsum;
                     wsum += w;
-                    w /= wsum;
-                    if (resample_sample <= w || prev_wsum == 0) {
-                        selected_edge = get_edge_id(queue_item.node_ptr);
-                        pmf = queue_item.pmf * w;
+                    auto normalized_w = w / wsum;
+                    if (resample_sample <= normalized_w || prev_wsum == 0) {
+                        selected_edge = get_edge_id(stack_item.node_ptr);
+                        edge_weight = w * stack_item.pmf;
                         // rescale sample to [0, 1]
-                        resample_sample /= w;
+                        resample_sample /= normalized_w;
                     } else {
-                        // rescale pmf
-                        pmf *= (prev_wsum / wsum);
                         // rescale sample to [0, 1]
-                        resample_sample = (resample_sample - w) / (1 - w);
+                        resample_sample = (resample_sample - normalized_w) / (1 - normalized_w);
                     }
                 }
             } else {
                 BVHNodePtr children[2];
-                get_children(queue_item.node_ptr, children);
-                if (split_count < 16 && split(queue_item.node_ptr, p)) {
-                    push_queue(buffer, queue_beg, queue_size, buffer_size,
-                        BVHStackItem{BVHNodePtr(children[0]), queue_item.pmf});
-                    push_queue(buffer, queue_beg, queue_size, buffer_size,
-                        BVHStackItem{BVHNodePtr(children[1]), queue_item.pmf});
-                    split_count++;
+                get_children(stack_item.node_ptr, children);
+                auto imp0 = Real(0), imp1 = Real(0);
+                if (inside(stack_item.node_ptr, p)) {
+                    imp0 = imp1 = Real(1);
                 } else {
-                    auto imp0 = importance(children[0], p, m, m_inv);
-                    auto imp1 = importance(children[1], p, m, m_inv);
-                    if (imp0 > 0 || imp1 > 0) {
-                        auto prob0 = imp0 / (imp0 + imp1);
-                        if (sample <= prob0 || imp1 <= 0) {
-                            push_queue(buffer, queue_beg, queue_size, buffer_size,
-                                BVHStackItem{
-                                    BVHNodePtr(children[0]), queue_item.pmf * prob0});
-                            sample /= prob0;
-                        } else if (imp1 > 0) {
-                            push_queue(buffer, queue_beg, queue_size, buffer_size,
-                                BVHStackItem{
-                                    BVHNodePtr(children[1]),
-                                    queue_item.pmf * (1 - prob0)});
-                            sample = (sample - prob0) / (1 - prob0);
+                    imp0 = importance(children[0], p, m, m_inv);
+                    imp1 = importance(children[1], p, m, m_inv);
+                }
+                if (imp0 > 0 || imp1 > 0) {
+                    auto prob0 = imp0 / (imp0 + imp1);
+                    auto prob1 = 1 - prob0;
+                    auto expected0 = stack_item.num_samples * prob0;
+                    auto expected1 = stack_item.num_samples * prob1;
+                    auto samples0 = int(floor(expected0));
+                    auto samples1 = int(floor(expected1));
+                    if (samples0 + samples1 < stack_item.num_samples) {
+                        auto prob = expected0 - samples0;
+                        if (sample < prob) {
+                            samples0++;
+                            sample /= prob;
+                        } else {
+                            samples1++;
+                            sample = (sample - prob) / (1 - prob);
                         }
+                    }
+                    auto current_pmf = stack_item.pmf;
+                    if (samples0 > 0) {
+                        *stack_ptr++ = BVHStackItem{
+                            BVHNodePtr(children[0]), samples0, current_pmf * prob0};
+                    }
+                    if (samples1 > 0) {
+                        *stack_ptr++ = BVHStackItem{
+                            BVHNodePtr(children[1]), samples1, current_pmf * prob1};
                     }
                 }
             }
         }
-
+        
         // Second pass: randomly select from an edge whose bounds intersect
         // with nee_ray or bsdf_ray
-        auto stack_ptr = &buffer[0];
         if (edge_tree_roots.cs_bvh_root != nullptr) {
-            *stack_ptr++ = BVHStackItem{BVHNodePtr(edge_tree_roots.cs_bvh_root), 1};
+            *stack_ptr++ = BVHStackItem{BVHNodePtr(edge_tree_roots.cs_bvh_root), 0, 1};
         }
         if (edge_tree_roots.ncs_bvh_root != nullptr) {
-            *stack_ptr++ = BVHStackItem{BVHNodePtr(edge_tree_roots.ncs_bvh_root), 1};
+            *stack_ptr++ = BVHStackItem{BVHNodePtr(edge_tree_roots.ncs_bvh_root), 0, 1};
         }
         auto inv_nee_dir = Real(1) / nee_ray.dir;
         auto inv_bsdf_dir = Real(1) / bsdf_ray.dir;
@@ -982,7 +1012,7 @@ struct secondary_edge_sampler {
         auto bsdf_dir_is_neg =
             TVector3<bool>{inv_bsdf_dir.x < 0, inv_bsdf_dir.y < 0, inv_bsdf_dir.z < 0};
         while (stack_ptr != &buffer[0]) {
-            assert(stack_ptr > &buffer[0] && stack_ptr < &buffer[128]);
+            assert(stack_ptr > &buffer[0] && stack_ptr < &buffer[buffer_size]);
             // pop from stack
             auto stack_item = *--stack_ptr;
             if (is_leaf(stack_item.node_ptr)) {
@@ -990,18 +1020,17 @@ struct secondary_edge_sampler {
                 if (w > 0) {
                     auto prev_wsum = wsum;
                     wsum += w;
-                    w /= wsum;
-                    if (resample_sample <= w || prev_wsum == 0) {
+                    auto normalized_w = w / wsum;
+                    if (resample_sample <= normalized_w || prev_wsum == 0) {
                         selected_edge = get_edge_id(stack_item.node_ptr);
-                        pmf = w;
+                        edge_weight = w;
                         // rescale sample to [0, 1]
-                        resample_sample /= w;
+                        resample_sample /= normalized_w;
                     } else {
-                        // rescale pmf
-                        pmf *= (prev_wsum / wsum);
                         // rescale sample to [0, 1]
-                        resample_sample = (resample_sample - w) / (1 - w);
+                        resample_sample = (resample_sample - normalized_w) / (1 - normalized_w);
                     }
+
                 }
             } else {
                 BVHNodePtr children[2];
@@ -1014,7 +1043,7 @@ struct secondary_edge_sampler {
                             bsdf_dir_is_neg, edge_bounds_expand)) &&
                         contains_silhouette(children[0], p)) {
                     *stack_ptr++ = BVHStackItem{
-                        BVHNodePtr(children[0]), stack_item.pmf};
+                        BVHNodePtr(children[0]), 0, 1};
                 }
                 if ((intersect(children[1], nee_ray, inv_nee_dir,
                             nee_dir_is_neg, edge_bounds_expand) ||
@@ -1022,10 +1051,12 @@ struct secondary_edge_sampler {
                             bsdf_dir_is_neg, edge_bounds_expand)) &&
                         contains_silhouette(children[1], p)) {
                     *stack_ptr++ = BVHStackItem{
-                        BVHNodePtr(children[1]), stack_item.pmf};
+                        BVHNodePtr(children[1]), 0, 1};
                 }
             }
         }
+        
+        pmf = edge_weight * num_samples / wsum;
 
         return selected_edge;
     }
@@ -1065,6 +1096,10 @@ struct secondary_edge_sampler {
         auto specular_reflectance = get_specular_reflectance(material, shading_point);
         auto diffuse_weight = luminance(diffuse_reflectance);
         auto specular_weight = luminance(specular_reflectance);
+        if (c_uniform_sampling) {
+            diffuse_weight = 1;
+            specular_weight = 0;
+        }
         auto weight_sum = diffuse_weight + specular_weight;
         if (weight_sum <= 0.f) {
             // black material
@@ -1094,97 +1129,106 @@ struct secondary_edge_sampler {
         auto edge_id = -1;
         auto edge_sample_weight = Real(0);
         if (edges_pmf != nullptr) {
-            // Sample an edge by importance resampling:
-            // We randomly sample M edges, estimate contribution based on LTC, 
-            // then sample based on the estimated contribution.
-            constexpr int M = 64;
-            int edge_ids[M];
-            Real edge_weights[M];
-            Real resample_cdf[M];
-            for (int sample_id = 0; sample_id < M; sample_id++) {
-                // Sample an edge by binary search on cdf
-                // We use some form of stratification over the M samples here: 
-                // the random number we use is mod(edge_sample.edge_sel + i / M, 1)
-                // It enables us to choose M edges with a single random number
+            if (c_uniform_sampling) {
                 const Real *edge_ptr = thrust::upper_bound(thrust::seq,
-                    edges_cdf, edges_cdf + num_edges,
-                    modulo(edge_sample.edge_sel + Real(sample_id) / M, Real(1)));
-                auto edge_id = clamp((int)(edge_ptr - edges_cdf - 1), 0, num_edges - 1);
-                edge_ids[sample_id] = edge_id;
-                edge_weights[sample_id] = 0;
-                const auto &edge = edges[edge_id];
-                // If the edge lies on the same triangle of shading isects, the weight is 0
-                // If not a silhouette edge, the weight is 0
-                bool same_tri = edge.shape_id == shading_isect.shape_id &&
-                    (edge.v0 == shading_isect.tri_id || edge.v1 == shading_isect.tri_id);
-                if (edges_pmf[edge_id] > 0 &&
-                        is_silhouette(shapes, shading_point.position, edge) &&
-                        !same_tri) {
-                    auto v0 = Vector3{get_v0(shapes, edge)};
-                    auto v1 = Vector3{get_v1(shapes, edge)};
-                    // If degenerate, the weight is 0
-                    if (length_squared(v1 - v0) > 1e-10f) {
-                        // Transform the vertices to local coordinates
-                        auto v0o = m_inv * (v0 - shading_point.position);
-                        auto v1o = m_inv * (v1 - shading_point.position);
-                        // If below surface, the weight is 0
-                        if (v0o[2] > 0.f || v1o[2] > 0.f) {
-                            // Clip to the surface tangent plane
-                            if (v0o[2] < 0.f) {
-                                v0o = (v0o*v1o[2] - v1o*v0o[2]) / (v1o[2] - v0o[2]);
+                        edges_cdf, edges_cdf + num_edges,
+                        edge_sample.edge_sel);
+                edge_id = clamp((int)(edge_ptr - edges_cdf - 1), 0, num_edges - 1);
+                edge_sample_weight = 1 / edges_pmf[edge_id];
+            } else {
+                // Sample an edge by importance resampling:
+                // We randomly sample M edges, estimate contribution based on LTC, 
+                // then sample based on the estimated contribution.
+                constexpr int M = 64;
+                int edge_ids[M];
+                Real edge_weights[M];
+                Real resample_cdf[M];
+                for (int sample_id = 0; sample_id < M; sample_id++) {
+                    // Sample an edge by binary search on cdf
+                    // We use some form of stratification over the M samples here: 
+                    // the random number we use is mod(edge_sample.edge_sel + i / M, 1)
+                    // It enables us to choose M edges with a single random number
+                    const Real *edge_ptr = thrust::upper_bound(thrust::seq,
+                            edges_cdf, edges_cdf + num_edges,
+                            modulo(edge_sample.edge_sel + Real(sample_id) / M, Real(1)));
+                    auto edge_id = clamp((int)(edge_ptr - edges_cdf - 1), 0, num_edges - 1);
+                    edge_ids[sample_id] = edge_id;
+                    edge_weights[sample_id] = 0;
+                    const auto &edge = edges[edge_id];
+                    // If the edge lies on the same triangle of shading isects, the weight is 0
+                    // If not a silhouette edge, the weight is 0
+                    bool same_tri = edge.shape_id == shading_isect.shape_id &&
+                        (edge.v0 == shading_isect.tri_id || edge.v1 == shading_isect.tri_id);
+                    if (edges_pmf[edge_id] > 0 &&
+                            is_silhouette(shapes, shading_point.position, edge) &&
+                            !same_tri) {
+                        auto v0 = Vector3{get_v0(shapes, edge)};
+                        auto v1 = Vector3{get_v1(shapes, edge)};
+                        // If degenerate, the weight is 0
+                        if (length_squared(v1 - v0) > 1e-10f) {
+                            // Transform the vertices to local coordinates
+                            auto v0o = m_inv * (v0 - shading_point.position);
+                            auto v1o = m_inv * (v1 - shading_point.position);
+                            // If below surface, the weight is 0
+                            if (v0o[2] > 0.f || v1o[2] > 0.f) {
+                                // Clip to the surface tangent plane
+                                if (v0o[2] < 0.f) {
+                                    v0o = (v0o*v1o[2] - v1o*v0o[2]) / (v1o[2] - v0o[2]);
+                                }
+                                if (v1o[2] < 0.f) {
+                                    v1o = (v0o*v1o[2] - v1o*v0o[2]) / (v1o[2] - v0o[2]);
+                                }
+                                // Integrate over the edge using LTC
+                                auto vodir = v1o - v0o;
+                                auto wt = normalize(vodir);
+                                auto l0 = dot(v0o, wt);
+                                auto l1 = dot(v1o, wt);
+                                auto vo = v0o - l0 * wt;
+                                auto d = length(vo);
+                                auto I = [&](Real l) {
+                                    return (l/(d*(d*d+l*l))+atan(l/d)/(d*d))*vo[2] +
+                                        (l*l/(d*(d*d+l*l)))*wt[2];
+                                };
+                                auto Il0 = I(l0);
+                                auto Il1 = I(l1);
+                                edge_weights[sample_id] = max((Il1 - Il0) / edges_pmf[edge_id], Real(0));
                             }
-                            if (v1o[2] < 0.f) {
-                                v1o = (v0o*v1o[2] - v1o*v0o[2]) / (v1o[2] - v0o[2]);
-                            }
-                            // Integrate over the edge using LTC
-                            auto vodir = v1o - v0o;
-                            auto wt = normalize(vodir);
-                            auto l0 = dot(v0o, wt);
-                            auto l1 = dot(v1o, wt);
-                            auto vo = v0o - l0 * wt;
-                            auto d = length(vo);
-                            auto I = [&](Real l) {
-                                return (l/(d*(d*d+l*l))+atan(l/d)/(d*d))*vo[2] +
-                                       (l*l/(d*(d*d+l*l)))*wt[2];
-                            };
-                            auto Il0 = I(l0);
-                            auto Il1 = I(l1);
-                            edge_weights[sample_id] = max((Il1 - Il0) / edges_pmf[edge_id], Real(0));
                         }
                     }
+
+                    if (sample_id == 0) {
+                        resample_cdf[sample_id] = edge_weights[sample_id];
+                    } else { // sample_id > 0
+                        resample_cdf[sample_id] = resample_cdf[sample_id - 1] + edge_weights[sample_id];
+                    }
                 }
-                if (sample_id == 0) {
-                    resample_cdf[sample_id] = edge_weights[sample_id];
-                } else { // sample_id > 0
-                    resample_cdf[sample_id] = resample_cdf[sample_id - 1] + edge_weights[sample_id];
+                if (resample_cdf[M - 1] <= 0) {
+                    return;
                 }
-            }
-            if (resample_cdf[M - 1] <= 0) {
-                return;
-            }
-            // Use resample_cdf to pick one edge
-            auto resample_u = edge_sample.resample_sel * resample_cdf[M - 1];
-            auto resample_id = -1;
-            for (int sample_id = 0; sample_id < M; sample_id++) {
-                if (resample_u <= resample_cdf[sample_id]) {
-                    resample_id = sample_id;
-                    break;
+                // Use resample_cdf to pick one edge
+                auto resample_u = edge_sample.resample_sel * resample_cdf[M - 1];
+                auto resample_id = -1;
+                for (int sample_id = 0; sample_id < M; sample_id++) {
+                    if (resample_u <= resample_cdf[sample_id]) {
+                        resample_id = sample_id;
+                        break;
+                    }
                 }
+                if (edge_weights[resample_id] <= 0 || resample_id == -1) {
+                    // Just in case if there's some numerical error
+                    return;
+                }
+                edge_sample_weight = (resample_cdf[M - 1] / M) /
+                    (edge_weights[resample_id] * edges_pmf[edge_ids[resample_id]]);
+                edge_id = edge_ids[resample_id];
             }
-            if (edge_weights[resample_id] <= 0 || resample_id == -1) {
-                // Just in case if there's some numerical error
-                return;
-            }
-            edge_sample_weight = (resample_cdf[M - 1] / M) /
-                (edge_weights[resample_id] * edges_pmf[edge_ids[resample_id]]);
-            edge_id = edge_ids[resample_id];
         } else {
             // sample using a tree traversal
             auto pmf = Real(0);
             edge_id = sample_edge(edge_tree_roots,
                 shading_point, m, m_inv, nee_ray, bsdf_ray,
                 edge_sample.edge_sel, edge_sample.resample_sel, pmf,
-                pixel_id == (100 * 256 + 100));
+                pixel_id == (239 * 256 + 199));
             if (edge_id == -1) {
                 return;
             }
@@ -1198,6 +1242,10 @@ struct secondary_edge_sampler {
 
         auto v0 = Vector3{get_v0(shapes, edge)};
         auto v1 = Vector3{get_v1(shapes, edge)};
+
+        auto sample_p = Vector3{};
+        auto edge_pdf = Real(0);
+        auto mwt = Vector3{};
 
         // Transform the vertices to local coordinates
         auto v0o = m_inv * (v0 - shading_point.position);
@@ -1222,7 +1270,7 @@ struct secondary_edge_sampler {
         auto d = length(vo);
         auto I = [&](Real l) {
             return (l/(d*(d*d+l*l))+atan(l/d)/(d*d))*vo[2] +
-                   (l*l/(d*(d*d+l*l)))*wt[2];
+                (l*l/(d*(d*d+l*l)))*wt[2];
         };
         auto Il0 = I(l0);
         auto Il1 = I(l1);
@@ -1265,7 +1313,9 @@ struct secondary_edge_sampler {
             return;
         }
         // Convert from l to position
-        auto sample_p = m * (vo + l * wt);
+        sample_p = m * (vo + l * wt);
+        edge_pdf = m_pmf * line_pdf(l);
+        mwt = m * wt;
 
         // shading_point.position, v0 and v1 forms a half-plane
         // that splits the spaces into upper half-space and lower half-space
@@ -1294,7 +1344,7 @@ struct secondary_edge_sampler {
         };
         edge_records[idx].edge = edge;
         edge_records[idx].edge_pt = sample_p; // for Jacobian computation 
-        edge_records[idx].mwt = m * wt; // for Jacobian computation
+        edge_records[idx].mwt = mwt; // for Jacobian computation
         rays[2 * idx + 0] = Ray(shading_point.position, v_upper_dir, 1e-3f * length(sample_p));
         rays[2 * idx + 1] = Ray(shading_point.position, v_lower_dir, 1e-3f * length(sample_p));
         const auto &incoming_ray_differential = incoming_ray_differentials[pixel_id];
@@ -1330,7 +1380,7 @@ struct secondary_edge_sampler {
         bsdf_differentials[2 * idx + 1] = bsdf_ray_differential;
         // edge_weight doesn't take the Jacobian between the shading point
         // and the ray intersection into account. We'll compute this later
-        auto edge_weight = edge_sample_weight / (m_pmf * line_pdf(l));
+        auto edge_weight = edge_sample_weight / edge_pdf;
         auto nt = throughput * eval_bsdf * d_color * edge_weight;
         // assert(isfinite(throughput));
         // assert(isfinite(eval_bsdf));

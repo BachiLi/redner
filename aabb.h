@@ -135,6 +135,13 @@ inline bool inside(const AABB3 &b, const Vector3 &p) {
 }
 
 DEVICE
+inline bool inside(const AABB6 &b, const Vector3 &p) {
+    return p.x >= b.p_min.x && p.x <= b.p_max.x &&
+           p.y >= b.p_min.y && p.y <= b.p_max.y &&
+           p.z >= b.p_min.z && p.z <= b.p_max.z;
+}
+
+DEVICE
 inline bool inside(const Sphere &b, const Vector3 &p) {
     return distance(p, b.center) <= b.radius;
 }
@@ -150,7 +157,7 @@ inline bool intersect(const Sphere &s, const AABB3 &b) {
     // "A Simple Method for Box-Sphere Intersection Testing", Jim Arvo
     // https://github.com/erich666/GraphicsGems/blob/master/gems/BoxSphere.c
     auto d_min = Real(0);
-    auto r2 = s.radius;
+    auto r2 = square(s.radius);
     for(int i = 0; i < 3; i++) {
         if (s.center[i] < b.p_min[i]) {
             d_min += square(s.center[i] - b.p_min[i]);
