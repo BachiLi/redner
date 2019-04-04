@@ -2058,7 +2058,7 @@ void render(const Scene &scene,
                 // Buffer views for this path vertex
                 auto num_actives = num_active_pixels[depth];
                 if (num_actives <= 0) {
-                    break;
+                    continue;
                 }
                 auto active_pixels =
                     path_buffer.active_pixels.view(depth * num_pixels, num_actives);
