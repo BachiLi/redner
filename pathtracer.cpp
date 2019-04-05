@@ -908,7 +908,8 @@ struct path_contribs_accumulator {
             // Hit environment map
             auto wo = bsdf_ray.dir;
             auto pdf_bsdf = bsdf_pdf(material, shading_point, wi, wo, min_rough);
-            if (pdf_bsdf > 1e-20f) {
+            // wo can be zero when bsdf_sample failed
+            if (length_squared(wo) > 0 && pdf_bsdf > 1e-20f) {
                 // XXX: For now we don't use ray differentials for envmap
                 //      A proper approach might be to use a filter radius based on sampling density?
                 RayDifferential ray_diff{Vector3{0, 0, 0}, Vector3{0, 0, 0},
@@ -1306,7 +1307,8 @@ struct d_path_contribs_accumulator {
             
             auto wo = bsdf_ray.dir;
             auto pdf_bsdf = bsdf_pdf(material, shading_point, wi, wo, min_rough);
-            if (pdf_bsdf > 0) {
+            // wo can be zero if bsdf_sample fails
+            if (length_squared(wo) > 0 && pdf_bsdf > 0) {
                 d_diffuse_tex.material_id = shading_shape.material_id;
                 d_specular_tex.material_id = shading_shape.material_id;
                 d_roughness_tex.material_id = shading_shape.material_id;
