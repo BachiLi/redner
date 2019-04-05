@@ -287,7 +287,11 @@ class RenderFunction(torch.autograd.Function):
         channels = args[current_index]
         current_index += 1
 
-        options = redner.RenderOptions(seed, num_samples, max_bounces, channels)
+        # check that num_samples is a tuple
+        if isinstance(num_samples, int):
+            num_samples = (num_samples, num_samples)
+
+        options = redner.RenderOptions(seed, num_samples[0], max_bounces, channels)
         num_channels = redner.compute_num_channels(channels)
         rendered_image = torch.zeros(resolution[0], resolution[1], num_channels,
             device = pyredner.get_device())
@@ -319,6 +323,7 @@ class RenderFunction(torch.autograd.Function):
         ctx.envmap = envmap
         ctx.scene = scene
         ctx.options = options
+        ctx.num_samples = num_samples
         return rendered_image
 
     @staticmethod
@@ -445,6 +450,7 @@ class RenderFunction(torch.autograd.Function):
         if not get_use_correlated_random_number():
             # Decouple the forward/backward random numbers by adding a big prime number
             options.seed += 1000003
+            options.num_samples = ctx.num_samples[1]
         start = time.time()
         redner.render(scene, options,
                       redner.float_ptr(0),
