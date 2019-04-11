@@ -140,7 +140,8 @@ PYBIND11_MODULE(redner, m) {
                       int,
                       int,
                       std::vector<Channels>>())
-        .def_readwrite("seed", &RenderOptions::seed);
+        .def_readwrite("seed", &RenderOptions::seed)
+        .def_readwrite("num_samples", &RenderOptions::num_samples);
 
     py::class_<Vector2f>(m, "Vector2f")
         .def_readwrite("x", &Vector2f::x)
