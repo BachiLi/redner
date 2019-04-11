@@ -368,7 +368,9 @@ DScene::~DScene() {
 #ifdef __NVCC__
         int old_device_id = -1;
         checkCuda(cudaGetDevice(&old_device_id));
-        checkCuda(cudaSetDevice(gpu_index));
+        if (gpu_index != -1) {
+            checkCuda(cudaSetDevice(gpu_index));
+        }
         checkCuda(cudaFree(envmap));
         checkCuda(cudaSetDevice(old_device_id));
 #else
