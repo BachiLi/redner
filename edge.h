@@ -40,7 +40,7 @@ struct SecondaryEdgeRecord {
     Vector3 edge_pt;
     Vector3 mwt;
     bool use_nee_ray;
-    Real nee_ray_pmf;
+    bool is_diffuse_or_glossy;
 };
 
 template <typename T>

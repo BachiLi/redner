@@ -816,7 +816,6 @@ struct path_contribs_accumulator {
     DEVICE void operator()(int idx) {
         auto pixel_id = active_pixels[idx];
         const auto &throughput = throughputs[pixel_id];
-        assert(isfinite(throughput));
         const auto &incoming_ray = incoming_rays[pixel_id];
         const auto &shading_isect = shading_isects[pixel_id];
         const auto &shading_point = shading_points[pixel_id];

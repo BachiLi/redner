@@ -1292,10 +1292,10 @@ struct secondary_edge_sampler {
         auto edge_sel = edge_sample.edge_sel;
         auto use_nee_ray = false;
         auto nee_ray_pmf = Real(1);
-        // Turn off nee edge sampling when roughness is low
-        auto turn_on_nee_ray =
+        auto is_diffuse_or_glossy =
             edge_sample.bsdf_component <= diffuse_pmf || roughness > Real(0.1);
-        if (c_use_nee_ray && turn_on_nee_ray) {
+        // Turn off nee edge sampling when roughness is low
+        if (c_use_nee_ray && is_diffuse_or_glossy) {
             use_nee_ray = edge_sel < Real(0.5) ? true : false;
             if (roughness > Real(0.1)) {
                 nee_ray_pmf = 0.5f;
@@ -1304,7 +1304,7 @@ struct secondary_edge_sampler {
             }
         }
         if (!use_nee_ray) {
-            if (c_use_nee_ray) {
+            if (c_use_nee_ray && is_diffuse_or_glossy) {
                 edge_sel = (edge_sel - 0.5) * 2;
             }
             if (edges_pmf != nullptr) {
@@ -1532,7 +1532,7 @@ struct secondary_edge_sampler {
         edge_records[idx].edge_pt = sample_p; // for Jacobian computation 
         edge_records[idx].mwt = mwt; // for Jacobian computation
         edge_records[idx].use_nee_ray = use_nee_ray;
-        edge_records[idx].nee_ray_pmf = nee_ray_pmf;
+        edge_records[idx].is_diffuse_or_glossy = is_diffuse_or_glossy;
         rays[2 * idx + 0] = Ray(shading_point.position, v_upper_dir, 1e-3f * length(sample_p));
         rays[2 * idx + 1] = Ray(shading_point.position, v_lower_dir, 1e-3f * length(sample_p));
         const auto &incoming_ray_differential = incoming_ray_differentials[pixel_id];
@@ -1568,7 +1568,8 @@ struct secondary_edge_sampler {
         bsdf_differentials[2 * idx + 1] = bsdf_ray_differential;
         // edge_weight doesn't take the Jacobian between the shading point
         // and the ray intersection into account. We'll compute this later
-        auto nt = throughput * eval_bsdf * d_color * edge_weight;
+        assert(nee_ray_pmf > 0);
+        auto nt = throughput * eval_bsdf * d_color * edge_weight / nee_ray_pmf;
         // assert(isfinite(throughput));
         // assert(isfinite(eval_bsdf));
         // assert(isfinite(d_color));
@@ -1746,38 +1747,47 @@ struct secondary_edge_weights_updater {
     }
 
     DEVICE void operator()(int idx) {
+        const auto &edge_record = edge_records[idx];
+        if (edge_record.edge.shape_id < 0) {
+            return;
+        }
+
         auto pixel_id = active_pixels[idx];
         const auto &shading_point = shading_points[pixel_id];
         const auto &edge_isect0 = edge_isects[2 * idx + 0];
         const auto &edge_surface_point0 = edge_surface_points[2 * idx + 0];
         const auto &edge_isect1 = edge_isects[2 * idx + 1];
         const auto &edge_surface_point1 = edge_surface_points[2 * idx + 1];
-        const auto &edge_record = edge_records[idx];
-        if (edge_record.edge.shape_id < 0) {
-            return;
-        }
-        // Properly weight nee edge sampling
-        // If we are not using nee edge sampling, and
-        // edge_isect0 & edge_isect1 both didn't hit a light source,
-        // we need to divide by the probability we select edge hierarchy sampling
-        // otherwise we need to weight zero for nee edge sampling
-        if (scene.envmap == nullptr) {
-            auto light0 = -1, light1 = -1;
+
+        if (c_use_nee_ray) {
+            auto light_id0 = -1, light_id1 = -1;
             if (edge_isect0.valid()) {
-                const auto &shading_shape = scene.shapes[edge_isect0.shape_id];
-                light0 = shading_shape.light_id;
+                const auto &shape = scene.shapes[edge_isect0.shape_id];
+                light_id0 = shape.light_id;
             }
             if (edge_isect1.valid()) {
-                const auto &shading_shape = scene.shapes[edge_isect1.shape_id];
-                light1 = shading_shape.light_id;
+                const auto &shape = scene.shapes[edge_isect1.shape_id];
+                light_id1 = shape.light_id;
             }
-            if (light0 == -1 && light1 == -1) {
-                if (edge_record.use_nee_ray) {
-                    return;
+            
+            auto hit_light = light_id0 != -1 || light_id1 != -1;
+            if (!hit_light && scene.envmap != nullptr) {
+                auto wo = normalize(edge_record.edge_pt - shading_point.position);
+                hit_light = envmap_pdf(*scene.envmap, wo) > 0;
+            }
+
+            if (edge_record.use_nee_ray) {
+                if (hit_light) {
+                    edge_throughputs[2 * idx + 0] *= 0.5f;
+                    edge_throughputs[2 * idx + 1] *= 0.5f;
                 } else {
-                    assert(edge_record.nee_ray_pmf > 0);
-                    edge_throughputs[2 * idx + 0] /= edge_record.nee_ray_pmf;
-                    edge_throughputs[2 * idx + 1] /= edge_record.nee_ray_pmf;
+                    edge_throughputs[2 * idx + 0] = Vector3{0, 0, 0};
+                    edge_throughputs[2 * idx + 1] = Vector3{0, 0, 0};
+                }
+            } else {
+                if (hit_light && edge_record.is_diffuse_or_glossy) {
+                    edge_throughputs[2 * idx + 0] *= 0.5f;
+                    edge_throughputs[2 * idx + 1] *= 0.5f;
                 }
             }
         }

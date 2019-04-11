@@ -175,7 +175,6 @@ Vector3 bsdf(const Material &material,
     auto diffuse_reflectance = get_diffuse_reflectance(material, shading_point);
     auto specular_reflectance = get_specular_reflectance(material, shading_point);
     auto roughness = max(get_roughness(material, shading_point), min_roughness);
-    assert(roughness > 0.f);
     auto diffuse_contrib = diffuse_reflectance * bsdf_cos / Real(M_PI);
     auto specular_contrib = Vector3{0, 0, 0};
     if (sum(specular_reflectance) > 0.f) {
