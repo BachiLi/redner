@@ -881,7 +881,6 @@ struct secondary_edge_sampler {
             return 0;
         }
 
-        assert(isfinite(nee_ray.tmax));
         // If degenerate, the weight is 0
         if (length_squared(v1 - v0) > 1e-10f) {
             // Transform the vertices to local coordinates
