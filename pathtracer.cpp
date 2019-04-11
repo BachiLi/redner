@@ -2052,8 +2052,8 @@ void render(const Scene &scene,
         }
 
         if (d_rendered_image.get() != nullptr) {
+            // Traverse the path backward for the derivatives
             bool first = true;
-             // Traverse the path backward for the derivatives
             for (int depth = max_bounces - 1; depth >= 0; depth--) {
                 // Buffer views for this path vertex
                 auto num_actives = num_active_pixels[depth];
@@ -2183,7 +2183,8 @@ void render(const Scene &scene,
                     shading_isects,
                     shading_points,
                     nee_rays,
-                    next_rays,
+                    light_isects,
+                    light_points,
                     throughputs,
                     min_roughness,
                     d_rendered_image.get(),
@@ -2363,27 +2364,46 @@ void render(const Scene &scene,
                                                       d_points,
                                                       d_edge_vertices);
                 ////////////////////////////////////////////////////////////////////////////////
-                
-                // for (int i = 0; i < active_pixels.size(); i++) {
-                //     auto pixel_id = active_pixels[i];
-                //     // auto d_p = d_points[pixel_id].position;
-                //     // debug_image[3 * pixel_id + 0] += d_p[0];
-                //     // debug_image[3 * pixel_id + 1] += d_p[0];
-                //     // debug_image[3 * pixel_id + 2] += d_p[0];
-                //     auto edge_record = edge_records[i];
-                //     if (edge_record.edge.shape_id == 5) {
-                //         auto d_v0 = d_edge_vertices[2 * i + 0].d_v;
-                //         auto d_v1 = d_edge_vertices[2 * i + 1].d_v;
-                //         debug_image[3 * pixel_id + 0] += d_v0[0] + d_v1[0];
-                //         debug_image[3 * pixel_id + 1] += d_v0[0] + d_v1[0];
-                //         debug_image[3 * pixel_id + 2] += d_v0[0] + d_v1[0];
-                //         // auto ec0 = edge_contribs[2 * i + 0];
-                //         // auto ec1 = edge_contribs[2 * i + 1];
-                //         // debug_image[3 * pixel_id + 0] += ec0 + ec1;
-                //         // debug_image[3 * pixel_id + 1] += ec0 + ec1;
-                //         // debug_image[3 * pixel_id + 2] += ec0 + ec1;
-                //     }
-                // }
+                /*cuda_synchronize();
+                for (int i = 0; i < num_actives; i++) {
+                    auto pixel_id = active_pixels[i];
+                    // auto d_p = d_points[pixel_id].position;
+                    // debug_image[3 * pixel_id + 0] += d_p[0];
+                    // debug_image[3 * pixel_id + 1] += d_p[0];
+                    // debug_image[3 * pixel_id + 2] += d_p[0];
+                    auto c = 1;
+                    auto d_e_v0 = d_edge_vertices[2 * i + 0];
+                    auto d_e_v1 = d_edge_vertices[2 * i + 1];
+                    if (d_e_v0.shape_id == 6) {
+                        auto d_v0 = d_e_v0.d_v;
+                        auto d_v1 = d_e_v1.d_v;
+                        debug_image[3 * pixel_id + 0] += d_v0[c] + d_v1[c];
+                        debug_image[3 * pixel_id + 1] += d_v0[c] + d_v1[c];
+                        debug_image[3 * pixel_id + 2] += d_v0[c] + d_v1[c];
+                    }
+                    auto d_l_v0 = d_light_vertices[3 * i + 0];
+                    auto d_l_v1 = d_light_vertices[3 * i + 1];
+                    auto d_l_v2 = d_light_vertices[3 * i + 2];
+                    if (d_l_v0.shape_id == 6) {
+                        auto d_v0 = d_l_v0.d_v;
+                        auto d_v1 = d_l_v1.d_v;
+                        auto d_v2 = d_l_v2.d_v;
+                        debug_image[3 * pixel_id + 0] += d_v0[c] + d_v1[c] + d_v2[c];
+                        debug_image[3 * pixel_id + 1] += d_v0[c] + d_v1[c] + d_v2[c];
+                        debug_image[3 * pixel_id + 2] += d_v0[c] + d_v1[c] + d_v2[c];
+                    }
+                    auto d_b_v0 = d_bsdf_vertices[3 * i + 0];
+                    auto d_b_v1 = d_bsdf_vertices[3 * i + 1];
+                    auto d_b_v2 = d_bsdf_vertices[3 * i + 2];
+                    if (d_b_v0.shape_id == 6) {
+                        auto d_v0 = d_b_v0.d_v;
+                        auto d_v1 = d_b_v1.d_v;
+                        auto d_v2 = d_b_v2.d_v;
+                        debug_image[3 * pixel_id + 0] += d_v0[c] + d_v1[c] + d_v2[c];
+                        debug_image[3 * pixel_id + 1] += d_v0[c] + d_v1[c] + d_v2[c];
+                        debug_image[3 * pixel_id + 2] += d_v0[c] + d_v1[c] + d_v2[c];
+                    }
+                }*/
 
                 // Deposit vertices, texture, light derivatives
                 // sort the derivatives by id & reduce by key
@@ -2531,15 +2551,19 @@ void render(const Scene &scene,
                                        d_primary_vertices,
                                        d_cameras);
 
-                // for (int i = 0; i < primary_active_pixels.size(); i++) {
-                //     auto pixel_id = primary_active_pixels[i];
-                //     auto d_v0 = d_primary_vertices[3 * i + 0].d_v;
-                //     auto d_v1 = d_primary_vertices[3 * i + 1].d_v;
-                //     auto d_v2 = d_primary_vertices[3 * i + 2].d_v;
-                //     debug_image[3 * pixel_id + 0] += (d_v0[0] + d_v1[0] + d_v2[0]) / 3.f;
-                //     debug_image[3 * pixel_id + 1] += (d_v0[0] + d_v1[0] + d_v2[0]) / 3.f;
-                //     debug_image[3 * pixel_id + 2] += (d_v0[0] + d_v1[0] + d_v2[0]) / 3.f;
-                // }
+                /*cuda_synchronize();
+                for (int i = 0; i < primary_active_pixels.size(); i++) {
+                    auto c = 1;
+                    auto pixel_id = primary_active_pixels[i];
+                    auto d_v0 = d_primary_vertices[3 * i + 0];
+                    auto d_v1 = d_primary_vertices[3 * i + 1];
+                    auto d_v2 = d_primary_vertices[3 * i + 2];
+                    if (d_v0.shape_id == 6) {
+                        debug_image[3 * pixel_id + 0] += (d_v0.d_v[c] + d_v1.d_v[c] + d_v2.d_v[c]);
+                        debug_image[3 * pixel_id + 1] += (d_v0.d_v[c] + d_v1.d_v[c] + d_v2.d_v[c]);
+                        debug_image[3 * pixel_id + 2] += (d_v0.d_v[c] + d_v1.d_v[c] + d_v2.d_v[c]);
+                    }
+                }*/
 
                 // for (int i = 0; i < primary_active_pixels.size(); i++) {
                 //     auto pixel_id = primary_active_pixels[i];

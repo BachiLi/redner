@@ -82,6 +82,34 @@ void compute_edge_bounds(const Shape *shapes,
                  use_gpu);
 }
 
+struct id_to_edge_pt_sum {
+    DEVICE Vector3 operator()(int id) const {
+        auto v0 = get_v0(shapes, edges[id]);
+        auto v1 = get_v1(shapes, edges[id]);
+        return v0 + v1;
+    }
+
+    const Shape *shapes;
+    const Edge *edges;
+};
+
+struct id_to_edge_pt_abs {
+    DEVICE Vector3 operator()(int id) const {
+        auto v0 = get_v0(shapes, edges[id]);
+        auto v1 = get_v1(shapes, edges[id]);
+        auto v0_abs = Vector3{}, v1_abs = Vector3{};
+        for (int i = 0; i < 3; i++) {
+            v0_abs[i] = fabs(v0[i] - mean[i]);
+            v1_abs[i] = fabs(v1[i] - mean[i]);
+        }
+        return v0 + v1;
+    }
+
+    const Shape *shapes;
+    const Edge *edges;
+    Vector3 mean;
+};
+
 struct id_to_aabb3 {
     DEVICE AABB3 operator()(int id) const {
         auto b = bounds[id];
@@ -124,6 +152,12 @@ struct union_bounding_box {
                              max(b0.p_max[1], b1.p_max[1]),
                              max(b0.p_max[2], b1.p_max[2])};
         return AABB3{p_min, p_max};
+    }
+};
+
+struct sum_vec3 {
+    DEVICE Vector3 operator()(const Vector3 &v0, const Vector3 &v1) const {
+        return v0 + v1;
     }
 };
 
@@ -713,10 +747,17 @@ EdgeTree::EdgeTree(bool use_gpu,
                         cam_org,
                         edge_bounds.view(0, edge_ids.size()),
                         use_gpu);
-    AABB3 scene_bounds = DISPATCH(use_gpu,
+    auto edge_pt_mean = DISPATCH(use_gpu,
         thrust::transform_reduce, edge_ids.begin(), edge_ids.end(),
-        id_to_aabb3{edge_bounds.begin()}, AABB3(), union_bounding_box{});
-    edge_bounds_expand = 0.001 * distance(scene_bounds.p_max, scene_bounds.p_min);
+        id_to_edge_pt_sum{shapes.begin(), edges.begin()},
+        Vector3{0, 0, 0}, sum_vec3{});
+    edge_pt_mean /= Real(edge_ids.size());
+    auto edge_pt_mad = DISPATCH(use_gpu,
+        thrust::transform_reduce, edge_ids.begin(), edge_ids.end(),
+        id_to_edge_pt_abs{shapes.begin(), edges.begin(), edge_pt_mean},
+        Vector3{0, 0, 0}, sum_vec3{});
+    edge_pt_mad /= Real(edge_ids.size());
+    edge_bounds_expand = 0.02f * length(edge_pt_mad);
 
     // We build a 3D BVH over the camera silhouette edges, and build
     // a 6D BVH over the non camera silhouette edges

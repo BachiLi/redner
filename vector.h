@@ -305,6 +305,17 @@ inline auto operator/(const TVector3<T0> &v0,
         v0[0] / v1[0], v0[1] / v1[2], v0[2] / v1[2]};
 }
 
+template <typename T0, typename T1>
+DEVICE
+inline TVector3<T0> operator/=(TVector3<T0> &v0,
+                               const T1 &s) {
+    auto inv_s = 1 / s;
+    v0[0] *= inv_s;
+    v0[1] *= inv_s;
+    v0[2] *= inv_s;
+    return v0;
+}
+
 template <typename T>
 DEVICE
 inline TVector2<T> get_normal(const TVector2<T> &v) {

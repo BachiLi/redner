@@ -4,6 +4,7 @@ import numpy as np
 import redner
 import pyredner
 import time
+import skimage.io
 
 # There is a bias-variance trade off in the backward pass.
 # If the forward pass and the backward pass are correlated
@@ -457,7 +458,7 @@ class RenderFunction(torch.autograd.Function):
 
         # # For debugging
         # # pyredner.imwrite(grad_img, 'grad_img.exr')
-        # grad_img = torch.ones(256, 256, 3)
+        # grad_img = torch.ones(256, 256, 3, device = pyredner.get_device())
         # debug_img = torch.zeros(256, 256, 3)
         # start = time.time()
         # redner.render(scene, options,
@@ -470,6 +471,16 @@ class RenderFunction(torch.autograd.Function):
         #     print('Backward pass, time: %.5f s' % time_elapsed)
         # pyredner.imwrite(debug_img, 'debug.exr')
         # pyredner.imwrite(-debug_img, 'debug_.exr')
+        # debug_img = debug_img.numpy()
+        # print(np.max(debug_img))
+        # print(np.min(debug_img))
+        # debug_max = 0.5
+        # debug_min = -0.5
+        # debug_img = np.clip((debug_img - debug_min) / (debug_max - debug_min), 0, 1)
+        # debug_img = debug_img[:, :, 0]
+        # import matplotlib.cm as cm
+        # debug_img = cm.viridis(debug_img)
+        # skimage.io.imsave('debug.png', np.power(debug_img, 1/2.2))
         # exit()
 
         ret_list = []

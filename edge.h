@@ -148,6 +148,32 @@ inline bool is_silhouette(const Shape *shapes, const Vector3 &p, const Edge &edg
 }
 
 DEVICE
+inline bool is_silhouette_dir(const Shape *shapes, const Vector3 &dir, const Edge &edge) {
+    if (edge.f0 == -1 || edge.f1 == -1) {
+        // Only adjacent to one face
+        return true;
+    }
+    auto v0 = Vector3{get_v0(shapes, edge)};
+    auto v1 = Vector3{get_v1(shapes, edge)};
+    auto ns_v0 = Vector3{get_non_shared_v0(shapes, edge)};
+    auto ns_v1 = Vector3{get_non_shared_v1(shapes, edge)};
+    auto n0 = normalize(cross(v0 - ns_v0, v1 - ns_v0));
+    auto n1 = normalize(cross(v1 - ns_v1, v0 - ns_v1));
+    if (!has_shading_normals(shapes[edge.shape_id])) {
+        // If we are not using Phong normal, every edge is silhouette,
+        // except edges with dihedral angle of 0
+        if (dot(n0, n1) >= 1 - 1e-6f) {
+            return false;
+        }
+        return true;
+    }
+    auto frontfacing0 = dot(dir, n0) > 0.f;
+    auto frontfacing1 = dot(dir, n1) > 0.f;
+    return (frontfacing0 && !frontfacing1) || (!frontfacing0 && frontfacing1);
+}
+
+
+DEVICE
 inline Real compute_exterior_dihedral_angle(const Shape *shapes, const Edge &edge) {
     auto exterior_dihedral = Real(M_PI);
     if (edge.f1 != -1) {
@@ -189,7 +215,8 @@ void sample_secondary_edges(const Scene &scene,
                             const BufferView<Intersection> &shading_isects,
                             const BufferView<SurfacePoint> &shading_points,
                             const BufferView<Ray> &nee_rays,
-                            const BufferView<Ray> &bsdf_rays,
+                            const BufferView<Intersection> &nee_isects,
+                            const BufferView<SurfacePoint> &nee_points,
                             const BufferView<Vector3> &throughputs,
                             const BufferView<Real> &min_roughness,
                             const float *d_rendered_image,
@@ -216,3 +243,4 @@ void accumulate_secondary_edge_derivatives(const Scene &scene,
                                            const BufferView<Real> &edge_contribs,
                                            BufferView<SurfacePoint> d_points,
                                            BufferView<DVertex> d_vertices);
+
