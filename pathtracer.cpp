@@ -2376,7 +2376,7 @@ void render(const Scene &scene,
                     auto c = 1;
                     auto d_e_v0 = d_edge_vertices[2 * i + 0];
                     auto d_e_v1 = d_edge_vertices[2 * i + 1];
-                    if (d_e_v0.shape_id == 6) {
+                    if (d_e_v0.shape_id == 1) {
                         auto d_v0 = d_e_v0.d_v;
                         auto d_v1 = d_e_v1.d_v;
                         debug_image[3 * pixel_id + 0] += d_v0[c] + d_v1[c];

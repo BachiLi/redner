@@ -39,6 +39,8 @@ struct SecondaryEdgeRecord {
     Edge edge;
     Vector3 edge_pt;
     Vector3 mwt;
+    bool use_nee_ray;
+    Real nee_ray_pmf;
 };
 
 template <typename T>

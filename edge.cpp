@@ -647,11 +647,9 @@ void compute_primary_edge_derivatives(const Scene &scene,
 }
 
 DEVICE
-inline Matrix3x3 get_ltc_matrix(const Material &material,
-                                const SurfacePoint &surface_point,
+inline Matrix3x3 get_ltc_matrix(const SurfacePoint &surface_point,
                                 const Vector3 &wi,
-                                Real min_rough) {
-    auto roughness = max(get_roughness(material, surface_point), min_rough);
+                                Real roughness) {
     auto cos_theta = dot(wi, surface_point.shading_frame.n);
     auto theta = acos(cos_theta);
     // search lookup table
@@ -1076,10 +1074,6 @@ struct secondary_edge_sampler {
                 }
             }
         }
-        // If nee_ray hits this edge, use maximum heuristics MIS and reject
-        if (intersect_edge(edges[selected_edge], nee_ray)) {
-            return -1;
-        }
 
         auto pmf_h = edge_weight * num_h_samples / wsum;
         sample_weight = 1 / pmf_h;
@@ -1277,13 +1271,14 @@ struct secondary_edge_sampler {
         auto isotropic_frame = Frame{frame_x, frame_y, n};
         auto m = Matrix3x3{};
         auto m_inv = Matrix3x3{};
+        auto roughness = max(get_roughness(material, shading_point), min_rough);
         if (edge_sample.bsdf_component <= diffuse_pmf) {
             // M is shading frame * identity
             m_inv = Matrix3x3(isotropic_frame);
             m = inverse(m_inv);
             m_pmf = diffuse_pmf;
         } else {
-            m_inv = inverse(get_ltc_matrix(material, shading_point, wi, min_rough)) *
+            m_inv = inverse(get_ltc_matrix(shading_point, wi, roughness)) *
                     Matrix3x3(isotropic_frame);
             m = inverse(m_inv);
             m_pmf = specular_pmf;
@@ -1295,9 +1290,18 @@ struct secondary_edge_sampler {
         auto mwt = Vector3{};
 
         auto edge_sel = edge_sample.edge_sel;
-        auto use_nee_ray = c_use_nee_ray;
-        if (c_use_nee_ray) {
+        auto use_nee_ray = false;
+        auto nee_ray_pmf = Real(1);
+        // Turn off nee edge sampling when roughness is low
+        auto turn_on_nee_ray =
+            edge_sample.bsdf_component <= diffuse_pmf || roughness > Real(0.1);
+        if (c_use_nee_ray && turn_on_nee_ray) {
             use_nee_ray = edge_sel < Real(0.5) ? true : false;
+            if (roughness > Real(0.1)) {
+                nee_ray_pmf = 0.5f;
+            } else {
+                nee_ray_pmf = use_nee_ray ? diffuse_pmf * 0.5f : 1.f - diffuse_pmf * 0.5f;
+            }
         }
         if (!use_nee_ray) {
             if (c_use_nee_ray) {
@@ -1313,7 +1317,7 @@ struct secondary_edge_sampler {
                     // Sample an edge by importance resampling:
                     // We randomly sample M edges, estimate contribution based on LTC, 
                     // then sample based on the estimated contribution.
-                    constexpr int M = 1;
+                    constexpr int M = 64;
                     int edge_ids[M];
                     Real edge_weights[M];
                     Real resample_cdf[M];
@@ -1527,6 +1531,8 @@ struct secondary_edge_sampler {
         edge_records[idx].edge = edge;
         edge_records[idx].edge_pt = sample_p; // for Jacobian computation 
         edge_records[idx].mwt = mwt; // for Jacobian computation
+        edge_records[idx].use_nee_ray = use_nee_ray;
+        edge_records[idx].nee_ray_pmf = nee_ray_pmf;
         rays[2 * idx + 0] = Ray(shading_point.position, v_upper_dir, 1e-3f * length(sample_p));
         rays[2 * idx + 1] = Ray(shading_point.position, v_lower_dir, 1e-3f * length(sample_p));
         const auto &incoming_ray_differential = incoming_ray_differentials[pixel_id];
@@ -1749,6 +1755,31 @@ struct secondary_edge_weights_updater {
         const auto &edge_record = edge_records[idx];
         if (edge_record.edge.shape_id < 0) {
             return;
+        }
+        // Properly weight nee edge sampling
+        // If we are not using nee edge sampling, and
+        // edge_isect0 & edge_isect1 both didn't hit a light source,
+        // we need to divide by the probability we select edge hierarchy sampling
+        // otherwise we need to weight zero for nee edge sampling
+        if (scene.envmap == nullptr) {
+            auto light0 = -1, light1 = -1;
+            if (edge_isect0.valid()) {
+                const auto &shading_shape = scene.shapes[edge_isect0.shape_id];
+                light0 = shading_shape.light_id;
+            }
+            if (edge_isect1.valid()) {
+                const auto &shading_shape = scene.shapes[edge_isect1.shape_id];
+                light1 = shading_shape.light_id;
+            }
+            if (light0 == -1 && light1 == -1) {
+                if (edge_record.use_nee_ray) {
+                    return;
+                } else {
+                    assert(edge_record.nee_ray_pmf > 0);
+                    edge_throughputs[2 * idx + 0] /= edge_record.nee_ray_pmf;
+                    edge_throughputs[2 * idx + 1] /= edge_record.nee_ray_pmf;
+                }
+            }
         }
 
         update_throughput(edge_isect0,
