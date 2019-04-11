@@ -1878,7 +1878,9 @@ void render(const Scene &scene,
     int old_device_id = -1;
     if (scene.use_gpu) {
         checkCuda(cudaGetDevice(&old_device_id));
-        checkCuda(cudaSetDevice(scene.gpu_index));
+        if (scene.gpu_index != -1) {
+            checkCuda(cudaSetDevice(scene.gpu_index));
+        }
     }
 #endif
     parallel_init();

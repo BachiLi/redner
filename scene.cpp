@@ -72,10 +72,14 @@ Scene::Scene(const Camera &camera,
     if (use_gpu) {
 #ifdef __NVCC__
         checkCuda(cudaGetDevice(&old_device_id));
-        checkCuda(cudaSetDevice(gpu_index));
+        if (gpu_index != -1) {
+            checkCuda(cudaSetDevice(gpu_index));
+        }
         // Initialize Optix prime scene
         optix_context = optix::prime::Context::create(RTP_CONTEXT_TYPE_CUDA);
-        optix_context->setCudaDeviceNumbers({(uint32_t)gpu_index});
+        if (gpu_index != -1) {
+            optix_context->setCudaDeviceNumbers({(uint32_t)gpu_index});
+        }
         optix_models.resize(shapes.size());
         optix_instances.resize(shapes.size());
         transforms.resize(shapes.size(), Matrix4x4f::identity());
@@ -283,7 +287,9 @@ Scene::~Scene() {
 #ifdef __NVCC__
         int old_device_id = -1;
         checkCuda(cudaGetDevice(&old_device_id));
-        checkCuda(cudaSetDevice(gpu_index));
+        if (gpu_index != -1) {
+            checkCuda(cudaSetDevice(gpu_index));
+        }
         checkCuda(cudaFree(envmap));
         checkCuda(cudaSetDevice(old_device_id));
 #else
@@ -305,8 +311,10 @@ DScene::DScene(const DCamera &camera,
 #endif
     if (use_gpu) {
 #ifdef __NVCC__
-        cudaGetDevice(&old_device_id);
-        cudaSetDevice(gpu_index);
+        checkCuda(cudaGetDevice(&old_device_id));
+        if (gpu_index != -1) {
+            checkCuda(cudaSetDevice(gpu_index));
+        }
 #endif
         cuda_synchronize();
     }
