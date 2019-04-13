@@ -451,7 +451,8 @@ class RenderFunction(torch.autograd.Function):
         if not get_use_correlated_random_number():
             # Decouple the forward/backward random numbers by adding a big prime number
             options.seed += 1000003
-            options.num_samples = ctx.num_samples[1]
+
+        options.num_samples = ctx.num_samples[1]
         start = time.time()
         redner.render(scene, options,
                       redner.float_ptr(0),
