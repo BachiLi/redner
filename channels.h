@@ -13,7 +13,9 @@ enum class Channels {
     uv,
     diffuse_reflectance,
     specular_reflectance,
-    roughness
+    roughness,
+    shape_id,
+    material_id
 };
 
 struct ChannelInfo {

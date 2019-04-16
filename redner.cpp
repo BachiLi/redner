@@ -131,7 +131,9 @@ PYBIND11_MODULE(redner, m) {
         .value("uv", Channels::uv)
         .value("diffuse_reflectance", Channels::diffuse_reflectance)
         .value("specular_reflectance", Channels::specular_reflectance)
-        .value("roughness", Channels::roughness);
+        .value("roughness", Channels::roughness)
+        .value("shape_id", Channels::shape_id)
+        .value("material_id", Channels::material_id);
 
     m.def("compute_num_channels", compute_num_channels, "");
 

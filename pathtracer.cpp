@@ -314,6 +314,21 @@ struct primary_contribs_accumulator {
                         }
                         d++;
                     } break;
+                    // when there are multiple samples per pixel,
+                    // we use the last sample for determining shape id & material id
+                    case Channels::shape_id: {
+                        if (shading_isect.valid()) {
+                            rendered_image[nd * pixel_id + d    ] = Real(shading_isect.shape_id);
+                        }
+                        d++;
+                    } break;
+                    case Channels::material_id: {
+                        if (shading_isect.valid()) {
+                            const auto &shading_shape = scene.shapes[shading_isect.shape_id];
+                            rendered_image[nd * pixel_id + d    ] = Real(shading_shape.material_id);
+                        }
+                        d++;
+                    } break;
                     default: {
                         assert(false);
                     }
@@ -428,6 +443,13 @@ struct primary_contribs_accumulator {
                             r *= channel_multipliers[nd * pixel_id + d];
                             edge_contribs[pixel_id] += r;
                         }
+                        d++;
+                    } break;
+                    // shape_id & material_id are not differentiable
+                    case Channels::shape_id: {
+                        d++;
+                    } break;
+                    case Channels::material_id: {
                         d++;
                     } break;
                     default: {
@@ -647,6 +669,13 @@ struct d_primary_contribs_accumulator {
                             d_shading_points[pixel_id]);
                     }
                     d += 1;
+                } break;
+                // shape_id & material_id are not differentiable
+                case Channels::shape_id: {
+                    d++;
+                } break;
+                case Channels::material_id: {
+                    d++;
                 } break;
                 default: {
                     assert(false);
