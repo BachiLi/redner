@@ -967,7 +967,7 @@ struct secondary_edge_sampler {
                              Real resample_sample,
                              Real &sample_weight,
                              bool debug = false) {
-        constexpr auto buffer_size = 64;
+        constexpr auto buffer_size = 128;
         BVHStackItemH buffer[buffer_size];
         auto selected_edge = -1;
         auto edge_weight = Real(0);
@@ -1092,7 +1092,7 @@ struct secondary_edge_sampler {
                              Vector3 &edge_pt,
                              Vector3 &mwt,
                              bool debug = false) {
-        constexpr auto buffer_size = 64;
+        constexpr auto buffer_size = 128;
         BVHStackItemL buffer[buffer_size];
         auto selected_edge = -1;
         auto edge_weight = Real(0);
