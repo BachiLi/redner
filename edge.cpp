@@ -1074,6 +1074,9 @@ struct secondary_edge_sampler {
                 }
             }
         }
+        if (edge_weight <= 0 || wsum <= 0) {
+            return -1;
+        }
 
         auto pmf_h = edge_weight * num_h_samples / wsum;
         sample_weight = 1 / pmf_h;
@@ -1195,6 +1198,9 @@ struct secondary_edge_sampler {
             // Environment map sampling
             isect_jac = 1 / distance_squared(isect_pt, nee_ray.org);
             pdf_nee = envmap_pdf(*scene.envmap, nee_ray.dir);
+        }
+        if (pmf <= 0 || isect_jac <= 0 || pdf_nee <= 0) {
+            return -1;
         }
         sample_weight = 1 / (2 * edge_bounds_expand * pmf * isect_jac * pdf_nee);
         // Project isect_pt to corresponding point on the edge
