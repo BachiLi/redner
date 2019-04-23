@@ -50,3 +50,18 @@ class Texture:
 
         self.mipmap = texels
         self.uv_scale = uv_scale
+
+    def state_dict(self):
+        return {
+            'texels': self.texels.cpu(),
+            'mipmap': self.mipmap.cpu(),
+            'uv_scale': self.uv_scale.cpu()
+        }
+    @classmethod
+    def load_state_dict(cls, state_dict):
+        # TODO: should be a better way to do this
+        out = cls(torch.tensor([0.0, 0.0, 0.0]))
+        out.texels = state_dict['texels']
+        out.mipmap = state_dict['mipmap']
+        out.uv_scale = state_dict['uv_scale'].to(torch.device('cpu'))
+        return out

@@ -41,3 +41,20 @@ class Material:
         self.specular_reflectance = specular_reflectance
         self.roughness = roughness
         self.two_sided = two_sided
+
+    def state_dict(self):
+        return {
+            'diffuse_reflectance': self.diffuse_reflectance.state_dict(),
+            'specular_reflectance': self.specular_reflectance.state_dict(),
+            'roughness': self.roughness.state_dict(),
+            'two_sided': self.two_sided,
+        }
+
+    @classmethod
+    def load_state_dict(cls, state_dict):
+        out = cls(
+            pyredner.Texture.load_state_dict(state_dict['diffuse_reflectance']),
+            pyredner.Texture.load_state_dict(state_dict['specular_reflectance']),
+            pyredner.Texture.load_state_dict(state_dict['roughness']),
+            state_dict['two_sided'])
+        return out

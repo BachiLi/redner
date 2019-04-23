@@ -69,3 +69,23 @@ class Shape:
         self.normals = normals
         self.material_id = material_id
         self.light_id = -1
+
+    def state_dict(self):
+        return {
+            'vertices': self.vertices.cpu(),
+            'indices': self.indices.cpu(),
+            'uvs': self.uvs.cpu(),
+            'normals': self.normals.cpu(),
+            'material_id': self.material_id,
+            'light_id': self.light_id,
+        }
+
+    @classmethod
+    def load_state_dict(cls, state_dict):
+        out = cls(
+            state_dict['vertices'],
+            state_dict['indices'],
+            state_dict['uvs'],
+            state_dict['normals'],
+            state_dict['material_id'])
+        return out
