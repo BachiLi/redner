@@ -61,6 +61,8 @@ struct edge_6d_bounds_computer {
             d_min[i] = min(h0[i], h1[i]);
             d_max[i] = max(h0[i], h1[i]);
         }
+        assert(isfinite(d_min));
+        assert(isfinite(d_max));
         edge_aabbs[idx].d_min = d_min;
         edge_aabbs[idx].d_max = d_max;
     }
@@ -591,6 +593,7 @@ struct bvh_optimizer {
                 leaf->parent = parent;
             } else {
                 // Internal
+                assert(index < 5);
                 auto node = nodes[index++];
                 node->cost = -1;
                 parent->children[child_id] = node;
@@ -671,6 +674,7 @@ struct bvh_optimizer {
     DEVICE void operator()(int idx) {
         auto leaf = &leaves[idx];
         leaf->cost = Ci * surface_area(leaf->bounds);
+        assert(isfinite(leaf->cost));
         auto current = leaf->parent;
         auto node_idx = current - nodes;
         if (current != nullptr) {

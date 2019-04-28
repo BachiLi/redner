@@ -113,7 +113,13 @@ inline Vector3 get_n0(const Shape *shapes, const Edge &edge) {
     auto v0 = Vector3{get_v0(shapes, edge)};
     auto v1 = Vector3{get_v1(shapes, edge)};
     auto ns_v0 = Vector3{get_non_shared_v0(shapes, edge)};
-    return normalize(cross(v0 - ns_v0, v1 - ns_v0));
+    auto n = cross(v0 - ns_v0, v1 - ns_v0);
+    auto n_len_sq = length_squared(n);
+    if (n_len_sq < Real(1e-20)) {
+        return Vector3{0, 0, 0};
+    }
+    n /= sqrt(n_len_sq);
+    return n;
 }
 
 DEVICE
@@ -121,21 +127,54 @@ inline Vector3 get_n1(const Shape *shapes, const Edge &edge) {
     auto v0 = Vector3{get_v0(shapes, edge)};
     auto v1 = Vector3{get_v1(shapes, edge)};
     auto ns_v1 = Vector3{get_non_shared_v1(shapes, edge)};
-    return normalize(cross(v1 - ns_v1, v0 - ns_v1));
+    auto n = cross(v1 - ns_v1, v0 - ns_v1);
+    auto n_len_sq = length_squared(n);
+    if (n_len_sq < Real(1e-20)) {
+        return Vector3{0, 0, 0};
+    }
+    n /= sqrt(n_len_sq);
+    return n;
+
 }
 
 DEVICE
 inline bool is_silhouette(const Shape *shapes, const Vector3 &p, const Edge &edge) {
-    if (edge.f0 == -1 || edge.f1 == -1) {
-        // Only adjacent to one face
-        return true;
-    }
     auto v0 = Vector3{get_v0(shapes, edge)};
     auto v1 = Vector3{get_v1(shapes, edge)};
+    if (edge.f0 == -1 || edge.f1 == -1) {
+        // Only adjacent to one face
+        if (edge.f0 != -1) {
+            auto ns_v0 = Vector3{get_non_shared_v0(shapes, edge)};
+            auto n0 = cross(v0 - ns_v0, v1 - ns_v0);
+            auto n0_len_sq = length_squared(n0);
+            if (n0_len_sq < Real(1e-20)) {
+                // Degenerate vertices
+                return false;
+            }
+        }
+        if (edge.f1 != -1) {
+            auto ns_v1 = Vector3{get_non_shared_v1(shapes, edge)};
+            auto n1 = cross(v1 - ns_v1, v0 - ns_v1);
+            auto n1_len_sq = length_squared(n1);
+            if (n1_len_sq < Real(1e-20)) {
+                // Degenerate vertices
+                return false;
+            }
+        }
+        return true;
+    }
     auto ns_v0 = Vector3{get_non_shared_v0(shapes, edge)};
     auto ns_v1 = Vector3{get_non_shared_v1(shapes, edge)};
-    auto n0 = normalize(cross(v0 - ns_v0, v1 - ns_v0));
-    auto n1 = normalize(cross(v1 - ns_v1, v0 - ns_v1));
+    auto n0 = cross(v0 - ns_v0, v1 - ns_v0);
+    auto n1 = cross(v1 - ns_v1, v0 - ns_v1);
+    auto n0_len_sq = length_squared(n0);
+    auto n1_len_sq = length_squared(n1);
+    if (n0_len_sq < Real(1e-20) || n1_len_sq < Real(1e-20)) {
+        // Degenerate vertices
+        return false;
+    }
+    n0 /= sqrt(n0_len_sq);
+    n1 /= sqrt(n1_len_sq);
     if (!has_shading_normals(shapes[edge.shape_id])) {
         // If we are not using Phong normal, every edge is silhouette,
         // except edges with dihedral angle of 0
