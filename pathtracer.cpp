@@ -1955,6 +1955,8 @@ void render(const Scene &scene,
 
     // For each sample
     for (int sample_id = 0; sample_id < options.num_samples; sample_id++) {
+        sampler->begin_sample(sample_id);
+
         // Buffer view for first intersection
         auto throughputs = path_buffer.throughputs.view(0, num_pixels);
         auto camera_samples = path_buffer.camera_samples.view(0, num_pixels);
