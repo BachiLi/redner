@@ -6,7 +6,7 @@
 // Initialize Sobol sampler's scramble parameter for each pixel
 struct sobol_initializer {
     // https://gist.github.com/badboy/6267743
-    uint64_t hash64shift(uint64_t key) {
+    DEVICE uint64_t hash64shift(uint64_t key) {
       key = (~key) + (key << 21); // key = (key << 21) - key - 1;
       key = key ^ (key >> 24);
       key = (key + (key << 3)) + (key << 8); // key * 265
