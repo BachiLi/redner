@@ -1,6 +1,7 @@
 # redner
 
-News  
+News
+04/28/2019 - Added QMC support (see tests/test_qmc.py)
 04/01/2019 - Now support multi-GPU (see pyredner.set\_device).  
 03/31/2019 - Brought back the hierarchical edge sampling method in the paper.  
 02/02/2019 - The [wiki](https://github.com/BachiLi/redner/wiki) now contains a series of tutorial. The plan is to further expand the examples.
@@ -8,7 +9,7 @@ News
 ![](https://people.csail.mit.edu/tzumao/diffrt/teaser.jpg)
 
 redner is a differentiable Monte Carlo renderer that can take the derivatives of rendering output with respect to arbitrary 
-scene parameters, that is, you can backpropagate from the image to your 3D scene. One of the major usages of redner is inverse rendering (hence the name redner) through gradient descent. A distinct feature of redner is that it is physically-based -- which means it simulates photons and produce realistic lighting phenomena, such as shadow and global illumination, and it handles the derivatives of these features correctly.
+scene parameters, that is, you can backpropagate from the image to your 3D scene. One of the major usages of redner is inverse rendering (hence the name redner) through gradient descent. What sets redner apart is that it is physically-based -- which means it simulates photons and produce realistic lighting phenomena, such as shadow and global illumination, and it handles the derivatives of these features correctly.
 
 For more details on the renderer, what it can do, and the techniques it use for computing the derivatives, please
 take a look at the paper:
@@ -28,7 +29,7 @@ redner depends on a few libraries/systems:
 - [PyTorch 0.4.1 or 1.0](https://pytorch.org) (required)
 - [OpenEXR](https://github.com/openexr/openexr) (required)
 - [Embree](https://embree.github.io) (required)
-- [CUDA 10](https://developer.nvidia.com/cuda-downloads) (optional)
+- [CUDA 10](https://developer.nvidia.com/cuda-downloads) (optional, need GPU at Kepler class or newer)
 - [optix prime](https://developer.nvidia.com/optix) (optional, required when compiled with CUDA)
 - [miniconda](https://conda.io/miniconda.html) (optional, but recommended)
 - [OpenEXR Python](https://github.com/jamesbowman/openexrpython) (required, included in a submodule)
@@ -71,7 +72,6 @@ See [here](https://github.com/BachiLi/redner/pull/11) for build instruction on W
 redner is tested under MacOS with clang 7 and Ubuntu with gcc 7. In general any compiler with c++14 support should work.
 
 The current development plan is to enhance the renderer. Following features will be added in the near future (not listed in any particular order):
-- Stratification of random number
 - More BSDFs e.g. glass/GGX
 - Support for edge shared by more than two triangles
   (The code currently assumes every triangle edge is shared by at most two triangles.
@@ -83,6 +83,8 @@ The current development plan is to enhance the renderer. Following features will
 - Proper pixel filter (currently only support 1x1 box filter)
 - Mini-batching
 - Volumetric path tracing (e.g. [http://www.cs.cornell.edu/projects/translucency/#acquisition-sa13](http://www.cs.cornell.edu/projects/translucency/#acquisition-sa13))
+- Spectral rendering
+- Backface culling
 - Documentation
 
 If you have any questions/comments/bug reports, feel free to open a github issue or e-mail to the author
