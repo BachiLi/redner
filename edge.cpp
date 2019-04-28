@@ -31,7 +31,8 @@ void initialize_ltc_table(bool use_gpu) {
     if (use_gpu && ltc::tabM == nullptr) {
 #ifdef __CUDACC__
         checkCuda(cudaMallocManaged(&ltc::tabMgpu, sizeof(ltc::tabM_)));
-        checkCuda(cudaMemcpy(ltc::tabMgpu, ltc::tabM_, sizeof(ltc::tabM_), cudaMemcpyHostToDevice));
+        checkCuda(cudaMemcpy((void*)ltc::tabMgpu,
+                             (void*)ltc::tabM_, sizeof(ltc::tabM_), cudaMemcpyHostToDevice));
         ltc::tabM = ltc::tabMgpu;
 #else
         assert(false);
@@ -670,14 +671,15 @@ void compute_primary_edge_derivatives(const Scene &scene,
 DEVICE
 inline Matrix3x3 get_ltc_matrix(const SurfacePoint &surface_point,
                                 const Vector3 &wi,
-                                Real roughness) {
+                                Real roughness,
+                                const float *tabM) {
     auto cos_theta = dot(wi, surface_point.shading_frame.n);
     auto theta = acos(cos_theta);
     // search lookup table
     auto rid = clamp(int(roughness * (ltc::size - 1)), 0, ltc::size - 1);
     auto tid = clamp(int((theta / (M_PI / 2.f)) * (ltc::size - 1)), 0, ltc::size - 1);
     // TODO: linear interpolation?
-    return Matrix3x3(&ltc::tabM[9 * (rid + tid * ltc::size)]);
+    return Matrix3x3(&tabM[9 * (rid + tid * ltc::size)]);
 }
 
 struct BVHStackItemH {
@@ -1305,7 +1307,7 @@ struct secondary_edge_sampler {
             m = inverse(m_inv);
             m_pmf = diffuse_pmf;
         } else {
-            m_inv = inverse(get_ltc_matrix(shading_point, wi, roughness)) *
+            m_inv = inverse(get_ltc_matrix(shading_point, wi, roughness, tabM)) *
                     Matrix3x3(isotropic_frame);
             m = inverse(m_inv);
             m_pmf = specular_pmf;
@@ -1626,6 +1628,7 @@ struct secondary_edge_sampler {
     const Real *min_roughness;
     const float *d_rendered_image;
     const ChannelInfo channel_info;
+    const float *tabM;
     SecondaryEdgeRecord *edge_records;
     Ray *rays;
     RayDifferential *bsdf_differentials;
@@ -1676,6 +1679,7 @@ void sample_secondary_edges(const Scene &scene,
         min_roughness.begin(),
         d_rendered_image,
         channel_info,
+        ltc::tabM,
         edge_records.begin(),
         rays.begin(),
         bsdf_differentials.begin(),
