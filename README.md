@@ -1,6 +1,7 @@
 # redner
 
 News
+
 04/28/2019 - Added QMC support (see tests/test_qmc.py and the documentation in pyredner.serialize_scene())
 04/01/2019 - Now support multi-GPU (see pyredner.set\_device).  
 03/31/2019 - Brought back the hierarchical edge sampling method in the paper.  
