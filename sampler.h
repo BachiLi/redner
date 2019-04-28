@@ -9,6 +9,8 @@
 
 struct Sampler {
     virtual ~Sampler() {}
+    virtual void begin_sample(int sample_id) {};
+
     virtual void next_camera_samples(BufferView<TCameraSample<float>> samples) = 0;
     virtual void next_camera_samples(BufferView<TCameraSample<double>> samples) = 0;
     virtual void next_light_samples(BufferView<TLightSample<float>> samples) = 0;

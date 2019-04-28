@@ -5,6 +5,8 @@
 struct SobolSampler : public Sampler {
     SobolSampler(bool use_gpu, uint64_t seed, int num_pixels);
 
+    void begin_sample(int sample_id) override;
+
     void next_camera_samples(BufferView<TCameraSample<float>> samples) override;
     void next_camera_samples(BufferView<TCameraSample<double>> samples) override;
     void next_light_samples(BufferView<TLightSample<float>> samples) override;
@@ -17,7 +19,8 @@ struct SobolSampler : public Sampler {
     void next_secondary_edge_samples(BufferView<TSecondaryEdgeSample<double>> samples) override;
 
     bool use_gpu;
-    uint64_t sobol_scramble;
+    Buffer<uint64_t> sobol_scramble;
     const uint64_t *sobol_matrices;
+    int current_sample_id;
     int current_dimension;
 };
