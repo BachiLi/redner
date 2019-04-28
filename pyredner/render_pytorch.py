@@ -36,8 +36,36 @@ class RenderFunction(torch.autograd.Function):
                         channels = [redner.channels.radiance],
                         sampler_type = redner.SamplerType.independent):
         """
-            Given a PyRedner scene, convert it to a linear list of argument,
+            Given a PyRedner scene & rendering options, convert them to a linear list of argument,
             so that we can use it in PyTorch.
+
+            Keyword arguments:
+            scene -- A pyredner.Scene
+            num_samples -- Number of samples per pixel for forward and backward passes,
+                           can be an integer or a tuple of 2 integers.
+            max_bounces -- Number of bounces for global illumination, 1 means direct lighting only.
+            channels -- A list of channels that should present in the output image.
+                        Following channels are supported:
+                            redner.channels.radiance,
+                            redner.channels.alpha,
+                            redner.channels.depth,
+                            redner.channels.position,
+                            redner.channels.geometry_normal,
+                            redner.channels.shading_normal,
+                            redner.channels.uv,
+                            redner.channels.diffuse_reflectance,
+                            redner.channels.specular_reflectance,
+                            redner.channels.roughness,
+                            redner.channels.shape_id,
+                            redner.channels.material_id
+                        All channels, except for shape id and material id, are differentiable.
+            sampler_type -- Which sampling pattern to use.
+                            See Chapter 7 of the PBRT book for an explanation of the difference between
+                            different samplers.
+                            http://www.pbr-book.org/3ed-2018/Sampling_and_Reconstruction.html
+                            Following samplers are supported:
+                                redner.SamplerType.independent
+                                redner.SamplerType.sobol
         """
         cam = scene.camera
         num_shapes = len(scene.shapes)
