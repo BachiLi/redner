@@ -166,7 +166,8 @@ Vector3 bsdf(const Material &material,
     auto geom_wi = dot(geom_n, wi);
     auto bsdf_cos = dot(shading_frame.n, wo);
     auto geom_cos = dot(geom_n, wo);
-    if (geom_wi <= 0 || bsdf_cos <= 1e-3f || geom_cos <= 1e-3f) {
+    auto cos_wi = dot(shading_frame.n, wi);
+    if (geom_wi <= 0 || bsdf_cos <= 1e-3f || geom_cos <= 1e-3f || cos_wi <= 1e-3f) {
         // XXX: kind of hacky. we ignore extreme grazing angles
         // for numerical robustness
         return Vector3{0, 0, 0};
@@ -209,7 +210,6 @@ Vector3 bsdf(const Material &material,
             auto F = specular_reflectance +
                 (1.f - specular_reflectance) *
                 pow(max(1.f - cos_theta_d, Real(0)), 5.f);
-            auto cos_wi = fabs(dot(wi, shading_frame.n));
             specular_contrib = F * D * G / (4.f * cos_wi);
         }
     }

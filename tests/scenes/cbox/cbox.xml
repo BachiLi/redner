@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<scene version="0.4.0">
+	<integrator type="path"/>
+
+	<sensor type="perspective">
+		<string name="fovAxis" value="smaller"/>
+		<float name="nearClip" value="10"/>
+		<float name="farClip" value="2800"/>
+		<float name="focusDistance" value="1000"/>
+		<transform name="toWorld">
+			<lookAt origin="278, 273, -800" target="278, 273, -799" up="0, 1, 0"/>
+		</transform>
+		<float name="fov" value="39.3077"/>
+
+		<sampler type="independent">
+			<integer name="sampleCount" value="4"/>
+		</sampler>
+
+		<film type="hdrfilm">
+			<integer name="width" value="256"/>
+			<integer name="height" value="256"/>
+
+			<rfilter type="box"/>
+		</film>
+	</sensor>
+
+	<bsdf type="roughplastic" id="box">
+		<spectrum name="diffuseReflectance" value="0.442, 0.349, 0.333"/>
+		<spectrum name="specularReflectance" value="0.4, 0.4, 0.4"/>
+		<float name="alpha" value="0.01"/>
+	</bsdf>
+
+	<bsdf type="diffuse" id="white">
+		<spectrum name="reflectance" value="0.885809, 0.698859, 0.666422"/>
+	</bsdf>
+
+	<bsdf type="diffuse" id="red">
+		<spectrum name="reflectance" value="0.570068, 0.0430135, 0.0443706"/>
+	</bsdf>
+
+	<bsdf type="diffuse" id="green">
+		<spectrum name="reflectance" value="0.105421, 0.37798, 0.076425"/>
+	</bsdf>
+
+	<bsdf type="diffuse" id="light">
+		<spectrum name="reflectance" value="0.936461, 0.740433, 0.705267"/>
+	</bsdf>
+
+	<shape type="obj">
+		<string name="filename" value="meshes/cbox_luminaire.obj"/>
+		<transform name="toWorld">
+			<translate x="0" y="-0.5" z="0"/>
+		</transform>
+
+		<ref id="light"/>
+
+		<emitter type="area">
+			<spectrum name="radiance" value="18.387, 10.9873, 2.75357"/>
+		</emitter>
+	</shape>
+
+	<shape type="obj">
+		<string name="filename" value="meshes/cbox_floor.obj"/>
+
+		<ref id="white"/>
+	</shape>
+
+	<shape type="obj">
+		<string name="filename" value="meshes/cbox_ceiling.obj"/>
+
+		<ref id="white"/>
+	</shape>
+
+	<shape type="obj">
+		<string name="filename" value="meshes/cbox_back.obj"/>
+
+		<ref id="white"/>
+	</shape>
+
+	<shape type="obj">
+		<string name="filename" value="meshes/cbox_greenwall.obj"/>
+
+		<ref id="green"/>
+	</shape>
+
+	<shape type="obj">
+		<string name="filename" value="meshes/cbox_redwall.obj"/>
+
+		<ref id="red"/>
+	</shape>
+
+	<shape type="obj">
+		<string name="filename" value="meshes/cbox_smallbox.obj"/>
+		<ref id="box"/>
+	</shape>
+
+	<shape type="obj">
+		<string name="filename" value="meshes/cbox_largebox.obj"/>
+		<ref id="box"/>
+	</shape>
+</scene>

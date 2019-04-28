@@ -1,4 +1,4 @@
-#include "sampler.h"
+#include "pcg_sampler.h"
 #include "parallel.h"
 
 #include <thrust/random.h>
@@ -72,63 +72,63 @@ struct pcg_sampler_double {
     double *samples;
 };
 
-Sampler::Sampler(bool use_gpu,
-                 uint64_t seed,
-                 int num_pixels) : use_gpu(use_gpu) {
+PCGSampler::PCGSampler(bool use_gpu,
+                       uint64_t seed,
+                       int num_pixels) : use_gpu(use_gpu) {
     rng_states = Buffer<pcg32_state>(use_gpu, num_pixels);
     parallel_for(pcg_initializer{seed, rng_states.begin()},
         rng_states.size(), use_gpu);
 }
 
-void Sampler::next_camera_samples(BufferView<TCameraSample<float>> samples) {
+void PCGSampler::next_camera_samples(BufferView<TCameraSample<float>> samples) {
     parallel_for(pcg_sampler_float<2>{rng_states.begin(),
         (float*)samples.begin()}, samples.size(), use_gpu);
 }
 
-void Sampler::next_camera_samples(BufferView<TCameraSample<double>> samples) {
+void PCGSampler::next_camera_samples(BufferView<TCameraSample<double>> samples) {
     parallel_for(pcg_sampler_double<2>{rng_states.begin(),
         (double*)samples.begin()}, samples.size(), use_gpu);
 }
 
-void Sampler::next_light_samples(BufferView<TLightSample<float>> samples) {
+void PCGSampler::next_light_samples(BufferView<TLightSample<float>> samples) {
     parallel_for(pcg_sampler_float<4>{rng_states.begin(),
         (float*)samples.begin()}, samples.size(), use_gpu);
 }
 
-void Sampler::next_light_samples(BufferView<TLightSample<double>> samples) {
+void PCGSampler::next_light_samples(BufferView<TLightSample<double>> samples) {
     parallel_for(pcg_sampler_double<4>{rng_states.begin(),
         (double*)samples.begin()}, samples.size(), use_gpu);
 }
 
-void Sampler::next_bsdf_samples(BufferView<TBSDFSample<float>> samples) {
+void PCGSampler::next_bsdf_samples(BufferView<TBSDFSample<float>> samples) {
     parallel_for(pcg_sampler_float<3>{rng_states.begin(),
         (float*)samples.begin()}, samples.size(), use_gpu);
 }
 
-void Sampler::next_bsdf_samples(BufferView<TBSDFSample<double>> samples) {
+void PCGSampler::next_bsdf_samples(BufferView<TBSDFSample<double>> samples) {
     parallel_for(pcg_sampler_double<3>{rng_states.begin(),
         (double*)samples.begin()}, samples.size(), use_gpu);
 }
 
-void Sampler::next_primary_edge_samples(
+void PCGSampler::next_primary_edge_samples(
         BufferView<TPrimaryEdgeSample<float>> samples) {
     parallel_for(pcg_sampler_float<2>{rng_states.begin(),
         (float*)samples.begin()}, samples.size(), use_gpu);
 }
 
-void Sampler::next_primary_edge_samples(
+void PCGSampler::next_primary_edge_samples(
         BufferView<TPrimaryEdgeSample<double>> samples) {
     parallel_for(pcg_sampler_double<2>{rng_states.begin(),
         (double*)samples.begin()}, samples.size(), use_gpu);
 }
 
-void Sampler::next_secondary_edge_samples(
+void PCGSampler::next_secondary_edge_samples(
         BufferView<TSecondaryEdgeSample<float>> samples) {
     parallel_for(pcg_sampler_float<4>{rng_states.begin(),
         (float*)samples.begin()}, samples.size(), use_gpu);
 }
 
-void Sampler::next_secondary_edge_samples(
+void PCGSampler::next_secondary_edge_samples(
         BufferView<TSecondaryEdgeSample<double>> samples) {
     parallel_for(pcg_sampler_double<4>{rng_states.begin(),
         (double*)samples.begin()}, samples.size(), use_gpu);

@@ -1,6 +1,7 @@
 #include "pathtracer.h"
 #include "scene.h"
-#include "sampler.h"
+#include "pcg_sampler.h"
+#include "sobol_sampler.h"
 #include "parallel.h"
 #include "scene.h"
 #include "buffer.h"
@@ -1930,8 +1931,23 @@ void render(const Scene &scene,
     // Therefore we allocate a big buffer here for the storage.
     PathBuffer path_buffer(max_bounces, num_pixels, scene.use_gpu, channel_info);
     auto num_active_pixels = std::vector<int>((max_bounces + 1) * num_pixels, 0);
-    auto sampler = Sampler(scene.use_gpu, options.seed, num_pixels);
-    auto edge_sampler = Sampler(scene.use_gpu, options.seed + 131071U, num_pixels);
+    std::unique_ptr<Sampler> sampler, edge_sampler;
+    switch (options.sampler_type) {
+        case SamplerType::independent: {
+            sampler = std::unique_ptr<Sampler>(new PCGSampler(scene.use_gpu, options.seed, num_pixels));
+            edge_sampler = std::unique_ptr<Sampler>(
+                new PCGSampler(scene.use_gpu, options.seed + 131071U, num_pixels));
+            break;
+        } case SamplerType::sobol: {
+            sampler = std::unique_ptr<Sampler>(new SobolSampler(scene.use_gpu, options.seed, num_pixels));
+            edge_sampler = std::unique_ptr<Sampler>(
+                new SobolSampler(scene.use_gpu, options.seed + 131071U, num_pixels));
+            break;
+        } default: {
+            assert(false);
+            break;
+        }
+    }
     auto optix_rays = path_buffer.optix_rays.view(0, 2 * num_pixels);
     auto optix_hits = path_buffer.optix_hits.view(0, 2 * num_pixels);
 
@@ -1954,7 +1970,7 @@ void render(const Scene &scene,
         // Initialization
         init_paths(throughputs, min_roughness, scene.use_gpu);
         // Generate primary ray samples
-        sampler.next_camera_samples(camera_samples);
+        sampler->next_camera_samples(camera_samples);
         sample_primary_rays(camera, camera_samples, rays, primary_differentials, scene.use_gpu);
         // Initialize pixel id
         init_active_pixels(rays, primary_active_pixels, scene.use_gpu, thrust_alloc);
@@ -2023,7 +2039,7 @@ void render(const Scene &scene,
                 path_buffer.min_roughness.view((depth + 1) * num_pixels, num_pixels);
 
             // Sample points on lights
-            sampler.next_light_samples(light_samples);
+            sampler->next_light_samples(light_samples);
             sample_point_on_light(scene,
                                   active_pixels,
                                   shading_points,
@@ -2034,7 +2050,7 @@ void render(const Scene &scene,
             occluded(scene, active_pixels, nee_rays, optix_rays, optix_hits);
             
             // Sample directions based on BRDF
-            sampler.next_bsdf_samples(bsdf_samples);
+            sampler->next_bsdf_samples(bsdf_samples);
             bsdf_sample(scene,
                         active_pixels,
                         incoming_rays,
@@ -2197,7 +2213,7 @@ void render(const Scene &scene,
                 // Sample edges for secondary visibility
                 auto num_edge_samples = 2 * num_actives;
                 auto edge_samples = path_buffer.secondary_edge_samples.view(0, num_actives);
-                edge_sampler.next_secondary_edge_samples(edge_samples);
+                edge_sampler->next_secondary_edge_samples(edge_samples);
                 auto edge_records = path_buffer.secondary_edge_records.view(0, num_actives);
                 auto edge_rays = path_buffer.edge_rays.view(0, num_edge_samples);
                 auto edge_ray_differentials =
@@ -2321,7 +2337,7 @@ void render(const Scene &scene,
                         path_buffer.edge_min_roughness.view(next_buffer_beg, num_edge_samples);
 
                     // Sample points on lights
-                    edge_sampler.next_light_samples(tmp_light_samples);
+                    edge_sampler->next_light_samples(tmp_light_samples);
                     // Copy the samples
                     parallel_for(copy_interleave<LightSample>{
                         tmp_light_samples.begin(), light_samples.begin()},
@@ -2332,7 +2348,7 @@ void render(const Scene &scene,
                     occluded(scene, active_pixels, nee_rays, optix_rays, optix_hits);
 
                     // Sample directions based on BRDF
-                    edge_sampler.next_bsdf_samples(tmp_bsdf_samples);
+                    edge_sampler->next_bsdf_samples(tmp_bsdf_samples);
                     // Copy the samples
                     parallel_for(copy_interleave<BSDFSample>{
                         tmp_bsdf_samples.begin(), bsdf_samples.begin()},
@@ -2679,7 +2695,7 @@ void render(const Scene &scene,
                          edge_min_roughness.begin(), edge_min_roughness.end(), 0);
 
                 // Generate rays & weights for edge sampling
-                edge_sampler.next_primary_edge_samples(primary_edge_samples);
+                edge_sampler->next_primary_edge_samples(primary_edge_samples);
                 sample_primary_edges(scene,
                                      primary_edge_samples,
                                      d_rendered_image.get(),
@@ -2761,7 +2777,7 @@ void render(const Scene &scene,
                         path_buffer.edge_min_roughness.view(next_buffer_beg, 2 * num_pixels);
 
                     // Sample points on lights
-                    edge_sampler.next_light_samples(tmp_light_samples);
+                    edge_sampler->next_light_samples(tmp_light_samples);
                     // Copy the samples
                     parallel_for(copy_interleave<LightSample>{
                         tmp_light_samples.begin(), light_samples.begin()},
@@ -2772,7 +2788,7 @@ void render(const Scene &scene,
                     occluded(scene, active_pixels, nee_rays, optix_rays, optix_hits);
 
                     // Sample directions based on BRDF
-                    edge_sampler.next_bsdf_samples(tmp_bsdf_samples);
+                    edge_sampler->next_bsdf_samples(tmp_bsdf_samples);
                     // Copy the samples
                     parallel_for(copy_interleave<BSDFSample>{
                         tmp_bsdf_samples.begin(), bsdf_samples.begin()},

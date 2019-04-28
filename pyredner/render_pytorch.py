@@ -33,7 +33,8 @@ class RenderFunction(torch.autograd.Function):
     def serialize_scene(scene,
                         num_samples,
                         max_bounces,
-                        channels = [redner.channels.radiance]):
+                        channels = [redner.channels.radiance],
+                        sampler_type = redner.SamplerType.independent):
         """
             Given a PyRedner scene, convert it to a linear list of argument,
             so that we can use it in PyTorch.
@@ -93,6 +94,7 @@ class RenderFunction(torch.autograd.Function):
         args.append(num_samples)
         args.append(max_bounces)
         args.append(channels)
+        args.append(sampler_type)
 
         return args
     
@@ -287,12 +289,14 @@ class RenderFunction(torch.autograd.Function):
         current_index += 1
         channels = args[current_index]
         current_index += 1
+        sampler_type = args[current_index]
+        current_index += 1
 
         # check that num_samples is a tuple
         if isinstance(num_samples, int):
             num_samples = (num_samples, num_samples)
 
-        options = redner.RenderOptions(seed, num_samples[0], max_bounces, channels)
+        options = redner.RenderOptions(seed, num_samples[0], max_bounces, channels, sampler_type)
         num_channels = redner.compute_num_channels(channels)
         rendered_image = torch.zeros(resolution[0], resolution[1], num_channels,
             device = pyredner.get_device())
@@ -548,5 +552,6 @@ class RenderFunction(torch.autograd.Function):
         ret_list.append(None) # num samples
         ret_list.append(None) # num bounces
         ret_list.append(None) # channels
+        ret_list.append(None) # sampler type
 
         return tuple(ret_list)

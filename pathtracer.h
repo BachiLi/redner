@@ -8,11 +8,17 @@
 struct Scene;
 struct DScene;
 
+enum class SamplerType {
+	independent,
+	sobol
+};
+
 struct RenderOptions {
     uint64_t seed;
     int num_samples;
     int max_bounces;
     std::vector<Channels> channels;
+    SamplerType sampler_type;
 };
 
 void render(const Scene &scene,

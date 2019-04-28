@@ -56,6 +56,7 @@ set(SRCS aabb.h
          miniz.h
          parallel.h
          pathtracer.h
+         pcg_sampler.h
          ptr.h
          py_utils.h
          ray.h
@@ -63,6 +64,7 @@ set(SRCS aabb.h
          sampler.h
          scene.h
          shape.h
+         sobol_sampler.h
          test_utils.h
          texture.h
          transform.h
@@ -80,10 +82,11 @@ set(SRCS aabb.h
          miniz.c
          parallel.cpp
          pathtracer.cpp
+         pcg_sampler.cpp
          redner.cpp
-         sampler.cpp
          scene.cpp
-         shape.cpp)
+         shape.cpp
+         sobol_sampler.cpp)
 
 if(APPLE)
     # The "-undefined dynamic_lookup" is a hack for systems with
@@ -114,9 +117,10 @@ if(CUDA_FOUND)
         material.cpp
         parallel.cpp
         pathtracer.cpp
-        sampler.cpp
+        pcg_sampler.cpp
         scene.cpp
         shape.cpp
+        sobol_sampler.cpp
         PROPERTIES CUDA_SOURCE_PROPERTY_FORMAT OBJ)
     set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -std=c++14")
 
