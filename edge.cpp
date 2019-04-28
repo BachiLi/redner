@@ -18,6 +18,27 @@ constexpr bool c_use_edge_tree = true;
 constexpr bool c_uniform_sampling = false;
 constexpr bool c_use_nee_ray = true;
 
+namespace ltc {
+
+const float *tabMcpu = &tabM_[0];
+const float *tabMgpu = nullptr;
+const float *tabM = nullptr;
+
+}
+
+void initialize_ltc_table(bool use_gpu) {
+    ltc::tabM = use_gpu ? ltc::tabMgpu : ltc::tabMcpu;
+    if (use_gpu && ltc::tabM == nullptr) {
+#ifdef __CUDACC__
+        checkCuda(cudaMallocManaged(&ltc::tabMgpu, sizeof(ltc::tabM_)));
+        checkCuda(cudaMemcpy(ltc::tabMgpu, ltc::tabM_, sizeof(ltc::tabM_), cudaMemcpyHostToDevice));
+        ltc::tabM = ltc::tabMgpu;
+#else
+        assert(false);
+#endif 
+    }
+}
+
 struct edge_collector {
     DEVICE inline void operator()(int idx) {
         const auto &shape = *shape_ptr;
@@ -656,7 +677,7 @@ inline Matrix3x3 get_ltc_matrix(const SurfacePoint &surface_point,
     auto rid = clamp(int(roughness * (ltc::size - 1)), 0, ltc::size - 1);
     auto tid = clamp(int((theta / (M_PI / 2.f)) * (ltc::size - 1)), 0, ltc::size - 1);
     // TODO: linear interpolation?
-    return Matrix3x3(ltc::tabM[rid+tid*ltc::size]);
+    return Matrix3x3(&ltc::tabM[9 * (rid + tid * ltc::size)]);
 }
 
 struct BVHStackItemH {

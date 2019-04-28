@@ -186,6 +186,8 @@ inline Real compute_exterior_dihedral_angle(const Shape *shapes, const Edge &edg
     return exterior_dihedral;
 }
 
+void initialize_ltc_table(bool use_gpu);
+
 void sample_primary_edges(const Scene &scene,
                           const BufferView<PrimaryEdgeSample> &samples,
                           const float *d_rendered_image,
@@ -245,4 +247,3 @@ void accumulate_secondary_edge_derivatives(const Scene &scene,
                                            const BufferView<Real> &edge_contribs,
                                            BufferView<SurfacePoint> d_points,
                                            BufferView<DVertex> d_vertices);
-

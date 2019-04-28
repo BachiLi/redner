@@ -1914,6 +1914,9 @@ void render(const Scene &scene,
     }
 #endif
     parallel_init();
+    if (d_rendered_image.get() != nullptr) {
+        initialize_ltc_table(scene.use_gpu);
+    }
     ChannelInfo channel_info(options.channels, scene.use_gpu);
 
     // Some common variables
