@@ -48,17 +48,16 @@ class EnvironmentMap:
     def state_dict(self):
         return {
             'values': self.values.state_dict(),
-            'env_to_world': self.env_to_world.cpu(),
-            'world_to_env': self.world_to_env.cpu(),
-            'sample_cdf_ys': self.sample_cdf_ys.cpu(),
-            'sample_cdf_xs': self.sample_cdf_xs.cpu(),
-            'pdf_norm': self.pdf_norm.cpu(),
+            'env_to_world': self.env_to_world,
+            'world_to_env': self.world_to_env,
+            'sample_cdf_ys': self.sample_cdf_ys,
+            'sample_cdf_xs': self.sample_cdf_xs,
+            'pdf_norm': self.pdf_norm,
         }
 
     @classmethod
     def load_state_dict(cls, state_dict):
-        # TODO: should be a better way to do this
-        out = cls(torch.tensor([0.0,0.0,0.0]))
+        out = cls.__new__(EnvironmentMap)
         out.values = pyredner.Texture.load_state_dict(state_dict['values'])
         out.env_to_world = state_dict['env_to_world']
         out.world_to_env = state_dict['world_to_env']

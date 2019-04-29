@@ -117,3 +117,33 @@ class Camera:
         self._cam_to_ndc = value
         self.ndc_to_cam = torch.inverse(self._cam_to_ndc)
 
+    def state_dict(self):
+        return {
+            'position': self._position,
+            'look_at': self._look_at,
+            'up': self._up,
+            'fov': self._fov,
+            'cam_to_world': self.cam_to_world,
+            'world_to_cam': self.world_to_cam,
+            'cam_to_ndc': self._cam_to_ndc,
+            'ndc_to_cam': self.ndc_to_cam,
+            'clip_near': self.clip_near,
+            'resolution': self.resolution,
+            'fisheye': self.fisheye
+        }
+
+    @classmethod
+    def load_state_dict(cls, state_dict):
+        out = cls.__new__(Camera)
+        out._position = state_dict['position']
+        out._look_at = state_dict['look_at']
+        out._up = state_dict['up']
+        out._fov = state_dict['fov']
+        out.cam_to_world = state_dict['cam_to_world']
+        out.world_to_cam = state_dict['world_to_cam']
+        out._cam_to_ndc = state_dict['cam_to_ndc']
+        out.ndc_to_cam = state_dict['ndc_to_cam']
+        out.clip_near = state_dict['clip_near']
+        out.resolution = state_dict['resolution']
+        out.fisheye = state_dict['fisheye']
+        return out

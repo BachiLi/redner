@@ -72,10 +72,10 @@ class Shape:
 
     def state_dict(self):
         return {
-            'vertices': self.vertices.cpu(),
-            'indices': self.indices.cpu(),
-            'uvs': self.uvs.cpu(),
-            'normals': self.normals.cpu(),
+            'vertices': self.vertices,
+            'indices': self.indices,
+            'uvs': self.uvs,
+            'normals': self.normals,
             'material_id': self.material_id,
             'light_id': self.light_id,
         }
