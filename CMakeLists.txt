@@ -56,6 +56,7 @@ set(SRCS aabb.h
          matrix.h
          miniz.h
          parallel.h
+         path_contribution.h
          pathtracer.h
          pcg_sampler.h
          primary_contribution.h
@@ -85,6 +86,7 @@ set(SRCS aabb.h
          material.cpp
          miniz.c
          parallel.cpp
+         path_contribution.cpp
          pathtracer.cpp
          pcg_sampler.cpp
          primary_contribution.cpp
@@ -123,6 +125,7 @@ if(CUDA_FOUND)
         envmap.cpp
         material.cpp
         parallel.cpp
+        path_contribution.cpp
         pathtracer.cpp
         pcg_sampler.cpp
         primary_contribution.cpp

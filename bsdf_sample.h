@@ -8,7 +8,10 @@
 
 struct Scene;
 
-/// Given incoming rays & intersected surfaces, sample the next rays based on the material
+/**
+ * Given incoming rays & intersected surfaces, sample the next rays based on the material.
+ * The backward pass of this function is computed at d_accumulate_path_contribs
+ */
 void bsdf_sample(const Scene &scene,
                  const BufferView<int> &active_pixels,
                  const BufferView<Ray> &incoming_rays,
