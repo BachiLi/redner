@@ -2105,6 +2105,8 @@ void render(const Scene &scene,
         }
 
         if (d_rendered_image.get() != nullptr) {
+            edge_sampler->begin_sample(sample_id);
+
             // Traverse the path backward for the derivatives
             bool first = true;
             for (int depth = max_bounces - 1; depth >= 0; depth--) {
