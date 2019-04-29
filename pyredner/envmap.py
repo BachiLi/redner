@@ -15,6 +15,8 @@ class EnvironmentMap:
         else:
             assert(not values.texels.is_cuda)
 
+        assert(env_to_world.dtype == torch.float32)
+
         # Build sampling table
         luminance = 0.212671 * values.texels[:, :, 0] + \
                     0.715160 * values.texels[:, :, 1] + \
@@ -43,3 +45,25 @@ class EnvironmentMap:
         self.sample_cdf_xs = sample_cdf_xs.contiguous()
         self.pdf_norm = pdf_norm
 
+    def state_dict(self):
+        return {
+            'values': self.values.state_dict(),
+            'env_to_world': self.env_to_world.cpu(),
+            'world_to_env': self.world_to_env.cpu(),
+            'sample_cdf_ys': self.sample_cdf_ys.cpu(),
+            'sample_cdf_xs': self.sample_cdf_xs.cpu(),
+            'pdf_norm': self.pdf_norm.cpu(),
+        }
+
+    @classmethod
+    def load_state_dict(cls, state_dict):
+        # TODO: should be a better way to do this
+        out = cls(torch.tensor([0.0,0.0,0.0]))
+        out.values = pyredner.Texture.load_state_dict(state_dict['values'])
+        out.env_to_world = state_dict['env_to_world']
+        out.world_to_env = state_dict['world_to_env']
+        out.sample_cdf_ys = state_dict['sample_cdf_ys']
+        out.sample_cdf_xs = state_dict['sample_cdf_xs']
+        out.pdf_norm = state_dict['pdf_norm']
+
+        return out
