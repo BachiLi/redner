@@ -40,6 +40,7 @@ set(SRCS aabb.h
          active_pixels.h
          area_light.h
          atomic.h
+         bsdf_sample.h
          buffer.h
          camera.h
          channels.h
@@ -74,6 +75,7 @@ set(SRCS aabb.h
          aabb.cpp
          active_pixels.cpp
          area_light.cpp
+         bsdf_sample.cpp
          camera.cpp
          channels.cpp
          edge.cpp
@@ -113,6 +115,7 @@ if(CUDA_FOUND)
         aabb.cpp
         active_pixels.cpp
         area_light.cpp
+        bsdf_sample.cpp
         camera.cpp
         channels.cpp
         edge.cpp
