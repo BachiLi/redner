@@ -57,6 +57,7 @@ set(SRCS aabb.h
          parallel.h
          pathtracer.h
          pcg_sampler.h
+         primary_contribution.h
          primary_intersection.h
          ptr.h
          py_utils.h
@@ -84,6 +85,7 @@ set(SRCS aabb.h
          parallel.cpp
          pathtracer.cpp
          pcg_sampler.cpp
+         primary_contribution.cpp
          primary_intersection.cpp
          redner.cpp
          scene.cpp
@@ -120,6 +122,7 @@ if(CUDA_FOUND)
         parallel.cpp
         pathtracer.cpp
         pcg_sampler.cpp
+        primary_contribution.cpp
         primary_intersection.cpp
         scene.cpp
         shape.cpp

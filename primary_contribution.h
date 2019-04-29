@@ -6,6 +6,7 @@
 #include "intersection.h"
 #include "area_light.h"
 #include "texture.h"
+#include "matrix.h"
 
 struct Scene;
 struct ChannelInfo;

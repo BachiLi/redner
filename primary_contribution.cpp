@@ -1,6 +1,7 @@
 #include "primary_contribution.h"
 #include "scene.h"
-#include "channel.h"
+#include "channels.h"
+#include "parallel.h"
 
 struct primary_contribs_accumulator {
     DEVICE void operator()(int idx) {
