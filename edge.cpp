@@ -988,8 +988,7 @@ struct secondary_edge_sampler {
                              const Ray &nee_ray,
                              Real sample,
                              Real resample_sample,
-                             Real &sample_weight,
-                             bool debug = false) {
+                             Real &sample_weight) {
         constexpr auto buffer_size = 128;
         BVHStackItemH buffer[buffer_size];
         auto selected_edge = -1;
@@ -1116,8 +1115,7 @@ struct secondary_edge_sampler {
                              Real resample_sample,
                              Real &sample_weight,
                              Vector3 &edge_pt,
-                             Vector3 &mwt,
-                             bool debug = false) {
+                             Vector3 &mwt) {
         constexpr auto buffer_size = 128;
         BVHStackItemL buffer[buffer_size];
         auto selected_edge = -1;
@@ -1292,6 +1290,11 @@ struct secondary_edge_sampler {
         auto specular_pmf = specular_weight / weight_sum;
         auto m_pmf = 0.f;
         auto n = shading_point.shading_frame.n;
+        if (material.two_sided) {
+            if (dot(wi, n) < 0.f) {
+                n = -n;
+            }
+        }
         auto frame_x = normalize(wi - n * dot(wi, n));
         auto frame_y = cross(n, frame_x);
         if (dot(wi, n) > 1 - 1e-6f) {
@@ -1523,7 +1526,7 @@ struct secondary_edge_sampler {
             edge_id = sample_edge_l(edge_tree_roots,
                  shading_point, m, m_inv, nee_ray, nee_isect, nee_point,
                  edge_sample.resample_sel, edge_weight, sample_p,
-                 mwt, pixel_id == (239 * 256 + 199));
+                 mwt);
             if (edge_id == -1 || edge_weight <= 0) {
                 return;
             }
