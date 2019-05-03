@@ -1436,8 +1436,7 @@ struct secondary_edge_sampler {
                 // sample using a tree traversal
                 edge_id = sample_edge_h(edge_tree_roots,
                     shading_point, m, m_inv, nee_ray,
-                    edge_sel, edge_sample.resample_sel, edge_weight,
-                    pixel_id == (239 * 256 + 199));
+                    edge_sel, edge_sample.resample_sel, edge_weight);
                 if (edge_id == -1 || edge_weight <= 0) {
                     return;
                 }
