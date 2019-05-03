@@ -104,7 +104,7 @@ struct id_to_edge_pt_abs {
             v0_abs[i] = fabs(v0[i] - mean[i]);
             v1_abs[i] = fabs(v1[i] - mean[i]);
         }
-        return v0 + v1;
+        return v0_abs + v1_abs;
     }
 
     const Shape *shapes;
@@ -762,6 +762,9 @@ EdgeTree::EdgeTree(bool use_gpu,
         Vector3{0, 0, 0}, sum_vec3{});
     edge_pt_mad /= Real(edge_ids.size());
     edge_bounds_expand = 0.02f * length(edge_pt_mad);
+    AABB6 scene_bounds = DISPATCH(use_gpu,
+        thrust::transform_reduce, edge_ids.begin(), edge_ids.end(),
+        id_to_aabb6{edge_bounds.begin()}, AABB6(), union_bounding_box{});
 
     // We build a 3D BVH over the camera silhouette edges, and build
     // a 6D BVH over the non camera silhouette edges
