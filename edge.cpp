@@ -280,8 +280,7 @@ EdgeSampler::EdgeSampler(const std::vector<const Shape*> &shapes,
         parallel_for(edge_face_assigner{
             shapes_buffer.begin() + shape_id,
             edges_buffer_begin,
-            (int)num_edges,
-            shape_id == 28
+            (int)num_edges
         }, num_edges, scene.use_gpu);
 
         DISPATCH(scene.use_gpu, thrust::copy, edges_buffer_begin, new_end, edges_begin);
