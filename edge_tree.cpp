@@ -761,7 +761,7 @@ EdgeTree::EdgeTree(bool use_gpu,
         id_to_edge_pt_abs{shapes.begin(), edges.begin(), edge_pt_mean},
         Vector3{0, 0, 0}, sum_vec3{});
     edge_pt_mad /= Real(edge_ids.size());
-    edge_bounds_expand = 0.02f * length(edge_pt_mad);
+    edge_bounds_expand = 0.01f * length(edge_pt_mad);
 
     // We build a 3D BVH over the camera silhouette edges, and build
     // a 6D BVH over the non camera silhouette edges
