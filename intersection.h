@@ -63,12 +63,12 @@ inline TVector3<T> intersect(const TVector3<T> &v0,
     auto divisor = dot(pvec, e1);
     auto divisor_dx = dot(pvec_dx, e1);
     auto divisor_dy = dot(pvec_dy, e1);
-    if (fabs(divisor) < Real(1e-6f)) {
+    if (fabs(divisor) < Real(1e-8f)) {
         // XXX HACK!!! XXX
         if (divisor > 0) {
-            divisor = 1e-6f;
+            divisor = 1e-8f;
         } else {
-            divisor = -1e-6f;
+            divisor = -1e-8f;
         }
     }
     auto s = ray.org - v0;
@@ -125,12 +125,12 @@ inline void d_intersect(const TVector3<T> &v0,
     auto divisor = dot(pvec, e1);
     auto divisor_dx = dot(pvec_dx, e1);
     auto divisor_dy = dot(pvec_dy, e1);
-    if (fabs(divisor) < Real(1e-6f)) {
+    if (fabs(divisor) < Real(1e-8f)) {
         // XXX HACK!!! XXX
         if (divisor > 0) {
-            divisor = 1e-6f;
+            divisor = 1e-8f;
         } else {
-            divisor = -1e-6f;
+            divisor = -1e-8f;
         }
     }
     auto s = ray.org - v0;
