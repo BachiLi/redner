@@ -153,7 +153,7 @@ struct d_path_contribs_accumulator {
         auto pixel_id = active_pixels[idx];
         const auto &throughput = throughputs[pixel_id];
         const auto &incoming_ray = incoming_rays[pixel_id];
-        const auto &incoming_ray_differential = incoming_ray_differentials[pixel_id];
+        // const auto &incoming_ray_differential = incoming_ray_differentials[pixel_id];
         const auto &bsdf_ray_differential = bsdf_ray_differentials[pixel_id];
         const auto &shading_isect = shading_isects[pixel_id];
         const auto &shading_point = shading_points[pixel_id];
@@ -360,7 +360,7 @@ struct d_path_contribs_accumulator {
         const auto &bsdf_isect = bsdf_isects[pixel_id];
         if (bsdf_isect.valid()) {
             const auto &bsdf_shape = scene.shapes[bsdf_isect.shape_id];
-            const auto &bsdf_sample = bsdf_samples[pixel_id];
+            // const auto &bsdf_sample = bsdf_samples[pixel_id];
             const auto &bsdf_point = bsdf_points[pixel_id];
             const auto &d_next_ray = d_next_rays[pixel_id];
             const auto &d_next_ray_differential = d_next_ray_differentials[pixel_id];
@@ -393,8 +393,15 @@ struct d_path_contribs_accumulator {
                 d_throughput += d_next_throughput * scatter_bsdf;
                 auto d_scatter_bsdf = d_next_throughput * throughput;
                 // scatter_bsdf = bsdf_val / pdf_bsdf
-                auto d_bsdf_val = d_scatter_bsdf;
-                auto d_pdf_bsdf = -sum(d_scatter_bsdf * scatter_bsdf) / pdf_bsdf;
+                auto d_bsdf_val = d_scatter_bsdf / pdf_bsdf;
+                // XXX: Ignore derivative w.r.t. pdf_bsdf since it causes high variance
+                // when propagating back from many bounces
+                // This is still correct since 
+                // E[(\nabla f) / p] = \int (\nabla f) / p * p = \int (\nabla f)
+                // An intuitive way to think about this is that we are dividing the pdfs 
+                // and multiplying MIS weights also for our gradient estimator
+
+                // auto d_pdf_bsdf = -sum(d_scatter_bsdf * scatter_bsdf) / pdf_bsdf;
 
                 if (bsdf_shape.light_id >= 0) {
                     const auto &light = scene.area_lights[bsdf_shape.light_id];
@@ -414,10 +421,10 @@ struct d_path_contribs_accumulator {
                         auto weight = mis_weight / pdf_bsdf;
                         // scatter_contrib = weight * bsdf_val * light_contrib
                         
-                        auto d_weight = sum(d_scatter_contrib * bsdf_val * light_contrib);
-                        // Ignore derivatives of MIS weight
+                        // auto d_weight = sum(d_scatter_contrib * bsdf_val * light_contrib);
+                        // Ignore derivatives of MIS weight & pdf_bsdf
                         // weight = mis_weight / pdf_bsdf
-                        d_pdf_bsdf += -d_weight * weight / pdf_bsdf;
+                        // d_pdf_bsdf += -d_weight * weight / pdf_bsdf;
                         d_bsdf_val += weight * d_scatter_contrib * light_contrib;
                         auto d_light_contrib = weight * d_scatter_contrib * bsdf_val;
                         // light_contrib = light.intensity
@@ -428,8 +435,8 @@ struct d_path_contribs_accumulator {
                 auto d_wi = Vector3{0, 0, 0};
                 auto d_wo = d_next_ray.dir;
                 // pdf_bsdf = bsdf_pdf(material, shading_point, wi, wo, min_rough)
-                d_bsdf_pdf(material, shading_point, wi, wo, min_rough, d_pdf_bsdf,
-                           d_roughness_tex, d_shading_point, d_wi, d_wo);
+                // d_bsdf_pdf(material, shading_point, wi, wo, min_rough, d_pdf_bsdf,
+                //            d_roughness_tex, d_shading_point, d_wi, d_wo);
                 // bsdf_val = bsdf(material, shading_point, wi, wo)
                 d_bsdf(material, shading_point, wi, wo, min_rough, d_bsdf_val,
                        d_diffuse_tex, d_specular_tex, d_roughness_tex,
@@ -473,19 +480,19 @@ struct d_path_contribs_accumulator {
                 }
                 d_wo += d_ray.dir;
 
-                // sample bsdf direction
-                d_bsdf_sample(material,
-                              shading_point,
-                              wi,
-                              bsdf_sample,
-                              min_rough,
-                              incoming_ray_differential,
-                              d_wo,
-                              d_bsdf_ray_differential,
-                              d_roughness_tex,
-                              d_shading_point,
-                              d_wi,
-                              d_incoming_ray_differential);
+                // We ignore backpropagation to bsdf importance sampling
+                // d_bsdf_sample(material,
+                //               shading_point,
+                //               wi,
+                //               bsdf_sample,
+                //               min_rough,
+                //               incoming_ray_differential,
+                //               d_wo,
+                //               d_bsdf_ray_differential,
+                //               d_roughness_tex,
+                //               d_shading_point,
+                //               d_wi,
+                //               d_incoming_ray_differential);
 
                 // wi = -incoming_ray.dir
                 d_incoming_ray.dir -= d_wi;
