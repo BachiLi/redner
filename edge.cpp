@@ -89,6 +89,82 @@ struct edge_merger {
     }
 };
 
+DEVICE inline bool less_than(const Vector3f &v0, const Vector3f &v1) {
+    if (v0.x != v1.x) {
+        return v0.x < v1.x;
+    } else if (v0.y != v1.y) {
+        return v1.y < v1.y;
+    } else if (v0.z != v1.z) {
+        return v0.z < v1.z;
+    }
+    return true;
+}
+
+struct edge_vertex_comparer {
+    DEVICE inline bool operator()(const Edge &e0, const Edge &e1) {
+        // First, locally sort v0 & v1 within e0 & e1
+        auto v00 = get_vertex(*shape_ptr, e0.v0);
+        auto v01 = get_vertex(*shape_ptr, e0.v1);
+        if (less_than(v01, v00)) {
+            swap_(v00, v01);
+        }
+        auto v10 = get_vertex(*shape_ptr, e1.v0);
+        auto v11 = get_vertex(*shape_ptr, e1.v1);
+        if (less_than(v11, v10)) {
+            swap_(v10, v11);
+        }
+        // Next, compare and return
+        if (v00 != v10) {
+            return less_than(v00, v10);
+        } else if (v01 != v11) {
+            return less_than(v01, v11);
+        }
+        return true;
+    }
+
+    const Shape *shape_ptr;
+};
+
+struct edge_face_assigner {
+    DEVICE void operator()(int idx) {
+        auto &edge = edges[idx];
+        if (edge.f1 != -1) {
+            return;
+        }
+        auto v0 = get_vertex(*shape_ptr, edge.v0);
+        auto v1 = get_vertex(*shape_ptr, edge.v1);
+        if (less_than(v1, v0)) {
+            swap_(v0, v1);
+        }
+        if (idx > 0) {
+            const auto &cmp_edge = edges[idx - 1];
+            auto cmp_v0 = get_vertex(*shape_ptr, cmp_edge.v0);
+            auto cmp_v1 = get_vertex(*shape_ptr, cmp_edge.v1);
+            if (less_than(cmp_v1, cmp_v0)) {
+                swap_(cmp_v0, cmp_v1);
+            }
+            if (v0 == cmp_v0 && v1 == cmp_v1) {
+                edge.f1 = cmp_edge.f0;
+            }
+        }
+        if (idx < num_edges - 1) {
+            const auto &cmp_edge = edges[idx + 1];
+            auto cmp_v0 = get_vertex(*shape_ptr, cmp_edge.v0);
+            auto cmp_v1 = get_vertex(*shape_ptr, cmp_edge.v1);
+            if (less_than(cmp_v1, cmp_v0)) {
+                swap_(cmp_v0, cmp_v1);
+            }
+            if (v0 == cmp_v0 && v1 == cmp_v1) {
+                edge.f1 = cmp_edge.f0;
+            }
+        }
+    }
+
+    const Shape *shape_ptr;
+    Edge *edges;
+    int num_edges;
+};
+
 struct edge_remover {
     DEVICE inline bool operator()(const Edge &e) {
         if (e.f0 == -1 || e.f1 == -1) {
@@ -164,7 +240,9 @@ EdgeSampler::EdgeSampler(const std::vector<const Shape*> &shapes,
     }
     // Collect the edges
     // TODO: this assumes each edge is only associated with two triangles
-    //       which may be untrue for some pathological meshes
+    //       which may be untrue for some pathological meshes.
+    //       For edges associated to more than two triangles, 
+    //       we should just ignore them
     edges = Buffer<Edge>(scene.use_gpu, 3 * num_total_triangles);
     auto edges_buffer = Buffer<Edge>(scene.use_gpu, 3 * num_total_triangles);
     auto current_num_edges = 0;
@@ -190,12 +268,30 @@ EdgeSampler::EdgeSampler(const std::vector<const Shape*> &shapes,
             edge_equal_comparer{},
             edge_merger{}).first;
         auto num_edges = new_end - edges_buffer_begin;
+        // Sometimes there are duplicated edges that don't get merged 
+        // in the procedure above (e.g. UV seams), here we make sure these edges
+        // are associated with two faces.
+        // We do this by sorting the edges again based on vertex positions,
+        // look at nearby edges and assign faces.
+        DISPATCH(scene.use_gpu, thrust::sort,
+                 edges_buffer_begin,
+                 edges_buffer_begin + num_edges,
+                 edge_vertex_comparer{shapes_buffer.begin() + shape_id});
+        parallel_for(edge_face_assigner{
+            shapes_buffer.begin() + shape_id,
+            edges_buffer_begin,
+            (int)num_edges,
+            shape_id == 28
+        }, num_edges, scene.use_gpu);
+
         DISPATCH(scene.use_gpu, thrust::copy, edges_buffer_begin, new_end, edges_begin);
         current_num_edges += num_edges;
     }
+    // Remove edges with 180 degree dihedral angles
     auto edges_end = DISPATCH(scene.use_gpu, thrust::remove_if, edges.begin(),
         edges.begin() + current_num_edges, edge_remover{shapes_buffer.begin()});
     edges.count = edges_end - edges.begin();
+
     // Primary edge sampler:
     primary_edges_pmf = Buffer<Real>(scene.use_gpu, edges.count);
     primary_edges_cdf = Buffer<Real>(scene.use_gpu, edges.count);
@@ -1943,4 +2039,3 @@ void accumulate_secondary_edge_derivatives(const Scene &scene,
         d_vertices.begin()
     }, active_pixels.size(), scene.use_gpu);
 }
-

@@ -93,19 +93,34 @@ inline Vector3f get_non_shared_v0(
             return get_vertex(shapes[edge.shape_id], ind[i]);
         }
     }
-    return Vector3{0.f, 0.f, 0.f};
+    return get_v0(shapes, edge);
 }
 
 DEVICE
 inline Vector3f get_non_shared_v1(
         const Shape *shapes, const Edge &edge) {
+    // Unfotunately the below wouldn't work because we sometimes
+    // merge edge's faces when there are duplicated edges
+
+    // auto ind = get_indices(shapes[edge.shape_id], edge.f1);
+    // for (int i = 0; i < 3; i++) {
+    //     if (ind[i] != edge.v0 && ind[i] != edge.v1) {
+    //         return get_vertex(shapes[edge.shape_id], ind[i]);
+    //     }
+    // }
+    // return Vector3{0.f, 0.f, 0.f};
+
+    // So we have to go for a slightly more expensive alternative
     auto ind = get_indices(shapes[edge.shape_id], edge.f1);
+    auto v0 = get_v0(shapes, edge);
+    auto v1 = get_v1(shapes, edge);
     for (int i = 0; i < 3; i++) {
-        if (ind[i] != edge.v0 && ind[i] != edge.v1) {
-            return get_vertex(shapes[edge.shape_id], ind[i]);
+        auto v = get_vertex(shapes[edge.shape_id], ind[i]);
+        if (v != v0 && v != v1) {
+            return v;
         }
     }
-    return Vector3{0.f, 0.f, 0.f};
+    return v1;
 }
 
 DEVICE

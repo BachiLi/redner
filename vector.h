@@ -316,6 +316,20 @@ inline TVector3<T0> operator/=(TVector3<T0> &v0,
     return v0;
 }
 
+template <typename T0, typename T1>
+DEVICE
+inline bool operator==(const TVector3<T0> &v0,
+                       const TVector3<T1> &v1) {
+    return v0.x == v1.x && v0.y == v1.y && v0.z == v1.z;
+}
+
+template <typename T0, typename T1>
+DEVICE
+inline bool operator!=(const TVector3<T0> &v0,
+                       const TVector3<T1> &v1) {
+    return v0.x != v1.x || v0.y != v1.y || v0.z != v1.z;
+}
+
 template <typename T>
 DEVICE
 inline TVector2<T> get_normal(const TVector2<T> &v) {
