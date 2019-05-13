@@ -93,7 +93,7 @@ DEVICE inline bool less_than(const Vector3f &v0, const Vector3f &v1) {
     if (v0.x != v1.x) {
         return v0.x < v1.x;
     } else if (v0.y != v1.y) {
-        return v1.y < v1.y;
+        return v0.y < v1.y;
     } else if (v0.z != v1.z) {
         return v0.z < v1.z;
     }
