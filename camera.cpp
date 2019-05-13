@@ -160,7 +160,7 @@ void test_d_sample_primary_rays() {
         auto diff = (sum(positive_ray.org - negative_ray.org) +
                      sum(positive_ray.dir - negative_ray.dir)) /
                     (2 * finite_delta);
-        equal_or_error(__FILE__, __LINE__, diff, d_camera.position[i]);
+        equal_or_error(__FILE__, __LINE__, (Real)diff, (Real)d_camera.position[i]);
     }
     for (int i = 0; i < 3; i++) {
         auto delta_look = look;
@@ -191,7 +191,7 @@ void test_d_sample_primary_rays() {
         auto diff = (sum(positive_ray.org - negative_ray.org) +
                      sum(positive_ray.dir - negative_ray.dir)) /
                     (2 * finite_delta);
-        equal_or_error(__FILE__, __LINE__, diff, d_camera.look[i]);
+        equal_or_error(__FILE__, __LINE__, (Real)diff, (Real)d_camera.look[i]);
     }
     for (int i = 0; i < 3; i++) {
         auto delta_up = up;
@@ -222,7 +222,7 @@ void test_d_sample_primary_rays() {
         auto diff = (sum(positive_ray.org - negative_ray.org) +
                      sum(positive_ray.dir - negative_ray.dir)) /
                     (2 * finite_delta);
-        equal_or_error(__FILE__, __LINE__, diff, d_camera.up[i]);
+        equal_or_error(__FILE__, __LINE__, (Real)diff, (Real)d_camera.up[i]);
     }
     for (int i = 0; i < 3; i++) {
         for (int j = 0; j < 3; j++) {
@@ -236,8 +236,8 @@ void test_d_sample_primary_rays() {
             auto diff = (sum(positive_ray.org - negative_ray.org) +
                          sum(positive_ray.dir - negative_ray.dir)) /
                         (2 * finite_delta);
-            equal_or_error(__FILE__, __LINE__, diff,
-                d_camera.ndc_to_cam(i, j));
+            equal_or_error(__FILE__, __LINE__, (Real)diff,
+                (Real)d_camera.ndc_to_cam(i, j));
         }
     }
 }
@@ -289,7 +289,7 @@ void test_d_camera_to_screen() {
             false};
         auto nxy = camera_to_screen(delta_camera, pt);
         auto diff = (sum(pxy - nxy)) / (2 * finite_delta);
-        equal_or_error(__FILE__, __LINE__, diff, d_camera.position[i]);
+        equal_or_error(__FILE__, __LINE__, (Real)diff, (Real)d_camera.position[i]);
     }
     for (int i = 0; i < 3; i++) {
         auto delta_look = look;
@@ -316,7 +316,7 @@ void test_d_camera_to_screen() {
             false};
         auto nxy = camera_to_screen(delta_camera, pt);
         auto diff = (sum(pxy - nxy)) / (2 * finite_delta);
-        equal_or_error(__FILE__, __LINE__, diff, d_camera.look[i]);
+        equal_or_error(__FILE__, __LINE__, (Real)diff, (Real)d_camera.look[i]);
     }
     for (int i = 0; i < 3; i++) {
         auto delta_up = up;
@@ -343,7 +343,7 @@ void test_d_camera_to_screen() {
             false};
         auto nxy = camera_to_screen(delta_camera, pt);
         auto diff = (sum(pxy - nxy)) / (2 * finite_delta);
-        equal_or_error(__FILE__, __LINE__, diff, d_camera.up[i]);
+        equal_or_error(__FILE__, __LINE__, (Real)diff, (Real)d_camera.up[i]);
     }
     for (int i = 0; i < 3; i++) {
         for (int j = 0; j < 3; j++) {
@@ -353,8 +353,7 @@ void test_d_camera_to_screen() {
             delta_camera.cam_to_ndc(i, j) -= 2 * finite_delta;
             auto nxy = camera_to_screen(delta_camera, pt);
             auto diff = sum(pxy - nxy) / (2 * finite_delta);
-            equal_or_error(__FILE__, __LINE__, diff,
-                d_camera.cam_to_ndc(i, j));
+            equal_or_error(__FILE__, __LINE__, (Real)diff, (Real)d_camera.cam_to_ndc(i, j));
         }
     }
 }
