@@ -4,6 +4,7 @@
 #include <map>
 #include <cstring>
 #include <vector>
+#include <cassert>
 
 // https://github.com/mitsuba-renderer/mitsuba/blob/master/src/librender/trimesh.cpp#L468
 // TODO: this can be parallelize by sorting & segmented reduction
@@ -75,7 +76,7 @@ int rebuild_topology(ptr<float> vertices,
     }
 
     // Create an associative list and precompute a few things
-    for (size_t i = 0; i < num_triangles; ++i) {
+    for (size_t i = 0; i < (size_t)num_triangles; ++i) {
         auto index = Vector3i{indices[3 * i + 0],
                               indices[3 * i + 1],
                               indices[3 * i + 2]};

@@ -136,8 +136,8 @@ inline int popc(uint8_t x) {
 #endif
 }
 
-DEVICE
 template <typename T0, typename T1>
+DEVICE
 inline T0 atomic_add(T0 &target, T1 source) {
 #ifdef __CUDA_ARCH__
     return atomicAdd(&target, (T0)source);
