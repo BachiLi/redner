@@ -10,6 +10,7 @@
 #include "active_pixels.h"
 #include "ptr.h"
 #include "load_serialized.h"
+#include "rebuild_topology.h"
 
 #include <pybind11/stl.h>
 
@@ -28,11 +29,13 @@ PYBIND11_MODULE(redner, m) {
                       ptr<float>,
                       ptr<float>,
                       ptr<float>,
+                      ptr<float>,
                       float,
                       bool>());
 
     py::class_<DCamera>(m, "DCamera")
         .def(py::init<ptr<float>,
+                      ptr<float>,
                       ptr<float>,
                       ptr<float>,
                       ptr<float>>());
@@ -166,6 +169,8 @@ PYBIND11_MODULE(redner, m) {
         .def_readwrite("normals", &MitsubaTriMesh::normals);
 
     m.def("load_serialized", &load_serialized, "");
+    m.def("rebuild_topology", &rebuild_topology, "");
+
     m.def("render", &render, "");
 
     /// Tests

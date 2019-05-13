@@ -1091,7 +1091,8 @@ void render(const Scene &scene,
 
                 // for (int i = 0; i < primary_active_pixels.size(); i++) {
                 //     auto pixel_id = primary_active_pixels[i];
-                //     auto d_c2w = d_cameras[i].cam_to_world;
+                //     auto d_c2w = d_cameras[i].cam_to_world -
+                //         camera.cam_to_world * d_cameras[i].world_to_cam * camera.cam_to_world;
                 //     debug_image[3 * pixel_id + 0] += d_c2w(0, 3);
                 //     debug_image[3 * pixel_id + 1] += d_c2w(0, 3);
                 //     debug_image[3 * pixel_id + 2] += d_c2w(0, 3);
@@ -1141,7 +1142,7 @@ void render(const Scene &scene,
                 // Reduce the camera array
                 DCameraInst d_camera = DISPATCH_CACHED(scene.use_gpu, thrust_alloc, thrust::reduce,
                     d_cameras.begin(), d_cameras.end(), DCameraInst{});
-                accumulate_camera(d_camera, d_scene->camera, scene.use_gpu);
+                accumulate_camera(camera, d_camera, d_scene->camera, scene.use_gpu);
             }
 
             /////////////////////////////////////////////////////////////////////////////////
@@ -1346,17 +1347,17 @@ void render(const Scene &scene,
                 // Reduce the camera array
                 DCameraInst d_camera = DISPATCH_CACHED(scene.use_gpu, thrust_alloc, thrust::reduce,
                     d_cameras.begin(), d_cameras.end(), DCameraInst{});
-                accumulate_camera(d_camera, d_scene->camera, scene.use_gpu);
+                accumulate_camera(camera, d_camera, d_scene->camera, scene.use_gpu);
 
-                // for (int i = 0; i < primary_edge_records.size(); i++) {
-                //     auto rec = primary_edge_records[i];
+                // for (int i = 0; i < edge_records.size(); i++) {
+                //     auto rec = edge_records[i];
                 //     auto edge_pt = rec.edge_pt;
                 //     auto xi = int(edge_pt[0] * camera.width);
                 //     auto yi = int(edge_pt[1] * camera.height);
-                //     auto d_cam = d_cameras[i].cam_to_world;
-                //     debug_image[3 * (yi * camera.width + xi) + 0] += d_cam(0, 2);
-                //     debug_image[3 * (yi * camera.width + xi) + 1] += d_cam(0, 2);
-                //     debug_image[3 * (yi * camera.width + xi) + 2] += d_cam(0, 2);
+                //     auto d_cam = -camera.cam_to_world * d_cameras[i].world_to_cam * camera.cam_to_world;
+                //     debug_image[3 * (yi * camera.width + xi) + 0] += d_cam(0, 3);
+                //     debug_image[3 * (yi * camera.width + xi) + 1] += d_cam(0, 3);
+                //     debug_image[3 * (yi * camera.width + xi) + 2] += d_cam(0, 3);
                 // }
             }
             /////////////////////////////////////////////////////////////////////////////////

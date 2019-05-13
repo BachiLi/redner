@@ -165,6 +165,18 @@ inline auto operator+(const TMatrix3x3<T0> &m0, const TMatrix3x3<T1> &m1) {
     return m;
 }
 
+template <typename T0, typename T1>
+DEVICE
+inline auto operator-(const TMatrix3x3<T0> &m0, const TMatrix3x3<T1> &m1) {
+    TMatrix3x3<decltype(m0(0, 0) - m1(0, 0))> m;
+    for (int i = 0; i < 3; i++) {
+        for (int j = 0; j < 3; j++) {
+            m(i, j) = m0(i, j) - m1(i, j);
+        }
+    }
+    return m;
+}
+
 template <typename T>
 DEVICE
 inline auto operator*(const TMatrix3x3<T> &m0, const TMatrix3x3<T> &m1) {
@@ -257,6 +269,18 @@ inline TMatrix4x4<T> operator-(const TMatrix4x4<T> &m0) {
     for (int i = 0; i < 4; i++) {
         for (int j = 0; j < 4; j++) {
             m(i, j) -= m0(i, j);
+        }
+    }
+    return m;
+}
+
+template <typename T>
+DEVICE
+inline TMatrix4x4<T> operator-(const TMatrix4x4<T> &m0, const TMatrix4x4<T> &m1) {
+    TMatrix4x4<T> m;
+    for (int i = 0; i < 4; i++) {
+        for (int j = 0; j < 4; j++) {
+            m(i, j) = m0(i, j) - m1(i, j);
         }
     }
     return m;

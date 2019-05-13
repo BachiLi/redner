@@ -44,12 +44,12 @@ class Camera:
             assert(len(fov.shape) == 1 and fov.shape[0] == 1)
         assert(isinstance(clip_near, float))
 
-        self._position = position
-        self._look_at = look_at
-        self._up = up
-        self._fov = fov
-        self.cam_to_world = transform.gen_look_at_matrix(position, look_at, up)
-        self.world_to_cam = torch.inverse(self.cam_to_world).contiguous()
+        self.position = position
+        self.look_at = look_at
+        self.up = up
+        self.fov = fov
+        # self.cam_to_world = transform.gen_look_at_matrix(position, look_at, up)
+        # self.world_to_cam = torch.inverse(self.cam_to_world).contiguous()
         if cam_to_ndc is None:
             fov_factor = 1.0 / torch.tan(transform.radians(0.5 * fov))
             o = torch.ones([1], dtype=torch.float32)
@@ -61,39 +61,6 @@ class Camera:
         self.clip_near = clip_near
         self.resolution = resolution
         self.fisheye = fisheye
-
-    @property
-    def position(self):
-        return self._position
-
-    @position.setter
-    def position(self, value):
-        self._position = value
-        self.cam_to_world = \
-            transform.gen_look_at_matrix(self._position, self._look_at, self._up)
-        self.world_to_cam = torch.inverse(self.cam_to_world).contiguous()
-
-    @property
-    def look_at(self):
-        return self._look_at
-    
-    @look_at.setter
-    def look_at(self, value):
-        self._look_at = value
-        self.cam_to_world = \
-            transform.gen_look_at_matrix(self._position, self._look_at, self._up)
-        self.world_to_cam = torch.inverse(self.cam_to_world).contiguous()
-
-    @property
-    def up(self):
-        return self._up
-
-    @up.setter
-    def up(self, value):
-        self._up = value
-        self.cam_to_world = \
-            transform.gen_look_at_matrix(self._position, self._look_at, self._up)
-        self.world_to_cam = torch.inverse(self.cam_to_world).contiguous()
 
     @property
     def fov(self):
@@ -123,8 +90,6 @@ class Camera:
             'look_at': self._look_at,
             'up': self._up,
             'fov': self._fov,
-            'cam_to_world': self.cam_to_world,
-            'world_to_cam': self.world_to_cam,
             'cam_to_ndc': self._cam_to_ndc,
             'ndc_to_cam': self.ndc_to_cam,
             'clip_near': self.clip_near,
@@ -139,8 +104,6 @@ class Camera:
         out._look_at = state_dict['look_at']
         out._up = state_dict['up']
         out._fov = state_dict['fov']
-        out.cam_to_world = state_dict['cam_to_world']
-        out.world_to_cam = state_dict['world_to_cam']
         out._cam_to_ndc = state_dict['cam_to_ndc']
         out.ndc_to_cam = state_dict['ndc_to_cam']
         out.clip_near = state_dict['clip_near']

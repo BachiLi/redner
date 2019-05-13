@@ -12,22 +12,28 @@ struct Camera {
 
     Camera(int width,
            int height,
-           ptr<float> cam_to_world,
-           ptr<float> world_to_cam,
+           ptr<float> position_,
+           ptr<float> look_,
+           ptr<float> up_,
            ptr<float> ndc_to_cam,
            ptr<float> cam_to_ndc,
            float clip_near,
            bool fisheye)
         : width(width),
           height(height),
-          cam_to_world(cam_to_world.get()),
-          world_to_cam(world_to_cam.get()),
+          position(Vector3{position_[0], position_[1], position_[2]}),
+          look(Vector3{look_[0], look_[1], look_[2]}),
+          up(Vector3{up_[0], up_[1], up_[2]}),
           ndc_to_cam(ndc_to_cam.get()),
           cam_to_ndc(cam_to_ndc.get()),
           clip_near(clip_near),
-          fisheye(fisheye) {}
+          fisheye(fisheye) {
+        cam_to_world = look_at_matrix(position, look, up);
+        world_to_cam = inverse(cam_to_world);
+    }
 
     int width, height;
+    Vector3 position, look, up;
     Matrix4x4 cam_to_world;
     Matrix4x4 world_to_cam;
     Matrix3x3 ndc_to_cam;
@@ -38,37 +44,41 @@ struct Camera {
 
 struct DCamera {
     DCamera() {}
-    DCamera(ptr<float> cam_to_world,
-            ptr<float> world_to_cam,
+    DCamera(ptr<float> position,
+            ptr<float> look,
+            ptr<float> up,
             ptr<float> ndc_to_cam,
             ptr<float> cam_to_ndc)
-        : cam_to_world(cam_to_world.get()),
-          world_to_cam(world_to_cam.get()),
+        : position(position.get()),
+          look(look.get()),
+          up(up.get()),
           ndc_to_cam(ndc_to_cam.get()),
           cam_to_ndc(cam_to_ndc.get()) {}
 
-    float *cam_to_world;
-    float *world_to_cam;
+    float *position;
+    float *look;
+    float *up;
     float *ndc_to_cam;
     float *cam_to_ndc;
 };
 
 struct DCameraInst {
-    DEVICE DCameraInst(const Matrix4x4& ctw = Matrix4x4(),
-                       const Matrix4x4& wtc = Matrix4x4(),
+    DEVICE DCameraInst(const Vector3 p = Vector3{0, 0, 0},
+                       const Vector3 l = Vector3{0, 0, 0},
+                       const Vector3 u = Vector3{0, 0, 0},
                        const Matrix3x3& ntc = Matrix3x3(),
                        const Matrix3x3& ctn = Matrix3x3())
-        : cam_to_world(ctw), world_to_cam(wtc),
+        : position(p), look(l), up(u),
           ndc_to_cam(ntc), cam_to_ndc(ctn) {}
 
-    Matrix4x4 cam_to_world;
-    Matrix4x4 world_to_cam;
+    Vector3 position, look, up;
     Matrix3x3 ndc_to_cam;
     Matrix3x3 cam_to_ndc;
 
     DEVICE inline DCameraInst operator+(const DCameraInst &other) const {
-        return DCameraInst{cam_to_world + other.cam_to_world,
-                           world_to_cam + other.world_to_cam,
+        return DCameraInst{position + other.position,
+                           look + other.look,
+                           up + other.up,
                            ndc_to_cam + other.ndc_to_cam,
                            cam_to_ndc + other.cam_to_ndc};
     }
@@ -153,13 +163,16 @@ inline void d_sample_primary_ray(const Camera &camera,
         auto d_world_dir = d_ray.dir;
         auto d_n_dir = Vector3{0, 0, 0};
         // world_dir = xfm_vector(camera.cam_to_world, n_dir)
+        auto d_cam_to_world = Matrix4x4();
         d_xfm_vector(camera.cam_to_world, n_dir, d_world_dir,
-                     d_camera.cam_to_world, d_n_dir);
+                     d_cam_to_world, d_n_dir);
         // No need to propagate to x, y
         // org = xfm_point(camera.cam_to_world, Vector3{0, 0, 0})
         auto cam_org = Vector3{0, 0, 0};
         d_xfm_point(camera.cam_to_world, Vector3{0, 0, 0}, d_org,
-                    d_camera.cam_to_world, cam_org);
+                    d_cam_to_world, cam_org);
+        d_look_at_matrix(camera.position, camera.look, camera.up,
+            d_cam_to_world, d_camera.position, d_camera.look, d_camera.up);
     } else {
         // Linear projection
         // auto org = xfm_point(camera.cam_to_world, Vector3{0, 0, 0});
@@ -177,8 +190,9 @@ inline void d_sample_primary_ray(const Camera &camera,
         auto d_world_dir = d_ray.dir;
         auto d_n_dir = Vector3{0, 0, 0};
         // world_dir = xfm_vector(camera.cam_to_world, n_dir)
+        auto d_cam_to_world = Matrix4x4();
         d_xfm_vector(camera.cam_to_world, n_dir, d_world_dir,
-                     d_camera.cam_to_world, d_n_dir);
+                     d_cam_to_world, d_n_dir);
         // n_dir = normalize(dir)
         auto d_dir = d_normalize(dir, d_n_dir);
         // dir = camera.ndc_to_cam * ndc
@@ -194,7 +208,9 @@ inline void d_sample_primary_ray(const Camera &camera,
         // org = xfm_point(camera.cam_to_world, Vector3{0, 0, 0})
         auto d_cam_org = Vector3{0, 0, 0};
         d_xfm_point(camera.cam_to_world, Vector3{0, 0, 0}, d_org,
-                    d_camera.cam_to_world, d_cam_org);
+                    d_cam_to_world, d_cam_org);
+        d_look_at_matrix(camera.position, camera.look, camera.up,
+            d_cam_to_world, d_camera.position, d_camera.look, d_camera.up);
     }
 }
 
@@ -412,8 +428,14 @@ inline void d_project(const Camera &camera,
 
     // p0_local = xfm_point(camera.world_to_cam, p0)
     // p1_local = xfm_point(camera.world_to_cam, p1)
-    d_xfm_point(camera.world_to_cam, p0, dp0_local, d_camera.world_to_cam, d_p0);
-    d_xfm_point(camera.world_to_cam, p1, dp1_local, d_camera.world_to_cam, d_p1);
+    auto d_world_to_cam = Matrix4x4();
+    d_xfm_point(camera.world_to_cam, p0, dp0_local, d_world_to_cam, d_p0);
+    d_xfm_point(camera.world_to_cam, p1, dp1_local, d_world_to_cam, d_p1);
+    // K^{-1}' = -K^{-1} * K' * K^{-1}
+    auto d_cam_to_world =
+        -camera.cam_to_world * d_world_to_cam * camera.cam_to_world;
+    d_look_at_matrix(camera.position, camera.look, camera.up,
+        d_cam_to_world, d_camera.position, d_camera.look, d_camera.up);
 }
 
 template <typename T>
@@ -522,7 +544,8 @@ inline bool in_screen(const Camera &cam, const Vector2 &pt) {
     }
 }
 
-void accumulate_camera(const DCameraInst &d_camera_inst,
+void accumulate_camera(const Camera &camera,
+                       const DCameraInst &d_camera_inst,
                        DCamera &d_camera,
                        bool use_gpu);
 
