@@ -28,7 +28,6 @@ struct diffuse_accumulator {
                 level = 0;
             }
             auto lower_texels = texels + level * w * h * 3;
-#ifdef __CUDA_ARCH__ 
             // Different DTexture may overlap, so we need to use atomic updates
             // The probability of collision should be small in SIMD regime though
             atomic_add(lower_texels[3 * (yi0 * w + xi0) + 0], d_tex.t000[0]);
@@ -58,37 +57,6 @@ struct diffuse_accumulator {
                 atomic_add(higher_texels[3 * (yi1 * w + xi1) + 1], d_tex.t111[1]);
                 atomic_add(higher_texels[3 * (yi1 * w + xi1) + 2], d_tex.t111[2]);
             }
-#else
-            // Lock at material level. Slow but probably not bottleneck.
-            std::unique_lock<std::mutex> guard(((std::mutex*)mutexes)[mid]);
-            lower_texels[3 * (yi0 * w + xi0) + 0] += d_tex.t000[0];
-            lower_texels[3 * (yi0 * w + xi0) + 1] += d_tex.t000[1];
-            lower_texels[3 * (yi0 * w + xi0) + 2] += d_tex.t000[2];
-            lower_texels[3 * (yi0 * w + xi1) + 0] += d_tex.t100[0];
-            lower_texels[3 * (yi0 * w + xi1) + 1] += d_tex.t100[1];
-            lower_texels[3 * (yi0 * w + xi1) + 2] += d_tex.t100[2];
-            lower_texels[3 * (yi1 * w + xi0) + 0] += d_tex.t010[0];
-            lower_texels[3 * (yi1 * w + xi0) + 1] += d_tex.t010[1];
-            lower_texels[3 * (yi1 * w + xi0) + 2] += d_tex.t010[2];
-            lower_texels[3 * (yi1 * w + xi1) + 0] += d_tex.t110[0];
-            lower_texels[3 * (yi1 * w + xi1) + 1] += d_tex.t110[1];
-            lower_texels[3 * (yi1 * w + xi1) + 2] += d_tex.t110[2];
-            if (d_tex.li >= 0 && d_tex.li < num_levels - 1) {
-                auto higher_texels = texels + (level + 1) * w * h * 3;
-                higher_texels[3 * (yi0 * w + xi0) + 0] += d_tex.t001[0];
-                higher_texels[3 * (yi0 * w + xi0) + 1] += d_tex.t001[1];
-                higher_texels[3 * (yi0 * w + xi0) + 2] += d_tex.t001[2];
-                higher_texels[3 * (yi0 * w + xi1) + 0] += d_tex.t101[0];
-                higher_texels[3 * (yi0 * w + xi1) + 1] += d_tex.t101[1];
-                higher_texels[3 * (yi0 * w + xi1) + 2] += d_tex.t101[2];
-                higher_texels[3 * (yi1 * w + xi0) + 0] += d_tex.t011[0];
-                higher_texels[3 * (yi1 * w + xi0) + 1] += d_tex.t011[1];
-                higher_texels[3 * (yi1 * w + xi0) + 2] += d_tex.t011[2];
-                higher_texels[3 * (yi1 * w + xi1) + 0] += d_tex.t111[0];
-                higher_texels[3 * (yi1 * w + xi1) + 1] += d_tex.t111[1];
-                higher_texels[3 * (yi1 * w + xi1) + 2] += d_tex.t111[2];
-            }
-#endif
         }
     }
 
@@ -124,7 +92,6 @@ struct specular_accumulator {
                 level = 0;
             }
             auto lower_texels = texels + level * w * h * 3;
-#ifdef __CUDA_ARCH__ 
             atomic_add(lower_texels[3 * (yi0 * w + xi0) + 0], d_tex.t000[0]);
             atomic_add(lower_texels[3 * (yi0 * w + xi0) + 1], d_tex.t000[1]);
             atomic_add(lower_texels[3 * (yi0 * w + xi0) + 2], d_tex.t000[2]);
@@ -152,37 +119,6 @@ struct specular_accumulator {
                 atomic_add(higher_texels[3 * (yi1 * w + xi1) + 1], d_tex.t111[1]);
                 atomic_add(higher_texels[3 * (yi1 * w + xi1) + 2], d_tex.t111[2]);
             }
-#else
-            // Lock at material level. Slow but probably not bottleneck.
-            std::unique_lock<std::mutex> guard(((std::mutex*)mutexes)[mid]);
-            lower_texels[3 * (yi0 * w + xi0) + 0] += d_tex.t000[0];
-            lower_texels[3 * (yi0 * w + xi0) + 1] += d_tex.t000[1];
-            lower_texels[3 * (yi0 * w + xi0) + 2] += d_tex.t000[2];
-            lower_texels[3 * (yi0 * w + xi1) + 0] += d_tex.t100[0];
-            lower_texels[3 * (yi0 * w + xi1) + 1] += d_tex.t100[1];
-            lower_texels[3 * (yi0 * w + xi1) + 2] += d_tex.t100[2];
-            lower_texels[3 * (yi1 * w + xi0) + 0] += d_tex.t010[0];
-            lower_texels[3 * (yi1 * w + xi0) + 1] += d_tex.t010[1];
-            lower_texels[3 * (yi1 * w + xi0) + 2] += d_tex.t010[2];
-            lower_texels[3 * (yi1 * w + xi1) + 0] += d_tex.t110[0];
-            lower_texels[3 * (yi1 * w + xi1) + 1] += d_tex.t110[1];
-            lower_texels[3 * (yi1 * w + xi1) + 2] += d_tex.t110[2];
-            if (d_tex.li >= 0 && d_tex.li < num_levels - 1) {
-                auto higher_texels = texels + (level + 1) * w * h * 3;
-                higher_texels[3 * (yi0 * w + xi0) + 0] += d_tex.t001[0];
-                higher_texels[3 * (yi0 * w + xi0) + 1] += d_tex.t001[1];
-                higher_texels[3 * (yi0 * w + xi0) + 2] += d_tex.t001[2];
-                higher_texels[3 * (yi0 * w + xi1) + 0] += d_tex.t101[0];
-                higher_texels[3 * (yi0 * w + xi1) + 1] += d_tex.t101[1];
-                higher_texels[3 * (yi0 * w + xi1) + 2] += d_tex.t101[2];
-                higher_texels[3 * (yi1 * w + xi0) + 0] += d_tex.t011[0];
-                higher_texels[3 * (yi1 * w + xi0) + 1] += d_tex.t011[1];
-                higher_texels[3 * (yi1 * w + xi0) + 2] += d_tex.t011[2];
-                higher_texels[3 * (yi1 * w + xi1) + 0] += d_tex.t111[0];
-                higher_texels[3 * (yi1 * w + xi1) + 1] += d_tex.t111[1];
-                higher_texels[3 * (yi1 * w + xi1) + 2] += d_tex.t111[2];
-            }
-#endif
         }
     }
 
@@ -216,7 +152,6 @@ struct roughness_accumulator {
                 level = 0;
             }
             auto lower_texels = texels + level * w * h;
-#ifdef __CUDA_ARCH__ 
             atomic_add(lower_texels[yi0 * w + xi0], d_tex.t000);
             atomic_add(lower_texels[yi0 * w + xi1], d_tex.t100);
             atomic_add(lower_texels[yi1 * w + xi0], d_tex.t010);
@@ -228,53 +163,31 @@ struct roughness_accumulator {
                 atomic_add(higher_texels[yi1 * w + xi0], d_tex.t011);
                 atomic_add(higher_texels[yi1 * w + xi1], d_tex.t111);
             }
-#else
-            // Lock at material level. Slow but probably not bottleneck.
-            std::unique_lock<std::mutex> guard(((std::mutex*)mutexes)[mid]);
-            lower_texels[yi0 * w + xi0] += d_tex.t000;
-            lower_texels[yi0 * w + xi1] += d_tex.t100;
-            lower_texels[yi1 * w + xi0] += d_tex.t010;
-            lower_texels[yi1 * w + xi1] += d_tex.t110;
-            if (d_tex.li >= 0 && d_tex.li < num_levels - 1) {
-                auto higher_texels = texels + (level + 1) * w * h;
-                higher_texels[yi0 * w + xi0] += d_tex.t001;
-                higher_texels[yi0 * w + xi1] += d_tex.t101;
-                higher_texels[yi1 * w + xi0] += d_tex.t011;
-                higher_texels[yi1 * w + xi1] += d_tex.t111;
-            }
-#endif
         }
     }
 
     const DTexture1 *d_roughness_texs;
     DMaterial *d_materials;
-    void *mutexes; // CUDA doesn't recognize std::mutex
 };
 
 void accumulate_diffuse(const Scene &scene,
                         const BufferView<DTexture3> &d_diffuse_texs,
                         BufferView<DMaterial> d_materials) {
-    parallel_for(
-        diffuse_accumulator{d_diffuse_texs.begin(), d_materials.begin(),
-            (void*)&scene.material_mutexes[0]},
+    parallel_for(diffuse_accumulator{d_diffuse_texs.begin(), d_materials.begin()},
         d_diffuse_texs.size(), scene.use_gpu);
 }
 
 void accumulate_specular(const Scene &scene,
                          const BufferView<DTexture3> &d_specular_texs,
                          BufferView<DMaterial> d_materials) {
-    parallel_for(
-        specular_accumulator{d_specular_texs.begin(), d_materials.begin(),
-            (void*)&scene.material_mutexes[0]},
+    parallel_for(specular_accumulator{d_specular_texs.begin(), d_materials.begin()},
         d_specular_texs.size(), scene.use_gpu);
 }
 
 void accumulate_roughness(const Scene &scene,
                           const BufferView<DTexture1> &d_roughness_texs,
                           BufferView<DMaterial> d_materials) {
-    parallel_for(
-        roughness_accumulator{d_roughness_texs.begin(), d_materials.begin(),
-            (void*)&scene.material_mutexes[0]},
+    parallel_for(roughness_accumulator{d_roughness_texs.begin(), d_materials.begin()},
         d_roughness_texs.size(), scene.use_gpu);
 }
 
