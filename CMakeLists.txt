@@ -66,6 +66,7 @@ set(SRCS aabb.h
          ptr.h
          py_utils.h
          ray.h
+         rebuild_topology.h
          redner.h
          sampler.h
          scene.h
@@ -93,6 +94,7 @@ set(SRCS aabb.h
          pcg_sampler.cpp
          primary_contribution.cpp
          primary_intersection.cpp
+         rebuild_topology.cpp
          redner.cpp
          scene.cpp
          shape.cpp
