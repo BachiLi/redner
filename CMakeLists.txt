@@ -20,7 +20,7 @@ find_package(Embree)
 if(NOT EMBREE_FOUND)
     add_subdirectory(embree)
     set(EMBREE_INCLUDE_PATH "${PROJECT_SOURCE_DIR}/embree/include")
-    set(EMBREE_LIBRARY "${PROJECT_SOURCE_DIR}/embree/build/libembree3.so")
+    set(EMBREE_LIBRARY "${CMAKE_CURRENT_BINARY_DIR}/embree/libembree3.so")
 endif()
 
 include_directories(${Python_INCLUDE_DIRS})
