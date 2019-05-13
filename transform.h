@@ -35,34 +35,37 @@ inline void d_look_at_matrix(const TVector3<T> &pos,
                              TVector3<T> &d_pos,
                              TVector3<T> &d_look,
                              TVector3<T> &d_up) {
-    auto d = normalize(look - pos);
+    auto look_pos = look - pos;
+    auto d = normalize(look_pos);
     auto normalized_up = normalize(up);
-    auto right = normalize(cross(d, normalized_up));
+    auto cross_d_up = cross(d, normalized_up);
+    auto right = normalize(cross_d_up);
+    auto cross_right_d = cross(right, d);
+    // auto new_up = normalize(cross_right_d);
     // return TMatrix4x4<T>{
     //     right.x, new_up.x,  d.x, pos.x,
     //     right.y, new_up.y,  d.y, pos.y,
     //     right.z, new_up.z,  d.z, pos.z,
     //        T(0),     T(0), T(0),   T(1)
     // };
-    auto d_right = TVector3<T>{d_mat(0, 0), d_mat(1, 0), d_mat(2, 0)};
+    auto d_right =  TVector3<T>{d_mat(0, 0), d_mat(1, 0), d_mat(2, 0)};
     auto d_new_up = TVector3<T>{d_mat(0, 1), d_mat(1, 1), d_mat(2, 1)};
-    auto d_d = TVector3<T>{d_mat(0, 2), d_mat(1, 2), d_mat(2, 2)};
-    d_pos += TVector3<T>{d_mat(0, 3), d_mat(1, 3), d_mat(2, 3)};
-    // auto new_up = normalize(cross(right, d));
-    auto cross_right_d = cross(right, d);
+    auto d_d =      TVector3<T>{d_mat(0, 2), d_mat(1, 2), d_mat(2, 2)};
+    d_pos +=        TVector3<T>{d_mat(0, 3), d_mat(1, 3), d_mat(2, 3)};
+    // auto new_up = normalize(cross_right_d);
     auto d_cross_right_d = d_normalize(cross_right_d, d_new_up);
     // auto cross_right_d = cross(right, d);
     d_cross(right, d, d_cross_right_d, d_right, d_d);
-    // auto right = normalize(cross(d, normalize(up)));
-    auto cross_d_nup = cross(d, normalized_up);
-    auto d_cross_d_nup = d_normalize(cross_d_nup, d_right);
-    // auto cross_d_nup = cross(d, normalize(up));
+    // auto right = normalize(cross_d_up);
+    auto d_cross_d_up = d_normalize(cross_d_up, d_right);
+    // auto cross_d_up = cross(d, normalized_up);
     auto d_normalized_up = Vector3{0, 0, 0};
-    d_cross(d, normalized_up, d_cross_d_nup, d_d, d_normalized_up);
+    d_cross(d, normalized_up, d_cross_d_up, d_d, d_normalized_up);
     // auto normalized_up = normalize(up);
     d_up += d_normalize(up, d_normalized_up);
-    // auto d = normalize(look - pos);
-    auto d_look_pos = d_normalize(look - pos, d_d);
+    // auto d = normalize(look_pos);
+    auto d_look_pos = d_normalize(look_pos, d_d);
+    // auto look_pos = look - pos;
     d_look += d_look_pos;
     d_pos -= d_look_pos;
 }
@@ -107,7 +110,7 @@ inline void d_xfm_point(const TMatrix4x4<T> &xform,
     auto d_tpt03 = d_out * inv_w;
     auto d_inv_w = sum(d_out * TVector3<T>{tpt[0], tpt[1], tpt[2]});
     // inv_w = 1.f / tpt[3]
-    auto d_tpt3 = -d_inv_w * inv_w / tpt[3];
+    auto d_tpt3 = -d_inv_w * inv_w * inv_w;
     auto d_tpt = TVector4<T>{d_tpt03[0], d_tpt03[1], d_tpt03[2], d_tpt3};
     // auto tpt = TVector4<T>{
     //     xform(0, 0) * pt[0] + xform(0, 1) * pt[1] + xform(0, 2) * pt[2] + xform(0, 3),

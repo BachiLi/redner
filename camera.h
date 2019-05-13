@@ -379,8 +379,8 @@ inline void d_project(const Camera &camera,
         clipped_p1_local = p0_local + t * dir;
     }
 
-    // p0' = project_local(camera, clipped_p0_local)
-    // p1' = project_local(camera, clipped_p1_local)
+    // p0' = camera_to_screen(camera, clipped_p0_local)
+    // p1' = camera_to_screen(camera, clipped_p1_local)
     auto dclipped_p0_local = Vector3{0, 0, 0};
     auto dclipped_p1_local = Vector3{0, 0, 0};
     d_camera_to_screen(camera, clipped_p0_local,
@@ -431,9 +431,10 @@ inline void d_project(const Camera &camera,
     auto d_world_to_cam = Matrix4x4();
     d_xfm_point(camera.world_to_cam, p0, dp0_local, d_world_to_cam, d_p0);
     d_xfm_point(camera.world_to_cam, p1, dp1_local, d_world_to_cam, d_p1);
-    // K^{-1}' = -K^{-1} * K' * K^{-1}
-    auto d_cam_to_world =
-        -camera.cam_to_world * d_world_to_cam * camera.cam_to_world;
+    // http://jack.valmadre.net/notes/2016/09/04/back-prop-differentials/#back-propagation-using-differentials
+    // Super cool article btw
+    auto tw2c = transpose(camera.world_to_cam);
+    auto d_cam_to_world = -tw2c * d_world_to_cam * tw2c;
     d_look_at_matrix(camera.position, camera.look, camera.up,
         d_cam_to_world, d_camera.position, d_camera.look, d_camera.up);
 }

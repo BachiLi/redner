@@ -268,7 +268,7 @@ inline TMatrix4x4<T> operator-(const TMatrix4x4<T> &m0) {
     TMatrix4x4<T> m;
     for (int i = 0; i < 4; i++) {
         for (int j = 0; j < 4; j++) {
-            m(i, j) -= m0(i, j);
+            m(i, j) = -m0(i, j);
         }
     }
     return m;

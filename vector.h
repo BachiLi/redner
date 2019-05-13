@@ -443,8 +443,10 @@ inline TVector3<T> d_normalize(const TVector3<T> &v0, const TVector3<T> &d_n) {
     auto l = length(v0);
     auto n = v0 / l;
     auto d_v0 = d_n / l;
-    auto d_l = -(d_n[0] * n[0] + d_n[1] * n[1] + d_n[2] * n[2]) / l;
-    return d_v0 + d_length(v0, d_l);
+    auto d_l = -dot(d_n, n) / l;
+    // l = length(v0)
+    d_v0 += d_length(v0, d_l);
+    return d_v0;
 }
 
 template <typename T0, typename T1>

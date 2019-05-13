@@ -1091,11 +1091,10 @@ void render(const Scene &scene,
 
                 // for (int i = 0; i < primary_active_pixels.size(); i++) {
                 //     auto pixel_id = primary_active_pixels[i];
-                //     auto d_c2w = d_cameras[i].cam_to_world -
-                //         camera.cam_to_world * d_cameras[i].world_to_cam * camera.cam_to_world;
-                //     debug_image[3 * pixel_id + 0] += d_c2w(0, 3);
-                //     debug_image[3 * pixel_id + 1] += d_c2w(0, 3);
-                //     debug_image[3 * pixel_id + 2] += d_c2w(0, 3);
+                //     auto d_pos = d_cameras[i].position;
+                //     debug_image[3 * pixel_id + 0] += d_pos[0];
+                //     debug_image[3 * pixel_id + 1] += d_pos[0];
+                //     debug_image[3 * pixel_id + 2] += d_pos[0];
                 // }
 
                 // Deposit derivatives
@@ -1354,10 +1353,10 @@ void render(const Scene &scene,
                 //     auto edge_pt = rec.edge_pt;
                 //     auto xi = int(edge_pt[0] * camera.width);
                 //     auto yi = int(edge_pt[1] * camera.height);
-                //     auto d_cam = -camera.cam_to_world * d_cameras[i].world_to_cam * camera.cam_to_world;
-                //     debug_image[3 * (yi * camera.width + xi) + 0] += d_cam(0, 3);
-                //     debug_image[3 * (yi * camera.width + xi) + 1] += d_cam(0, 3);
-                //     debug_image[3 * (yi * camera.width + xi) + 2] += d_cam(0, 3);
+                //     auto d_pos = d_cameras[i].position;
+                //     debug_image[3 * (yi * camera.width + xi) + 0] += d_pos[0];
+                //     debug_image[3 * (yi * camera.width + xi) + 1] += d_pos[0];
+                //     debug_image[3 * (yi * camera.width + xi) + 2] += d_pos[0];
                 // }
             }
             /////////////////////////////////////////////////////////////////////////////////
