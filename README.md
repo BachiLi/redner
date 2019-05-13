@@ -2,11 +2,11 @@
 
 News
 
-05/13/2019 - Fixed quite a few bugs related to camera derivatives. If something didn't work for you before, maybe try again.
-04/28/2019 - Added QMC support (see tests/test_qmc.py and the documentation in pyredner.serialize_scene()).
+05/13/2019 - Fixed quite a few bugs related to camera derivatives. If something didn't work for you before, maybe try again.  
+04/28/2019 - Added QMC support (see tests/test_qmc.py and the documentation in pyredner.serialize_scene()).  
 04/01/2019 - Now support multi-GPU (see pyredner.set\_device).  
 03/31/2019 - Brought back the hierarchical edge sampling method in the paper.  
-02/02/2019 - The [wiki](https://github.com/BachiLi/redner/wiki) now contains a series of tutorial. The plan is to further expand the examples.
+02/02/2019 - The [wiki](https://github.com/BachiLi/redner/wiki) now contains a series of tutorial. The plan is to further expand the examples.  
 
 ![](https://people.csail.mit.edu/tzumao/diffrt/teaser.jpg)
 
