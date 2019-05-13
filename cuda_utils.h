@@ -46,14 +46,6 @@ inline float infinity() {
 #endif
 }
 
-#ifdef __CUDACC__
-template <typename T0, typename T1>
-DEVICE
-inline T0 atomic_add(T0 &target, T1 source) {
-    return atomicAdd(&target, (T0)source);
-}
-#endif
-
 inline void cuda_synchronize() {
 #ifdef __CUDACC__
     checkCuda(cudaDeviceSynchronize());

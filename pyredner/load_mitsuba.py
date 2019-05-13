@@ -198,6 +198,7 @@ def parse_shape(node, material_dict, shape_id, shape_group_dict = None):
         mat_id = -1
         light_intensity = None
         filename = ''
+        max_smooth_angle = -1
         for child in node:
             if 'name' in child.attrib:
                 if child.attrib['name'] == 'filename':
@@ -206,6 +207,8 @@ def parse_shape(node, material_dict, shape_id, shape_group_dict = None):
                     to_world = parse_transform(child)
                 elif child.attrib['name'] == 'shapeIndex':
                     serialized_shape_id = int(child.attrib['value'])
+                elif child.attrib['name'] == 'maxSmoothAngle':
+                    max_smooth_angle = float(child.attrib['value'])
             if child.tag == 'ref':
                 mat_id = material_dict[child.attrib['id']]
             elif child.tag == 'emitter':
@@ -250,6 +253,25 @@ def parse_shape(node, material_dict, shape_id, shape_group_dict = None):
             normals = normals.contiguous()
         assert(vertices is not None)
         assert(indices is not None)
+        if max_smooth_angle >= 0:
+            if normals is None:
+                normals = torch.zeros_like(vertices)
+            new_num_vertices = redner.rebuild_topology(\
+                redner.float_ptr(vertices.data_ptr()),
+                redner.int_ptr(indices.data_ptr()),
+                redner.float_ptr(uvs.data_ptr() if uvs is not None else 0),
+                redner.float_ptr(normals.data_ptr() if normals is not None else 0),
+                int(vertices.shape[0]),
+                int(indices.shape[0]),
+                max_smooth_angle)
+            print('Rebuilt topology, original vertices size: {}, new vertices size: {}'.format(\
+                int(vertices.shape[0]), new_num_vertices))
+            vertices.resize_(new_num_vertices, 3)
+            if uvs is not None:
+                uvs.resize_(new_num_vertices, 2)
+            if normals is not None:
+                normals.resize_(new_num_vertices, 3)
+
         lgt = None
         if light_intensity is not None:
             lgt = pyredner.AreaLight(shape_id, light_intensity)

@@ -23,6 +23,7 @@
 #endif
 
 #include <cstdint>
+#include <atomic>
 
 // We use Real for most of the internal computation.
 // However, for PyTorch interfaces, Optix Prime and Embree queries
@@ -132,5 +133,24 @@ inline int popc(uint8_t x) {
 #else
     // TODO: use _popcnt in windows
     return __builtin_popcount(x);
+#endif
+}
+
+DEVICE
+template <typename T0, typename T1>
+inline T0 atomic_add(T0 &target, T1 source) {
+#ifdef __CUDA_ARCH__
+    return atomicAdd(&target, (T0)source);
+#else
+    // TODO: windows
+    T0 old_val;
+    T0 new_val;
+    do {
+        old_val = target;
+        new_val = old_val + source;
+    } while (!__atomic_compare_exchange(&target, &old_val, &new_val, true,
+        std::memory_order::memory_order_seq_cst,
+        std::memory_order::memory_order_seq_cst));
+    return old_val;
 #endif
 }

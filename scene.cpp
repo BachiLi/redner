@@ -266,9 +266,6 @@ Scene::Scene(const Camera &camera,
         this->envmap = nullptr;
     }
 
-    // Create a mutex for each material for derivatives accumulation
-    material_mutexes = std::vector<std::mutex>(materials.size());
-
     edge_sampler = EdgeSampler(shapes, *this);
 
 #ifdef __NVCC__
