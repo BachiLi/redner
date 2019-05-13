@@ -9,7 +9,7 @@ DEVICE
 inline TMatrix4x4<T> look_at_matrix(const TVector3<T> &pos,
                                     const TVector3<T> &look,
                                     const TVector3<T> &up) {
-    auto look_pos = looks - pos;
+    auto look_pos = look - pos;
     assert(length_squared(look_pos) > 1e-20f);
     auto d = normalize(look_pos);
     auto cross_d_up = cross(d, normalize(up));
