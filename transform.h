@@ -64,7 +64,7 @@ inline void d_camera_matrix(const TVector3<T> &pos,
     // auto n_up = normalize(up);
     d_up += d_normalize(up, d_n_up);
     // auto n_dir = normalize(dir);
-    d_dir += d_normalize(up, d_n_dir);
+    d_dir += d_normalize(dir, d_n_dir);
 }
 
 template <typename T>
