@@ -2,7 +2,7 @@
 
 News
 
-05/14/2019 - Turns out the camera bugs are still there. Stay tuned.
+05/14/2019 - Turns out the camera bugs are still there. Stay tuned.  
 05/13/2019 - Fixed quite a few bugs related to camera derivatives. If something didn't work for you before, maybe try again.  
 04/28/2019 - Added QMC support (see tests/test_qmc.py and the documentation in pyredner.serialize_scene()).  
 04/01/2019 - Now support multi-GPU (see pyredner.set\_device).  
