@@ -47,7 +47,7 @@ class Camera:
         self.position = position
         self.look_at = look_at
         self.up = up
-        self.fov = fov
+        self._fov = fov
         # self.cam_to_world = transform.gen_look_at_matrix(position, look_at, up)
         # self.world_to_cam = torch.inverse(self.cam_to_world).contiguous()
         if cam_to_ndc is None:
