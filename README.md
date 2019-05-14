@@ -2,22 +2,23 @@
 
 News
 
-04/28/2019 - Added QMC support (see tests/test_qmc.py and the documentation in pyredner.serialize_scene()).
+05/13/2019 - Fixed quite a few bugs related to camera derivatives. If something didn't work for you before, maybe try again.  
+04/28/2019 - Added QMC support (see tests/test_qmc.py and the documentation in pyredner.serialize_scene()).  
 04/01/2019 - Now support multi-GPU (see pyredner.set\_device).  
 03/31/2019 - Brought back the hierarchical edge sampling method in the paper.  
-02/02/2019 - The [wiki](https://github.com/BachiLi/redner/wiki) now contains a series of tutorial. The plan is to further expand the examples.
+02/02/2019 - The [wiki](https://github.com/BachiLi/redner/wiki) now contains a series of tutorial. The plan is to further expand the examples.  
 
 ![](https://people.csail.mit.edu/tzumao/diffrt/teaser.jpg)
 
 redner is a differentiable Monte Carlo renderer that can take the derivatives of rendering output with respect to arbitrary 
-scene parameters, that is, you can backpropagate from the image to your 3D scene. One of the major usages of redner is inverse rendering (hence the name redner) through gradient descent. What sets redner apart is that it is physically-based -- which means it simulates photons and produce realistic lighting phenomena, such as shadow and global illumination, and it handles the derivatives of these features correctly.
+scene parameters, that is, you can backpropagate from the image to your 3D scene. One of the major usages of redner is inverse rendering (hence the name redner) through gradient descent. What sets redner apart is that it is physically-based -- which means it simulates photons and produce realistic lighting phenomena, such as shadow and global illumination, and it handles the derivatives of these features correctly. You can also use redner in a [fast deferred rendering mode](https://github.com/BachiLi/redner/wiki/Tutorial-4%3A-fast-deferred-rendering) for local shading: in this mode it has correct gradient estimation and more elaborate material models compared to most differentiable renderers out there.
 
 For more details on the renderer, what it can do, and the techniques it use for computing the derivatives, please
 take a look at the paper:
 "Differentiable Monte Carlo Ray Tracing through Edge Sampling", Tzu-Mao Li, Miika Aittala, Fredo Durand, Jaakko Lehtinen
 [https://people.csail.mit.edu/tzumao/diffrt/].  
 Since the submission we have improved the renderer a bit. In particular we implemented a CUDA backend and accelerated
-the continuous derivatives significantly by replacing automatic differentiation with hand derivatives.
+the continuous derivatives significantly by replacing automatic differentiation with hand derivatives. See Tzu-Mao Li's [thesis](https://people.csail.mit.edu/tzumao/phdthesis/phdthesis.pdf) for even more details.
 
 redner is expected to be used with [PyTorch](https://pytorch.org/), and can be used seamlessly with PyTorch operators. A good starting point to learn how to use redner is to look at the [wiki](https://github.com/BachiLi/redner/wiki).
 While the documentation is work in progress, you can take a look at the [tests directory](tests) to have some ideas.
@@ -86,6 +87,7 @@ The current development plan is to enhance the renderer. Following features will
 - Volumetric path tracing (e.g. [http://www.cs.cornell.edu/projects/translucency/#acquisition-sa13](http://www.cs.cornell.edu/projects/translucency/#acquisition-sa13))
 - Spectral rendering
 - Backface culling
+- Install script
 - Documentation
 
 If you have any questions/comments/bug reports, feel free to open a github issue or e-mail to the author
