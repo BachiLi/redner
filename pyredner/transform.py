@@ -8,16 +8,16 @@ def radians(deg):
 def normalize(v):
     return v / torch.norm(v)
 
-def gen_look_at_matrix(pos, look, up):
-    d = normalize(look - pos)
-    right = normalize(torch.cross(d, normalize(up)))
-    new_up = normalize(torch.cross(right, d))
-    z = torch.zeros([1], dtype=torch.float32)
-    o = torch.ones([1], dtype=torch.float32)
-    return torch.transpose(torch.stack([torch.cat([right , z], 0),
-                                        torch.cat([new_up, z], 0),
-                                        torch.cat([d     , z], 0),
-                                        torch.cat([pos   , o], 0)]), 0, 1).contiguous()
+# def gen_look_at_matrix(pos, look, up):
+#     d = normalize(look - pos)
+#     right = normalize(torch.cross(d, normalize(up)))
+#     new_up = normalize(torch.cross(right, d))
+#     z = torch.zeros([1], dtype=torch.float32)
+#     o = torch.ones([1], dtype=torch.float32)
+#     return torch.transpose(torch.stack([torch.cat([right , z], 0),
+#                                         torch.cat([new_up, z], 0),
+#                                         torch.cat([d     , z], 0),
+#                                         torch.cat([pos   , o], 0)]), 0, 1).contiguous()
 
 def gen_scale_matrix(scale):
     o = torch.ones([1], dtype=torch.float32)

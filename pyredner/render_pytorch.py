@@ -78,7 +78,7 @@ class RenderFunction(torch.autograd.Function):
         args.append(num_materials)
         args.append(num_lights)
         args.append(cam.position)
-        args.append(cam.look_at)
+        args.append(cam.direction)
         args.append(cam.up)
         args.append(cam.ndc_to_cam)
         args.append(cam.cam_to_ndc)
@@ -144,7 +144,7 @@ class RenderFunction(torch.autograd.Function):
         current_index += 1
         cam_position = args[current_index]
         current_index += 1
-        cam_look_at = args[current_index]
+        cam_direction = args[current_index]
         current_index += 1
         cam_up = args[current_index]
         current_index += 1
@@ -161,7 +161,7 @@ class RenderFunction(torch.autograd.Function):
         camera = redner.Camera(resolution[1],
                                resolution[0],
                                redner.float_ptr(cam_position.data_ptr()),
-                               redner.float_ptr(cam_look_at.data_ptr()),
+                               redner.float_ptr(cam_direction.data_ptr()),
                                redner.float_ptr(cam_up.data_ptr()),
                                redner.float_ptr(ndc_to_cam.data_ptr()),
                                redner.float_ptr(cam_to_ndc.data_ptr()),
@@ -370,12 +370,12 @@ class RenderFunction(torch.autograd.Function):
         options = ctx.options
 
         d_cam_position = torch.zeros(3)
-        d_cam_look = torch.zeros(3)
+        d_cam_direction = torch.zeros(3)
         d_cam_up = torch.zeros(3)
         d_ndc_to_cam = torch.zeros(3, 3)
         d_cam_to_ndc = torch.zeros(3, 3)
         d_camera = redner.DCamera(redner.float_ptr(d_cam_position.data_ptr()),
-                                  redner.float_ptr(d_cam_look.data_ptr()),
+                                  redner.float_ptr(d_cam_direction.data_ptr()),
                                   redner.float_ptr(d_cam_up.data_ptr()),
                                   redner.float_ptr(d_ndc_to_cam.data_ptr()),
                                   redner.float_ptr(d_cam_to_ndc.data_ptr()))
@@ -501,7 +501,7 @@ class RenderFunction(torch.autograd.Function):
 
         # # For debugging
         # # pyredner.imwrite(grad_img, 'grad_img.exr')
-        # # grad_img = torch.ones(256, 256, 3, device = pyredner.get_device())
+        # grad_img = torch.ones(256, 256, 3, device = pyredner.get_device())
         # debug_img = torch.zeros(256, 256, 3)
         # start = time.time()
         # redner.render(scene, options,
@@ -535,7 +535,7 @@ class RenderFunction(torch.autograd.Function):
         ret_list.append(None) # num_materials
         ret_list.append(None) # num_lights
         ret_list.append(d_cam_position)
-        ret_list.append(d_cam_look)
+        ret_list.append(d_cam_direction)
         ret_list.append(d_cam_up)
         ret_list.append(d_ndc_to_cam)
         ret_list.append(d_cam_to_ndc)

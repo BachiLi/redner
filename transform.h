@@ -6,68 +6,65 @@
 
 template <typename T>
 DEVICE
-inline TMatrix4x4<T> look_at_matrix(const TVector3<T> &pos,
-                                    const TVector3<T> &look,
-                                    const TVector3<T> &up) {
-    auto look_pos = look - pos;
-    assert(length_squared(look_pos) > 1e-20f);
-    auto d = normalize(look_pos);
-    auto cross_d_up = cross(d, normalize(up));
-    assert(length_squared(cross_d_up) > 1e-20f);
-    auto right = normalize(cross_d_up);
-    auto cross_right_d = cross(right, d);
-    assert(length_squared(cross_right_d) > 1e-20f);
-    auto new_up = normalize(cross_right_d);
+inline TMatrix4x4<T> camera_matrix(const TVector3<T> &pos,
+                                   const TVector3<T> &dir,
+                                   const TVector3<T> &up) {
+    auto n_dir = normalize(dir);
+    auto n_up = normalize(up);
+    auto cross_dir_up = cross(n_dir, n_up);
+    assert(length_squared(cross_dir_up) > 1e-20f);
+    auto right = normalize(cross_dir_up);
+    auto cross_right_dir = cross(right, n_dir);
+    assert(length_squared(cross_right_dir) > 1e-20f);
+    auto new_up = normalize(cross_right_dir);
     return TMatrix4x4<T>{
-        right.x, new_up.x,  d.x, pos.x,
-        right.y, new_up.y,  d.y, pos.y,
-        right.z, new_up.z,  d.z, pos.z,
-           T(0),     T(0), T(0),   T(1)
+        right.x, new_up.x, n_dir.x, pos.x,
+        right.y, new_up.y, n_dir.y, pos.y,
+        right.z, new_up.z, n_dir.z, pos.z,
+           T(0),     T(0),    T(0),   T(1)
     };
 }
 
 template <typename T>
 DEVICE
-inline void d_look_at_matrix(const TVector3<T> &pos,
-                             const TVector3<T> &look,
-                             const TVector3<T> &up,
-                             const TMatrix4x4<T> &d_mat,
-                             TVector3<T> &d_pos,
-                             TVector3<T> &d_look,
-                             TVector3<T> &d_up) {
-    auto look_pos = look - pos;
-    auto d = normalize(look_pos);
-    auto normalized_up = normalize(up);
-    auto cross_d_up = cross(d, normalized_up);
-    auto right = normalize(cross_d_up);
-    auto cross_right_d = cross(right, d);
-    // auto new_up = normalize(cross_right_d);
+inline void d_camera_matrix(const TVector3<T> &pos,
+                            const TVector3<T> &dir,
+                            const TVector3<T> &up,
+                            const TMatrix4x4<T> &d_mat,
+                            TVector3<T> &d_pos,
+                            TVector3<T> &d_dir,
+                            TVector3<T> &d_up) {
+    auto n_dir = normalize(dir);
+    auto n_up = normalize(up);
+    auto cross_dir_up = cross(n_dir, n_up);
+    assert(length_squared(cross_dir_up) > 1e-20f);
+    auto right = normalize(cross_dir_up);
+    auto cross_right_dir = cross(right, n_dir);
+    assert(length_squared(cross_right_dir) > 1e-20f);
+    // auto new_up = normalize(cross_right_dir);
     // return TMatrix4x4<T>{
-    //     right.x, new_up.x,  d.x, pos.x,
-    //     right.y, new_up.y,  d.y, pos.y,
-    //     right.z, new_up.z,  d.z, pos.z,
-    //        T(0),     T(0), T(0),   T(1)
+    //     right.x, new_up.x, n_dir.x, pos.x,
+    //     right.y, new_up.y, n_dir.y, pos.y,
+    //     right.z, new_up.z, n_dir.z, pos.z,
+    //        T(0),     T(0),    T(0),   T(1)
     // };
     auto d_right =  TVector3<T>{d_mat(0, 0), d_mat(1, 0), d_mat(2, 0)};
     auto d_new_up = TVector3<T>{d_mat(0, 1), d_mat(1, 1), d_mat(2, 1)};
-    auto d_d =      TVector3<T>{d_mat(0, 2), d_mat(1, 2), d_mat(2, 2)};
+    auto d_n_dir =  TVector3<T>{d_mat(0, 2), d_mat(1, 2), d_mat(2, 2)};
     d_pos +=        TVector3<T>{d_mat(0, 3), d_mat(1, 3), d_mat(2, 3)};
-    // auto new_up = normalize(cross_right_d);
-    auto d_cross_right_d = d_normalize(cross_right_d, d_new_up);
-    // auto cross_right_d = cross(right, d);
-    d_cross(right, d, d_cross_right_d, d_right, d_d);
-    // auto right = normalize(cross_d_up);
-    auto d_cross_d_up = d_normalize(cross_d_up, d_right);
-    // auto cross_d_up = cross(d, normalized_up);
-    auto d_normalized_up = Vector3{0, 0, 0};
-    d_cross(d, normalized_up, d_cross_d_up, d_d, d_normalized_up);
-    // auto normalized_up = normalize(up);
-    d_up += d_normalize(up, d_normalized_up);
-    // auto d = normalize(look_pos);
-    auto d_look_pos = d_normalize(look_pos, d_d);
-    // auto look_pos = look - pos;
-    d_look += d_look_pos;
-    d_pos -= d_look_pos;
+    // auto new_up = normalize(cross_right_dir);
+    auto d_cross_right_dir = d_normalize(cross_right_dir, d_new_up);
+    // auto cross_right_dir = cross(right, n_dir);
+    d_cross(right, n_dir, d_cross_right_dir, d_right, d_n_dir);
+    // auto right = normalize(cross_dir_up);
+    auto d_cross_dir_up = d_normalize(cross_dir_up, d_right);
+    // auto cross_dir_up = cross(n_dir, n_up);
+    auto d_n_up = Vector3{0, 0, 0};
+    d_cross(n_dir, n_up, d_cross_dir_up, d_n_dir, d_n_up);
+    // auto n_up = normalize(up);
+    d_up += d_normalize(up, d_n_up);
+    // auto n_dir = normalize(dir);
+    d_dir += d_normalize(up, d_n_dir);
 }
 
 template <typename T>

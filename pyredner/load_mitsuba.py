@@ -72,7 +72,7 @@ def parse_camera(node):
                         resolution[1] = int(grandchild.attrib['value'])
 
     return pyredner.Camera(position     = position,
-                           look_at      = look_at,
+                           direction    = look_at - position,
                            up           = up,
                            fov          = fov,
                            clip_near    = clip_near,

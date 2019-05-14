@@ -5,7 +5,6 @@ import pyredner.transform as transform
 class Camera:
     """
         redner supports a perspective camera and a fisheye camera.
-        Both of them employ a look at transform.
 
         Note:
             Currently we assume all the camera variables are stored in CPU,
@@ -13,8 +12,10 @@ class Camera:
 
         Args:
             position (length 3 float tensor): the origin of the camera
-            look_at (length 3 float tensor): the point camera is looking at
-            up (length 3 float tensor): the up vector of the camera
+            direction (length 3 float tensor): the camera looking direction,
+                                         doesn't need to be normalized
+            up (length 3 float tensor): the up vector of the camera,
+                                        doesn't need to be normalized
             fov (length 1 float tensor): the field of view of the camera in angle, 
                                          no effect if the camera is a fisheye camera
             clip_near (float): the near clipping plane of the camera, need to > 0
@@ -26,7 +27,7 @@ class Camera:
     """
     def __init__(self,
                  position,
-                 look_at,
+                 direction,
                  up,
                  fov,
                  clip_near,
@@ -35,8 +36,8 @@ class Camera:
                  fisheye = False):
         assert(position.dtype == torch.float32)
         assert(len(position.shape) == 1 and position.shape[0] == 3)
-        assert(look_at.dtype == torch.float32)
-        assert(len(look_at.shape) == 1 and look_at.shape[0] == 3)
+        assert(direction.dtype == torch.float32)
+        assert(len(direction.shape) == 1 and direction.shape[0] == 3)
         assert(up.dtype == torch.float32)
         assert(len(up.shape) == 1 and up.shape[0] == 3)
         if fov is not None:
@@ -45,7 +46,7 @@ class Camera:
         assert(isinstance(clip_near, float))
 
         self.position = position
-        self.look_at = look_at
+        self.direction = direction
         self.up = up
         self._fov = fov
         # self.cam_to_world = transform.gen_look_at_matrix(position, look_at, up)
@@ -86,9 +87,9 @@ class Camera:
 
     def state_dict(self):
         return {
-            'position': self._position,
-            'look_at': self._look_at,
-            'up': self._up,
+            'position': self.position,
+            'direction': self.direction,
+            'up': self.up,
             'fov': self._fov,
             'cam_to_ndc': self._cam_to_ndc,
             'ndc_to_cam': self.ndc_to_cam,
@@ -100,9 +101,9 @@ class Camera:
     @classmethod
     def load_state_dict(cls, state_dict):
         out = cls.__new__(Camera)
-        out._position = state_dict['position']
-        out._look_at = state_dict['look_at']
-        out._up = state_dict['up']
+        out.position = state_dict['position']
+        out.direction = state_dict['direction']
+        out.up = state_dict['up']
         out._fov = state_dict['fov']
         out._cam_to_ndc = state_dict['cam_to_ndc']
         out.ndc_to_cam = state_dict['ndc_to_cam']

@@ -42,9 +42,12 @@ target = pyredner.imread('results/test_living_room/target.exr')
 if pyredner.get_use_gpu():
     target = target.cuda(device = pyredner.get_device())
 
-scene.camera.look_at = torch.tensor([-0.556408, 0.951295, -3.98066], requires_grad=True)
-scene.camera.position = torch.tensor([0.00419251, 0.973707, -4.80844], requires_grad=True)
-scene.camera.up = torch.tensor([-0.00920347, 0.999741, 0.020835], requires_grad=True)
+look_at = torch.tensor([-0.556408, 0.951295, -3.98066])
+position = torch.tensor([0.00419251, 0.973707, -4.80844])
+up = torch.tensor([-0.00920347, 0.999741, 0.020835])
+scene.camera.direction = torch.tensor(look_at - position, requires_grad = True)
+scene.camera.position = torch.tensor(position, requires_grad = True)
+scene.camera.up = torch.tensor(up, requires_grad = True)
 
 args = pyredner.RenderFunction.serialize_scene(\
     scene = scene,
@@ -57,14 +60,14 @@ pyredner.imwrite(img.cpu(), 'results/test_living_room/init.png')
 diff = torch.abs(target - img)
 pyredner.imwrite(diff.cpu(), 'results/test_living_room/init_diff.png')
 
-optimizer = torch.optim.Adam([scene.camera.position, scene.camera.look_at, scene.camera.up],
+optimizer = torch.optim.Adam([scene.camera.position, scene.camera.direction, scene.camera.up],
     lr = 5e-3, betas=(0.5, 0.9))
 iter_count = 0
 for t in range(600):
     print('iteration:', t)
     optimizer.zero_grad()
     scene.camera = pyredner.Camera(position   = scene.camera.position,
-                                   look_at    = scene.camera.look_at,
+                                   look_at    = scene.camera.direction,
                                    up         = scene.camera.up,
                                    fov        = scene.camera.fov,
                                    clip_near  = scene.camera.clip_near,

@@ -49,7 +49,7 @@ fov = torch.tensor([41.0], requires_grad = True)
 cam_vars = [up, fov]
 scene.camera = pyredner.Camera(\
     position = scene.camera.position,
-    look_at = scene.camera.look_at,
+    direction = scene.camera.direction,
     up = up,
     fov = fov,
     clip_near = scene.camera.clip_near,
@@ -96,7 +96,7 @@ for ri, r in enumerate(res):
         # Need to redefine the camera
         scene.camera = pyredner.Camera(\
             position = scene.camera.position,
-            look_at = scene.camera.look_at,
+            direction = scene.camera.direction,
             up = up,
             fov = fov,
             clip_near = scene.camera.clip_near,
@@ -168,7 +168,7 @@ for ri, r in enumerate(res):
 # Render the final result.
 scene.camera = pyredner.Camera(\
     position = scene.camera.position,
-    look_at = scene.camera.look_at,
+    direction = scene.camera.direction,
     up = up,
     fov = fov,
     clip_near = scene.camera.clip_near,

@@ -13,7 +13,7 @@ struct Camera {
     Camera(int width,
            int height,
            ptr<float> position_,
-           ptr<float> look_,
+           ptr<float> dir_,
            ptr<float> up_,
            ptr<float> ndc_to_cam,
            ptr<float> cam_to_ndc,
@@ -22,18 +22,18 @@ struct Camera {
         : width(width),
           height(height),
           position(Vector3{position_[0], position_[1], position_[2]}),
-          look(Vector3{look_[0], look_[1], look_[2]}),
+          dir(Vector3{dir_[0], dir_[1], dir_[2]}),
           up(Vector3{up_[0], up_[1], up_[2]}),
           ndc_to_cam(ndc_to_cam.get()),
           cam_to_ndc(cam_to_ndc.get()),
           clip_near(clip_near),
           fisheye(fisheye) {
-        cam_to_world = look_at_matrix(position, look, up);
+        cam_to_world = camera_matrix(position, dir, up);
         world_to_cam = inverse(cam_to_world);
     }
 
     int width, height;
-    Vector3 position, look, up;
+    Vector3 position, dir, up;
     Matrix4x4 cam_to_world;
     Matrix4x4 world_to_cam;
     Matrix3x3 ndc_to_cam;
@@ -45,18 +45,18 @@ struct Camera {
 struct DCamera {
     DCamera() {}
     DCamera(ptr<float> position,
-            ptr<float> look,
+            ptr<float> dir,
             ptr<float> up,
             ptr<float> ndc_to_cam,
             ptr<float> cam_to_ndc)
         : position(position.get()),
-          look(look.get()),
+          dir(dir.get()),
           up(up.get()),
           ndc_to_cam(ndc_to_cam.get()),
           cam_to_ndc(cam_to_ndc.get()) {}
 
     float *position;
-    float *look;
+    float *dir;
     float *up;
     float *ndc_to_cam;
     float *cam_to_ndc;
@@ -64,20 +64,20 @@ struct DCamera {
 
 struct DCameraInst {
     DEVICE DCameraInst(const Vector3 p = Vector3{0, 0, 0},
-                       const Vector3 l = Vector3{0, 0, 0},
+                       const Vector3 d = Vector3{0, 0, 0},
                        const Vector3 u = Vector3{0, 0, 0},
                        const Matrix3x3& ntc = Matrix3x3(),
                        const Matrix3x3& ctn = Matrix3x3())
-        : position(p), look(l), up(u),
+        : position(p), dir(d), up(u),
           ndc_to_cam(ntc), cam_to_ndc(ctn) {}
 
-    Vector3 position, look, up;
+    Vector3 position, dir, up;
     Matrix3x3 ndc_to_cam;
     Matrix3x3 cam_to_ndc;
 
     DEVICE inline DCameraInst operator+(const DCameraInst &other) const {
         return DCameraInst{position + other.position,
-                           look + other.look,
+                           dir + other.dir,
                            up + other.up,
                            ndc_to_cam + other.ndc_to_cam,
                            cam_to_ndc + other.cam_to_ndc};
@@ -171,8 +171,8 @@ inline void d_sample_primary_ray(const Camera &camera,
         auto cam_org = Vector3{0, 0, 0};
         d_xfm_point(camera.cam_to_world, Vector3{0, 0, 0}, d_org,
                     d_cam_to_world, cam_org);
-        d_look_at_matrix(camera.position, camera.look, camera.up,
-            d_cam_to_world, d_camera.position, d_camera.look, d_camera.up);
+        d_camera_matrix(camera.position, camera.dir, camera.up,
+            d_cam_to_world, d_camera.position, d_camera.dir, d_camera.up);
     } else {
         // Linear projection
         // auto org = xfm_point(camera.cam_to_world, Vector3{0, 0, 0});
@@ -209,8 +209,8 @@ inline void d_sample_primary_ray(const Camera &camera,
         auto d_cam_org = Vector3{0, 0, 0};
         d_xfm_point(camera.cam_to_world, Vector3{0, 0, 0}, d_org,
                     d_cam_to_world, d_cam_org);
-        d_look_at_matrix(camera.position, camera.look, camera.up,
-            d_cam_to_world, d_camera.position, d_camera.look, d_camera.up);
+        d_camera_matrix(camera.position, camera.dir, camera.up,
+            d_cam_to_world, d_camera.position, d_camera.dir, d_camera.up);
     }
 }
 
@@ -435,8 +435,8 @@ inline void d_project(const Camera &camera,
     // Super cool article btw
     auto tw2c = transpose(camera.world_to_cam);
     auto d_cam_to_world = -tw2c * d_world_to_cam * tw2c;
-    d_look_at_matrix(camera.position, camera.look, camera.up,
-        d_cam_to_world, d_camera.position, d_camera.look, d_camera.up);
+    d_camera_matrix(camera.position, camera.dir, camera.up,
+        d_cam_to_world, d_camera.position, d_camera.dir, d_camera.up);
 }
 
 template <typename T>

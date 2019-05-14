@@ -47,7 +47,7 @@ scene.materials[-1].diffuse_reflectance = pyredner.Texture(diffuse_reflectance)
 scene.materials[-1].specular_reflectance = pyredner.Texture(specular_reflectance)
 scene.materials[-1].roughness = pyredner.Texture(roughness)
 scene.camera = pyredner.Camera(position     = cam_position + cam_translation,
-                               look_at      = cam.look_at + cam_translation,
+                               direction    = cam.direction,
                                up           = cam.up,
                                fov          = cam.fov,
                                clip_near    = cam.clip_near,
@@ -76,7 +76,7 @@ for t in range(num_iteration):
     # Forward pass: render the image
     # need to rerun Camera constructor for autodiff 
     scene.camera = pyredner.Camera(position   = cam_position + cam_translation,
-                                   look_at    = cam.look_at + cam_translation,
+                                   direction  = cam.direction,
                                    up         = cam.up,
                                    fov        = cam.fov,
                                    clip_near  = cam.clip_near,

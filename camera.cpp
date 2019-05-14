@@ -56,7 +56,7 @@ void accumulate_camera(const Camera &camera,
         d_camera.position[i] += d_camera_inst.position[i];
     }
     for (int i = 0; i < 3; i++) {
-        d_camera.look[i] += d_camera_inst.look[i];
+        d_camera.dir[i] += d_camera_inst.dir[i];
     }
     for (int i = 0; i < 3; i++) {
         d_camera.up[i] += d_camera_inst.up[i];
@@ -76,13 +76,13 @@ void test_sample_primary_rays(bool use_gpu) {
     // with identity to world matrix,
     // fov 45 degree
     auto pos = Vector3f{0, 0, 0};
-    auto look = Vector3f{0, 0, 1};
+    auto dir = Vector3f{0, 0, 1};
     auto up = Vector3f{0, 1, 0};
     Matrix3x3f n2c = Matrix3x3f::identity();
     Matrix3x3f c2n = Matrix3x3f::identity();
     Camera camera{1, 1,
         &pos[0],
-        &look[0],
+        &dir[0],
         &up[0],
         &n2c.data[0][0],
         &c2n.data[0][0],
@@ -111,13 +111,13 @@ void test_sample_primary_rays(bool use_gpu) {
 
 void test_d_sample_primary_rays() {
     auto pos = Vector3f{0, 0, 0};
-    auto look = Vector3f{0, 0, 1};
+    auto dir = Vector3f{0, 0, 1};
     auto up = Vector3f{0, 1, 0};
     Matrix3x3f n2c = Matrix3x3f::identity();
     Matrix3x3f c2n = Matrix3x3f::identity();
     Camera camera{1, 1,
         &pos[0],
-        &look[0],
+        &dir[0],
         &up[0],
         &n2c.data[0][0],
         &c2n.data[0][0],
@@ -137,7 +137,7 @@ void test_d_sample_primary_rays() {
         auto delta_camera = Camera{
             1, 1,
             &delta_pos[0],
-            &look[0],
+            &dir[0],
             &up[0],
             &n2c.data[0][0],
             &c2n.data[0][0],
@@ -149,7 +149,7 @@ void test_d_sample_primary_rays() {
         delta_camera = Camera{
             1, 1,
             &delta_pos[0],
-            &look[0],
+            &dir[0],
             &up[0],
             &n2c.data[0][0],
             &c2n.data[0][0],
@@ -163,12 +163,12 @@ void test_d_sample_primary_rays() {
         equal_or_error(__FILE__, __LINE__, (Real)diff, (Real)d_camera.position[i]);
     }
     for (int i = 0; i < 3; i++) {
-        auto delta_look = look;
-        delta_look[i] += finite_delta;
+        auto delta_dir = dir;
+        delta_dir[i] += finite_delta;
         auto delta_camera = Camera{
             1, 1,
             &pos[0],
-            &delta_look[0],
+            &delta_dir[0],
             &up[0],
             &n2c.data[0][0],
             &c2n.data[0][0],
@@ -176,11 +176,11 @@ void test_d_sample_primary_rays() {
             false};
         auto positive_ray =
             sample_primary(delta_camera, Vector2{0.5, 0.5});
-        delta_look[i] -= 2 * finite_delta;
+        delta_dir[i] -= 2 * finite_delta;
         delta_camera = Camera{
             1, 1,
             &pos[0],
-            &delta_look[0],
+            &delta_dir[0],
             &up[0],
             &n2c.data[0][0],
             &c2n.data[0][0],
@@ -191,7 +191,7 @@ void test_d_sample_primary_rays() {
         auto diff = (sum(positive_ray.org - negative_ray.org) +
                      sum(positive_ray.dir - negative_ray.dir)) /
                     (2 * finite_delta);
-        equal_or_error(__FILE__, __LINE__, (Real)diff, (Real)d_camera.look[i]);
+        equal_or_error(__FILE__, __LINE__, (Real)diff, (Real)d_camera.dir[i]);
     }
     for (int i = 0; i < 3; i++) {
         auto delta_up = up;
@@ -199,7 +199,7 @@ void test_d_sample_primary_rays() {
         auto delta_camera = Camera{
             1, 1,
             &pos[0],
-            &look[0],
+            &dir[0],
             &delta_up[0],
             &n2c.data[0][0],
             &c2n.data[0][0],
@@ -211,7 +211,7 @@ void test_d_sample_primary_rays() {
         delta_camera = Camera{
             1, 1,
             &pos[0],
-            &look[0],
+            &dir[0],
             &delta_up[0],
             &n2c.data[0][0],
             &c2n.data[0][0],
@@ -244,13 +244,13 @@ void test_d_sample_primary_rays() {
 
 void test_d_camera_to_screen() {
     auto pos = Vector3f{0, 0, 0};
-    auto look = Vector3f{0, 0, 1};
+    auto dir = Vector3f{0, 0, 1};
     auto up = Vector3f{0, 1, 0};
     Matrix3x3f n2c = Matrix3x3f::identity();
     Matrix3x3f c2n = Matrix3x3f::identity();
     Camera camera{1, 1,
         &pos[0],
-        &look[0],
+        &dir[0],
         &up[0],
         &n2c.data[0][0],
         &c2n.data[0][0],
@@ -270,7 +270,7 @@ void test_d_camera_to_screen() {
         auto delta_camera = Camera{
             1, 1,
             &delta_pos[0],
-            &look[0],
+            &dir[0],
             &up[0],
             &n2c.data[0][0],
             &c2n.data[0][0],
@@ -281,7 +281,7 @@ void test_d_camera_to_screen() {
         delta_camera = Camera{
             1, 1,
             &delta_pos[0],
-            &look[0],
+            &dir[0],
             &up[0],
             &n2c.data[0][0],
             &c2n.data[0][0],
@@ -292,23 +292,23 @@ void test_d_camera_to_screen() {
         equal_or_error(__FILE__, __LINE__, (Real)diff, (Real)d_camera.position[i]);
     }
     for (int i = 0; i < 3; i++) {
-        auto delta_look = look;
-        delta_look[i] += finite_delta;
+        auto delta_dir = dir;
+        delta_dir[i] += finite_delta;
         auto delta_camera = Camera{
             1, 1,
             &pos[0],
-            &delta_look[0],
+            &delta_dir[0],
             &up[0],
             &n2c.data[0][0],
             &c2n.data[0][0],
             1e-2f,
             false};
         auto pxy = camera_to_screen(delta_camera, pt);
-        delta_look[i] -= 2 * finite_delta;
+        delta_dir[i] -= 2 * finite_delta;
         delta_camera = Camera{
             1, 1,
             &pos[0],
-            &delta_look[0],
+            &delta_dir[0],
             &up[0],
             &n2c.data[0][0],
             &c2n.data[0][0],
@@ -316,7 +316,7 @@ void test_d_camera_to_screen() {
             false};
         auto nxy = camera_to_screen(delta_camera, pt);
         auto diff = (sum(pxy - nxy)) / (2 * finite_delta);
-        equal_or_error(__FILE__, __LINE__, (Real)diff, (Real)d_camera.look[i]);
+        equal_or_error(__FILE__, __LINE__, (Real)diff, (Real)d_camera.dir[i]);
     }
     for (int i = 0; i < 3; i++) {
         auto delta_up = up;
@@ -324,7 +324,7 @@ void test_d_camera_to_screen() {
         auto delta_camera = Camera{
             1, 1,
             &pos[0],
-            &look[0],
+            &dir[0],
             &delta_up[0],
             &n2c.data[0][0],
             &c2n.data[0][0],
@@ -335,7 +335,7 @@ void test_d_camera_to_screen() {
         delta_camera = Camera{
             1, 1,
             &pos[0],
-            &look[0],
+            &dir[0],
             &delta_up[0],
             &n2c.data[0][0],
             &c2n.data[0][0],

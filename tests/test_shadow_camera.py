@@ -9,18 +9,18 @@ pyredner.set_use_gpu(torch.cuda.is_available())
 
 # Set up the scene using Pytorch tensor
 position = torch.tensor([0.0, 9.0, 0.0])
-look_at = torch.tensor([0.0, 0.0, 0.0])
+direction = torch.tensor([0.0, -1.0, 0.0])
 up = torch.tensor([0.0, 0.0, 1.0])
 fov = torch.tensor([45.0])
 clip_near = 1e-2
 
 resolution = (256, 256)
 cam = pyredner.Camera(position = position,
-                     look_at = look_at,
-                     up = up,
-                     fov = fov,
-                     clip_near = clip_near,
-                     resolution = resolution)
+                      direction = direction,
+                      up = up,
+                      fov = fov,
+                      clip_near = clip_near,
+                      resolution = resolution)
 
 mat_grey = pyredner.Material(\
     diffuse_reflectance = torch.tensor([0.5, 0.5, 0.5],
@@ -70,8 +70,9 @@ if pyredner.get_use_gpu():
 
 # Perturb the scene, this is our initial guess
 position = torch.tensor([-2.0, 7.0, 2.0], requires_grad = True)
+direction = torch.tensor(-position.data, requires_grad = True)
 scene.camera = pyredner.Camera(position = position,
-                               look_at = look_at,
+                               direction = direction,
                                up = up,
                                fov = fov,
                                clip_near = clip_near,
@@ -87,14 +88,14 @@ diff = torch.abs(target - img)
 pyredner.imwrite(diff.cpu(), 'results/test_shadow_camera/init_diff.png')
 
 # Optimize for blocker vertices
-optimizer = torch.optim.Adam([position], lr=5e-2)
+optimizer = torch.optim.Adam([position, direction], lr=5e-2)
 for t in range(200):
     print('iteration:', t)
     optimizer.zero_grad()
     # Forward pass: render the image
     # Need to rerun the Camera constructor for PyTorch autodiff to compute the derivatives
     scene.camera = pyredner.Camera(position   = position,
-                                   look_at    = look_at,
+                                   direction  = direction,
                                    up         = up,
                                    fov        = fov,
                                    clip_near  = clip_near,
@@ -109,10 +110,12 @@ for t in range(200):
     print('loss:', loss.item())
 
     loss.backward()
-    print('grad:', position.grad)
+    print('position.grad:', position.grad)
+    print('direction.grad:', direction.grad)
 
     optimizer.step()
     print('position:', position)
+    print('direction:', direction)
 
 args = pyredner.RenderFunction.serialize_scene(\
     scene = scene,

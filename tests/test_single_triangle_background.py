@@ -13,7 +13,7 @@ pyredner.set_use_gpu(torch.cuda.is_available())
 
 # Setup camera
 cam = pyredner.Camera(position = torch.tensor([0.0, 0.0, -5.0]),
-                      look_at = torch.tensor([0.0, 0.0, 0.0]),
+                      direction = torch.tensor([0.0, 0.0, 1.0]),
                       up = torch.tensor([0.0, 1.0, 0.0]),
                       fov = torch.tensor([45.0]), # in degree
                       clip_near = 1e-2, # needs to > 0
