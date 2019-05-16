@@ -682,212 +682,222 @@ void render(const Scene &scene,
                     d_ray_differentials,
                     d_points);
 
-                ////////////////////////////////////////////////////////////////////////////////
-                // Sample edges for secondary visibility
-                auto num_edge_samples = 2 * num_actives;
-                auto edge_samples = path_buffer.secondary_edge_samples.view(0, num_actives);
-                edge_sampler->next_secondary_edge_samples(edge_samples);
-                auto edge_records = path_buffer.secondary_edge_records.view(0, num_actives);
-                auto edge_rays = path_buffer.edge_rays.view(0, num_edge_samples);
-                auto edge_ray_differentials =
-                    path_buffer.edge_ray_differentials.view(0, num_edge_samples);
-                auto edge_throughputs = path_buffer.edge_throughputs.view(0, num_edge_samples);
-                auto edge_shading_isects =
-                    path_buffer.edge_shading_isects.view(0, num_edge_samples);
-                auto edge_shading_points =
-                    path_buffer.edge_shading_points.view(0, num_edge_samples);
-                auto edge_min_roughness =
-                    path_buffer.edge_min_roughness.view(0, num_edge_samples);
-                sample_secondary_edges(
-                    scene,
-                    active_pixels,
-                    edge_samples,
-                    incoming_rays,
-                    incoming_ray_differentials,
-                    shading_isects,
-                    shading_points,
-                    nee_rays,
-                    light_isects,
-                    light_points,
-                    throughputs,
-                    min_roughness,
-                    d_rendered_image.get(),
-                    channel_info,
-                    edge_records,
-                    edge_rays,
-                    edge_ray_differentials,
-                    edge_throughputs,
-                    edge_min_roughness);
-
-                // Now we path trace these edges
-                auto edge_active_pixels = path_buffer.edge_active_pixels.view(0, num_edge_samples);
-                init_active_pixels(edge_rays, edge_active_pixels, scene.use_gpu, thrust_alloc);
-                // Intersect with the scene
-                intersect(scene,
-                          edge_active_pixels,
-                          edge_rays,
-                          edge_ray_differentials,
-                          edge_shading_isects,
-                          edge_shading_points,
-                          edge_ray_differentials,
-                          optix_rays,
-                          optix_hits);
-                // Update edge throughputs: take geometry terms and Jacobians into account
-                update_secondary_edge_weights(scene,
-                                              active_pixels,
-                                              shading_points,
-                                              edge_shading_isects,
-                                              edge_shading_points,
-                                              edge_records,
-                                              edge_throughputs);
-                // Initialize edge contribution
-                auto edge_contribs = path_buffer.edge_contribs.view(0, num_edge_samples);
-                DISPATCH(scene.use_gpu, thrust::fill,
-                    edge_contribs.begin(), edge_contribs.end(), 0);
-                accumulate_primary_contribs(
-                    scene,
-                    edge_active_pixels,
-                    edge_throughputs,
-                    BufferView<Real>(), // channel multipliers
-                    edge_rays,
-                    edge_ray_differentials,
-                    edge_shading_isects,
-                    edge_shading_points,
-                    Real(1) / options.num_samples,
-                    channel_info,
-                    nullptr,
-                    edge_contribs);
-                // Stream compaction: remove invalid intersections
-                update_active_pixels(edge_active_pixels,
-                                     edge_shading_isects,
-                                     edge_active_pixels,
-                                     scene.use_gpu);
-                auto num_active_edge_samples = edge_active_pixels.size();
-                // Record the hit points for derivatives computation later
-                auto edge_surface_points =
-                    path_buffer.edge_surface_points.view(0, num_active_edge_samples);
-                parallel_for(get_position{
-                    edge_active_pixels.begin(),
-                    edge_shading_points.begin(),
-                    edge_surface_points.begin()}, num_active_edge_samples, scene.use_gpu);
-                for (int edge_depth = depth + 1; edge_depth < max_bounces &&
-                       num_active_edge_samples > 0; edge_depth++) {
-                    // Path tracing loop for secondary edges
-                    auto edge_depth_ = edge_depth - (depth + 1);
-                    auto main_buffer_beg = (edge_depth_ % 2) * (2 * num_pixels);
-                    auto next_buffer_beg = ((edge_depth_ + 1) % 2) * (2 * num_pixels);
-                    const auto active_pixels = path_buffer.edge_active_pixels.view(
-                        main_buffer_beg, num_active_edge_samples);
-                    auto light_samples = path_buffer.edge_light_samples.view(0, num_edge_samples);
-                    auto bsdf_samples = path_buffer.edge_bsdf_samples.view(0, num_edge_samples);
-                    auto tmp_light_samples = path_buffer.tmp_light_samples.view(0, num_actives);
-                    auto tmp_bsdf_samples = path_buffer.tmp_bsdf_samples.view(0, num_actives);
-                    auto shading_isects =
-                        path_buffer.edge_shading_isects.view(main_buffer_beg, num_edge_samples);
-                    auto shading_points =
-                        path_buffer.edge_shading_points.view(main_buffer_beg, num_edge_samples);
-                    auto light_isects = path_buffer.edge_light_isects.view(0, num_edge_samples);
-                    auto light_points = path_buffer.edge_light_points.view(0, num_edge_samples);
-                    auto incoming_rays =
-                        path_buffer.edge_rays.view(main_buffer_beg, num_edge_samples);
-                    auto ray_differentials =
+                if (scene.use_secondary_edge_sampling) {
+                    ////////////////////////////////////////////////////////////////////////////////
+                    // Sample edges for secondary visibility
+                    auto num_edge_samples = 2 * num_actives;
+                    auto edge_samples = path_buffer.secondary_edge_samples.view(0, num_actives);
+                    edge_sampler->next_secondary_edge_samples(edge_samples);
+                    auto edge_records = path_buffer.secondary_edge_records.view(0, num_actives);
+                    auto edge_rays = path_buffer.edge_rays.view(0, num_edge_samples);
+                    auto edge_ray_differentials =
                         path_buffer.edge_ray_differentials.view(0, num_edge_samples);
-                    auto nee_rays = path_buffer.edge_nee_rays.view(0, num_edge_samples);
-                    auto next_rays = path_buffer.edge_rays.view(next_buffer_beg, num_edge_samples);
-                    auto bsdf_isects = path_buffer.edge_shading_isects.view(
-                        next_buffer_beg, num_edge_samples);
-                    auto bsdf_points = path_buffer.edge_shading_points.view(
-                        next_buffer_beg, num_edge_samples);
-                    const auto throughputs = path_buffer.edge_throughputs.view(
-                        main_buffer_beg, num_edge_samples);
-                    auto next_throughputs = path_buffer.edge_throughputs.view(
-                        next_buffer_beg, num_edge_samples);
-                    auto next_active_pixels = path_buffer.edge_active_pixels.view(
-                        next_buffer_beg, num_edge_samples);
+                    auto edge_throughputs = path_buffer.edge_throughputs.view(0, num_edge_samples);
+                    auto edge_shading_isects =
+                        path_buffer.edge_shading_isects.view(0, num_edge_samples);
+                    auto edge_shading_points =
+                        path_buffer.edge_shading_points.view(0, num_edge_samples);
                     auto edge_min_roughness =
-                        path_buffer.edge_min_roughness.view(main_buffer_beg, num_edge_samples);
-                    auto edge_next_min_roughness =
-                        path_buffer.edge_min_roughness.view(next_buffer_beg, num_edge_samples);
-
-                    // Sample points on lights
-                    edge_sampler->next_light_samples(tmp_light_samples);
-                    // Copy the samples
-                    parallel_for(copy_interleave<LightSample>{
-                        tmp_light_samples.begin(), light_samples.begin()},
-                        tmp_light_samples.size(), scene.use_gpu);
-                    sample_point_on_light(
-                        scene, active_pixels, shading_points,
-                        light_samples, light_isects, light_points, nee_rays);
-                    occluded(scene, active_pixels, nee_rays, optix_rays, optix_hits);
-
-                    // Sample directions based on BRDF
-                    edge_sampler->next_bsdf_samples(tmp_bsdf_samples);
-                    // Copy the samples
-                    parallel_for(copy_interleave<BSDFSample>{
-                        tmp_bsdf_samples.begin(), bsdf_samples.begin()},
-                        tmp_bsdf_samples.size(), scene.use_gpu);
-                    bsdf_sample(scene,
-                                active_pixels,
-                                incoming_rays,
-                                ray_differentials,
-                                shading_isects,
-                                shading_points,
-                                bsdf_samples,
-                                edge_min_roughness,
-                                next_rays,
-                                ray_differentials,
-                                edge_next_min_roughness);
-                    // Intersect with the scene
-                    intersect(scene,
-                              active_pixels,
-                              next_rays,
-                              ray_differentials,
-                              bsdf_isects,
-                              bsdf_points,
-                              ray_differentials,
-                              optix_rays,
-                              optix_hits);
-
-                    // Compute path contribution & update throughput
-                    accumulate_path_contribs(
+                        path_buffer.edge_min_roughness.view(0, num_edge_samples);
+                    sample_secondary_edges(
                         scene,
                         active_pixels,
-                        throughputs,
+                        edge_samples,
                         incoming_rays,
+                        incoming_ray_differentials,
                         shading_isects,
                         shading_points,
+                        nee_rays,
                         light_isects,
                         light_points,
-                        nee_rays,
-                        bsdf_isects,
-                        bsdf_points,
-                        next_rays,
-                        edge_min_roughness,
+                        throughputs,
+                        min_roughness,
+                        d_rendered_image.get(),
+                        channel_info,
+                        edge_records,
+                        edge_rays,
+                        edge_ray_differentials,
+                        edge_throughputs,
+                        edge_min_roughness);
+
+                    // Now we path trace these edges
+                    auto edge_active_pixels = path_buffer.edge_active_pixels.view(0, num_edge_samples);
+                    init_active_pixels(edge_rays, edge_active_pixels, scene.use_gpu, thrust_alloc);
+                    // Intersect with the scene
+                    intersect(scene,
+                              edge_active_pixels,
+                              edge_rays,
+                              edge_ray_differentials,
+                              edge_shading_isects,
+                              edge_shading_points,
+                              edge_ray_differentials,
+                              optix_rays,
+                              optix_hits);
+                    // Update edge throughputs: take geometry terms and Jacobians into account
+                    update_secondary_edge_weights(scene,
+                                                  active_pixels,
+                                                  shading_points,
+                                                  edge_shading_isects,
+                                                  edge_shading_points,
+                                                  edge_records,
+                                                  edge_throughputs);
+                    // Initialize edge contribution
+                    auto edge_contribs = path_buffer.edge_contribs.view(0, num_edge_samples);
+                    DISPATCH(scene.use_gpu, thrust::fill,
+                        edge_contribs.begin(), edge_contribs.end(), 0);
+                    accumulate_primary_contribs(
+                        scene,
+                        edge_active_pixels,
+                        edge_throughputs,
+                        BufferView<Real>(), // channel multipliers
+                        edge_rays,
+                        edge_ray_differentials,
+                        edge_shading_isects,
+                        edge_shading_points,
                         Real(1) / options.num_samples,
                         channel_info,
-                        next_throughputs,
                         nullptr,
                         edge_contribs);
+                    // Stream compaction: remove invalid intersections
+                    update_active_pixels(edge_active_pixels,
+                                         edge_shading_isects,
+                                         edge_active_pixels,
+                                         scene.use_gpu);
+                    auto num_active_edge_samples = edge_active_pixels.size();
+                    // Record the hit points for derivatives computation later
+                    auto edge_surface_points =
+                        path_buffer.edge_surface_points.view(0, num_active_edge_samples);
+                    parallel_for(get_position{
+                        edge_active_pixels.begin(),
+                        edge_shading_points.begin(),
+                        edge_surface_points.begin()}, num_active_edge_samples, scene.use_gpu);
+                    for (int edge_depth = depth + 1; edge_depth < max_bounces &&
+                           num_active_edge_samples > 0; edge_depth++) {
+                        // Path tracing loop for secondary edges
+                        auto edge_depth_ = edge_depth - (depth + 1);
+                        auto main_buffer_beg = (edge_depth_ % 2) * (2 * num_pixels);
+                        auto next_buffer_beg = ((edge_depth_ + 1) % 2) * (2 * num_pixels);
+                        const auto active_pixels = path_buffer.edge_active_pixels.view(
+                            main_buffer_beg, num_active_edge_samples);
+                        auto light_samples = path_buffer.edge_light_samples.view(0, num_edge_samples);
+                        auto bsdf_samples = path_buffer.edge_bsdf_samples.view(0, num_edge_samples);
+                        auto tmp_light_samples = path_buffer.tmp_light_samples.view(0, num_actives);
+                        auto tmp_bsdf_samples = path_buffer.tmp_bsdf_samples.view(0, num_actives);
+                        auto shading_isects =
+                            path_buffer.edge_shading_isects.view(main_buffer_beg, num_edge_samples);
+                        auto shading_points =
+                            path_buffer.edge_shading_points.view(main_buffer_beg, num_edge_samples);
+                        auto light_isects = path_buffer.edge_light_isects.view(0, num_edge_samples);
+                        auto light_points = path_buffer.edge_light_points.view(0, num_edge_samples);
+                        auto incoming_rays =
+                            path_buffer.edge_rays.view(main_buffer_beg, num_edge_samples);
+                        auto ray_differentials =
+                            path_buffer.edge_ray_differentials.view(0, num_edge_samples);
+                        auto nee_rays = path_buffer.edge_nee_rays.view(0, num_edge_samples);
+                        auto next_rays = path_buffer.edge_rays.view(next_buffer_beg, num_edge_samples);
+                        auto bsdf_isects = path_buffer.edge_shading_isects.view(
+                            next_buffer_beg, num_edge_samples);
+                        auto bsdf_points = path_buffer.edge_shading_points.view(
+                            next_buffer_beg, num_edge_samples);
+                        const auto throughputs = path_buffer.edge_throughputs.view(
+                            main_buffer_beg, num_edge_samples);
+                        auto next_throughputs = path_buffer.edge_throughputs.view(
+                            next_buffer_beg, num_edge_samples);
+                        auto next_active_pixels = path_buffer.edge_active_pixels.view(
+                            next_buffer_beg, num_edge_samples);
+                        auto edge_min_roughness =
+                            path_buffer.edge_min_roughness.view(main_buffer_beg, num_edge_samples);
+                        auto edge_next_min_roughness =
+                            path_buffer.edge_min_roughness.view(next_buffer_beg, num_edge_samples);
 
-                    // Stream compaction: remove invalid bsdf intersections
-                    // active_pixels -> next_active_pixels
-                    update_active_pixels(active_pixels, bsdf_isects,
-                                         next_active_pixels, scene.use_gpu);
-                    num_active_edge_samples = next_active_pixels.size();
+                        // Sample points on lights
+                        edge_sampler->next_light_samples(tmp_light_samples);
+                        // Copy the samples
+                        parallel_for(copy_interleave<LightSample>{
+                            tmp_light_samples.begin(), light_samples.begin()},
+                            tmp_light_samples.size(), scene.use_gpu);
+                        sample_point_on_light(
+                            scene, active_pixels, shading_points,
+                            light_samples, light_isects, light_points, nee_rays);
+                        occluded(scene, active_pixels, nee_rays, optix_rays, optix_hits);
+
+                        // Sample directions based on BRDF
+                        edge_sampler->next_bsdf_samples(tmp_bsdf_samples);
+                        // Copy the samples
+                        parallel_for(copy_interleave<BSDFSample>{
+                            tmp_bsdf_samples.begin(), bsdf_samples.begin()},
+                            tmp_bsdf_samples.size(), scene.use_gpu);
+                        bsdf_sample(scene,
+                                    active_pixels,
+                                    incoming_rays,
+                                    ray_differentials,
+                                    shading_isects,
+                                    shading_points,
+                                    bsdf_samples,
+                                    edge_min_roughness,
+                                    next_rays,
+                                    ray_differentials,
+                                    edge_next_min_roughness);
+                        // Intersect with the scene
+                        intersect(scene,
+                                  active_pixels,
+                                  next_rays,
+                                  ray_differentials,
+                                  bsdf_isects,
+                                  bsdf_points,
+                                  ray_differentials,
+                                  optix_rays,
+                                  optix_hits);
+
+                        // Compute path contribution & update throughput
+                        accumulate_path_contribs(
+                            scene,
+                            active_pixels,
+                            throughputs,
+                            incoming_rays,
+                            shading_isects,
+                            shading_points,
+                            light_isects,
+                            light_points,
+                            nee_rays,
+                            bsdf_isects,
+                            bsdf_points,
+                            next_rays,
+                            edge_min_roughness,
+                            Real(1) / options.num_samples,
+                            channel_info,
+                            next_throughputs,
+                            nullptr,
+                            edge_contribs);
+
+                        // Stream compaction: remove invalid bsdf intersections
+                        // active_pixels -> next_active_pixels
+                        update_active_pixels(active_pixels, bsdf_isects,
+                                             next_active_pixels, scene.use_gpu);
+                        num_active_edge_samples = next_active_pixels.size();
+                    }
+                    // Now the path traced contribution for the edges is stored in edge_contribs
+                    // We'll compute the derivatives w.r.t. three points: two on edges and one on
+                    // the shading point
+                    auto d_edge_vertices = path_buffer.d_general_vertices.view(0, num_edge_samples);
+                    accumulate_secondary_edge_derivatives(scene,
+                                                          active_pixels,
+                                                          shading_points,
+                                                          edge_records,
+                                                          edge_surface_points,
+                                                          edge_contribs,
+                                                          d_points,
+                                                          d_edge_vertices);
+                    // Deposit vertices, texture, light derivatives
+                    // sort the derivatives by id & reduce by key
+                    accumulate_vertex(
+                        d_edge_vertices,
+                        path_buffer.d_vertex_reduce_buffer.view(0, 2 * num_actives),
+                        d_scene->shapes.view(0, d_scene->shapes.size()),
+                        scene.use_gpu,
+                        thrust_alloc);
+                    ////////////////////////////////////////////////////////////////////////////////
                 }
-                // Now the path traced contribution for the edges is stored in edge_contribs
-                // We'll compute the derivatives w.r.t. three points: two on edges and one on
-                // the shading point
-                auto d_edge_vertices = path_buffer.d_general_vertices.view(0, num_edge_samples);
-                accumulate_secondary_edge_derivatives(scene,
-                                                      active_pixels,
-                                                      shading_points,
-                                                      edge_records,
-                                                      edge_surface_points,
-                                                      edge_contribs,
-                                                      d_points,
-                                                      d_edge_vertices);
-                ////////////////////////////////////////////////////////////////////////////////
                 /*cuda_synchronize();
                 for (int i = 0; i < num_actives; i++) {
                     auto pixel_id = active_pixels[i];
@@ -940,12 +950,6 @@ void render(const Scene &scene,
                 accumulate_vertex(
                     d_bsdf_vertices, 
                     path_buffer.d_vertex_reduce_buffer.view(0, 3 * num_actives),
-                    d_scene->shapes.view(0, d_scene->shapes.size()),
-                    scene.use_gpu,
-                    thrust_alloc);
-                accumulate_vertex(
-                    d_edge_vertices,
-                    path_buffer.d_vertex_reduce_buffer.view(0, 2 * num_actives),
                     d_scene->shapes.view(0, d_scene->shapes.size()),
                     scene.use_gpu,
                     thrust_alloc);
@@ -1146,7 +1150,7 @@ void render(const Scene &scene,
 
             /////////////////////////////////////////////////////////////////////////////////
             // Sample primary edges for geometric derivatives
-            if (scene.edge_sampler.edges.size() > 0) {
+            if (scene.use_primary_edge_sampling && scene.edge_sampler.edges.size() > 0) {
                 auto primary_edge_samples = path_buffer.primary_edge_samples.view(0, num_pixels);
                 auto edge_records = path_buffer.primary_edge_records.view(0, num_pixels);
                 auto rays = path_buffer.edge_rays.view(0, 2 * num_pixels);

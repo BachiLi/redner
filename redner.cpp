@@ -46,7 +46,9 @@ PYBIND11_MODULE(redner, m) {
                       const std::vector<const AreaLight*> &,
                       const std::shared_ptr<const EnvironmentMap> &,
                       bool,
-                      int>());
+                      int,
+                      bool,
+                      bool>());
 
     py::class_<DScene, std::shared_ptr<DScene>>(m, "DScene")
         .def(py::init<const DCamera &,
