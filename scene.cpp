@@ -64,8 +64,12 @@ Scene::Scene(const Camera &camera,
              const std::vector<const AreaLight*> &area_lights,
              const std::shared_ptr<const EnvironmentMap> &envmap,
              bool use_gpu,
-             int gpu_index)
-        : camera(camera), use_gpu(use_gpu), gpu_index(gpu_index) {
+             int gpu_index,
+             bool use_primary_edge_sampling,
+             bool use_secondary_edge_sampling)
+        : camera(camera), use_gpu(use_gpu), gpu_index(gpu_index),
+          use_primary_edge_sampling(use_primary_edge_sampling),
+          use_secondary_edge_sampling(use_secondary_edge_sampling) {
 #ifdef __NVCC__
     int old_device_id = -1;
 #endif
@@ -769,7 +773,7 @@ void test_scene_intersect(bool use_gpu) {
         &c2n.data[0][0],
         1e-2f,
         false};
-    Scene scene{camera, {&triangle}, {}, {}, {}, use_gpu, 0};
+    Scene scene{camera, {&triangle}, {}, {}, {}, use_gpu, 0, false, false};
     parallel_init();
 
     Buffer<int> active_pixels(use_gpu, 2);
@@ -866,7 +870,7 @@ void test_sample_point_on_light(bool use_gpu) {
         &c2n.data[0][0],
         1e-2f,
         false};
-    Scene scene{camera, {&shape0, &shape1}, {}, {&light0, &light1}, {}, use_gpu, 0};
+    Scene scene{camera, {&shape0, &shape1}, {}, {&light0, &light1}, {}, use_gpu, 0, false, false};
     cuda_synchronize();
     // Power of the first light source: 1.5
     // Power of the second light source: 2

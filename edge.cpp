@@ -232,6 +232,10 @@ struct secondary_edge_weighter {
 
 EdgeSampler::EdgeSampler(const std::vector<const Shape*> &shapes,
                          const Scene &scene) {
+    if (!scene.use_primary_edge_sampling && !scene.use_secondary_edge_sampling) {
+        // No need to collect edges
+        return;
+    }
     auto shapes_buffer = scene.shapes.view(0, shapes.size());
     // Conservatively allocate a big buffer for all edges
     auto num_total_triangles = 0;
@@ -291,86 +295,90 @@ EdgeSampler::EdgeSampler(const std::vector<const Shape*> &shapes,
         edges.begin() + current_num_edges, edge_remover{shapes_buffer.begin()});
     edges.count = edges_end - edges.begin();
 
-    // Primary edge sampler:
-    primary_edges_pmf = Buffer<Real>(scene.use_gpu, edges.count);
-    primary_edges_cdf = Buffer<Real>(scene.use_gpu, edges.count);
-    // For each edge, if it is a silhouette, we project them on screen
-    // and compute the screen-space length. We store the length in
-    // primary_edges_pmf
-    {
-        parallel_for(primary_edge_weighter{
-            scene.camera,
-            scene.shapes.data,
-            edges.begin(),
-            primary_edges_pmf.begin()
-        }, edges.size(), scene.use_gpu);
-        // Compute PMF & CDF
-        // First normalize primary_edges_pmf.
-        auto total_length = DISPATCH(scene.use_gpu, thrust::reduce,
-            primary_edges_pmf.begin(),
-            primary_edges_pmf.end(),
-            Real(0),
-            thrust::plus<Real>());
-        DISPATCH(scene.use_gpu, thrust::transform,
-            primary_edges_pmf.begin(),
-            primary_edges_pmf.end(),
-            thrust::make_constant_iterator(total_length),
-            primary_edges_pmf.begin(),
-            thrust::divides<Real>());
-        // Next we compute a prefix sum
-        DISPATCH(scene.use_gpu, thrust::transform_exclusive_scan,
-            primary_edges_pmf.begin(),
-            primary_edges_pmf.end(),
-            primary_edges_cdf.begin(),
-            thrust::identity<Real>(), Real(0), thrust::plus<Real>());
-    }
-
-    // Secondary edge sampler
-    if (!c_use_edge_tree) {
-        // Build a global distribution if we are not using edge tree
-        secondary_edges_pmf = Buffer<Real>(scene.use_gpu, edges.count);
-        secondary_edges_cdf = Buffer<Real>(scene.use_gpu, edges.count);
-        // For each edge we compute the length and store the length in 
-        // secondary_edges_pmf
-        parallel_for(secondary_edge_weighter{
-            scene.shapes.data,
-            edges.begin(),
-            secondary_edges_pmf.begin()
-        }, edges.size(), scene.use_gpu);
+    if (scene.use_primary_edge_sampling) {
+        // Primary edge sampler:
+        primary_edges_pmf = Buffer<Real>(scene.use_gpu, edges.count);
+        primary_edges_cdf = Buffer<Real>(scene.use_gpu, edges.count);
+        // For each edge, if it is a silhouette, we project them on screen
+        // and compute the screen-space length. We store the length in
+        // primary_edges_pmf
         {
+            parallel_for(primary_edge_weighter{
+                scene.camera,
+                scene.shapes.data,
+                edges.begin(),
+                primary_edges_pmf.begin()
+            }, edges.size(), scene.use_gpu);
             // Compute PMF & CDF
-            // First normalize secondary_edges_pmf.
+            // First normalize primary_edges_pmf.
             auto total_length = DISPATCH(scene.use_gpu, thrust::reduce,
-                secondary_edges_pmf.begin(),
-                secondary_edges_pmf.end(),
+                primary_edges_pmf.begin(),
+                primary_edges_pmf.end(),
                 Real(0),
                 thrust::plus<Real>());
             DISPATCH(scene.use_gpu, thrust::transform,
-                secondary_edges_pmf.begin(),
-                secondary_edges_pmf.end(),
+                primary_edges_pmf.begin(),
+                primary_edges_pmf.end(),
                 thrust::make_constant_iterator(total_length),
-                secondary_edges_pmf.begin(),
+                primary_edges_pmf.begin(),
                 thrust::divides<Real>());
             // Next we compute a prefix sum
             DISPATCH(scene.use_gpu, thrust::transform_exclusive_scan,
-                secondary_edges_pmf.begin(),
-                secondary_edges_pmf.end(),
-                secondary_edges_cdf.begin(),
+                primary_edges_pmf.begin(),
+                primary_edges_pmf.end(),
+                primary_edges_cdf.begin(),
                 thrust::identity<Real>(), Real(0), thrust::plus<Real>());
         }
-        // Build a hierarchical data structure for edge sampling
-        edge_tree = std::unique_ptr<EdgeTree>(
-            new EdgeTree(scene.use_gpu,
-                         scene.camera,
-                         shapes_buffer,
-                         edges.view(0, edges.size())));
-    } else {
-        // Build a hierarchical data structure for edge sampling
-        edge_tree = std::unique_ptr<EdgeTree>(
-            new EdgeTree(scene.use_gpu,
-                         scene.camera,
-                         shapes_buffer,
-                         edges.view(0, edges.size())));
+    }
+
+    if (scene.use_secondary_edge_sampling) {
+        // Secondary edge sampler
+        if (!c_use_edge_tree) {
+            // Build a global distribution if we are not using edge tree
+            secondary_edges_pmf = Buffer<Real>(scene.use_gpu, edges.count);
+            secondary_edges_cdf = Buffer<Real>(scene.use_gpu, edges.count);
+            // For each edge we compute the length and store the length in 
+            // secondary_edges_pmf
+            parallel_for(secondary_edge_weighter{
+                scene.shapes.data,
+                edges.begin(),
+                secondary_edges_pmf.begin()
+            }, edges.size(), scene.use_gpu);
+            {
+                // Compute PMF & CDF
+                // First normalize secondary_edges_pmf.
+                auto total_length = DISPATCH(scene.use_gpu, thrust::reduce,
+                    secondary_edges_pmf.begin(),
+                    secondary_edges_pmf.end(),
+                    Real(0),
+                    thrust::plus<Real>());
+                DISPATCH(scene.use_gpu, thrust::transform,
+                    secondary_edges_pmf.begin(),
+                    secondary_edges_pmf.end(),
+                    thrust::make_constant_iterator(total_length),
+                    secondary_edges_pmf.begin(),
+                    thrust::divides<Real>());
+                // Next we compute a prefix sum
+                DISPATCH(scene.use_gpu, thrust::transform_exclusive_scan,
+                    secondary_edges_pmf.begin(),
+                    secondary_edges_pmf.end(),
+                    secondary_edges_cdf.begin(),
+                    thrust::identity<Real>(), Real(0), thrust::plus<Real>());
+            }
+            // Build a hierarchical data structure for edge sampling
+            edge_tree = std::unique_ptr<EdgeTree>(
+                new EdgeTree(scene.use_gpu,
+                             scene.camera,
+                             shapes_buffer,
+                             edges.view(0, edges.size())));
+        } else {
+            // Build a hierarchical data structure for edge sampling
+            edge_tree = std::unique_ptr<EdgeTree>(
+                new EdgeTree(scene.use_gpu,
+                             scene.camera,
+                             shapes_buffer,
+                             edges.view(0, edges.size())));
+        }
     }
 }
 

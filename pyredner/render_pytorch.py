@@ -34,7 +34,9 @@ class RenderFunction(torch.autograd.Function):
                         num_samples,
                         max_bounces,
                         channels = [redner.channels.radiance],
-                        sampler_type = redner.SamplerType.independent):
+                        sampler_type = redner.SamplerType.independent,
+                        use_primary_edge_sampling = True,
+                        use_secondary_edge_sampling = True):
         """
             Given a PyRedner scene & rendering options, convert them to a linear list of argument,
             so that we can use it in PyTorch.
@@ -66,6 +68,8 @@ class RenderFunction(torch.autograd.Function):
                             Following samplers are supported:
                                 redner.SamplerType.independent
                                 redner.SamplerType.sobol
+            use_primary_edge_sampling -- A boolean
+            use_secondary_edge_sampling -- A boolean
         """
         cam = scene.camera
         num_shapes = len(scene.shapes)
@@ -124,6 +128,8 @@ class RenderFunction(torch.autograd.Function):
         args.append(max_bounces)
         args.append(channels)
         args.append(sampler_type)
+        args.append(use_primary_edge_sampling)
+        args.append(use_secondary_edge_sampling)
 
         return args
     
@@ -301,18 +307,7 @@ class RenderFunction(torch.autograd.Function):
         else:
             current_index += 7
 
-        start = time.time()
-        scene = redner.Scene(camera,
-                             shapes,
-                             materials,
-                             area_lights,
-                             envmap,
-                             pyredner.get_use_gpu(),
-                             pyredner.get_device().index if pyredner.get_device().index is not None else -1)
-        time_elapsed = time.time() - start
-        if print_timing:
-            print('Scene construction, time: %.5f s' % time_elapsed)
-
+        # Options
         num_samples = args[current_index]
         current_index += 1
         max_bounces = args[current_index]
@@ -321,6 +316,24 @@ class RenderFunction(torch.autograd.Function):
         current_index += 1
         sampler_type = args[current_index]
         current_index += 1
+        use_primary_edge_sampling = args[current_index]
+        current_index += 1
+        use_secondary_edge_sampling = args[current_index]
+        current_index += 1
+
+        start = time.time()
+        scene = redner.Scene(camera,
+                             shapes,
+                             materials,
+                             area_lights,
+                             envmap,
+                             pyredner.get_use_gpu(),
+                             pyredner.get_device().index if pyredner.get_device().index is not None else -1,
+                             use_primary_edge_sampling,
+                             use_secondary_edge_sampling)
+        time_elapsed = time.time() - start
+        if print_timing:
+            print('Scene construction, time: %.5f s' % time_elapsed)
 
         # check that num_samples is a tuple
         if isinstance(num_samples, int):
@@ -589,5 +602,7 @@ class RenderFunction(torch.autograd.Function):
         ret_list.append(None) # num bounces
         ret_list.append(None) # channels
         ret_list.append(None) # sampler type
+        ret_list.append(None) # use_primary_edge_sampling
+        ret_list.append(None) # use_secondary_edge_sampling
 
         return tuple(ret_list)

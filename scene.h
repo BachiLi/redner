@@ -26,7 +26,9 @@ struct Scene {
           const std::vector<const AreaLight*> &area_lights,
           const std::shared_ptr<const EnvironmentMap> &envmap,
           bool use_gpu,
-          int gpu_index);
+          int gpu_index,
+          bool use_primary_edge_sampling,
+          bool use_secondary_edge_sampling);
     ~Scene();
 
     // Flatten arrays of scene content
@@ -39,6 +41,8 @@ struct Scene {
     // Is the scene stored in GPU or CPU
     bool use_gpu;
     int gpu_index;
+    bool use_primary_edge_sampling;
+    bool use_secondary_edge_sampling;
 
 #ifdef COMPILE_WITH_CUDA
     // Optix handles
