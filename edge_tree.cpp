@@ -492,6 +492,7 @@ struct bvh_optimizer {
                                           uint8_t *p_opt) {
         // Algorithm 2 in Karras et al.
         auto num_subsets = (0x1 << n) - 1;
+        assert(num_subsets < 128);
         // TODO: move the following two arrays into shared memory
         Real a[128];
         Real c_opt[128];
@@ -641,6 +642,7 @@ struct bvh_optimizer {
 
             if (max_idx != -1) {
                 BVHNodeType *tmp = leaves[max_idx];
+                assert(nodes_counter < 5);
                 nodes[nodes_counter++] = tmp;
 
                 leaves[max_idx] = leaves[counter - 1];
