@@ -350,6 +350,7 @@ struct radix_tree_builder {
             t = (l + (divider - 1)) / divider;
         }
         auto gamma = idx + s * d + min(d, 0);
+        assert(gamma >= 0 && gamma + 1 < num_primitives);
         auto &node = nodes[idx];
         if (min(idx, j) == gamma) {
             node.children[0] = &leaves[gamma];
@@ -390,9 +391,11 @@ void build_radix_tree(const BufferView<uint64_t> &morton_codes,
 template <typename BVHNodeType>
 struct bvh_computer {
     DEVICE void operator()(int idx) {
-        const auto &edge = edges[edge_ids[idx]];
+        auto edge_id = edge_ids[idx];
+        assert(edge_id >= 0 && edge_id < num_edges);
+        const auto &edge = edges[edge_id];
         auto leaf = &leaves[idx];
-        leaf->bounds = convert_aabb<decltype(BVHNodeType::bounds)>(bounds[edge_ids[idx]]);
+        leaf->bounds = convert_aabb<decltype(BVHNodeType::bounds)>(bounds[edge_id]);
         // length * (pi - dihedral angle)
         auto v0 = get_v0(shapes, edge);
         auto v1 = get_v1(shapes, edge);
@@ -405,6 +408,7 @@ struct bvh_computer {
         auto node_idx = current - nodes;
         if (current != nullptr) {
             while(true) {
+                assert(node_idx >= 0 && node_idx < num_leaves);
                 auto res = atomic_increment(node_counters + node_idx);
                 if (res == 1) {
                     // Terminate the first thread entering this node to avoid duplicate computation
@@ -431,8 +435,10 @@ struct bvh_computer {
 
     const Shape *shapes;
     const Edge *edges;
+    const int num_edges;
     const int *edge_ids;
     const AABB6 *bounds;
+    const int num_leaves;
     int *node_counters;
     BVHNodeType *nodes;
     BVHNodeType *leaves;
@@ -447,8 +453,9 @@ void compute_bvh(const BufferView<Shape> &shapes,
                  BufferView<BVHNodeType> nodes,
                  BufferView<BVHNodeType> leaves,
                  bool use_gpu) {
+    assert(leaves.size() == edge_ids.size());
     parallel_for(bvh_computer<BVHNodeType>{
-            shapes.begin(), edges.begin(), edge_ids.begin(), bounds.begin(),
+            shapes.begin(), edges.begin(), edges.size(), edge_ids.begin(), bounds.begin(), leaves.size(),
             node_counters.begin(), nodes.begin(), leaves.begin()},
         leaves.size(),
         use_gpu);
