@@ -167,7 +167,7 @@ Vector3 bsdf(const Material &material,
     auto bsdf_cos = dot(shading_frame.n, wo);
     auto geom_cos = dot(geom_n, wo);
     auto cos_wi = dot(shading_frame.n, wi);
-    if (geom_wi <= 0 || bsdf_cos <= 1e-3f || geom_cos <= 1e-3f || cos_wi <= 1e-3f) {
+    if (geom_wi <= 0 || bsdf_cos <= 1e-3f || geom_cos <= 1e-3f) {
         // XXX: kind of hacky. we ignore extreme grazing angles
         // for numerical robustness
         return Vector3{0, 0, 0};
