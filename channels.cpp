@@ -22,7 +22,16 @@ ChannelInfo::ChannelInfo(const std::vector<Channels> &channels, bool use_gpu) : 
             }
             radiance_dimension = i;
         }
-        this->channels[i] = channels[i];
+        if (use_gpu) {
+            // We don't use unified memory to update here since another kernel might be running
+#ifdef __CUDACC__
+            checkCuda(cudaMemcpyAsync(&this->channels[i], &channels[i], sizeof(Channels), cudaMemcpyHostToDevice));
+#else
+            assert(false);
+#endif
+        } else {
+            this->channels[i] = channels[i];
+        }
     }
 }
 
