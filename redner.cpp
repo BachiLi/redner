@@ -21,6 +21,11 @@ PYBIND11_MODULE(redner, m) {
     py::class_<ptr<int>>(m, "int_ptr")
         .def(py::init<std::size_t>());
 
+    py::enum_<CameraType>(m, "CameraType")
+        .value("perspective", CameraType::Perspective)
+        .value("orthographic", CameraType::Orthographic)
+        .value("fisheye", CameraType::Fisheye);
+
     py::class_<Camera>(m, "Camera")
         .def(py::init<int,
                       int,
@@ -30,7 +35,7 @@ PYBIND11_MODULE(redner, m) {
                       ptr<float>,
                       ptr<float>,
                       float,
-                      bool>());
+                      CameraType>());
 
     py::class_<DCamera>(m, "DCamera")
         .def(py::init<ptr<float>,

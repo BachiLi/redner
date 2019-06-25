@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 import pyredner.transform as transform
+import redner
 
 class Camera:
     """
@@ -22,7 +23,8 @@ class Camera:
             cam_to_ndc (3x3 matrix): a matrix that transforms
                 [-1, 1/aspect_ratio] x [1, -1/aspect_ratio] to [0, 1] x [0, 1]
                 where aspect_ratio = width / height
-            fisheye (bool): whether the camera is a fisheye camera.
+            camera_type (render.camera_type): the type of the camera (perspective, orthographic, or fisheye)
+            fisheye (bool): whether the camera is a fisheye camera (legacy parameter just to ensure compatibility).
     """
     def __init__(self,
                  position,
@@ -32,6 +34,7 @@ class Camera:
                  clip_near,
                  resolution,
                  cam_to_ndc = None,
+                 camera_type = redner.CameraType.perspective,
                  fisheye = False):
         assert(position.dtype == torch.float32)
         assert(len(position.shape) == 1 and position.shape[0] == 3)
@@ -48,19 +51,22 @@ class Camera:
         self.look_at = look_at
         self.up = up
         self._fov = fov
-        # self.cam_to_world = transform.gen_look_at_matrix(position, look_at, up)
-        # self.world_to_cam = torch.inverse(self.cam_to_world).contiguous()
         if cam_to_ndc is None:
-            fov_factor = 1.0 / torch.tan(transform.radians(0.5 * fov))
-            o = torch.ones([1], dtype=torch.float32)
-            diag = torch.cat([fov_factor, fov_factor, o], 0)
-            self._cam_to_ndc = torch.diag(diag)
+            if camera_type == redner.CameraType.perspective:
+                fov_factor = 1.0 / torch.tan(transform.radians(0.5 * fov))
+                o = torch.ones([1], dtype=torch.float32)
+                diag = torch.cat([fov_factor, fov_factor, o], 0)
+                self._cam_to_ndc = torch.diag(diag)
+            else:
+                self._cam_to_ndc = torch.eye(3, dtype=torch.float32)
         else:
             self._cam_to_ndc = cam_to_ndc
         self.ndc_to_cam = torch.inverse(self.cam_to_ndc)
         self.clip_near = clip_near
         self.resolution = resolution
-        self.fisheye = fisheye
+        self.camera_type = camera_type
+        if fisheye:
+            self.camera_type = redner.camera_type.fisheye
 
     @property
     def fov(self):
@@ -94,7 +100,7 @@ class Camera:
             'ndc_to_cam': self.ndc_to_cam,
             'clip_near': self.clip_near,
             'resolution': self.resolution,
-            'fisheye': self.fisheye
+            'camera_type': self.camera_type
         }
 
     @classmethod
@@ -108,5 +114,5 @@ class Camera:
         out.ndc_to_cam = state_dict['ndc_to_cam']
         out.clip_near = state_dict['clip_near']
         out.resolution = state_dict['resolution']
-        out.fisheye = state_dict['fisheye']
+        out.camera_type = state_dict['camera_type']
         return out

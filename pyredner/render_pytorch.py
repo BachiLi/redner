@@ -88,7 +88,7 @@ class RenderFunction(torch.autograd.Function):
         args.append(cam.cam_to_ndc)
         args.append(cam.clip_near)
         args.append(cam.resolution)
-        args.append(cam.fisheye)
+        args.append(cam.camera_type)
         for shape in scene.shapes:
             args.append(shape.vertices)
             args.append(shape.indices)
@@ -162,7 +162,7 @@ class RenderFunction(torch.autograd.Function):
         current_index += 1
         resolution = args[current_index]
         current_index += 1
-        fisheye = args[current_index]
+        camera_type = args[current_index]
         current_index += 1
         camera = redner.Camera(resolution[1],
                                resolution[0],
@@ -172,7 +172,7 @@ class RenderFunction(torch.autograd.Function):
                                redner.float_ptr(ndc_to_cam.data_ptr()),
                                redner.float_ptr(cam_to_ndc.data_ptr()),
                                clip_near,
-                               fisheye)
+                               camera_type)
         shapes = []
         for i in range(num_shapes):
             vertices = args[current_index]
@@ -554,7 +554,7 @@ class RenderFunction(torch.autograd.Function):
         ret_list.append(d_cam_to_ndc)
         ret_list.append(None) # clip near
         ret_list.append(None) # resolution
-        ret_list.append(None) # fisheye
+        ret_list.append(None) # camera_type
 
         num_shapes = len(ctx.shapes)
         for i in range(num_shapes):

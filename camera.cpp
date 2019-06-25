@@ -87,7 +87,7 @@ void test_sample_primary_rays(bool use_gpu) {
         &n2c.data[0][0],
         &c2n.data[0][0],
         1e-2f,
-        false};
+        CameraType::Perspective};
     parallel_init();
 
     // Sample from the center of pixel
@@ -122,7 +122,7 @@ void test_d_sample_primary_rays() {
         &n2c.data[0][0],
         &c2n.data[0][0],
         1e-2f,
-        false};
+        CameraType::Perspective};
     DCameraInst d_camera;
     DRay d_ray{Vector3{1, 1, 1}, Vector3{1, 1, 1}};
     d_sample_primary_ray(camera,
@@ -142,7 +142,7 @@ void test_d_sample_primary_rays() {
             &n2c.data[0][0],
             &c2n.data[0][0],
             1e-2f,
-            false};
+            CameraType::Perspective};
         auto positive_ray =
             sample_primary(delta_camera, Vector2{0.5, 0.5});
         delta_pos[i] -= 2 * finite_delta;
@@ -154,7 +154,7 @@ void test_d_sample_primary_rays() {
             &n2c.data[0][0],
             &c2n.data[0][0],
             1e-2f,
-            false};
+            CameraType::Perspective};
         auto negative_ray =
             sample_primary(delta_camera, Vector2{0.5, 0.5});
         auto diff = (sum(positive_ray.org - negative_ray.org) +
@@ -173,7 +173,7 @@ void test_d_sample_primary_rays() {
             &n2c.data[0][0],
             &c2n.data[0][0],
             1e-2f,
-            false};
+            CameraType::Perspective};
         auto positive_ray =
             sample_primary(delta_camera, Vector2{0.5, 0.5});
         delta_look[i] -= 2 * finite_delta;
@@ -185,7 +185,7 @@ void test_d_sample_primary_rays() {
             &n2c.data[0][0],
             &c2n.data[0][0],
             1e-2f,
-            false};
+            CameraType::Perspective};
         auto negative_ray =
             sample_primary(delta_camera, Vector2{0.5, 0.5});
         auto diff = (sum(positive_ray.org - negative_ray.org) +
@@ -204,7 +204,7 @@ void test_d_sample_primary_rays() {
             &n2c.data[0][0],
             &c2n.data[0][0],
             1e-2f,
-            false};
+            CameraType::Perspective};
         auto positive_ray =
             sample_primary(delta_camera, Vector2{0.5, 0.5});
         delta_up[i] -= 2 * finite_delta;
@@ -216,7 +216,7 @@ void test_d_sample_primary_rays() {
             &n2c.data[0][0],
             &c2n.data[0][0],
             1e-2f,
-            false};
+            CameraType::Perspective};
         auto negative_ray =
             sample_primary(delta_camera, Vector2{0.5, 0.5});
         auto diff = (sum(positive_ray.org - negative_ray.org) +
@@ -255,7 +255,7 @@ void test_d_camera_to_screen() {
         &n2c.data[0][0],
         &c2n.data[0][0],
         1e-2f,
-        false};
+        CameraType::Perspective};
     auto pt = Vector3{0.5, 0.5, 1.0};
     auto dx = Real(1);
     auto dy = Real(1);
@@ -275,7 +275,7 @@ void test_d_camera_to_screen() {
             &n2c.data[0][0],
             &c2n.data[0][0],
             1e-2f,
-            false};
+            CameraType::Perspective};
         auto pxy = camera_to_screen(delta_camera, pt);
         delta_pos[i] -= 2 * finite_delta;
         delta_camera = Camera{
@@ -286,7 +286,7 @@ void test_d_camera_to_screen() {
             &n2c.data[0][0],
             &c2n.data[0][0],
             1e-2f,
-            false};
+            CameraType::Perspective};
         auto nxy = camera_to_screen(delta_camera, pt);
         auto diff = (sum(pxy - nxy)) / (2 * finite_delta);
         equal_or_error(__FILE__, __LINE__, (Real)diff, (Real)d_camera.position[i]);
@@ -302,7 +302,7 @@ void test_d_camera_to_screen() {
             &n2c.data[0][0],
             &c2n.data[0][0],
             1e-2f,
-            false};
+            CameraType::Perspective};
         auto pxy = camera_to_screen(delta_camera, pt);
         delta_look[i] -= 2 * finite_delta;
         delta_camera = Camera{
@@ -313,7 +313,7 @@ void test_d_camera_to_screen() {
             &n2c.data[0][0],
             &c2n.data[0][0],
             1e-2f,
-            false};
+            CameraType::Perspective};
         auto nxy = camera_to_screen(delta_camera, pt);
         auto diff = (sum(pxy - nxy)) / (2 * finite_delta);
         equal_or_error(__FILE__, __LINE__, (Real)diff, (Real)d_camera.look[i]);
@@ -329,7 +329,7 @@ void test_d_camera_to_screen() {
             &n2c.data[0][0],
             &c2n.data[0][0],
             1e-2f,
-            false};
+            CameraType::Perspective};
         auto pxy = camera_to_screen(delta_camera, pt);
         delta_up[i] -= 2 * finite_delta;
         delta_camera = Camera{
@@ -340,7 +340,7 @@ void test_d_camera_to_screen() {
             &n2c.data[0][0],
             &c2n.data[0][0],
             1e-2f,
-            false};
+            CameraType::Perspective};
         auto nxy = camera_to_screen(delta_camera, pt);
         auto diff = (sum(pxy - nxy)) / (2 * finite_delta);
         equal_or_error(__FILE__, __LINE__, (Real)diff, (Real)d_camera.up[i]);

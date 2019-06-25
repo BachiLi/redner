@@ -417,7 +417,9 @@ struct primary_edge_sampler {
             return;
         }
 
-        if (!camera.fisheye) {
+        if (camera.camera_type != CameraType::Fisheye) {
+            // Perspective or Orthographic cameras
+
             // Uniform sample on the edge
             auto edge_pt = v0_ss + sample.t * (v1_ss - v0_ss);
             // Reject samples outside of image plane
@@ -710,7 +712,7 @@ struct primary_edge_derivatives_computer {
         auto d_v0_ss = Vector2{0, 0};
         auto d_v1_ss = Vector2{0, 0};
         auto edge_pt = edge_record.edge_pt;
-        if (!camera.fisheye) {
+        if (camera.camera_type != CameraType::Fisheye) {
             // Equation 8 in the paper
             d_v0_ss.x = v1_ss.y - edge_pt.y;
             d_v0_ss.y = edge_pt.x - v1_ss.x;
