@@ -50,7 +50,7 @@ def load_mtl(filename):
         mtllib[current_mtl.name] = current_mtl
     return mtllib
 
-def load_obj(filename, obj_group = True):
+def load_obj(filename, obj_group = True, flip_tex_coords = True):
     """
         Load from a Wavefront obj file as PyTorch tensors.
         XXX: this is slow, maybe move to C++?
@@ -134,7 +134,11 @@ def load_obj(filename, obj_group = True):
         elif splitted[0] == 'v':
             vertices_pool.append([float(splitted[1]), float(splitted[2]), float(splitted[3])])
         elif splitted[0] == 'vt':
-            uvs_pool.append([float(splitted[1]), float(splitted[2])])
+            u = float(splitted[1])
+            v = float(splitted[2])
+            if flip_tex_coords:
+                v = 1 - v
+            uvs_pool.append([u, v])
         elif splitted[0] == 'vn':
             normals_pool.append([float(splitted[1]), float(splitted[2]), float(splitted[3])])
         elif splitted[0] == 'f':
