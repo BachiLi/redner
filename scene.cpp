@@ -97,12 +97,16 @@ Scene::Scene(const Camera &camera,
             optix_instances[shape_id] = optix_models[shape_id]->getRTPmodel();
         }
 
+        for (int shape_id = 0; shape_id < (int)shapes.size(); shape_id++) {
+            optix_models[shape_id]->finish();
+        }
+
         optix_scene = optix_context->createModel();
         optix_scene->setInstances(
             (int)shapes.size(), RTP_BUFFER_TYPE_HOST, &optix_instances[0], 
             RTP_BUFFER_FORMAT_TRANSFORM_FLOAT4x4, RTP_BUFFER_TYPE_HOST, &transforms[0]);
-        // This update is blocking
         optix_scene->update(RTP_MODEL_HINT_NONE);
+	optix_scene->finish();
 #else
         assert(false);
 #endif
