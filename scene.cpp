@@ -106,7 +106,7 @@ Scene::Scene(const Camera &camera,
             (int)shapes.size(), RTP_BUFFER_TYPE_HOST, &optix_instances[0], 
             RTP_BUFFER_FORMAT_TRANSFORM_FLOAT4x4, RTP_BUFFER_TYPE_HOST, &transforms[0]);
         optix_scene->update(RTP_MODEL_HINT_NONE);
-	optix_scene->finish();
+        optix_scene->finish();
 #else
         assert(false);
 #endif
