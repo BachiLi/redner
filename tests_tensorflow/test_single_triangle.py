@@ -95,7 +95,7 @@ scene_args = pyredner.serialize_scene(
 # First setup the alias of the render function
 
 # Render. The first argument is the seed for RNG in the renderer.
-img = pyredner.render(0, scene_args)
+img = pyredner.render(0, *scene_args)
 # Save the images.
 # The output image is in the GPU memory if you are using GPU.
 pyredner.imwrite(img, 'results/test_single_triangle/target.exr')
@@ -116,7 +116,7 @@ scene_args = pyredner.serialize_scene(
     num_samples = 16,
     max_bounces = 1)
 # Render the initial guess.
-img = pyredner.render(1, scene_args)
+img = pyredner.render(1, *scene_args)
 # Save the images.
 pyredner.imwrite(img, 'results/test_single_triangle/init.png')
 # Compute the difference and save the images.
@@ -157,7 +157,7 @@ for t in range(1, 201):
         
         # Important to use a different seed every iteration, otherwise the result
         # would be biased.
-        img = pyredner.render(t, scene_args)
+        img = pyredner.render(t, *scene_args)
         loss_value = loss(img, target)
 
     print(f"loss_value: {loss_value}")    
@@ -176,7 +176,7 @@ scene_args = pyredner.serialize_scene(
     scene = scene,
     num_samples = 16,
     max_bounces = 1)
-img = pyredner.render(202, scene_args)
+img = pyredner.render(202, *scene_args)
 # Save the images and differences.
 pyredner.imwrite(img, 'results/test_single_triangle/final.exr')
 pyredner.imwrite(img, 'results/test_single_triangle/final.png')

@@ -51,7 +51,7 @@ def serialize_scene(scene: pyredner.Scene,
                     use_secondary_edge_sampling = True) -> List:
     """
         Given a PyRedner scene & rendering options, convert them to a linear list of argument,
-        so that we can use it in PyTorch.
+        so that we can use it in TensorFlow.
 
         Keyword arguments:
         scene -- A pyredner.Scene
@@ -201,14 +201,14 @@ def forward(seed:int, *args):
     current_index += 1
 
     camera = redner.Camera(resolution[1],
-                            resolution[0],
-                            redner.float_ptr(pyredner.data_ptr(cam_position)),
-                            redner.float_ptr(pyredner.data_ptr(cam_look_at)),
-                            redner.float_ptr(pyredner.data_ptr(cam_up)),
-                            redner.float_ptr(pyredner.data_ptr(ndc_to_cam)),
-                            redner.float_ptr(pyredner.data_ptr(cam_to_ndc)),
-                            clip_near,
-                            camera_type)
+                           resolution[0],
+                           redner.float_ptr(pyredner.data_ptr(cam_position)),
+                           redner.float_ptr(pyredner.data_ptr(cam_look_at)),
+                           redner.float_ptr(pyredner.data_ptr(cam_up)),
+                           redner.float_ptr(pyredner.data_ptr(ndc_to_cam)),
+                           redner.float_ptr(pyredner.data_ptr(cam_to_ndc)),
+                           clip_near,
+                           camera_type)
 
     shapes = []
     for i in range(num_shapes):

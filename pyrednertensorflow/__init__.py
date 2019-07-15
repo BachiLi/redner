@@ -17,10 +17,12 @@ from .transform import gen_rotate_matrix
 from .utils import *
 from .channels import *
 
+import os.path
+import redner
 from tensorflow.python.framework import ops
 
-__data_ptr_module = tf.load_op_library('/data_ptr.so')
-__scatter_add_module = tf.load_op_library('/pytorch_scatter_add.so')
+__data_ptr_module = tf.load_op_library(os.path.join(os.path.dirname(redner.__file__), 'libredner_tf_data_ptr.so'))
+__scatter_add_module = tf.load_op_library(os.path.join(os.path.dirname(redner.__file__), 'libredner_tf_scatter_add.so'))
 
 is_tensor = tf.contrib.framework.is_tensor
 

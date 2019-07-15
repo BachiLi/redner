@@ -10,12 +10,14 @@ if(WIN32)
 else()
     find_package(Python 3.6 COMPONENTS Development REQUIRED)
 endif()
+
 find_package(CUDA 10)
 if(CUDA_FOUND)
     find_package(OptiX REQUIRED)
 else()
     find_package(Thrust REQUIRED)
 endif()
+
 find_package(Embree)
 if(NOT EMBREE_FOUND)
     add_subdirectory(embree)
@@ -112,7 +114,7 @@ if(APPLE)
     set(DYNAMIC_LOOKUP "-undefined dynamic_lookup")
 endif()
 if (WIN32)
-pybind11_add_module(redner SHARED  ${SRCS} )
+    pybind11_add_module(redner SHARED ${SRCS})
 endif()
 
 if(CUDA_FOUND)
@@ -163,9 +165,8 @@ if (NOT WIN32)
         ${DYNAMIC_LOOKUP})
 else()
     target_link_libraries(redner
-	PRIVATE
-        ${EMBREE_LIBRARY} 
-        )
+        PRIVATE
+        ${EMBREE_LIBRARY})
 endif()
 
 endif()
@@ -188,11 +189,19 @@ find_package(OpenEXR REQUIRED)
 if(NOT OPENEXR_FOUND)
     add_subdirectory(openexr)
 endif()
+
 # Install openexrpython
 if(APPLE)
     set(ENV{MACOSX_DEPLOYMENT_TARGET} 10.9)
 endif()
 install(CODE "execute_process(COMMAND python ${CMAKE_CURRENT_SOURCE_DIR}/openexrpython/setup.py install
                               WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/openexrpython)")
+
+# Install pyredner & pyrednertensorflow
 install(CODE "execute_process(COMMAND python ${CMAKE_CURRENT_SOURCE_DIR}/setup.py install
                               WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})")
+
+find_package(TensorFlow)
+if(TensorFlow_FOUND)
+    add_subdirectory(pyrednertensorflow/custom_ops)
+endif()

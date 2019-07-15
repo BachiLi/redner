@@ -50,7 +50,7 @@ class DataPtrOp : public OpKernel {
       );
     auto output_flat = output_tensor->flat<uint64>();
 
-    // Cast pointer to unsigned long int     
+    // Cast pointer to unsigned long int
     uintptr_t addr = (uintptr_t)&tensor(0);//reinterpret_cast<uintptr_t>(&input_tensor[0]);
 
     // Cast unsigned long int -> unsigned int64
@@ -72,5 +72,3 @@ REGISTER_KERNEL_BUILDER(
   .Device(DEVICE_CPU)
   .TypeConstraint<float>("T"),
   DataPtrOp<float>);
-  
-
