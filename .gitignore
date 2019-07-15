@@ -4,9 +4,13 @@ __pycache__
 pydelta/__pycache__
 .cache
 tests/results
+tests-tensorflow/results
 tutorials/results
 examples/results
 debug.exr
 fit_ltc/fitLTC
 fit_ltc/results
 playground
+
+dockerfiles/dependencies/
+.vscode
