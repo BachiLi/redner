@@ -74,6 +74,89 @@ See [here](https://github.com/BachiLi/redner/pull/11) for build instruction on W
 
 redner is tested under MacOS with clang 7 and Ubuntu with gcc 7. In general any compiler with c++14 support should work.
 
+## Docker environment
+We provide two dockerfiles. They are identical except the followings,
+
+- `cpu.Dockerfile`
+   - `conda install pytorch-cpu=1.1.0 torchvision-cpu=0.3.0 -c pytorch`
+
+- `gpu.Dockerfile`
+   - `conda install pytorch=1.1.0 torchvision=0.3.0 cudatoolkit=10.0 -c pytorch`
+
+Tensorflow is CPU mode for both dockerfiles because pyrednertensorflow includes C++ custom ops which lacks CUDA support for now.
+
+**Unfortunately, we cannot provide a Docker image due to the NVIDIA Optix license.** Users need to agree the license and download [it](https://developer.nvidia.com/optix) to `dockerfiles/dependencies/`. Note that, the dockerfiles have `OPTIX_VERSION=5.1.0`. Remember to change it in the dockerfiles if you use a different version of Optix, 
+
+### Docker environment requirement
+- CUDA driver 10.x
+- NVIDIA driver 418.x
+- NVIDIA Optix 5.1.0
+
+The docker images are tested on 
+- CUDA driver 10.1
+- NVIDIA driver 418.67
+- GeForce RTX 2060
+- Intel(R) Xeon(R) W-2133 CPU @ 3.60GHz (model: 85)
+
+### Build a Docker image
+```bash
+$ git clone --recurse-submodules git@github.com:BachiLi/redner.git
+
+# Download NVIDIA Optix 5.1.0 and unpack to the corresponding directory. 
+$ mv {optix_library} redner/dockerfiles/dependencies/
+$ ls redner/dockerfiles/dependencies/
+NVIDIA-OptiX-SDK-5.1.0-linux64
+
+# Build the image
+$ cd redner
+
+# CPU version. This may take 30 min.
+$ docker build -t username/redner:cpu -f cpu.Dockerfile .
+# GPU version. This may take 40 min.
+$ docker build -t username/redner:gpu -f gpu.Dockerfile .
+
+# NOTE: the build process is very CPU heavy. It will use all your cores. 
+#       Do not build multiple images at the same time unless you have more 
+#       than 8 cores. On 6 cores, it may freeze the computer.
+```
+
+### Using the Docker image
+```bash
+# Start a shell in your container. 
+# NOTE: you need to pass the NVIDIA runtime as an argument for both CPU and GPU.
+#       Other wise you will run into the following error you import redner in Python:
+#           ImportError: libembree3.so.3: cannot open shared object file: No such file or directory
+
+# CPU version
+docker run --runtime=nvidia --cap-add=SYS_PTRACE --security-opt seccomp=unconfined -it --rm -v /your-path-to/redner:/app -w /app  username/redner:cpu /bin/bash
+# GPU version
+docker run --runtime=nvidia --cap-add=SYS_PTRACE --security-opt seccomp=unconfined -it --rm -v /your-path-to/redner:/app -w /app  username/redner:gpu /bin/bash
+
+$ pwd
+/app
+# Setup Pyredner and Pyrednertensorflow
+$ make setup
+# Test the setup
+$ python -c 'import redner'
+
+# Run some test
+$ cd tests
+$ python test_two_triangles.py
+# Check your result in redner/tests/results/test_two_triangles/
+```
+
+### Using Jupyter notebook in the Docker image
+```bash
+# CPU version
+docker run --runtime=nvidia --cap-add=SYS_PTRACE --security-opt seccomp=unconfined -p 8888:8888 -it --rm -v /your-path-to/redner:/app -w /app  username/redner:cpu /bin/bash
+# GPU version
+docker run --runtime=nvidia --cap-add=SYS_PTRACE --security-opt seccomp=unconfined -p 8888:8888 -it --rm -v /your-path-to/redner:/app -w /app  username/redner:gpu /bin/bash
+
+$ make setup
+$ make jupyter    # Now go to localhost:8888 on your browser
+```
+------------------------
+
 The current development plan is to enhance the renderer. Following features will be added in the near future (not listed in any particular order):
 - More BSDFs e.g. glass/GGX
 - Support for edge shared by more than two triangles
