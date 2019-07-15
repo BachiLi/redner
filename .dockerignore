@@ -1,0 +1,16 @@
+*Dockerfile
+pyredner/
+pyrednertensorflow/
+tests/
+tests-tensorflow/
+examples/
+tutorials/
+.git/
+.gitignore
+.gitmodules
+
+*.md
+
+build_pyrednertensorflow.sh
+Makefile
+LICENSE
