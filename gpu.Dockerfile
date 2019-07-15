@@ -1,4 +1,4 @@
-FROM shinyeyes/redner:cpu-without-optix
+FROM shinyeyes/redner:gpu-without-optix
 
 ARG EMBREE_VERSION=3.2.4
 
