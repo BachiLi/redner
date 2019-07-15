@@ -1,0 +1,129 @@
+<?xml version='1.0' encoding='utf-8'?>
+<!--
+
+	Automatically converted from Wavefront OBJ
+
+-->
+
+<scene version="0.5.0">
+	<integrator type="path">
+		<integer name="maxDepth" value="3"/>
+	</integrator>
+
+	<bsdf type="diffuse" id="Floor_material">
+		<rgb name="reflectance" value="0.64 0.64 0.64"/>
+	</bsdf>
+
+	<bsdf type="diffuse" id="Light0_material">
+		<rgb name="reflectance" value="0.64 0.64 0.64"/>
+	</bsdf>
+
+	<bsdf type="diffuse" id="Light1_material">
+		<rgb name="reflectance" value="0.64 0.64 0.64"/>
+	</bsdf>
+
+	<bsdf type="diffuse" id="Light2_material">
+		<rgb name="reflectance" value="0.64 0.64 0.64"/>
+	</bsdf>
+
+	<bsdf type="diffuse" id="siggraph_material">
+		<texture name="reflectance" type="bitmap">
+			<string name="filename" value="textures/siggraph.jpg"/>
+			<string name="filterType" value="trilinear"/>
+		</texture>
+	</bsdf>
+
+	<bsdf type="diffuse" id="teapot_material">
+		<rgb name="reflectance" value="0.64 0.64 0.64"/>
+	</bsdf>
+
+<!-- 	<bsdf type="roughconductor" id="teapot_material">
+		<string name="material" value="none"/>
+		<float name="alpha" value="0.01"/>
+		<string name="distribution" value="phong"/>
+	</bsdf> -->
+
+	<shape type="serialized" id="teapot_specular_mesh">
+		<string name="filename" value="teapot_specular.serialized"/>
+		<integer name="shapeIndex" value="0"/>
+
+		<ref name="bsdf" id="Floor_material"/>
+	</shape>
+
+	<shape type="serialized" id="teapot_specular_1_mesh">
+		<string name="filename" value="teapot_specular.serialized"/>
+		<integer name="shapeIndex" value="1"/>
+
+		<ref name="bsdf" id="Light0_material"/>
+
+		<emitter type="area">
+			<spectrum name="radiance" value="32.0 32.0 32.0"/>
+		</emitter>
+	</shape>
+
+	<shape type="serialized" id="teapot_specular_2_mesh">
+		<string name="filename" value="teapot_specular.serialized"/>
+		<integer name="shapeIndex" value="2"/>
+
+		<ref name="bsdf" id="teapot_material"/>
+	</shape>
+
+	<shape type="serialized" id="teapot_specular_3_mesh">
+		<string name="filename" value="teapot_specular.serialized"/>
+		<integer name="shapeIndex" value="3"/>
+
+		<ref name="bsdf" id="teapot_material"/>
+	</shape>
+
+	<shape type="serialized" id="teapot_specular_4_mesh">
+		<string name="filename" value="teapot_specular.serialized"/>
+		<integer name="shapeIndex" value="4"/>
+
+		<ref name="bsdf" id="Light1_material"/>
+
+		<emitter type="area">
+			<spectrum name="radiance" value="32.0 32.0 32.0"/>
+		</emitter>
+	</shape>
+
+	<shape type="serialized" id="teapot_specular_5_mesh">
+		<string name="filename" value="teapot_specular.serialized"/>
+		<integer name="shapeIndex" value="5"/>
+
+		<ref name="bsdf" id="Light2_material"/>
+
+		<emitter type="area">
+			<spectrum name="radiance" value="8.0 8.0 8.0"/>
+		</emitter>
+	</shape>
+
+	<shape type="serialized" id="teapot_specular_6_mesh">
+		<string name="filename" value="teapot_specular.serialized"/>
+		<integer name="shapeIndex" value="6"/>
+
+		<ref name="bsdf" id="siggraph_material"/>
+	</shape>
+
+	<sensor type="perspective">
+		<float name="farClip" value="237.278"/>
+		<float name="focusDistance" value="13.7816"/>
+		<float name="fov" value="45"/>
+		<string name="fovAxis" value="x"/>
+		<float name="nearClip" value="0.461439"/>
+		<transform name="toWorld">
+
+			<lookat target="0.419887, 6.96003, 11.7724" origin="0.42579, 7.34947, 12.6934" up="-0.00249534, 0.921051, -0.389435"/>
+		</transform>
+
+		<sampler type="independent">
+			<integer name="sampleCount" value="256"/>
+		</sampler>
+
+		<film type="hdrfilm">
+			<integer name="height" value="256"/>
+			<integer name="width" value="256"/>
+
+			<rfilter type="box"/>
+		</film>
+	</sensor>
+</scene>
