@@ -108,9 +108,7 @@ set(SRCS aabb.h
          redner.cpp
          scene.cpp
          shape.cpp
-         sobol_sampler.cpp
-         test_data_ptr.h
-         test_data_ptr.cpp)
+         sobol_sampler.cpp)
 
 if(APPLE)
     # The "-undefined dynamic_lookup" is a hack for systems with
