@@ -2,7 +2,6 @@ import pyrednertensorflow as pyredner
 import redner
 import numpy as np
 
-
 def unit_tests():
     redner.test_sample_primary_rays(False)
     redner.test_scene_intersect(False)
@@ -22,4 +21,3 @@ def unit_tests():
         redner.test_active_pixels(True)
 
 unit_tests()
-

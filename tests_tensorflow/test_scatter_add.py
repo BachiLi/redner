@@ -3,10 +3,9 @@ from __future__ import absolute_import, division, print_function
 import tensorflow as tf
 tf.enable_eager_execution()
 import pyrednertensorflow as pyredner
-import pyrednertensorflow as pyrednertorch
+import pyredner as pyrednertorch
 
 import numpy as np
-
 
 class TestScatterAdd(tf.test.TestCase):
 

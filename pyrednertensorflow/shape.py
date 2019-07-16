@@ -13,7 +13,7 @@ def compute_vertex_normal(vertices, indices):
     def length(v):
         return tf.sqrt(squared_length(v))
     # Nelson Max, "Weights for Computing Vertex Normals from Facet Vectors", 1999
-    normals = tf.constant(np.zeros(vertices.shape, dtype = np.float32))
+    normals = tf.zeros(vertices.shape, dtype = tf.float32)
 
     # NOTE: Try tf.TensorArray()
     v = [
@@ -21,11 +21,7 @@ def compute_vertex_normal(vertices, indices):
         tf.gather(vertices, indices[:,1]),
         tf.gather(vertices, indices[:,2])
     ]
-    # v = [vertices[indices[:, 0], :],
-    #      vertices[indices[:, 1], :],
-    #      vertices[indices[:, 2], :]]
 
-    contribs = []
     for i in range(3):
         v0 = v[i]
         v1 = v[(i + 1) % 3]
@@ -44,28 +40,11 @@ def compute_vertex_normal(vertices, indices):
             2.0 * tf.asin(0.5 * length(side_b - side_a)))
         sin_angle = tf.sin(angle)
         
-        # XXX: Inefficient but it's PyTorch's limitation
         contrib = tf.reshape((sin_angle / (e1_len * e2_len)), (-1, 1))
         contrib = n * tf.broadcast_to(contrib, [tf.shape(contrib)[0],3]) # In torch, `expand(-1, 3)`
-
-        index = tf.reshape(indices[:, i],(-1, 1))
-        index = tf.broadcast_to(index, [tf.shape(index)[0],3])     # In torch, `expand([-1, 3])`
-
-        """
-        FIXME: Tensorflow's `scatter_add` expects equal shapes.
-        """
-        normals = pyredner.scatter_add(
-            normals,    # 6460 x 3
-            index,      # 12152 x 3
-            contrib     # 12152 x 3
-        )
-        
-        contribs.append(contrib)
+        normals += tf.scatter_nd(tf.reshape(indices[:, i], [-1, 1]), contrib, shape = tf.shape(normals))
 
     normals = normals / tf.reshape(length(normals), [-1, 1])
-
-    if pyredner.IS_UNIT_TEST:
-        return normals, contribs, v
     return normals
 
 class Shape:

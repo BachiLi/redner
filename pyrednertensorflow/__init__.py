@@ -22,26 +22,11 @@ import redner
 from tensorflow.python.framework import ops
 
 __data_ptr_module = tf.load_op_library(os.path.join(os.path.dirname(redner.__file__), 'libredner_tf_data_ptr.so'))
-__scatter_add_module = tf.load_op_library(os.path.join(os.path.dirname(redner.__file__), 'libredner_tf_scatter_add.so'))
 
 is_tensor = tf.contrib.framework.is_tensor
 
 DEBUG = False
 IS_UNIT_TEST = False
-
-@ops.RegisterGradient("PytorchScatterAdd")
-def _pytorch_scatter_add_grad(op, grad):
-    """The gradients for `zero_out`.
-
-    Args:
-    op: The `zero_out` `Operation` that we are differentiating, which we can use
-        to find the inputs and outputs of the original op.
-    grad: Gradient with respect to the output of the `zero_out` op.
-
-    Returns:
-    Gradients with respect to the input of `zero_out`.
-    """
-    return [grad, None, None]
 
 def zeros_like(
         tensor: Union[np.ndarray, tf.Tensor, tf.Variable], 
@@ -58,13 +43,6 @@ def data_ptr(tensor):
     addr_as_uint64 = __data_ptr_module.data_ptr(tensor)
     # import pdb;pdb.set_trace()
     return int(addr_as_uint64)
-
-
-def scatter_add(ref, indices, updates):
-    output = __scatter_add_module.pytorch_scatter_add(ref, indices, updates)
-    return output
-
-
 
 def write_tensor(path, tensor, height, width):
     with open(path, 'w') as f:
