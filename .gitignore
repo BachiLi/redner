@@ -4,6 +4,7 @@ __pycache__
 pydelta/__pycache__
 .cache
 tests/results
+tests_tensorflow/results
 tutorials/results
 examples/results
 debug.exr
