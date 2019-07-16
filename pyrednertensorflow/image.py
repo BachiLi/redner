@@ -66,6 +66,6 @@ def imread(filename):
         elif im.shape[2] == 4:
             im = im[:, :, :3]
         return tf.convert_to_tensor(
-            np.power(skimage.img_as_float(im).astype(np.float32), 2.2), 
-            dtype=tf.float32
+                np.power(skimage.img_as_float(im).astype(np.float32), 2.2), 
+                dtype=tf.float32
             )

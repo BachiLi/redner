@@ -3,7 +3,6 @@ import tensorflow as tf
 tf.enable_eager_execution()
 
 class RednerChannels:
-    
     __channels = [
         redner.channels.radiance,
         redner.channels.alpha,
@@ -27,7 +26,6 @@ class RednerChannels:
             if RednerChannels.__channels[i] == channel:
                 return tf.constant(i)
 
-
     @staticmethod
     def asChannel(index: tf.Tensor) -> redner.channels:
         try:
@@ -39,14 +37,11 @@ class RednerChannels:
         else:
             return channel
 
-
 class RednerSamplerType:
-
     __samplertypes = [
         redner.SamplerType.independent,
         redner.SamplerType.sobol
     ]
-
 
     @staticmethod    
     def asTensor(samplertype: redner.SamplerType) -> tf.Tensor:
@@ -68,15 +63,12 @@ class RednerSamplerType:
         else:
             return samplertype
 
-
 class RednerCameraType:
-
     __cameratypes = [
         redner.CameraType.perspective,
         redner.CameraType.orthographic,
         redner.CameraType.fisheye,
     ]
-
 
     @staticmethod    
     def asTensor(cameratype: redner.CameraType) -> tf.Tensor:

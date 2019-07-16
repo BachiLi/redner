@@ -697,4 +697,3 @@ def render(*x):
         return ret_list
 
     return img, backward
-

@@ -24,4 +24,3 @@ class Scene:
             [pyredner.Material.load_state_dict(m) for m in state_dict['materials']],
             [pyredner.AreaLight.load_state_dict(l) for l in state_dict['area_lights']],
             pyredner.EnvironmentMap.load_state_dict(envmap_dict) if envmap_dict is not None else None)
-

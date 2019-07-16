@@ -103,8 +103,6 @@ def generate_sphere(theta_steps, phi_steps):
     normals = tf.identity(vertices)
     return (vertices, indices, uvs, normals)
 
-
-
 ############################################3
 def read_tensor(filename, shape):
     """

@@ -5,8 +5,6 @@ import enum
 import math
 # import pdb
 
-
-
 class Texture:
     def __init__(self,
                  texels,
