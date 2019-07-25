@@ -329,15 +329,15 @@ def forward(seed:int, *args):
 
         assert isinstance(pdf_norm, float)
         with tf.device(pyredner.get_device_name()):
-            values = redner.float_ptr(pyredner.data_ptr(values))
-            env_to_world = redner.float_ptr(pyredner.data_ptr(env_to_world))
-            world_to_env = redner.float_ptr(pyredner.data_ptr(world_to_env))
+            values_ptr = redner.float_ptr(pyredner.data_ptr(values))
             sample_cdf_ys = redner.float_ptr(pyredner.data_ptr(sample_cdf_ys))
             sample_cdf_xs = redner.float_ptr(pyredner.data_ptr(sample_cdf_xs))
         with tf.device('/device:cpu:' + str(pyredner.get_cpu_device_id())):
+            env_to_world = redner.float_ptr(pyredner.data_ptr(env_to_world))
+            world_to_env = redner.float_ptr(pyredner.data_ptr(world_to_env))
             envmap_uv_scale = redner.float_ptr(pyredner.data_ptr(envmap_uv_scale))
         values = redner.Texture3(
-            values,
+            values_ptr,
             int(values.shape[2]), # width
             int(values.shape[1]), # height
             int(values.shape[0]), # num levels
@@ -467,9 +467,9 @@ def render(*x):
         with tf.device(pyredner.get_device_name()):
             for i, shape in enumerate(ctx.shapes):
                 num_vertices = shape.num_vertices
-                d_vertices = tf.zeros([num_vertices, 3], dtype=tf.float32, name="d_vertices_{}".format(i))
-                d_uvs = tf.zeros([num_vertices, 2], dtype=tf.float32, name="d_uvs_{}".format(i)) if shape.has_uvs() else None
-                d_normals = tf.zeros([num_vertices, 3], dtype=tf.float32, name="d_normals_{}".format(i)) if shape.has_normals() else None
+                d_vertices = tf.zeros([num_vertices, 3], dtype=tf.float32)
+                d_uvs = tf.zeros([num_vertices, 2], dtype=tf.float32) if shape.has_uvs() else None
+                d_normals = tf.zeros([num_vertices, 3], dtype=tf.float32) if shape.has_normals() else None
                 d_vertices_list.append(d_vertices)
                 d_uvs_list.append(d_uvs)
                 d_normals_list.append(d_normals)
@@ -577,6 +577,8 @@ def render(*x):
         with tf.device(pyredner.get_device_name()):
             if pyredner.get_use_gpu():
                 grad_img = grad_img.gpu(pyredner.get_gpu_device_id())
+            else:
+                grad_img = grad_img.cpu()
             redner.render(scene,  
                           options,
                           redner.float_ptr(0),    # rendered_image
@@ -667,49 +669,6 @@ def render(*x):
         ret_list.append(None) # use_primary_edge_sampling
         ret_list.append(None) # use_secondary_edge_sampling
 
-        '''
-        For test_envmap.py, len(ret_list) = 39.
-            for i in range(len(ret_list)): print(ret_list[i].shape, i)
-                (0,) 0                                                 
-                (0,) 1
-                (0,) 2
-                (0,) 3
-                (3,) 4
-                (3,) 5
-                (3,) 6
-                (3, 3) 7
-                (3, 3) 8
-                (0,) 9
-                (0,) 10
-                (0,) 11
-                (8192, 3) 12
-                (0,) 13
-                (8192, 2) 14
-                (8192, 3) 15
-                (0,) 16
-                (0,) 17
-                (3,) 18
-                (0,) 19
-                (3,) 20
-                (0,) 21
-                (1,) 22
-                (0,) 23
-                (0,) 24
-                (7, 32, 64, 3) 25
-                (0,) 26
-                (0,) 27
-                (4, 4) 28
-                (0,) 29
-                (0,) 30
-                (0,) 31
-                (0,) 32
-                (0,) 33
-                (0,) 34
-                (0,) 35
-                (0,) 36
-                (0,) 37
-                (0,) 38
-        '''
         # pdb.set_trace()
         return ret_list
 

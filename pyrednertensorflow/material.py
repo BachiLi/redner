@@ -1,6 +1,5 @@
 import pyrednertensorflow as pyredner
 import tensorflow as tf
-tfe = tf.contrib.eager
 
 class Material:
     def __init__(self,
@@ -9,20 +8,16 @@ class Material:
                  roughness = None,
                  two_sided = False):
         assert(tf.executing_eagerly())
-        with tf.device('/device:cpu:' + str(pyredner.get_cpu_device_id())):
-            if specular_reflectance is None:
-                specular_reflectance = pyredner.Texture(
-                    tfe.Variable([0.0,0.0,0.0]))
-            if roughness is None:
-                roughness = pyredner.Texture(
-                    tfe.Variable([1.0]))
-        # import pdb; pdb.set_trace()
+        if specular_reflectance is None:
+            specular_reflectance = pyredner.Texture(tf.zeros([3], dtype=tf.float32))
+        if roughness is None:
+            roughness = pyredner.Texture(tf.ones([1], dtype=tf.float32))
         # Convert to constant texture if necessary
-        if pyredner.is_tensor(diffuse_reflectance):
+        if tf.is_tensor(diffuse_reflectance):
             diffuse_reflectance = pyredner.Texture(diffuse_reflectance)
-        if pyredner.is_tensor(specular_reflectance):
+        if tf.is_tensor(specular_reflectance):
             specular_reflectance = pyredner.Texture(specular_reflectance)
-        if pyredner.is_tensor(roughness):
+        if tf.is_tensor(roughness):
             roughness = pyredner.Texture(roughness)
 
         self.diffuse_reflectance = diffuse_reflectance

@@ -1,6 +1,5 @@
 import redner
 import tensorflow as tf
-tf.enable_eager_execution()
 
 class RednerChannels:
     __channels = [

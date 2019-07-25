@@ -130,7 +130,7 @@ diff = tf.abs(target - img)
 pyredner.imwrite(diff, 'results/test_single_triangle/init_diff.png')
 
 # Optimize for triangle vertices.
-optimizer = tf.train.AdamOptimizer(5e-2)
+optimizer = tf.compat.v1.train.AdamOptimizer(5e-2)
 
 def loss(output, target):
     # Compute the loss function. Here it is L2.

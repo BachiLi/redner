@@ -63,13 +63,21 @@ class Shape:
             assert(normals.dtype == tf.float32)
         if pyredner.get_use_gpu():
             # Automatically copy all tensors to GPU
-            # tfe.Variable doesn't support .gpu(), so we'll wrap it with an identity().
+            # tf.Variable doesn't support .gpu(), so we'll wrap it with an identity().
             vertices = tf.identity(vertices).gpu(pyredner.get_gpu_device_id())
             indices = tf.identity(indices).gpu(pyredner.get_gpu_device_id())
             if uvs is not None:
                 uvs = tf.identity(uvs).gpu(pyredner.get_gpu_device_id())
             if normals is not None:
                 normals = tf.identity(normals).gpu(pyredner.get_gpu_device_id())
+        else:
+            # Automatically copy to CPU
+            vertices = tf.identity(vertices).cpu()
+            indices = tf.identity(indices).cpu()
+            if uvs is not None:
+                uvs = tf.identity(uvs).cpu()
+            if normals is not None:
+                normals = tf.identity(normals).cpu()
 
         self.vertices = vertices
         self.indices = indices

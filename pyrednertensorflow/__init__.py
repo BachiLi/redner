@@ -23,8 +23,6 @@ from tensorflow.python.framework import ops
 
 __data_ptr_module = tf.load_op_library(os.path.join(os.path.dirname(redner.__file__), 'libredner_tf_data_ptr.so'))
 
-is_tensor = tf.contrib.framework.is_tensor
-
 DEBUG = False
 IS_UNIT_TEST = False
 

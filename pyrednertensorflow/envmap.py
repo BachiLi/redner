@@ -8,7 +8,7 @@ class EnvironmentMap:
     def __init__(self, values, env_to_world = tf.eye(4, 4)):
         assert(tf.executing_eagerly())
         # Convert to constant texture if necessary
-        if pyredner.is_tensor(values):
+        if tf.is_tensor(values):
             values = pyredner.Texture(values)
 
         # assert(values.texels.is_contiguous())
@@ -43,11 +43,13 @@ class EnvironmentMap:
                 tf.math.maximum(sample_cdf_ys_[-1], tf.constant([1e-8]))
 
             self.values = values
+            self.sample_cdf_ys = sample_cdf_ys
+            self.sample_cdf_xs = sample_cdf_xs
+        with tf.device('/device:cpu:' + str(pyredner.get_cpu_device_id())):
+            self.pdf_norm = pdf_norm.cpu()
+            env_to_world = tf.identity(env_to_world).cpu()
             self.env_to_world = env_to_world
             self.world_to_env = tf.linalg.inv(env_to_world)
-            self.sample_cdf_ys = tf.identity(sample_cdf_ys)
-            self.sample_cdf_xs = tf.identity(sample_cdf_xs)
-            self.pdf_norm = pdf_norm
 
     def state_dict(self):
         return {

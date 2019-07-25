@@ -53,9 +53,9 @@ def gen_perspective_matrix(fov, clip_near, clip_far):
     z = tf.constant(np.zeros([1]), dtype=tf.float32)
     o = tf.convert_to_tensor(np.ones([1], dtype=np.float32), dtype=tf.float32)
     return tf.stack([tf.concat([cot,   z,             z,                       z], 0),
-                        tf.concat([  z, cot,             z,                       z], 0),
-                        tf.concat([  z,   z, 1 / clip_dist, - clip_near / clip_dist], 0),
-                        tf.concat([  z,   z,             o,                       z], 0)])
+                     tf.concat([  z, cot,             z,                       z], 0),
+                     tf.concat([  z,   z, 1 / clip_dist, - clip_near / clip_dist], 0),
+                     tf.concat([  z,   z,             o,                       z], 0)])
 
 def gen_rotate_matrix(angles:tf.Tensor) -> tf.Tensor:
     '''
