@@ -12,9 +12,10 @@ pyredner.set_use_gpu(tf.test.is_gpu_available(cuda_only=True, min_cuda_compute_c
 # Set up the pyredner scene for rendering:
 
 # First, we set up the camera.
-# redner assumes all the camera variables live in CPU memory,
-# so you should allocate these tensors in CPU
-with tf.device('/device:cpu:0'):
+# redner assumes all the camera variables live in CPU memory.
+# You can allocate the tensors in CPU in the first place, or pyredner automatically converts them
+# in Camera's constructor.
+with tf.device('/device:cpu:' + str(pyredner.get_cpu_device_id())):
     cam = pyredner.Camera(position = tf.Variable([0.0, 0.0, -5.0], dtype=tf.float32, use_resource=True),
                           look_at = tf.Variable([0.0, 0.0, 0.0], dtype=tf.float32, use_resource=True),
                           up = tf.Variable([0.0, 1.0, 0.0], dtype=tf.float32, use_resource=True),
@@ -27,7 +28,8 @@ with tf.device('/device:cpu:0'):
 # All materials in the scene are stored in a Python list,
 # the index of a material in the list is its material id.
 # Our simple scene only has a single grey material with reflectance 0.5.
-# If you are using GPU, make sure to copy the reflectance to GPU memory.
+# You can allocate the reflectance in GPU in the first place, or pyredner automatically converts them
+# in pyredner's constructor.
 with tf.device(pyredner.get_device_name()):
     mat_grey = pyredner.Material(
         diffuse_reflectance = tf.Variable([0.5, 0.5, 0.5], dtype=tf.float32, use_resource=True))
@@ -46,7 +48,6 @@ materials = [mat_grey]
 # and a normal for Phong interpolation.
 # Each shape also needs to be assigned a material using material id,
 # which is the index of the material in the material array.
-# If you are using GPU, make sure to copy all tensors of the shape to GPU memory.
 with tf.device(pyredner.get_device_name()):
     # tf.constant allocates arrays on host memory for int32 arrays (some tensorflow internal mess),
     # but pyredner.Shape constructor automatically converts the memory to device if necessary.
