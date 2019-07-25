@@ -77,7 +77,7 @@ shapes = [shape_triangle, shape_light]
 # Again, all the area light sources in the scene are stored in a Python list.
 # Each area light is attached to a shape using shape id, additionally we need to
 # assign the intensity of the light, which is a length 3 float tensor in CPU. 
-with tf.device('/device:cpu:0'):
+with tf.device('/device:cpu:' + str(pyredner.get_cpu_device_id())):
     light = pyredner.AreaLight(shape_id = 1, 
                                intensity = tf.Variable([20.0,20.0,20.0], dtype=tf.float32, use_resource=True))
 area_lights = [light]
@@ -168,8 +168,7 @@ for t in range(1, 201):
     print(f"loss_value: {loss_value}")
     pyredner.imwrite(img, 'results/test_single_triangle/iter_{}.png'.format(t))
 
-    with tf.device(pyredner.get_device_name()):
-        grads = tape.gradient(loss_value, [shape_triangle.vertices])
+    grads = tape.gradient(loss_value, [shape_triangle.vertices])
     optimizer.apply_gradients(
         zip(grads, [shape_triangle.vertices])
     )
