@@ -51,10 +51,10 @@ class Camera:
         assert(isinstance(clip_near, float))
 
         with tf.device('/device:cpu:' + str(pyredner.get_cpu_device_id())):
-            self.position = position
-            self.look_at = look_at
-            self.up = up
-            self.fov = fov
+            self.position = tf.identity(position).cpu()
+            self.look_at = tf.identity(look_at).cpu()
+            self.up = tf.identity(up).cpu()
+            self.fov = tf.identity(fov).cpu()
             if cam_to_ndc is None:
                 if camera_type == redner.CameraType.perspective:
                     fov_factor = 1.0 / tf.tan(transform.radians(0.5 * fov))
@@ -64,7 +64,7 @@ class Camera:
                 else:
                     self._cam_to_ndc = tf.eye(3, dtype=tf.float32)   
             else:
-                self._cam_to_ndc = cam_to_ndc
+                self._cam_to_ndc = tf.identity(cam_to_ndc).cpu()
             self.ndc_to_cam = tf.linalg.inv(self.cam_to_ndc)
             self.clip_near = clip_near
             self.resolution = resolution
@@ -78,12 +78,13 @@ class Camera:
 
     @fov.setter
     def fov(self, value):
-        self._fov = value
-        fov_factor = 1.0 / tf.tan(transform.radians(0.5 * self._fov))
-        o = tf.convert_to_tensor(np.ones([1], dtype=np.float32), dtype=tf.float32)
-        diag = tf.concat([fov_factor, fov_factor, o], 0)
-        self._cam_to_ndc = tf.linalg.tensor_diag(diag)
-        self.ndc_to_cam = tf.linalg.inv(self._cam_to_ndc)
+        with tf.device('/device:cpu:' + str(pyredner.get_cpu_device_id())):
+            self._fov = tf.identity(value).cpu()
+            fov_factor = 1.0 / tf.tan(transform.radians(0.5 * self._fov))
+            o = tf.convert_to_tensor(np.ones([1], dtype=np.float32), dtype=tf.float32)
+            diag = tf.concat([fov_factor, fov_factor, o], 0)
+            self._cam_to_ndc = tf.linalg.tensor_diag(diag)
+            self.ndc_to_cam = tf.linalg.inv(self._cam_to_ndc)
 
     @property
     def cam_to_ndc(self):
@@ -91,8 +92,9 @@ class Camera:
 
     @cam_to_ndc.setter
     def cam_to_ndc(self, value):
-        self._cam_to_ndc = value
-        self.ndc_to_cam = tf.linalg.inv(self._cam_to_ndc)
+        with tf.device('/device:cpu:' + str(pyredner.get_cpu_device_id())):
+            self._cam_to_ndc = tf.identity(value).cpu()
+            self.ndc_to_cam = tf.linalg.inv(self._cam_to_ndc)
 
     def state_dict(self):
         return {
