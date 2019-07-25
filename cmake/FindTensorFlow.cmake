@@ -12,10 +12,10 @@ if("${retcode}" STREQUAL "0")
     list(GET TF_INFORMATION_LIST 1 TF_DETECTED_ABI)
     list(GET TF_INFORMATION_LIST 2 TF_DETECTED_INCLUDE_DIR)
     list(GET TF_INFORMATION_LIST 3 TF_DETECTED_LIBRARY_DIR)
-    message(STATUS ${TF_DETECTED_LIBRARY_DIR})
+    # For some reason my tensorflow doesn't have a .so file
+    list(APPEND CMAKE_FIND_LIBRARY_SUFFIXES .so.1)
     find_library(TF_DETECTED_LIBRARY NAMES tensorflow_framework PATHS 
         ${TF_DETECTED_LIBRARY_DIR})
-    message(STATUS ${TF_DETECTED_LIBRARY})
     set(TensorFlow_VERSION ${TF_DETECTED_VERSION})
     set(TensorFlow_ABI ${TF_DETECTED_ABI})
     set(TensorFlow_INCLUDE_DIR ${TF_DETECTED_INCLUDE_DIR})

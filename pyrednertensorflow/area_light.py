@@ -1,7 +1,10 @@
+import tensorflow as tf
+
 class AreaLight:
     def __init__(self, shape_id, intensity, two_sided = False):
+        assert(tf.executing_eagerly())
         self.shape_id = shape_id
-        self.intensity = intensity
+        self.intensity = tf.identity(intensity).cpu()
         self.two_sided = two_sided
 
     def state_dict(self):

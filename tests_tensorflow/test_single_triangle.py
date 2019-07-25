@@ -1,38 +1,39 @@
 import tensorflow as tf
-tf.enable_eager_execution()
 tfe = tf.contrib.eager
-
+tf.compat.v1.enable_eager_execution()
 import pyrednertensorflow as pyredner
 import numpy as np
 import pdb
+
 # Optimize three vertices of a single triangle
 # We first render a target image, then perturb the three vertices and optimize
 # to match the target.
 
 # Use GPU if available
-pyredner.set_use_gpu(False)
+pyredner.set_use_gpu(tf.test.is_gpu_available(cuda_only=True, min_cuda_compute_capability=None))
 
 # Set up the pyredner scene for rendering:
 
 # First, we set up the camera.
 # redner assumes all the camera variables live in CPU memory,
-# so you should allocate torch tensors in CPU
-cam = pyredner.Camera(position = tfe.Variable([0.0, 0.0, -5.0], dtype=tf.float32),
-                      look_at = tfe.Variable([0.0, 0.0, 0.0], dtype=tf.float32),
-                      up = tfe.Variable([0.0, 1.0, 0.0], dtype=tf.float32),
-                      fov = tfe.Variable([45.0], dtype=tf.float32), # in degree
-                      clip_near = 1e-2, # needs to > 0
-                      resolution = (256, 256),
-                      fisheye = False)
+# so you should allocate these tensors in CPU
+with tf.device('/device:cpu:0'):
+    cam = pyredner.Camera(position = tfe.Variable([0.0, 0.0, -5.0], dtype=tf.float32),
+                          look_at = tfe.Variable([0.0, 0.0, 0.0], dtype=tf.float32),
+                          up = tfe.Variable([0.0, 1.0, 0.0], dtype=tf.float32),
+                          fov = tfe.Variable([45.0], dtype=tf.float32), # in degree
+                          clip_near = 1e-2, # needs to > 0
+                          resolution = (256, 256),
+                          fisheye = False)
 
 # Next, we setup the materials for the scene.
 # All materials in the scene are stored in a Python list,
 # the index of a material in the list is its material id.
 # Our simple scene only has a single grey material with reflectance 0.5.
 # If you are using GPU, make sure to copy the reflectance to GPU memory.
-mat_grey = pyredner.Material(
-    diffuse_reflectance = \
-        tfe.Variable([0.5, 0.5, 0.5], dtype=tf.float32))
+with tf.device(pyredner.get_device_name()):
+    mat_grey = pyredner.Material(
+        diffuse_reflectance = tfe.Variable([0.5, 0.5, 0.5], dtype=tf.float32))
 # The material list of the scene
 materials = [mat_grey]
 
@@ -49,25 +50,28 @@ materials = [mat_grey]
 # Each shape also needs to be assigned a material using material id,
 # which is the index of the material in the material array.
 # If you are using GPU, make sure to copy all tensors of the shape to GPU memory.
-shape_triangle = pyredner.Shape(
-    vertices = tfe.Variable([[-1.7, 1.0, 0.0], [1.0, 1.0, 0.0], [-0.5, -1.0, 0.0]],
-        dtype=tf.float32),
-    indices = tfe.Variable([[0, 1, 2]], dtype=tf.int32),
-    uvs = None,
-    normals = None,
-    material_id = 0)
-# Merely having a single triangle is not enough for physically-based rendering.
-# We need to have a light source. Here we setup the shape of a quad area light source,
-# similary to the previous triangle.
-shape_light = pyredner.Shape(
-    vertices = tfe.Variable([[-1.0, -1.0, -7.0],
-                             [ 1.0, -1.0, -7.0],
-                             [-1.0,  1.0, -7.0],
-                             [ 1.0,  1.0, -7.0]], dtype=tf.float32),
-    indices = tfe.Variable([[0, 1, 2],[1, 3, 2]], dtype=tf.int32),
-    uvs = None,
-    normals = None,
-    material_id = 0)
+with tf.device(pyredner.get_device_name()):
+    # tf.constant allocates arrays on host memory for int32 arrays (some tensorflow internal mess),
+    # but pyredner.Shape constructor automatically converts the memory to device if necessary.
+    shape_triangle = pyredner.Shape(
+        vertices = tfe.Variable([[-1.7, 1.0, 0.0], [1.0, 1.0, 0.0], [-0.5, -1.0, 0.0]],
+            dtype=tf.float32),
+        indices = tf.constant([[0, 1, 2]], dtype=tf.int32),
+        uvs = None,
+        normals = None,
+        material_id = 0)
+    # Merely having a single triangle is not enough for physically-based rendering.
+    # We need to have a light source. Here we setup the shape of a quad area light source,
+    # similary to the previous triangle.
+    shape_light = pyredner.Shape(
+        vertices = tfe.Variable([[-1.0, -1.0, -7.0],
+                                 [ 1.0, -1.0, -7.0],
+                                 [-1.0,  1.0, -7.0],
+                                 [ 1.0,  1.0, -7.0]], dtype=tf.float32),
+        indices = tf.constant([[0, 1, 2],[1, 3, 2]], dtype=tf.int32),
+        uvs = None,
+        normals = None,
+        material_id = 0)
 # The shape list of the scene
 shapes = [shape_triangle, shape_light]
 
@@ -75,12 +79,14 @@ shapes = [shape_triangle, shape_light]
 # Again, all the area light sources in the scene are stored in a Python list.
 # Each area light is attached to a shape using shape id, additionally we need to
 # assign the intensity of the light, which is a length 3 float tensor in CPU. 
-light = pyredner.AreaLight(shape_id = 1, 
-                           intensity = tfe.Variable([20.0,20.0,20.0], dtype=tf.float32))
+with tf.device('/device:cpu:0'):
+    light = pyredner.AreaLight(shape_id = 1, 
+                               intensity = tfe.Variable([20.0,20.0,20.0], dtype=tf.float32))
 area_lights = [light]
+
 # Finally we construct our scene using all the variables we setup previously.
 scene = pyredner.Scene(cam, shapes, materials, area_lights)
-# All PyTorch functions take a flat array of PyTorch tensors as input,
+# All TensorFlow functions take a flat array of TensorFlow tensors as input,
 # therefore we need to serialize the scene into an array. The following
 # function is doing this. We also specify how many Monte Carlo samples we want to 
 # use per pixel and the number of bounces for indirect illumination here
@@ -95,21 +101,22 @@ scene_args = pyredner.serialize_scene(
 # First setup the alias of the render function
 
 # Render. The first argument is the seed for RNG in the renderer.
+# Redner automatically maps the devices in the render function, so no need to specify tf.device here.
 img = pyredner.render(0, *scene_args)
 # Save the images.
-# The output image is in the GPU memory if you are using GPU.
 pyredner.imwrite(img, 'results/test_single_triangle/target.exr')
 pyredner.imwrite(img, 'results/test_single_triangle/target.png')
 # Read the target image we just saved.
 target = pyredner.imread('results/test_single_triangle/target.exr')
-# if pyredner.get_use_gpu():
-#     target = target.cuda()
+if pyredner.get_use_gpu():
+    target = target.gpu()
 
 # Perturb the scene, this is our initial guess.
-shape_triangle.vertices = tfe.Variable(
-    [[-2.0,1.5,0.3], [0.9,1.2,-0.3], [-0.4,-1.4,0.2]],
-    dtype=tf.float32,
-    trainable=True) # Set trainable to True since we want to optimize this
+with tf.device(pyredner.get_device_name()):
+    shape_triangle.vertices = tfe.Variable(
+        [[-2.0,1.5,0.3], [0.9,1.2,-0.3], [-0.4,-1.4,0.2]],
+        dtype=tf.float32,
+        trainable=True) # Set trainable to True since we want to optimize this
 # We need to serialize the scene again to get the new arguments.
 scene_args = pyredner.serialize_scene(
     scene = scene,
@@ -124,7 +131,6 @@ diff = tf.abs(target - img)
 pyredner.imwrite(diff, 'results/test_single_triangle/init_diff.png')
 
 # Optimize for triangle vertices.
-# # optimizer = torch.optim.Adam([shape_triangle.vertices], lr=5e-2)
 optimizer = tf.train.AdamOptimizer(5e-2)
 
 def loss(output, target):
@@ -160,13 +166,14 @@ for t in range(1, 201):
         img = pyredner.render(t, *scene_args)
         loss_value = loss(img, target)
 
-    print(f"loss_value: {loss_value}")    
+    print(f"loss_value: {loss_value}")
     pyredner.imwrite(img, 'results/test_single_triangle/iter_{}.png'.format(t))
 
-    grads = tape.gradient(loss_value, [shape_triangle.vertices])
+    with tf.device(pyredner.get_device_name()):
+        grads = tape.gradient(loss_value, [shape_triangle.vertices])
     optimizer.apply_gradients(
         zip(grads, [shape_triangle.vertices])
-        )
+    )
 
     print('grad:', grads[0])
     print('vertices:', shape_triangle.vertices)

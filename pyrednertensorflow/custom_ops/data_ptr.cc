@@ -27,7 +27,6 @@ REGISTER_OP("DataPtr")
       return Status::OK();
     });
 
-
 template <typename T>
 class DataPtrOp : public OpKernel {
  public:
@@ -37,27 +36,28 @@ class DataPtrOp : public OpKernel {
     // Grab the input tensor
 
     const Tensor& input_tensor = context->input(0);
-    auto tensor = input_tensor.flat<T>();
-    // const Tensor& input_tensor = context->mutable_input(0);
-    // ofstream("tensor_out_ops.txt") << tensor[0] << " " << tensor[1] << endl;
+    auto tensor = reinterpret_cast<const T*>(input_tensor.tensor_data().data());
 
     // Create an output tensor
     // NOTE: The output datatype must match the Ops definition!!!.
     Tensor* output_tensor = NULL;
+    // Always allocate on CPU
+    AllocatorAttributes alloc_attr;
+    alloc_attr.set_on_host(true);
     OP_REQUIRES_OK(context, 
       context->allocate_output(0, {},  // Initialize a one-element scalar
-      &output_tensor)
-      );
+      &output_tensor,
+      alloc_attr)
+    );
     auto output_flat = output_tensor->flat<uint64>();
 
     // Cast pointer to unsigned long int
-    uintptr_t addr = (uintptr_t)&tensor(0);//reinterpret_cast<uintptr_t>(&input_tensor[0]);
+    uintptr_t addr = (uintptr_t)tensor;
 
     // Cast unsigned long int -> unsigned int64
     uint64 addr_converted = addr;
 
     output_flat(0) = addr_converted;
-
   }
 };
 
@@ -71,4 +71,16 @@ REGISTER_KERNEL_BUILDER(
   Name("DataPtr")
   .Device(DEVICE_CPU)
   .TypeConstraint<float>("T"),
+  DataPtrOp<float>);
+REGISTER_KERNEL_BUILDER(
+  Name("DataPtr")
+  .Device(DEVICE_GPU)
+  .TypeConstraint<int32>("T")
+  .HostMemory("output"),
+  DataPtrOp<int32>);
+REGISTER_KERNEL_BUILDER(
+  Name("DataPtr")
+  .Device(DEVICE_GPU)
+  .TypeConstraint<float>("T")
+  .HostMemory("output"),
   DataPtrOp<float>);

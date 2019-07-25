@@ -8,12 +8,14 @@ class Material:
                  specular_reflectance = None,
                  roughness = None,
                  two_sided = False):
-        if specular_reflectance is None:
-            specular_reflectance = pyredner.Texture(
-                tfe.Variable([0.0,0.0,0.0]))
-        if roughness is None:
-            roughness = pyredner.Texture(
-                tfe.Variable([1.0]))
+        assert(tf.executing_eagerly())
+        with tf.device('/device:cpu:' + str(pyredner.get_cpu_device_id())):
+            if specular_reflectance is None:
+                specular_reflectance = pyredner.Texture(
+                    tfe.Variable([0.0,0.0,0.0]))
+            if roughness is None:
+                roughness = pyredner.Texture(
+                    tfe.Variable([1.0]))
         # import pdb; pdb.set_trace()
         # Convert to constant texture if necessary
         if pyredner.is_tensor(diffuse_reflectance):
@@ -22,10 +24,6 @@ class Material:
             specular_reflectance = pyredner.Texture(specular_reflectance)
         if pyredner.is_tensor(roughness):
             roughness = pyredner.Texture(roughness)
-
-        # assert(diffuse_reflectance.texels.dtype == tf.float32)
-        # assert(specular_reflectance.texels.dtype == tf.float32)
-        # assert(roughness.texels.dtype == tf.float32)
 
         self.diffuse_reflectance = diffuse_reflectance
         self.specular_reflectance = specular_reflectance

@@ -2,6 +2,7 @@ import numpy as np
 import tensorflow as tf
 import pyrednertensorflow.transform as transform
 import redner
+import pyrednertensorflow as pyredner
 from typing import List, Set, Dict, Tuple, Optional, Callable, Union
 
 class Camera:
@@ -10,8 +11,8 @@ class Camera:
         Both of them employ a look at transform.
 
         Note:
-            Currently we assume all the camera variables are stored in CPU,
-            no matter whether redner is operating under CPU or GPU mode.
+            The Camera constructor converts all variables into a CPU device,
+            no matter where they are originally.
 
         Args:
             position (length 3 float tensor): the origin of the camera
@@ -37,9 +38,10 @@ class Camera:
                  cam_to_ndc: tf.Tensor = None,
                  camera_type = redner.CameraType.perspective,
                  fisheye: bool = False):
-        assert(position.dtype == tf.float32, f"position.dtype == {position.dtype}")
+        assert(tf.executing_eagerly())
+        assert(position.dtype == tf.float32)
         assert(len(position.shape) == 1 and position.shape[0] == 3)
-        assert(look_at.dtype == tf.float32, f"look_at.dtype == {look_at.dtype}")
+        assert(look_at.dtype == tf.float32)
         assert(len(look_at.shape) == 1 and look_at.shape[0] == 3)
         assert(up.dtype == tf.float32)
         assert(len(up.shape) == 1 and up.shape[0] == 3)
@@ -48,26 +50,27 @@ class Camera:
             assert(len(fov.shape) == 1 and fov.shape[0] == 1)
         assert(isinstance(clip_near, float))
 
-        self.position = position
-        self.look_at = look_at
-        self.up = up
-        self.fov = fov
-        if cam_to_ndc is None:
-            if camera_type == redner.CameraType.perspective:
-                fov_factor = 1.0 / tf.tan(transform.radians(0.5 * fov))
-                o = tf.convert_to_tensor(np.ones([1], dtype=np.float32), dtype=tf.float32)
-                diag = tf.concat([fov_factor, fov_factor, o], 0)
-                self._cam_to_ndc = tf.linalg.tensor_diag(diag)
+        with tf.device('/device:cpu:' + str(pyredner.get_cpu_device_id())):
+            self.position = position
+            self.look_at = look_at
+            self.up = up
+            self.fov = fov
+            if cam_to_ndc is None:
+                if camera_type == redner.CameraType.perspective:
+                    fov_factor = 1.0 / tf.tan(transform.radians(0.5 * fov))
+                    o = tf.convert_to_tensor(np.ones([1], dtype=np.float32), dtype=tf.float32)
+                    diag = tf.concat([fov_factor, fov_factor, o], 0)
+                    self._cam_to_ndc = tf.linalg.tensor_diag(diag)
+                else:
+                    self._cam_to_ndc = tf.eye(3, dtype=tf.float32)   
             else:
-                self._cam_to_ndc = tf.eye(3, dtype=tf.float32)   
-        else:
-            self._cam_to_ndc = cam_to_ndc
-        self.ndc_to_cam = tf.linalg.inv(self.cam_to_ndc)
-        self.clip_near = clip_near
-        self.resolution = resolution
-        self.camera_type = camera_type
-        if fisheye:
-            self.camera_type = redner.CameraType.fisheye
+                self._cam_to_ndc = cam_to_ndc
+            self.ndc_to_cam = tf.linalg.inv(self.cam_to_ndc)
+            self.clip_near = clip_near
+            self.resolution = resolution
+            self.camera_type = camera_type
+            if fisheye:
+                self.camera_type = redner.CameraType.fisheye
 
     @property
     def fov(self):
