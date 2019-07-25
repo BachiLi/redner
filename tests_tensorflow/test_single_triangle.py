@@ -1,8 +1,6 @@
 import tensorflow as tf
 tf.compat.v1.enable_eager_execution()
 import pyrednertensorflow as pyredner
-import numpy as np
-import pdb
 
 # Optimize three vertices of a single triangle
 # We first render a target image, then perturb the three vertices and optimize
