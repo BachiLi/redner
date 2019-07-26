@@ -1,6 +1,5 @@
 import tensorflow as tf
 tf.compat.v1.enable_eager_execution()
-import skimage.transform
 import pyrednertensorflow as pyredner
 import redner
 
