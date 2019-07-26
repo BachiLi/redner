@@ -1,15 +1,7 @@
 import tensorflow as tf
-tf.enable_eager_execution()
-tfe = tf.contrib.eager
-
-from sys import platform as sys_pf
-if sys_pf == 'darwin':
-    import matplotlib
-    matplotlib.use("TkAgg")
-import matplotlib.pyplot as plt
+tf.compat.v1.enable_eager_execution()
 import pyrednertensorflow as pyredner
 import numpy as np
-import pdb
 
 # Optimize texels of a textured patch
 
@@ -64,43 +56,44 @@ roughness = (roughness - np.min(roughness) + 1e-3) / (np.max(roughness) - np.min
 roughness = tf.convert_to_tensor(np.reshape(roughness, (256, 256, 1)), dtype=tf.float32)
 
 # Use GPU if available
-pyredner.set_use_gpu(False)
+pyredner.set_use_gpu(tf.test.is_gpu_available(cuda_only=True, min_cuda_compute_capability=None))
 
 # Set up the scene using Pytorch tensor
-position = tfe.Variable([0.0, 0.0, -5.0], dtype=tf.float32)
-look_at = tfe.Variable([0.0, 0.0, 0.0], dtype=tf.float32)
-up = tfe.Variable([0.0, 1.0, 0.0], dtype=tf.float32)
-fov = tfe.Variable([45.0], dtype=tf.float32)
-clip_near = 1e-2
+with tf.device('/device:cpu:' + str(pyredner.get_cpu_device_id())):
+    position = tf.Variable([0.0, 0.0, -5.0], dtype=tf.float32, use_resource=True)
+    look_at = tf.Variable([0.0, 0.0, 0.0], dtype=tf.float32, use_resource=True)
+    up = tf.Variable([0.0, 1.0, 0.0], dtype=tf.float32, use_resource=True)
+    fov = tf.Variable([45.0], dtype=tf.float32, use_resource=True)
+    clip_near = 1e-2
+    resolution = (256, 256)
+    cam = pyredner.Camera(position = position,
+                          look_at = look_at,
+                          up = up,
+                          fov = fov,
+                          clip_near = clip_near,
+                          resolution = resolution)
 
-resolution = (256, 256)
-cam = pyredner.Camera(position = position,
-                     look_at = look_at,
-                     up = up,
-                     fov = fov,
-                     clip_near = clip_near,
-                     resolution = resolution)
-
-# print(roughness.dim())
 mat_perlin = pyredner.Material(
     diffuse_reflectance = diffuse,
     specular_reflectance = specular,
     roughness = roughness)
-mat_black = pyredner.Material(
-    diffuse_reflectance = tfe.Variable([0.0, 0.0, 0.0], ))
-materials = [mat_perlin, mat_black]
-vertices = tfe.Variable([[-1.5,-1.5,0.0], [-1.5,1.5,0.0], [1.5,-1.5,0.0], [1.5,1.5,0.0]],
-                        )
-indices = tfe.Variable([[0, 1, 2], [1, 3, 2]], dtype=tf.int32,
-                       )
-uvs = tfe.Variable([[0.05, 0.05], [0.05, 0.95], [0.95, 0.05], [0.95, 0.95]],
-				   )
-shape_plane = pyredner.Shape(vertices, indices, uvs, None, 0)
-light_vertices = tfe.Variable([[-1.0,-1.0,-7.0],[1.0,-1.0,-7.0],[-1.0,1.0,-7.0],[1.0,1.0,-7.0]])
-light_indices = tfe.Variable([[0,1,2],[1,3,2]], dtype=tf.int32, )
-shape_light = pyredner.Shape(light_vertices, light_indices, None, None, 1)
+with tf.device(pyredner.get_device_name()):
+    mat_black = pyredner.Material(
+        diffuse_reflectance = tf.Variable([0.0, 0.0, 0.0], dtype=tf.float32, use_resource=True))
+    materials = [mat_perlin, mat_black]
+    vertices = tf.Variable([[-1.5,-1.5,0.0], [-1.5,1.5,0.0], [1.5,-1.5,0.0], [1.5,1.5,0.0]],
+        dtype=tf.float32, use_resource=True)
+    indices = tf.constant([[0, 1, 2], [1, 3, 2]], dtype=tf.int32)
+    uvs = tf.Variable([[0.05, 0.05], [0.05, 0.95], [0.95, 0.05], [0.95, 0.95]],
+        dtype=tf.float32, use_resource=True)
+    shape_plane = pyredner.Shape(vertices, indices, uvs, None, 0)
+    light_vertices = tf.Variable([[-1.0,-1.0,-7.0],[1.0,-1.0,-7.0],[-1.0,1.0,-7.0],[1.0,1.0,-7.0]],
+        dtype=tf.float32, use_resource=True)
+    light_indices = tf.constant([[0,1,2],[1,3,2]], dtype=tf.int32)
+    shape_light = pyredner.Shape(light_vertices, light_indices, None, None, 1)
 shapes = [shape_plane, shape_light]
-light_intensity = tfe.Variable([20.0, 20.0, 20.0])
+with tf.device('/device:cpu:' + str(pyredner.get_cpu_device_id())):
+    light_intensity = tf.Variable([20.0, 20.0, 20.0], dtype=tf.float32, use_resource=True)
 # The first argument is the shape id of the light
 light = pyredner.AreaLight(1, light_intensity)
 area_lights = [light]
@@ -110,8 +103,6 @@ scene_args = pyredner.serialize_scene(
     num_samples = 16,
     max_bounces = 1)
 
-# Alias of the render function
-
 # Render our target
 img = pyredner.render(0, *scene_args)
 pyredner.imwrite(img, 'results/test_svbrdf/target.exr')
@@ -119,18 +110,19 @@ pyredner.imwrite(img, 'results/test_svbrdf/target.png')
 target = pyredner.imread('results/test_svbrdf/target.exr')
 
 # Our initial guess is three gray textures 
-diffuse_tex = tfe.Variable(
-    np.ones((256, 256, 3), dtype=np.float32) * 0.5,
-    trainable=True,
-    )
-specular_tex = tfe.Variable(
-    np.ones((256, 256, 3), dtype=np.float32) * 0.5,
-    trainable=True,
-    )
-roughness_tex = tfe.Variable(
-    np.ones((256, 256, 1), dtype=np.float32) * 0.5,
-    trainable=True,
-    )
+with tf.device(pyredner.get_device_name()):
+    diffuse_tex = tf.Variable(
+        tf.ones((256, 256, 3), dtype=np.float32) * 0.5,
+        trainable=True,
+        use_resource=True)
+    specular_tex = tf.Variable(
+        tf.ones((256, 256, 3), dtype=np.float32) * 0.5,
+        trainable=True,
+        use_resource=True)
+    roughness_tex = tf.Variable(
+        tf.ones((256, 256, 1), dtype=np.float32) * 0.5,
+        trainable=True,
+        use_resource=True)
 mat_perlin.diffuse_reflectance = pyredner.Texture(diffuse_tex)
 mat_perlin.specular_reflectance = pyredner.Texture(specular_tex)
 mat_perlin.roughness = pyredner.Texture(roughness_tex)
@@ -145,8 +137,7 @@ diff = tf.abs(target - img)
 pyredner.imwrite(diff, 'results/test_svbrdf/init_diff.png')
 
 # Optimize for triangle vertices
-# optimizer = torch.optim.Adam([diffuse_tex, specular_tex, roughness_tex], lr=1e-2)
-optimizer = tf.train.AdamOptimizer(1e-2)
+optimizer = tf.compat.v1.train.AdamOptimizer(1e-2)
 for t in range(200):
     print('iteration:', t)
     
@@ -166,10 +157,11 @@ for t in range(200):
     print('loss:', loss)
 
     grads = tape.gradient(loss, [diffuse_tex, specular_tex, roughness_tex])
-    optimizer.apply_gradients(zip(
-        grads, [diffuse_tex, specular_tex, roughness_tex] 
-    ))
-    
+    optimizer.apply_gradients(zip(grads, [diffuse_tex, specular_tex, roughness_tex]))
+    # Project textures back to valid range
+    diffuse_tex.assign(tf.maximum(diffuse_tex, 0))
+    specular_tex.assign(tf.maximum(specular_tex, 0))
+    roughness_tex.assign(tf.maximum(roughness_tex, 1e-5))
 
 scene_args = pyredner.serialize_scene(
     scene = scene,
