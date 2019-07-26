@@ -7,7 +7,7 @@ import pyrednertensorflow as pyredner
 # Use GPU if available
 pyredner.set_use_gpu(tf.test.is_gpu_available(cuda_only=True, min_cuda_compute_capability=None))
 
-# Set up the scene using Pytorch tensor
+# Set up the scene
 with tf.device('/device:cpu:' + str(pyredner.get_cpu_device_id())):
     position = tf.Variable([0.0, 2.0, -5.0], dtype=tf.float32, use_resource=True)
     look_at = tf.Variable([0.0, 0.0, 0.0], dtype=tf.float32, use_resource=True)
@@ -42,11 +42,11 @@ with tf.device(pyredner.get_device_name()):
     light_indices = tf.constant([[0,2,1], [1,2,3]], dtype=tf.int32)
     shape_light = pyredner.Shape(light_vertices, light_indices, None, None, 1)
     shapes = [shape_floor, shape_blocker, shape_light]
-    light_intensity = tf.Variable([1000.0, 1000.0, 1000.0], dtype=tf.float32, use_resource=True)
 
 with tf.device('/device:cpu:' + str(pyredner.get_cpu_device_id())):
-    # The first argument is the shape id of the light
-    light = pyredner.AreaLight(2, light_intensity)
+    light_intensity = tf.Variable([1000.0, 1000.0, 1000.0], dtype=tf.float32, use_resource=True)
+# The first argument is the shape id of the light
+light = pyredner.AreaLight(2, light_intensity)
 area_lights = [light]
 
 scene = pyredner.Scene(cam, shapes, materials, area_lights)

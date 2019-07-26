@@ -1,55 +1,54 @@
 import tensorflow as tf
-tf.enable_eager_execution()
-tfe = tf.contrib.eager
-import numpy as np
+tf.compat.v1.enable_eager_execution()
 import pyrednertensorflow as pyredner
 
 # Optimize four vertices of a shadow receiver
 
 # Use GPU if available
-pyredner.set_use_gpu(False)
+pyredner.set_use_gpu(tf.test.is_gpu_available(cuda_only=True, min_cuda_compute_capability=None))
 
-# Set up the scene using Pytorch tensor
-position = tfe.Variable([0.0, 2.0, -5.0])
-look_at = tfe.Variable([0.0, 0.0, 0.0], dtype=tf.float32)
-up = tfe.Variable([0.0, 1.0, 0.0], dtype=tf.float32)
-fov = tfe.Variable([45.0], dtype=tf.float32)
-clip_near = 1e-2
+# Set up the scene
+with tf.device('/device:cpu:' + str(pyredner.get_cpu_device_id())):
+    position = tf.Variable([0.0, 2.0, -5.0], dtype=tf.float32, use_resource=True)
+    look_at = tf.Variable([0.0, 0.0, 0.0], dtype=tf.float32, use_resource=True)
+    up = tf.Variable([0.0, 1.0, 0.0], dtype=tf.float32, use_resource=True)
+    fov = tf.Variable([45.0], dtype=tf.float32, use_resource=True)
+    clip_near = 1e-2
+    resolution = (256, 256)
+    cam = pyredner.Camera(position = position,
+                          look_at = look_at,
+                          up = up,
+                          fov = fov,
+                          clip_near = clip_near,
+                          resolution = resolution)
 
-resolution = (256, 256)
-cam = pyredner.Camera(position = position,
-                     look_at = look_at,
-                     up = up,
-                     fov = fov,
-                     clip_near = clip_near,
-                     resolution = resolution)
+with tf.device(pyredner.get_device_name()):
+    mat_grey = pyredner.Material(
+        diffuse_reflectance = tf.Variable([0.5, 0.5, 0.5], dtype=tf.float32, use_resource=True))
+    mat_black = pyredner.Material(
+        diffuse_reflectance = tf.Variable([0.0, 0.0, 0.0], dtype=tf.float32, use_resource=True))
+    materials = [mat_grey, mat_black]
 
-mat_grey = pyredner.Material(
-    diffuse_reflectance = tfe.Variable([0.5, 0.5, 0.5], dtype=tf.float32))
-mat_black = pyredner.Material(
-    diffuse_reflectance = tfe.Variable([0.0, 0.0, 0.0],
-    ))
-materials = [mat_grey, mat_black]
+    floor_vertices = tf.Variable([[-2.0,0.0,-2.0],[-2.0,0.0,2.0],[2.0,0.0,-2.0],[2.0,0.0,2.0]],
+	dtype=tf.float32, use_resource=True)
+    floor_indices = tf.constant([[0,1,2], [1,3,2]], dtype=tf.int32)
+    shape_floor = pyredner.Shape(floor_vertices, floor_indices, None, None, 0)
+    blocker_vertices = tf.Variable([[-0.5,3.0,-0.5],[-0.5,3.0,0.5],[0.5,3.0,-0.5],[0.5,3.0,0.5]],
+        dtype=tf.float32, use_resource=True)
+    blocker_indices = tf.constant([[0,1,2], [1,3,2]], dtype=tf.int32)
+    shape_blocker = pyredner.Shape(blocker_vertices, blocker_indices, None, None, 0)
+    light_vertices = tf.Variable([[-0.1,5,-0.1],[-0.1,5,0.1],[0.1,5,-0.1],[0.1,5,0.1]],
+        dtype=tf.float32, use_resource=True)
+    light_indices = tf.constant([[0,2,1], [1,2,3]], dtype=tf.int32)
+    shape_light = pyredner.Shape(light_vertices, light_indices, None, None, 1)
+    shapes = [shape_floor, shape_blocker, shape_light]
 
-floor_vertices = tfe.Variable([[-2.0,0.0,-2.0],[-2.0,0.0,2.0],[2.0,0.0,-2.0],[2.0,0.0,2.0]],
-	)
-floor_indices = tfe.Variable([[0,1,2], [1,3,2]], dtype=tf.int32)
-shape_floor = pyredner.Shape(floor_vertices, floor_indices, None, None, 0)
-blocker_vertices = tfe.Variable(
-    [[-0.5,3.0,-0.5],[-0.5,3.0,0.5],[0.5,3.0,-0.5],[0.5,3.0,0.5]],
-    )
-blocker_indices = tfe.Variable([[0,1,2], [1,3,2]], dtype=tf.int32)
-shape_blocker = pyredner.Shape(blocker_vertices, blocker_indices, None, None, 0)
-light_vertices = tfe.Variable(
-    [[-0.1,5,-0.1],[-0.1,5,0.1],[0.1,5,-0.1],[0.1,5,0.1]],
-    )
-light_indices = tfe.Variable([[0,2,1], [1,2,3]], dtype=tf.int32)
-shape_light = pyredner.Shape(light_vertices, light_indices, None, None, 1)
-shapes = [shape_floor, shape_blocker, shape_light]
-light_intensity = tfe.Variable([1000.0, 1000.0, 1000.0])
+with tf.device('/device:cpu:' + str(pyredner.get_cpu_device_id())):
+    light_intensity = tf.Variable([1000.0, 1000.0, 1000.0], dtype=tf.float32, use_resource=True)
 # The first argument is the shape id of the light
 light = pyredner.AreaLight(2, light_intensity)
 area_lights = [light]
+
 scene = pyredner.Scene(cam, shapes, materials, area_lights)
 scene_args = pyredner.serialize_scene(
     scene = scene,
@@ -65,9 +64,10 @@ pyredner.imwrite(img, 'results/test_shadow_receiver/target.png')
 target = pyredner.imread('results/test_shadow_receiver/target.exr')
 
 # Perturb the scene, this is our initial guess
-shape_floor.vertices = tfe.Variable(
-	[[-2.0,-0.2,-2.0],[-2.0,-0.2,2.0],[2.0,-0.2,-2.0],[2.0,-0.2,2.0]],
-    trainable=True)
+with tf.device(pyredner.get_device_name()):
+    shape_floor.vertices = tf.Variable(
+    	[[-2.0,-0.2,-2.0],[-2.0,-0.2,2.0],[2.0,-0.2,-2.0],[2.0,-0.2,2.0]],
+        trainable=True, use_resource=True)
 scene_args = pyredner.serialize_scene(
     scene = scene,
     num_samples = 256,
@@ -80,7 +80,7 @@ pyredner.imwrite(diff, 'results/test_shadow_receiver/init_diff.png')
 
 # Optimize for blocker vertices
 # optimizer = torch.optim.Adam([shape_floor.vertices], lr=1e-2)
-optimizer = tf.train.AdamOptimizer(1e-2)
+optimizer = tf.compat.v1.train.AdamOptimizer(1e-2)
 scene_args = pyredner.serialize_scene(
     scene = scene,
     num_samples = 4,
