@@ -1,12 +1,9 @@
 import tensorflow as tf
 tf.compat.v1.enable_eager_execution()
 import pyrednertensorflow as pyredner
-import math
-import numpy as np
 
 # Use GPU if available
-#pyredner.set_use_gpu(tf.test.is_gpu_available(cuda_only=True, min_cuda_compute_capability=None))
-pyredner.set_use_gpu(False)
+pyredner.set_use_gpu(tf.test.is_gpu_available(cuda_only=True, min_cuda_compute_capability=None))
 
 with tf.device('/device:cpu:' + str(pyredner.get_cpu_device_id())):
     cam = pyredner.Camera(position = tf.Variable([0.0, 0.0, -5.0], dtype=tf.float32, use_resource=True),
@@ -63,7 +60,7 @@ pyredner.imwrite(img, 'results/test_envmap/init.png')
 diff = tf.abs(target - img)
 pyredner.imwrite(diff, 'results/test_envmap/init_diff.png')
 
-optimizer = tf.train.AdamOptimizer(1e-2)
+optimizer = tf.compat.v1.train.AdamOptimizer(1e-2)
 for t in range(600):
     print('iteration:', t)
     with tf.GradientTape() as tape:
@@ -81,9 +78,8 @@ for t in range(600):
     pyredner.imwrite(img, 'results/test_envmap/iter_{}.png'.format(t))
     pyredner.imwrite(tf.abs(envmap_texels), 'results/test_envmap/envmap_{}.exr'.format(t))
 
-    grads = tape.gradient(loss, envmap_texels)
-    optimizer.apply_gradients(zip([grads], [envmap_texels]))
-    exit()
+    grads = tape.gradient(loss, [envmap_texels])
+    optimizer.apply_gradients(zip(grads, [envmap_texels]))
 
 scene_args = pyredner.serialize_scene(
     scene = scene,
