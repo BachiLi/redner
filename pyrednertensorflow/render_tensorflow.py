@@ -450,11 +450,11 @@ def render(*x):
         scene = ctx.scene
         options = ctx.options
         with tf.device('/device:cpu:' + str(pyredner.get_cpu_device_id())):
-            d_position = tf.zeros(3, dtype=tf.float32, name="d_position")
-            d_look_at = tf.zeros(3, dtype=tf.float32, name="d_look_at")
-            d_up = tf.zeros(3, dtype=tf.float32, name="d_up")
-            d_ndc_to_cam = tf.zeros([3,3], dtype=tf.float32, name="d_ndc_to_cam")
-            d_cam_to_ndc = tf.zeros([3,3], dtype=tf.float32, name="d_cam_to_ndc")
+            d_position = tf.zeros(3, dtype=tf.float32)
+            d_look_at = tf.zeros(3, dtype=tf.float32)
+            d_up = tf.zeros(3, dtype=tf.float32)
+            d_ndc_to_cam = tf.zeros([3,3], dtype=tf.float32)
+            d_cam_to_ndc = tf.zeros([3,3], dtype=tf.float32)
             d_camera = redner.DCamera(redner.float_ptr(pyredner.data_ptr(d_position)),
                                       redner.float_ptr(pyredner.data_ptr(d_look_at)),
                                       redner.float_ptr(pyredner.data_ptr(d_up)),
@@ -498,19 +498,29 @@ def render(*x):
                                           diffuse_size[0],
                                           3], dtype=tf.float32)
                 if specular_size[0] == 0:
-                    d_specular = tf.zeros([3], dtype=tf.float32)
+                    d_specular = tf.zeros(3, dtype=tf.float32)
                 else:
                     d_specular = tf.zeros([specular_size[2],
                                            specular_size[1],
                                            specular_size[0],
                                            3], dtype=tf.float32)
                 if roughness_size[0] == 0:
-                    d_roughness = tf.zeros([1], dtype=tf.float32)
+                    d_roughness = tf.zeros(1, dtype=tf.float32)
                 else:
                     d_roughness = tf.zeros([roughness_size[2],
                                             roughness_size[1],
                                             roughness_size[0],
                                             1], dtype=tf.float32)
+                # HACK: tensorflow's eager mode uses a cache to store scalar
+                #       constants to avoid memory copy. If we pass scalar tensors
+                #       into the C++ code and modify them, we would corrupt the
+                #       cache, causing incorrect result in future scalar constant
+                #       creations. Thus we force tensorflow to copy by plusing a zero
+                # (also see https://github.com/tensorflow/tensorflow/issues/11186
+                #  for more discussion regarding copying tensors)
+                if d_roughness.shape.num_elements() == 1:
+                    d_roughness = d_roughness + 0
+                    
                 d_diffuse_list.append(d_diffuse)
                 d_specular_list.append(d_specular)
                 d_roughness_list.append(d_roughness)
@@ -540,7 +550,7 @@ def render(*x):
         d_area_lights = []
         with tf.device(pyredner.get_device_name()):
             for light in ctx.area_lights:
-                d_intensity = tf.zeros([3], dtype=tf.float32)
+                d_intensity = tf.zeros(3, dtype=tf.float32)
                 d_intensity_list.append(d_intensity)
                 d_area_lights.append(\
                     redner.DAreaLight(redner.float_ptr(pyredner.data_ptr(d_intensity))))
