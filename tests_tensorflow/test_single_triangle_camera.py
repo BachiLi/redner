@@ -1,14 +1,11 @@
 import tensorflow as tf
-tf.enable_eager_execution()
-tfe = tf.contrib.eager
-import numpy as np
-
+tf.compat.v1.enable_eager_execution()
 import pyrednertensorflow as pyredner
-import pdb
+
 # Optimize camera parameters of a single triangle rendering
 
 # Use GPU if available
-pyredner.set_use_gpu(False)
+pyredner.set_use_gpu(tf.test.is_gpu_available(cuda_only=True, min_cuda_compute_capability=None))
 
 # Set up the scene
 with tf.device('/device:cpu:' + str(pyredner.get_cpu_device_id())):
@@ -36,7 +33,7 @@ with tf.device(pyredner.get_device_name()):
     shape_triangle = pyredner.Shape(vertices, indices, None, None, 0)
     light_vertices = tf.Variable([[-1.0,-1.0,-9.0],[1.0,-1.0,-9.0],[-1.0,1.0,-9.0],[1.0,1.0,-9.0]],
         dtype=tf.float32, use_resource=True)
-    light_indices = tf.Variable([[0,1,2],[1,3,2]], dtype=tf.int32, use_resource=True)
+    light_indices = tf.constant([[0,1,2],[1,3,2]], dtype=tf.int32)
     shape_light = pyredner.Shape(light_vertices, light_indices, None, None, 0)
     shapes = [shape_triangle, shape_light]
 
