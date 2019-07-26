@@ -5,7 +5,7 @@ import pyrednertensorflow as pyredner
 # Optimize four vertices of a shadow blocker
 
 # Use GPU if available
-pyredner.set_use_gpu(False)
+pyredner.set_use_gpu(tf.test.is_gpu_available(cuda_only=True, min_cuda_compute_capability=None))
 
 # Set up the scene
 with tf.device('/device:cpu:' + str(pyredner.get_cpu_device_id())):
@@ -29,17 +29,19 @@ with tf.device(pyredner.get_device_name()):
         diffuse_reflectance = tf.Variable([0.0, 0.0, 0.0], dtype=tf.float32, use_resource=True))
     materials = [mat_grey, mat_black]
 
+    # tf.constant allocates arrays on host memory for int32 arrays (some tensorflow internal mess),
+    # but pyredner.Shape constructor automatically converts the memory to device if necessary.
     floor_vertices = tf.Variable([[-2.0,0.0,-2.0],[-2.0,0.0,2.0],[2.0,0.0,-2.0],[2.0,0.0,2.0]],
         dtype=tf.float32, use_resource=True)
-    floor_indices = tf.Variable([[0,1,2], [1,3,2]], dtype=tf.int32, use_resource=True)
+    floor_indices = tf.constant([[0,1,2], [1,3,2]], dtype=tf.int32)
     shape_floor = pyredner.Shape(floor_vertices, floor_indices, None, None, 0)
     blocker_vertices = tf.Variable([[-0.5,3.0,-0.5],[-0.5,3.0,0.5],[0.5,3.0,-0.5],[0.5,3.0,0.5]],
         dtype=tf.float32, use_resource=True)
-    blocker_indices = tf.Variable([[0,1,2], [1,3,2]], dtype=tf.int32, use_resource=True)
+    blocker_indices = tf.constant([[0,1,2], [1,3,2]], dtype=tf.int32)
     shape_blocker = pyredner.Shape(blocker_vertices, blocker_indices, None, None, 0)
     light_vertices = tf.Variable([[-0.1,5,-0.1],[-0.1,5,0.1],[0.1,5,-0.1],[0.1,5,0.1]],
         dtype=tf.float32, use_resource=True)
-    light_indices = tf.Variable([[0,2,1], [1,2,3]], dtype=tf.int32, use_resource=True)
+    light_indices = tf.constant([[0,2,1], [1,2,3]], dtype=tf.int32)
     shape_light = pyredner.Shape(light_vertices, light_indices, None, None, 1)
     shapes = [shape_floor, shape_blocker, shape_light]
 
