@@ -169,7 +169,7 @@ img = img[:, :, :3] * img[:, :, 3:4] + background * (1 - img[:, :, 3:4])
 # Save the images and differences.
 pyredner.imwrite(img, 'results/test_single_triangle_background/final.exr')
 pyredner.imwrite(img, 'results/test_single_triangle_background/final.png')
-pyredner.imwrite(tf.abs(target - img).cpu(), 'results/test_single_triangle_background/final_diff.png')
+pyredner.imwrite(tf.abs(target - img), 'results/test_single_triangle_background/final_diff.png')
 
 # Convert the intermediate renderings to a video.
 from subprocess import call
