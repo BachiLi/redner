@@ -126,7 +126,7 @@ scene_args = pyredner.serialize_scene(
 img = pyredner.render(202, *scene_args)
 pyredner.imwrite(img, 'results/test_single_triangle_camera/final.exr')
 pyredner.imwrite(img, 'results/test_single_triangle_camera/final.png')
-pyredner.imwrite(tf.abs(target - img).cpu(), 'results/test_single_triangle_camera/final_diff.png')
+pyredner.imwrite(tf.abs(target - img), 'results/test_single_triangle_camera/final_diff.png')
 
 from subprocess import call
 call(["ffmpeg", "-framerate", "24", "-i",
