@@ -16,11 +16,9 @@ def compute_vertex_normal(vertices, indices):
     normals = tf.zeros(vertices.shape, dtype = tf.float32)
 
     # NOTE: Try tf.TensorArray()
-    v = [
-        tf.gather(vertices, indices[:,0]),
-        tf.gather(vertices, indices[:,1]),
-        tf.gather(vertices, indices[:,2])
-    ]
+    v = [tf.gather(vertices, indices[:,0]),
+         tf.gather(vertices, indices[:,1]),
+         tf.gather(vertices, indices[:,2])]
 
     for i in range(3):
         v0 = v[i]
