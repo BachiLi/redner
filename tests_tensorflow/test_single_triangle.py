@@ -169,9 +169,7 @@ for t in range(1, 201):
     pyredner.imwrite(img, 'results/test_single_triangle/iter_{}.png'.format(t))
 
     grads = tape.gradient(loss_value, [shape_triangle.vertices])
-    optimizer.apply_gradients(
-        zip(grads, [shape_triangle.vertices])
-    )
+    optimizer.apply_gradients(zip(grads, [shape_triangle.vertices]))
 
     print('grad:', grads[0])
     print('vertices:', shape_triangle.vertices)
