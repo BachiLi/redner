@@ -84,7 +84,6 @@ def parse_material(node, two_sided = False):
         specular_uv_scale = [1.0, 1.0]
         roughness = tf.constant([1.0])
 
-
         for child in node:
             if child.attrib['name'] == 'reflectance':
                 if child.tag == 'texture':
@@ -119,7 +118,6 @@ def parse_material(node, two_sided = False):
                 specular_reflectance = pyredner.Texture(specular_reflectance, specular_uv_scale),
                 roughness = pyredner.Texture(roughness),
                 two_sided = two_sided))
-
 
     elif node.attrib['type'] == 'roughplastic':
         diffuse_reflectance = tf.constant([0.5, 0.5, 0.5])
@@ -219,7 +217,6 @@ def parse_shape(node, material_dict, shape_id):
                 normals = None
 
         # Transform the vertices and normals
-        # import pdb; pdb.set_trace()
         vertices = tf.concat((vertices, tf.convert_to_tensor(np.ones([vertices.shape[0], 1]), dtype=tf.float32)), axis = 1)
         vertices = vertices @ tf.transpose(to_world, [0, 1])
         vertices = vertices / vertices[:, 3:4]
@@ -260,7 +257,6 @@ def parse_shape(node, material_dict, shape_id):
                                          [light_intensity[0],
                                           light_intensity[0],
                                           light_intensity[0]])
-        # Transform the vertices
         # Transform the vertices and normals
         vertices = tf.concat((vertices, tf.convert_to_tensor(np.ones(vertices.shape[0], 1), dtype=tf.float32)), axis = 1)
         vertices = vertices @ tf.transpose(to_world, [0, 1])
