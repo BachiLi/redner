@@ -2,7 +2,7 @@
 
 News
 
-07/27/2019 - Tensorflow 1.14 support! See tests_tensorflow for examples. Tutorials are work in progress. Thanks [Seyoung Park](https://github.com/SuperShinyEyes) for the contribuion.  
+07/27/2019 - Tensorflow 1.14 support! See tests_tensorflow for examples. The CMake files should automatically detect tensorflow in python and install corresponding files. Tutorials are work in progress. Thanks [Seyoung Park](https://github.com/SuperShinyEyes) for the contribuion.  
 06/25/2019 - Added orthographic cameras (see examples/two_d_mesh.py).  
 05/13/2019 - Fixed quite a few bugs related to camera derivatives. If something didn't work for you before, maybe try again.  
 04/28/2019 - Added QMC support (see tests/test_qmc.py and the documentation in pyredner.serialize_scene()).  
