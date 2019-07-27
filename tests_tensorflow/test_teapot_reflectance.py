@@ -25,6 +25,7 @@ with tf.device(pyredner.get_device_name()):
         pyredner.Texture(tf.Variable([0.6, 0.6, 0.6], dtype=tf.float32, use_resource=True))
     scene.materials[-1].roughness = \
         pyredner.Texture(tf.Variable([0.05], dtype=tf.float32, use_resource=True))
+
 scene_args = pyredner.serialize_scene(
     scene = scene,
     num_samples = 1024,
@@ -175,7 +176,7 @@ scene_args = pyredner.serialize_scene(
 img = pyredner.render(num_iteration + 2, *scene_args)
 pyredner.imwrite(img, 'results/test_teapot_reflectance/final.exr')
 pyredner.imwrite(img, 'results/test_teapot_reflectance/final.png')
-pyredner.imwrite(tf.abs(target - img).cpu(), 'results/test_teapot_reflectance/final_diff.png')
+pyredner.imwrite(tf.abs(target - img), 'results/test_teapot_reflectance/final_diff.png')
 
 from subprocess import call
 call(["ffmpeg", "-framerate", "24", "-i",

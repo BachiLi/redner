@@ -11,23 +11,24 @@ import pyrednertensorflow as pyredner
 # Optimize for a textured plane in a specular reflection
 
 # Use GPU if available
-pyredner.set_use_gpu(False)
+pyredner.set_use_gpu(tf.test.is_gpu_available(cuda_only=True, min_cuda_compute_capability=None))
 
 # Load the scene from a Mitsuba scene file
 scene = pyredner.load_mitsuba('scenes/teapot_specular.xml')
 
 # The last material is the teapot material, set it to a specular material
-scene.materials[-1].diffuse_reflectance = \
-    pyredner.Texture(tfe.Variable([0.15, 0.2, 0.15], ))
-scene.materials[-1].specular_reflectance = \
-    pyredner.Texture(tfe.Variable([0.8, 0.8, 0.8], ))
-scene.materials[-1].roughness = \
-    pyredner.Texture(tfe.Variable([0.0001], ))
+with tf.device(pyredner.get_device_name()):
+    scene.materials[-1].diffuse_reflectance = \
+        pyredner.Texture(tf.Variable([0.15, 0.2, 0.15], dtype=tf.float32, use_resource=True))
+    scene.materials[-1].specular_reflectance = \
+        pyredner.Texture(tf.Variable([0.8, 0.8, 0.8], dtype=tf.float32, use_resource=True))
+    scene.materials[-1].roughness = \
+        pyredner.Texture(tf.Variable([0.0001], dtype=tf.float32, use_resource=True))
+
 scene_args=pyredner.serialize_scene(
     scene = scene,
     num_samples = 512,
     max_bounces = 2)
-
 
 # Render our target. The first argument is the seed for RNG in the renderer.
 img = pyredner.render(0, *scene_args)
@@ -38,8 +39,9 @@ target = pyredner.imread('results/test_teapot_specular/target.exr')
 # Perturb the scene, this is our initial guess
 # We perturb the last shape, which is the SIGGRAPH logo
 ref_pos = scene.shapes[-1].vertices
-translation = tfe.Variable([20.0, 0.0, 2.0], trainable=True, name="translation")
-scene.shapes[-1].vertices = ref_pos + translation
+with tf.device(pyredner.get_device_name()):
+    translation = tf.Variable([20.0, 0.0, 2.0], trainable=True, use_resource=True)
+    scene.shapes[-1].vertices = ref_pos + translation
 scene_args = pyredner.serialize_scene(
     scene = scene,
     num_samples = 512,
@@ -50,8 +52,7 @@ pyredner.imwrite(img, 'results/test_teapot_specular/init.png')
 diff = tf.abs(target - img)
 pyredner.imwrite(diff, 'results/test_teapot_specular/init_diff.png')
 
-# optimizer = torch.optim.Adam([translation], lr=0.5)
-optimizer = tf.train.AdamOptimizer(0.5)
+optimizer = tf.compat.v1.train.AdamOptimizer(0.5)
 num_iteration = 400
 for t in range(num_iteration):
     print('iteration:', t)
@@ -70,9 +71,7 @@ for t in range(num_iteration):
     grads = tape.gradient(loss, [translation])
     print('grad:', grads)
 
-    optimizer.apply_gradients(
-        zip(grads, [translation])
-        )
+    optimizer.apply_gradients(zip(grads, [translation]))
 
     print('translation:', translation)
 
@@ -88,7 +87,7 @@ scene_args = pyredner.serialize_scene(
 img = pyredner.render(num_iteration + 2, *scene_args)
 pyredner.imwrite(img, 'results/test_teapot_specular/final.exr')
 pyredner.imwrite(img, 'results/test_teapot_specular/final.png')
-pyredner.imwrite(tf.abs(target - img).cpu(), 'results/test_teapot_specular/final_diff.png')
+pyredner.imwrite(tf.abs(target - img), 'results/test_teapot_specular/final_diff.png')
 
 from subprocess import call
 call(["ffmpeg", "-framerate", "24", "-i",
