@@ -7,7 +7,7 @@ packages = []
 if torch_spec is not None:
     packages.append('pyredner')
 if tf_spec is not None:
-    packages.append('pyrednertensorflow')
+    packages.append('pyredner_tensorflow')
 if len(packages) == 0:
     print('Error: PyTorch or Tensorflow must be installed.')
     exit()

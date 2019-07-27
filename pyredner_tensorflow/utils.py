@@ -1,7 +1,7 @@
 import tensorflow as tf
 import math
 import numpy as np
-import pyrednertensorflow as pyredner
+import pyredner_tensorflow as pyredner
 
 ####################### Spherical Harmonics utilities ########################
 # Code adapted from "Spherical Harmonic Lighting: The Gritty Details", Robin Green

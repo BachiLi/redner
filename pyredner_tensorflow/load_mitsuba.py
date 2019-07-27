@@ -3,8 +3,8 @@ import xml.etree.ElementTree as etree
 import numpy as np
 import redner
 import os
-import pyrednertensorflow as pyredner
-import pyrednertensorflow.transform as transform
+import pyredner_tensorflow as pyredner
+import pyredner_tensorflow.transform as transform
 
 def parse_transform(node):
     ret = tf.eye(4)

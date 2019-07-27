@@ -1,9 +1,8 @@
-from typing import List, Set, Dict, Tuple, Optional, Callable, Union
-import pyrednertensorflow as pyredner
+from typing import Optional
+import pyredner_tensorflow as pyredner
 import tensorflow as tf
 import math
 import numpy as np
-import pdb
 
 def compute_vertex_normal(vertices, indices):
     def dot(v1, v2):

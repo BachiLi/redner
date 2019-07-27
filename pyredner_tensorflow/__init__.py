@@ -1,4 +1,3 @@
-from typing import List, Set, Dict, Tuple, Optional, Callable, Union
 import numpy as np
 import tensorflow as tf
 from .device import *
@@ -26,20 +25,8 @@ __data_ptr_module = tf.load_op_library(os.path.join(os.path.dirname(redner.__fil
 DEBUG = False
 IS_UNIT_TEST = False
 
-def zeros_like(
-        tensor: Union[np.ndarray, tf.Tensor, tf.Variable], 
-        is_var=False, 
-        dtype=tf.float32) -> Union[tf.Tensor, tf.Variable]:
-    zeros = np.zeros_like(tensor)
-    if is_var:
-        return tf.Variable(zeros, dtype=dtype)
-    else:
-        return tf.constant(zeros, dtype=dtype)
-
-def data_ptr(tensor):
-    
+def data_ptr(tensor):    
     addr_as_uint64 = __data_ptr_module.data_ptr(tensor)
-    # import pdb;pdb.set_trace()
     return int(addr_as_uint64)
 
 def write_tensor(path, tensor, height, width):
@@ -48,7 +35,6 @@ def write_tensor(path, tensor, height, width):
             for j in range(width):
                 f.write(f'{tensor[i,j]} ')
             f.write('\n')
-
 
 def pretty_debug_print(grads, vars, iter_num=-1):
     from pprint import pprint
@@ -65,7 +51,6 @@ def pretty_debug_print(grads, vars, iter_num=-1):
     print("\n>>> VARIABLES:")
     for v in vars:
         print(v.name, v.shape, v.numpy())
-
 
 def get_render_args(seed, scene_args):
     return [tf.constant(seed)] + scene_args

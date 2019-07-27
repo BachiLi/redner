@@ -197,11 +197,11 @@ endif()
 install(CODE "execute_process(COMMAND python ${CMAKE_CURRENT_SOURCE_DIR}/openexrpython/setup.py install
                               WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/openexrpython)")
 
-# Install pyredner & pyrednertensorflow
+# Install pyredner & pyredner_tensorflow
 install(CODE "execute_process(COMMAND python ${CMAKE_CURRENT_SOURCE_DIR}/setup.py install
                               WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})")
 
 find_package(TensorFlow)
 if(TensorFlow_FOUND)
-    add_subdirectory(pyrednertensorflow/custom_ops)
+    add_subdirectory(pyredner_tensorflow/custom_ops)
 endif()

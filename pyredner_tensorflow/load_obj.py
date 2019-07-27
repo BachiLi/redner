@@ -1,6 +1,6 @@
 import tensorflow as tf
 import re
-import pyrednertensorflow as pyredner
+import pyredner_tensorflow as pyredner
 import os
 
 class WavefrontMaterial:

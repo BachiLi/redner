@@ -1,4 +1,4 @@
-import pyrednertensorflow as pyredner
+import pyredner_tensorflow as pyredner
 import numpy as np
 import tensorflow as tf
 import math

@@ -1,4 +1,4 @@
-import pyrednertensorflow as pyredner
+import pyredner_tensorflow as pyredner
 import tensorflow as tf
 
 class Material:

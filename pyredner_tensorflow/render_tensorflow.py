@@ -1,9 +1,8 @@
-from __future__ import absolute_import, division, print_function
-from typing import List, Set, Dict, Tuple, Optional, Callable, Union
+from typing import List
 import tensorflow as tf
 import numpy as np
 import redner
-import pyrednertensorflow as pyredner
+import pyredner_tensorflow as pyredner
 import time
 import weakref
 import os
@@ -441,6 +440,7 @@ def forward(seed:int, *args):
 
 @tf.custom_gradient
 def render(*x):
+    assert(tf.executing_eagerly())
     if pyredner.get_use_gpu() and os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] != 'true':
         print('******************** WARNING ********************')
         print('Tensorflow by default allocates all GPU memory,')

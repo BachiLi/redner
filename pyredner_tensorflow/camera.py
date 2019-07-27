@@ -1,9 +1,9 @@
+from typing import Tuple
 import numpy as np
 import tensorflow as tf
-import pyrednertensorflow.transform as transform
+import pyredner_tensorflow.transform as transform
 import redner
-import pyrednertensorflow as pyredner
-from typing import List, Set, Dict, Tuple, Optional, Callable, Union
+import pyredner_tensorflow as pyredner
 
 class Camera:
     """
