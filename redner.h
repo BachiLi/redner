@@ -8,14 +8,8 @@
 
 #ifndef __NVCC__
     #include <cmath>
-    namespace {
-        inline float fmodf(float a, float b) {
-            return std::fmod(a, b);
-        }
-        inline double fmod(double a, double b) {
-            return std::fmod(a, b);
-        }
-    }
+    using std::fmod;
+    using std::isfinite;
 #endif
 
 #ifndef M_PI
@@ -154,3 +148,4 @@ inline T0 atomic_add(T0 &target, T1 source) {
     return old_val;
 #endif
 }
+
