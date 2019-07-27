@@ -1,3 +1,6 @@
+# Tensorflow by default allocates all GPU memory, leaving very little for rendering.
+# We set the environment variable TF_FORCE_GPU_ALLOW_GROWTH to true to enforce on demand
+# memory allocation to reduce page faults.
 import os
 os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
 import tensorflow as tf
@@ -10,7 +13,6 @@ import scipy
 
 # Use GPU if available
 pyredner.set_use_gpu(tf.test.is_gpu_available(cuda_only=True, min_cuda_compute_capability=None))
-#pyredner.set_use_gpu(False)
 
 # Load the scene from a Mitsuba scene file
 scene = pyredner.load_mitsuba('scenes/teapot.xml')

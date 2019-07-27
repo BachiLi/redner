@@ -1,8 +1,13 @@
+# Tensorflow by default allocates all GPU memory, leaving very little for rendering.
+# We set the environment variable TF_FORCE_GPU_ALLOW_GROWTH to true to enforce on demand
+# memory allocation to reduce page faults.
+import os
+os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
 import tensorflow as tf
-tf.enable_eager_execution()
-tfe = tf.contrib.eager
+tf.compat.v1.enable_eager_execution()
 import numpy as np
 import pyrednertensorflow as pyredner
+
 # Optimize for a textured plane in a specular reflection
 
 # Use GPU if available

@@ -6,7 +6,7 @@ import redner
 import pyrednertensorflow as pyredner
 import time
 import weakref
-import pdb
+import os
 
 __EMPTY_TENSOR = tf.constant([])
 # There is a bias-variance trade off in the backward pass.
@@ -441,6 +441,14 @@ def forward(seed:int, *args):
 
 @tf.custom_gradient
 def render(*x):
+    if os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] != 'true':
+        print('******************** WARNING ********************')
+        print('Tensorflow by default allocates all GPU memory,')
+        print('causing huge amount of page faults when rendering.')
+        print('Please set the environment variable TF_FORCE_GPU_ALLOW_GROWTH to true,')
+        print('so that Tensorflow allocates memory on demand.')
+        print('*************************************************')
+
     seed, args = int(x[0]), x[1:]
     img = forward(seed, *args)
 
