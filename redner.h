@@ -8,7 +8,14 @@
 
 #ifndef __NVCC__
     #include <cmath>
-    using std::fmod;
+    namespace {
+        inline float fmodf(float a, float b) {
+            return std::fmod(a, b);
+        }
+        inline double fmod(double a, double b) {
+            return std::fmod(a, b);
+        }
+    }
     using std::isfinite;
 #endif
 
@@ -61,7 +68,6 @@ inline double modulo(double a, double b) {
     double r = ::fmod(a, b);
     return (r < 0.0) ? r+b : r;
 }
-
 
 template <typename T>
 DEVICE
