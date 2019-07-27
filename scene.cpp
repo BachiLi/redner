@@ -75,11 +75,17 @@ Scene::Scene(const Camera &camera,
 #endif
     if (use_gpu) {
 #ifdef __NVCC__
+        // Initialize the scene in another thread, since optix prime calls cudaSetDeviceFlags
+        // and becomes unhappy if we create a context in the main thread
         checkCuda(cudaGetDevice(&old_device_id));
         if (gpu_index != -1) {
             checkCuda(cudaSetDevice(gpu_index));
         }
         // Initialize Optix prime scene
+        // FIXME: optix context creation calls cudaDeviceSetFlags(), but we already
+        // activate CUDA before this. Ideally we want to move context creation to an initialization
+        // phase, but we also want to have a context for each GPU.
+        // We should create a context array in global memory and fetch the corresponding context.
         optix_context = optix::prime::Context::create(RTP_CONTEXT_TYPE_CUDA);
         if (gpu_index != -1) {
             optix_context->setCudaDeviceNumbers({(uint32_t)gpu_index});
