@@ -1,0 +1,109 @@
+<?xml version='1.0' encoding='utf-8'?>
+<!--
+
+	Automatically converted from Wavefront OBJ
+
+-->
+
+<scene version="0.5.0">
+	<integrator type="direct"/>
+
+	<bsdf type="diffuse" id="Floor_material">
+ 		<texture name="reflectance" type="bitmap" >
+			<string name="filename" value="textures/default.png" />
+			<string name="filterType" value="trilinear" />
+			<float name="uscale" value="10"/>
+			<float name="vscale" value="10"/>
+		</texture>
+	</bsdf>
+
+	<bsdf type="diffuse" id="Light0_material">
+		<rgb name="reflectance" value="0.64 0.64 0.64"/>
+	</bsdf>
+
+	<bsdf type="diffuse" id="Light1_material">
+		<rgb name="reflectance" value="0.64 0.64 0.64"/>
+	</bsdf>
+
+	<bsdf type="diffuse" id="Light2_material">
+		<rgb name="reflectance" value="0.64 0.64 0.64"/>
+	</bsdf>
+
+	<bsdf type="diffuse" id="teapot_material">
+		<rgb name="reflectance" value="0.64 0.64 0.64"/>
+	</bsdf>
+
+	<shape type="serialized" id="teapot_mesh">
+		<string name="filename" value="teapot.serialized"/>
+		<integer name="shapeIndex" value="0"/>
+		<ref name="bsdf" id="Floor_material"/>
+	</shape>
+
+	<shape type="serialized" id="teapot_1_mesh">
+		<string name="filename" value="teapot.serialized"/>
+		<integer name="shapeIndex" value="1"/>
+
+		<ref name="bsdf" id="Light0_material"/>
+		<emitter type="area">
+			<spectrum name="radiance" value="8.0 8.0 8.0"/>
+		</emitter>
+	</shape>
+
+	<shape type="serialized" id="teapot_4_mesh">
+		<string name="filename" value="teapot.serialized"/>
+		<integer name="shapeIndex" value="4"/>
+
+		<ref name="bsdf" id="Light1_material"/>
+		<emitter type="area">
+			<spectrum name="radiance" value="8.0 8.0 8.0"/>
+		</emitter>
+	</shape>
+
+	<shape type="serialized" id="teapot_5_mesh">
+		<string name="filename" value="teapot.serialized"/>
+		<integer name="shapeIndex" value="5"/>
+
+		<ref name="bsdf" id="Light2_material"/>
+		<emitter type="area">
+			<spectrum name="radiance" value="16.0 16.0 16.0"/>
+		</emitter>
+	</shape>
+
+	<shape type="serialized" id="teapot_2_mesh">
+		<string name="filename" value="teapot.serialized"/>
+		<integer name="shapeIndex" value="2"/>
+
+		<ref name="bsdf" id="teapot_material"/>
+	</shape>
+
+	<shape type="serialized" id="teapot_3_mesh">
+		<string name="filename" value="teapot.serialized"/>
+		<integer name="shapeIndex" value="3"/>
+
+		<ref name="bsdf" id="teapot_material"/>
+	</shape>
+
+
+	<sensor type="perspective">
+		<float name="farClip" value="237.278"/>
+		<float name="focusDistance" value="19.6591"/>
+		<float name="fov" value="45"/>
+		<string name="fovAxis" value="x"/>
+		<float name="nearClip" value="0.461439"/>
+		<transform name="toWorld">
+
+			<lookat target="0.454578, 9.24896, 17.1858" origin="0.46048, 9.63838, 18.1068" up="-0.00249518, 0.921061, -0.38941"/>
+		</transform>
+
+		<sampler type="independent">
+			<integer name="sampleCount" value="4"/>
+		</sampler>
+
+		<film type="hdrfilm">
+			<integer name="height" value="256"/>
+			<integer name="width" value="256"/>
+
+			<rfilter type="box"/>
+		</film>
+	</sensor>
+</scene>

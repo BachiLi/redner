@@ -2,6 +2,7 @@
 
 News
 
+07/27/2019 - Tensorflow 1.14 support! See tests_tensorflow for examples. Tutorials are work in progress. Thanks [Seyoung Park](https://github.com/SuperShinyEyes) for the contribuion.  
 06/25/2019 - Added orthographic cameras (see examples/two_d_mesh.py).  
 05/13/2019 - Fixed quite a few bugs related to camera derivatives. If something didn't work for you before, maybe try again.  
 04/28/2019 - Added QMC support (see tests/test_qmc.py and the documentation in pyredner.serialize_scene()).  
@@ -30,6 +31,7 @@ redner depends on a few libraries/systems:
 - [Python 3.6 or above](https://www.python.org) (required)
 - [pybind11](https://github.com/pybind/pybind11) (required)
 - [PyTorch 0.4.1 or 1.0](https://pytorch.org) (required)
+- [Tensorflow 1.14](https://www.tensorflow.org/) (optional, required if PyTorch is not installed)
 - [OpenEXR](https://github.com/openexr/openexr) (required)
 - [Embree](https://embree.github.io) (required)
 - [CUDA 10](https://developer.nvidia.com/cuda-downloads) (optional, need GPU at Kepler class or newer)
