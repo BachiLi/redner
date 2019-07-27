@@ -441,7 +441,7 @@ def forward(seed:int, *args):
 
 @tf.custom_gradient
 def render(*x):
-    if os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] != 'true':
+    if pyredner.get_use_gpu() and os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] != 'true':
         print('******************** WARNING ********************')
         print('Tensorflow by default allocates all GPU memory,')
         print('causing huge amount of page faults when rendering.')
