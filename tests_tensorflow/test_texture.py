@@ -1,53 +1,53 @@
+# Tensorflow by default allocates all GPU memory, leaving very little for rendering.
+# We set the environment variable TF_FORCE_GPU_ALLOW_GROWTH to true to enforce on demand
+# memory allocation to reduce page faults.
+import os
+os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
 import tensorflow as tf
-tf.enable_eager_execution()
-tfe = tf.contrib.eager
-
+tf.compat.v1.enable_eager_execution()
 import pyrednertensorflow as pyredner
-import numpy as np
 
 # Optimize four vertices of a textured patch
 
 # Use GPU if available
-pyredner.set_use_gpu(False)
+pyredner.set_use_gpu(tf.test.is_gpu_available(cuda_only=True, min_cuda_compute_capability=None))
 
 # Set up the scene using Pytorch tensor
-position = tfe.Variable([0.0, 0.0, -5.0], dtype=tf.float32)
-look_at = tfe.Variable([0.0, 0.0, 0.0], dtype=tf.float32)
-up = tfe.Variable([0.0, 1.0, 0.0], dtype=tf.float32)
-fov = tfe.Variable([45.0], dtype=tf.float32)
-clip_near = 1e-2
+with tf.device('/device:cpu:' + str(pyredner.get_cpu_device_id())):
+    position = tf.Variable([0.0, 0.0, -5.0], dtype=tf.float32, use_resource=True)
+    look_at = tf.Variable([0.0, 0.0, 0.0], dtype=tf.float32, use_resource=True)
+    up = tf.Variable([0.0, 1.0, 0.0], dtype=tf.float32, use_resource=True)
+    fov = tf.Variable([45.0], dtype=tf.float32, use_resource=True)
+    clip_near = 1e-2
+    resolution = (256, 256)
+    cam = pyredner.Camera(position = position,
+                          look_at = look_at,
+                          up = up,
+                          fov = fov,
+                          clip_near = clip_near,
+                          resolution = resolution)
 
-resolution = (256, 256)
-cam = pyredner.Camera(position = position,
-                     look_at = look_at,
-                     up = up,
-                     fov = fov,
-                     clip_near = clip_near,
-                     resolution = resolution)
+with tf.device(pyredner.get_device_name()):
+    checkerboard_texture = pyredner.imread('checkerboard.exr')
+    mat_checkerboard = pyredner.Material(
+        diffuse_reflectance = checkerboard_texture)
+    mat_black = pyredner.Material(
+        diffuse_reflectance = tf.Variable([0.0, 0.0, 0.0], dtype=tf.float32, use_resource=True))
+    materials = [mat_checkerboard, mat_black]
+    vertices = tf.Variable([[-1.0,-1.0,0.0], [-1.0,1.0,0.0], [1.0,-1.0,0.0], [1.0,1.0,0.0]],
+        dtype=tf.float32, use_resource=True)
+    indices = tf.constant([[0, 1, 2], [1, 3, 2]], dtype=tf.int32)
+    uvs = tf.Variable([[0.05, 0.05], [0.05, 0.95], [0.95, 0.05], [0.95, 0.95]],
+	dtype=tf.float32, use_resource=True)
+    shape_plane = pyredner.Shape(vertices, indices, uvs, None, 0)
+    light_vertices = tf.Variable([[-1.0,-1.0,-7.0],[1.0,-1.0,-7.0],[-1.0,1.0,-7.0],[1.0,1.0,-7.0]],
+        dtype=tf.float32, use_resource=True)
+    light_indices = tf.constant([[0,1,2],[1,3,2]], dtype=tf.int32)
+    shape_light = pyredner.Shape(light_vertices, light_indices, None, None, 1)
+    shapes = [shape_plane, shape_light]
 
-checkerboard_texture = pyredner.imread('checkerboard.exr')
-if pyredner.get_use_gpu():
-	checkerboard_texture = checkerboard_texture.cuda()
-
-mat_checkerboard = pyredner.Material(
-    diffuse_reflectance = checkerboard_texture)
-mat_black = pyredner.Material(
-    diffuse_reflectance = tfe.Variable([0.0, 0.0, 0.0],
-    ))
-materials = [mat_checkerboard, mat_black]
-vertices = tfe.Variable([[-1.0,-1.0,0.0], [-1.0,1.0,0.0], [1.0,-1.0,0.0], [1.0,1.0,0.0]],
-                        )
-indices = tfe.Variable([[0, 1, 2], [1, 3, 2]], dtype=tf.int32,
-                       )
-uvs = tfe.Variable([[0.05, 0.05], [0.05, 0.95], [0.95, 0.05], [0.95, 0.95]],
-				   )
-shape_plane = pyredner.Shape(vertices, indices, uvs, None, 0)
-light_vertices = tfe.Variable([[-1.0,-1.0,-7.0],[1.0,-1.0,-7.0],[-1.0,1.0,-7.0],[1.0,1.0,-7.0]],
-                              )
-light_indices = tfe.Variable([[0,1,2],[1,3,2]], dtype=tf.int32, )
-shape_light = pyredner.Shape(light_vertices, light_indices, None, None, 1)
-shapes = [shape_plane, shape_light]
-light_intensity = tfe.Variable([20.0, 20.0, 20.0])
+with tf.device('/device:cpu:' + str(pyredner.get_cpu_device_id())):
+    light_intensity = tf.Variable([20.0, 20.0, 20.0], dtype=tf.float32, use_resource=True)
 # The first argument is the shape id of the light
 light = pyredner.AreaLight(1, light_intensity)
 area_lights = [light]
@@ -66,10 +66,12 @@ pyredner.imwrite(img, 'results/test_texture/target.png')
 target = pyredner.imread('results/test_texture/target.exr')
 
 # Perturb the scene, this is our initial guess
-shape_plane.vertices = tfe.Variable(
-    [[-1.1,-1.2,0.0], [-1.3,1.1,0.0], [1.1,-1.1,0.0], [0.8,1.2,0.0]],
-    dtype=tf.float32,
-    trainable=True)
+with tf.device(pyredner.get_device_name()):
+    shape_plane.vertices = tf.Variable(
+        [[-1.1,-1.2,0.0], [-1.3,1.1,0.0], [1.1,-1.1,0.0], [0.8,1.2,0.0]],
+        dtype=tf.float32,
+        trainable=True,
+        use_resource=True)
 scene_args = pyredner.serialize_scene(
     scene = scene,
     num_samples = 16,
@@ -81,9 +83,7 @@ diff = tf.abs(target - img)
 pyredner.imwrite(diff, 'results/test_texture/init_diff.png')
 
 # Optimize for triangle vertices
-# optimizer = torch.optim.Adam([shape_plane.vertices], lr=5e-2)
-optimizer = tf.train.AdamOptimizer(5e-2)
-
+optimizer = tf.compat.v1.train.AdamOptimizer(5e-2)
 scene_args = pyredner.serialize_scene(
     scene = scene,
     num_samples = 4,
@@ -92,18 +92,15 @@ for t in range(200):
     print('iteration:', t)
 
     with tf.GradientTape() as tape:
-        img = pyredner.render(t+1, *scene_args)
-        
         # Forward pass: render the image
+        img = pyredner.render(t+1, *scene_args)
         pyredner.imwrite(img, 'results/test_texture/iter_{}.png'.format(t))
         loss = tf.reduce_sum(tf.square(img - target))
     
     print('loss:', loss)
 
     grads = tape.gradient(loss, [shape_plane.vertices])
-    optimizer.apply_gradients(
-        zip(grads, [shape_plane.vertices])
-        )
+    optimizer.apply_gradients(zip(grads, [shape_plane.vertices]))
 
     print('grad:', grads)
     print('vertices:', shape_plane.vertices)
@@ -115,7 +112,7 @@ scene_args = pyredner.serialize_scene(
 img = pyredner.render(202, *scene_args)
 pyredner.imwrite(img, 'results/test_texture/final.exr')
 pyredner.imwrite(img, 'results/test_texture/final.png')
-pyredner.imwrite(tf.abs(target - img).cpu(), 'results/test_texture/final_diff.png')
+pyredner.imwrite(tf.abs(target - img), 'results/test_texture/final_diff.png')
 
 from subprocess import call
 call(["ffmpeg", "-framerate", "24", "-i",

@@ -5,7 +5,6 @@ import os
 os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
 import tensorflow as tf
 tf.compat.v1.enable_eager_execution()
-import numpy as np
 import pyrednertensorflow as pyredner
 
 # Optimize for a textured plane in a specular reflection
