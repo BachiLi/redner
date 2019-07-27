@@ -5,7 +5,7 @@ import os
 os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
 import tensorflow as tf
 tf.compat.v1.enable_eager_execution()
-import pyrednertensorflow as pyredner
+import pyredner_tensorflow as pyredner
 
 # Optimize fisheye camera parameters of a single triangle rendering
 

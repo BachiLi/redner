@@ -5,7 +5,7 @@ import os
 os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
 import tensorflow as tf
 tf.compat.v1.enable_eager_execution()
-import pyrednertensorflow as pyredner
+import pyredner_tensorflow as pyredner
 
 # Use GPU if available
 pyredner.set_use_gpu(tf.test.is_gpu_available(cuda_only=True, min_cuda_compute_capability=None))
