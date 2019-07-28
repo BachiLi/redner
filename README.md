@@ -30,7 +30,7 @@ see [tests/test_teapot_reflectance.py](https://github.com/BachiLi/redner/blob/ma
 redner depends on a few libraries/systems:
 - [Python 3.6 or above](https://www.python.org) (required)
 - [pybind11](https://github.com/pybind/pybind11) (required)
-- [PyTorch 0.4.1 or 1.0](https://pytorch.org) (required)
+- [PyTorch 1.1](https://pytorch.org) (required)
 - [Tensorflow 1.14](https://www.tensorflow.org/) (optional, required if PyTorch is not installed)
 - [OpenEXR](https://github.com/openexr/openexr) (required)
 - [Embree](https://embree.github.io) (required)
@@ -45,7 +45,7 @@ redner depends on a few libraries/systems:
 I recommend using conda to setup the Python related dependencies, e.g.:
 ```
 conda install pybind11
-conda install pytorch-nightly -c pytorch
+conda install pytorch -c pytorch
 ```
 
 redner uses [CMake](https://cmake.org) as its build system. You need CMake 3.12 or above to build redner.
