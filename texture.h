@@ -248,7 +248,7 @@ inline void d_bilinear_interp(const Texture1 &tex,
                               Real &d_value_ff, Real &d_value_cf,
                               Real &d_value_fc, Real &d_value_cc,
                               Real &d_u, Real &d_v) {
-    auto texels = tex.texels + level * tex.width * tex.height * 3;
+    auto texels = tex.texels + level * tex.width * tex.height;
     auto value_ff = texels[yfi * tex.width + xfi];
     auto value_cf = texels[yfi * tex.width + xci];
     auto value_fc = texels[yci * tex.width + xfi];
