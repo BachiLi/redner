@@ -2,7 +2,7 @@
 
 News
 
-08/07/2019 - Fixed a roughness texture bug. 
+08/07/2019 - Fixed a roughness texture bug.  
 07/27/2019 - Tensorflow 1.14 support! Currently only support eager execution. We will support graph execution after tensorflow 2.0 becomes stable. See tests_tensorflow for examples (I recommend starting from tests_tensorflow/test_single_triangle.py). The CMake files should automatically detect tensorflow in python and install corresponding files. Tutorials are work in progress. Lots of thanks go to [Seyoung Park](https://github.com/SuperShinyEyes) for the contribution!  
 06/25/2019 - Added orthographic cameras (see examples/two_d_mesh.py).  
 05/13/2019 - Fixed quite a few bugs related to camera derivatives. If something didn't work for you before, maybe try again.  
