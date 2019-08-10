@@ -44,8 +44,6 @@ void d_accumulate_primary_contribs(
         const ChannelInfo &channel_info,
         const float *d_rendered_image,
         DScene *d_scene,
-        BufferView<DTexture3> d_envmap_vals,
-        BufferView<Matrix4x4> d_world_to_envs,
         BufferView<DRay> d_incoming_rays,
         BufferView<RayDifferential> d_incoming_ray_differentials,
         BufferView<SurfacePoint> d_shading_points,

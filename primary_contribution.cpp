@@ -334,10 +334,6 @@ struct d_primary_contribs_accumulator {
         const auto &throughput = throughputs[pixel_id];
         const auto &shading_isect = shading_isects[pixel_id];
         const auto &incoming_ray = incoming_rays[pixel_id];
-        if (scene.envmap != nullptr) {
-            d_envmap_vals[idx] = DTexture3{};
-            d_world_to_envs[idx] = Matrix4x4{};
-        }
         d_diffuse_texs[idx] = DTexture3{};
         d_specular_texs[idx] = DTexture3{};
         d_roughness_texs[idx] = DTexture1{};
@@ -374,8 +370,7 @@ struct d_primary_contribs_accumulator {
                                       dir,
                                       incoming_ray_differentials[pixel_id],
                                       d_emission,
-                                      d_envmap_vals[idx],
-                                      d_world_to_envs[idx],
+                                      *d_envmap,
                                       d_incoming_rays[pixel_id].dir,
                                       d_incoming_ray_differentials[pixel_id]);
                     }
@@ -548,8 +543,7 @@ struct d_primary_contribs_accumulator {
     const ChannelInfo channel_info;
     const float *d_rendered_image;
     DAreaLight *d_area_lights;
-    DTexture3 *d_envmap_vals;
-    Matrix4x4 *d_world_to_envs;
+    DEnvironmentMap *d_envmap;
     DRay *d_incoming_rays;
     RayDifferential *d_incoming_ray_differentials;
     SurfacePoint *d_shading_points;
@@ -600,8 +594,6 @@ void d_accumulate_primary_contribs(
         const ChannelInfo &channel_info,
         const float *d_rendered_image,
         DScene *d_scene,
-        BufferView<DTexture3> d_envmap_vals,
-        BufferView<Matrix4x4> d_world_to_envs,
         BufferView<DRay> d_incoming_rays,
         BufferView<RayDifferential> d_incoming_ray_differentials,
         BufferView<SurfacePoint> d_shading_points,
@@ -621,8 +613,7 @@ void d_accumulate_primary_contribs(
         channel_info,
         d_rendered_image,
         d_scene->area_lights.data,
-        d_envmap_vals.begin(),
-        d_world_to_envs.begin(),
+        d_scene->envmap,
         d_incoming_rays.begin(),
         d_incoming_ray_differentials.begin(),
         d_shading_points.begin(),

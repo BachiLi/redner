@@ -896,9 +896,6 @@ void render(const Scene &scene,
                 const auto d_ray_differentials =
                     path_buffer.d_next_ray_differentials.view(0, num_pixels);
                 auto d_points = path_buffer.d_next_points.view(0, num_pixels);
-                auto d_direct_lights = path_buffer.d_direct_lights.view(0, num_actives_primary);
-                auto d_envmap_vals = path_buffer.d_envmap_vals.view(0, num_actives_primary);
-                auto d_world_to_envs = path_buffer.d_world_to_envs.view(0, num_actives_primary);
                 auto d_diffuse_texs = path_buffer.d_diffuse_texs.view(0, num_actives_primary);
                 auto d_specular_texs = path_buffer.d_specular_texs.view(0, num_actives_primary);
                 auto d_roughness_texs = path_buffer.d_roughness_texs.view(0, num_actives_primary);
@@ -918,8 +915,6 @@ void render(const Scene &scene,
                                               channel_info,
                                               d_rendered_image.get(),
                                               d_scene.get(),
-                                              d_envmap_vals,
-                                              d_world_to_envs,
                                               d_rays,
                                               d_ray_differentials,
                                               d_points,
@@ -939,44 +934,7 @@ void render(const Scene &scene,
                                        d_primary_vertices,
                                        d_cameras);
 
-                /*cuda_synchronize();
-                for (int i = 0; i < primary_active_pixels.size(); i++) {
-                    auto c = 1;
-                    auto pixel_id = primary_active_pixels[i];
-                    auto d_v0 = d_primary_vertices[3 * i + 0];
-                    auto d_v1 = d_primary_vertices[3 * i + 1];
-                    auto d_v2 = d_primary_vertices[3 * i + 2];
-                    if (d_v0.shape_id == 6) {
-                        debug_image[3 * pixel_id + 0] += (d_v0.d_v[c] + d_v1.d_v[c] + d_v2.d_v[c]);
-                        debug_image[3 * pixel_id + 1] += (d_v0.d_v[c] + d_v1.d_v[c] + d_v2.d_v[c]);
-                        debug_image[3 * pixel_id + 2] += (d_v0.d_v[c] + d_v1.d_v[c] + d_v2.d_v[c]);
-                    }
-                }*/
-
-                // for (int i = 0; i < primary_active_pixels.size(); i++) {
-                //     auto pixel_id = primary_active_pixels[i];
-                //     auto d_pos = d_cameras[i].position;
-                //     debug_image[3 * pixel_id + 0] += d_pos[0];
-                //     debug_image[3 * pixel_id + 1] += d_pos[0];
-                //     debug_image[3 * pixel_id + 2] += d_pos[0];
-                // }
-
                 // Deposit derivatives
-                accumulate_area_light(
-                    d_direct_lights,
-                    path_buffer.d_lgt_reduce_buffer.view(0, num_actives_primary),
-                    d_scene->area_lights.view(0, d_scene->area_lights.size()),
-                    scene.use_gpu,
-                    thrust_alloc);
-                if (scene.envmap != nullptr) {
-                    accumulate_envmap(
-                        scene,
-                        d_envmap_vals,
-                        d_world_to_envs,
-                        path_buffer.d_envmap_reduce_buffer.view(0, num_actives_primary),
-                        d_scene->envmap,
-                        thrust_alloc);
-                }
                 accumulate_vertex(
                     d_primary_vertices,
                     path_buffer.d_vertex_reduce_buffer.view(0, num_actives_primary),
