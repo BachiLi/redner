@@ -557,11 +557,11 @@ inline TVector3<T> screen_to_camera(const Camera &camera,
             auto dir = camera.ndc_to_cam * ndc;
             auto dir_n = TVector3<T>{dir[0] / dir[2], dir[1] / dir[2], T(1)};
             return dir_n;
-        } break;
+        }
         case CameraType::Orthographic: {
             assert(false); // TODO
             return TVector3<T>{0, 0, 1};
-        } break;
+        }
         case CameraType::Fisheye: {
             // x, y to polar coordinate
             auto x = 2.f * (screen_pos[0] - 0.5f);
@@ -577,7 +577,7 @@ inline TVector3<T> screen_to_camera(const Camera &camera,
             auto dir = TVector3<T>{
                 -cos_phi * sin_theta, -sin_phi * sin_theta, cos_theta};
             return dir;
-        } break;
+        }
         default: {
             assert(false);
             return TVector3<T>{0, 0, 0};
