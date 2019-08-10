@@ -896,9 +896,6 @@ void render(const Scene &scene,
                 const auto d_ray_differentials =
                     path_buffer.d_next_ray_differentials.view(0, num_pixels);
                 auto d_points = path_buffer.d_next_points.view(0, num_pixels);
-                auto d_primary_vertices =
-                    path_buffer.d_general_vertices.view(0, 3 * num_actives_primary);
-                auto d_cameras = path_buffer.d_cameras.view(0, num_actives_primary);
 
                 d_accumulate_primary_contribs(scene,
                                               primary_active_pixels,
@@ -925,21 +922,7 @@ void render(const Scene &scene,
                                        d_rays,
                                        d_ray_differentials,
                                        d_points,
-                                       d_primary_vertices,
-                                       d_cameras);
-
-                // Deposit derivatives
-                accumulate_vertex(
-                    d_primary_vertices,
-                    path_buffer.d_vertex_reduce_buffer.view(0, num_actives_primary),
-                    d_scene->shapes.view(0, d_scene->shapes.size()),
-                    scene.use_gpu,
-                    thrust_alloc);
-
-                // Reduce the camera array
-                DCameraInst d_camera = DISPATCH_CACHED(scene.use_gpu, thrust_alloc, thrust::reduce,
-                    d_cameras.begin(), d_cameras.end(), DCameraInst{});
-                accumulate_camera(camera, d_camera, d_scene->camera, scene.use_gpu);
+                                       d_scene.get());
             }
 
             /////////////////////////////////////////////////////////////////////////////////

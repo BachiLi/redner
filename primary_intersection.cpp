@@ -5,13 +5,6 @@
 struct d_primary_intersector {
     DEVICE void operator()(int idx) {
         // Initialize derivatives
-        auto d_primary_v = d_vertices + 3 * idx;
-        d_primary_v[0] = DVertex{};
-        d_primary_v[1] = DVertex{};
-        d_primary_v[2] = DVertex{};
-        auto &d_camera = d_cameras[idx];
-        d_camera = DCameraInst{};
-
         auto pixel_idx = active_pixels[idx];
         const auto &isect = isects[pixel_idx];
         auto d_primary_ray_differential = RayDifferential{
@@ -25,12 +18,12 @@ struct d_primary_intersector {
             auto tri_id = isect.tri_id;
             const auto &shape = shapes[shape_id];
             auto ind = get_indices(shape, tri_id);
-            d_primary_v[0].shape_id = shape_id;
-            d_primary_v[0].vertex_id = ind[0];
-            d_primary_v[1].shape_id = shape_id;
-            d_primary_v[1].vertex_id = ind[1];
-            d_primary_v[2].shape_id = shape_id;
-            d_primary_v[2].vertex_id = ind[2];
+            Vector3 d_v_p[3] = {
+                Vector3{0, 0, 0}, Vector3{0, 0, 0}, Vector3{0, 0, 0}};
+            Vector3 d_v_n[3] = {
+                Vector3{0, 0, 0}, Vector3{0, 0, 0}, Vector3{0, 0, 0}};
+            Vector2 d_v_uv[3] = {
+                Vector2{0, 0}, Vector2{0, 0}, Vector2{0, 0}};
             d_intersect_shape(shape,
                               tri_id,
                               rays[pixel_idx],
@@ -39,7 +32,22 @@ struct d_primary_intersector {
                               d_ray_differentials[pixel_idx],
                               d_ray,
                               d_primary_ray_differential,
-                              d_primary_v);
+                              d_v_p,
+                              d_v_n,
+                              d_v_uv);
+            atomic_add(&d_shapes[shape_id].vertices[3 * ind[0]], d_v_p[0]);
+            atomic_add(&d_shapes[shape_id].vertices[3 * ind[1]], d_v_p[1]);
+            atomic_add(&d_shapes[shape_id].vertices[3 * ind[2]], d_v_p[2]);
+            if (has_uvs(shape)) {
+                atomic_add(&d_shapes[shape_id].uvs[2 * ind[0]], d_v_uv[0]);
+                atomic_add(&d_shapes[shape_id].uvs[2 * ind[1]], d_v_uv[1]);
+                atomic_add(&d_shapes[shape_id].uvs[2 * ind[2]], d_v_uv[2]);
+            }
+            if (has_shading_normals(shape)) {
+                atomic_add(&d_shapes[shape_id].normals[3 * ind[0]], d_v_n[0]);
+                atomic_add(&d_shapes[shape_id].normals[3 * ind[1]], d_v_n[1]);
+                atomic_add(&d_shapes[shape_id].normals[3 * ind[2]], d_v_n[2]);
+            }
         }
 
         auto pixel_x = pixel_idx % camera.width;
@@ -87,8 +95,8 @@ struct d_primary_intersector {
     const DRay *d_rays;
     const RayDifferential *d_ray_differentials;
     const SurfacePoint *d_points;
-    DVertex *d_vertices;
-    DCameraInst *d_cameras;
+    DShape *d_shapes;
+    DCamera d_camera;
 };
 
 void d_primary_intersection(const Scene &scene,
@@ -100,8 +108,7 @@ void d_primary_intersection(const Scene &scene,
                             const BufferView<DRay> &d_rays,
                             const BufferView<RayDifferential> &d_ray_differentials,
                             const BufferView<SurfacePoint> &d_surface_points,
-                            BufferView<DVertex> d_vertices,
-                            BufferView<DCameraInst> d_cameras) {
+                            DScene *d_scene) {
     parallel_for(d_primary_intersector{
         scene.camera,
         scene.shapes.data,
@@ -113,6 +120,6 @@ void d_primary_intersection(const Scene &scene,
         d_rays.begin(),
         d_ray_differentials.begin(),
         d_surface_points.begin(),
-        d_vertices.begin(),
-        d_cameras.begin()}, active_pixels.size(), scene.use_gpu);
+        d_scene->shapes.data,
+        d_scene->camera}, active_pixels.size(), scene.use_gpu);
 }

@@ -123,7 +123,12 @@ void test_d_sample_primary_rays() {
         &c2n.data[0][0],
         1e-2f,
         CameraType::Perspective};
-    DCameraInst d_camera;
+    auto d_pos = Vector3f{0, 0, 0};
+    auto d_look = Vector3f{0, 0, 0};
+    auto d_up = Vector3f{0, 0, 0};
+    Matrix3x3f d_n2c = Matrix3x3f{};
+    Matrix3x3f d_c2n = Matrix3x3f{};
+    DCamera d_camera{&d_pos[0], &d_look[0], &d_up[0], &d_n2c(0, 0), &d_c2n(0, 0)};
     DRay d_ray{Vector3{1, 1, 1}, Vector3{1, 1, 1}};
     d_sample_primary_ray(camera,
                          Vector2{0.5, 0.5},
@@ -236,8 +241,7 @@ void test_d_sample_primary_rays() {
             auto diff = (sum(positive_ray.org - negative_ray.org) +
                          sum(positive_ray.dir - negative_ray.dir)) /
                         (2 * finite_delta);
-            equal_or_error(__FILE__, __LINE__, (Real)diff,
-                (Real)d_camera.ndc_to_cam(i, j));
+            equal_or_error(__FILE__, __LINE__, (Real)diff, (Real)d_camera.ndc_to_cam[3 * i + j]);
         }
     }
 }

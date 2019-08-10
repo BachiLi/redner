@@ -8,6 +8,7 @@
 #include "shape.h"
 
 struct Scene;
+struct DScene;
 
 /// Backpropagate the primary ray intersection to hit vertices & camera
 void d_primary_intersection(const Scene &scene,
@@ -19,5 +20,4 @@ void d_primary_intersection(const Scene &scene,
                             const BufferView<DRay> &d_rays,
                             const BufferView<RayDifferential> &d_ray_differentials,
                             const BufferView<SurfacePoint> &d_surface_points,
-                            BufferView<DVertex> d_vertices,
-                            BufferView<DCameraInst> d_cameras);
+                            DScene *d_scene);

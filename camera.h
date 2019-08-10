@@ -159,7 +159,7 @@ DEVICE
 inline void d_sample_primary_ray(const Camera &camera,
                                  const Vector2 &screen_pos,
                                  const DRay &d_ray,
-                                 DCameraInst &d_camera) {
+                                 DCamera &d_camera) {
     switch(camera.camera_type) {
         case CameraType::Perspective: {
             // Linear projection
@@ -184,21 +184,29 @@ inline void d_sample_primary_ray(const Camera &camera,
             // n_dir = normalize(dir)
             auto d_dir = d_normalize(dir, d_n_dir);
             // dir = camera.ndc_to_cam * ndc
-            d_camera.ndc_to_cam(0, 0) += d_dir[0] * ndc[0];
-            d_camera.ndc_to_cam(0, 1) += d_dir[0] * ndc[1];
-            d_camera.ndc_to_cam(0, 2) += d_dir[0] * ndc[2];
-            d_camera.ndc_to_cam(1, 0) += d_dir[1] * ndc[0];
-            d_camera.ndc_to_cam(1, 1) += d_dir[1] * ndc[1];
-            d_camera.ndc_to_cam(1, 2) += d_dir[1] * ndc[2];
-            d_camera.ndc_to_cam(2, 0) += d_dir[2] * ndc[0];
-            d_camera.ndc_to_cam(2, 1) += d_dir[2] * ndc[1];
-            d_camera.ndc_to_cam(2, 2) += d_dir[2] * ndc[2];
+            auto d_ndc_to_cam = Matrix3x3{};
+            d_ndc_to_cam(0, 0) += d_dir[0] * ndc[0];
+            d_ndc_to_cam(0, 1) += d_dir[0] * ndc[1];
+            d_ndc_to_cam(0, 2) += d_dir[0] * ndc[2];
+            d_ndc_to_cam(1, 0) += d_dir[1] * ndc[0];
+            d_ndc_to_cam(1, 1) += d_dir[1] * ndc[1];
+            d_ndc_to_cam(1, 2) += d_dir[1] * ndc[2];
+            d_ndc_to_cam(2, 0) += d_dir[2] * ndc[0];
+            d_ndc_to_cam(2, 1) += d_dir[2] * ndc[1];
+            d_ndc_to_cam(2, 2) += d_dir[2] * ndc[2];
+            atomic_add(d_camera.ndc_to_cam, d_ndc_to_cam);
             // org = xfm_point(camera.cam_to_world, Vector3{0, 0, 0})
             auto d_cam_org = Vector3{0, 0, 0};
             d_xfm_point(camera.cam_to_world, Vector3{0, 0, 0}, d_org,
                         d_cam_to_world, d_cam_org);
+            auto d_p = Vector3{0, 0, 0};
+            auto d_l = Vector3{0, 0, 0};
+            auto d_up = Vector3{0, 0, 0};
             d_look_at_matrix(camera.position, camera.look, camera.up,
-                d_cam_to_world, d_camera.position, d_camera.look, d_camera.up);
+                d_cam_to_world, d_p, d_l, d_up);
+            atomic_add(d_camera.position, d_p);
+            atomic_add(d_camera.look, d_l);
+            atomic_add(d_camera.up, d_up);
         } break;
         case CameraType::Orthographic: {
             // Linear projection
@@ -220,15 +228,25 @@ inline void d_sample_primary_ray(const Camera &camera,
             d_xfm_point(camera.cam_to_world, local_org, d_org,
                         d_cam_to_world, d_local_org);
             // local_org = camera.ndc_to_cam * ndc
-            d_camera.ndc_to_cam(0, 0) += d_local_org[0] * ndc[0];
-            d_camera.ndc_to_cam(0, 1) += d_local_org[0] * ndc[1];
-            d_camera.ndc_to_cam(0, 2) += d_local_org[0] * ndc[2];
-            d_camera.ndc_to_cam(1, 0) += d_local_org[1] * ndc[0];
-            d_camera.ndc_to_cam(1, 1) += d_local_org[1] * ndc[1];
-            d_camera.ndc_to_cam(1, 2) += d_local_org[1] * ndc[2];
-            d_camera.ndc_to_cam(2, 0) += d_local_org[2] * ndc[0];
-            d_camera.ndc_to_cam(2, 1) += d_local_org[2] * ndc[1];
-            d_camera.ndc_to_cam(2, 2) += d_local_org[2] * ndc[2];
+            auto d_ndc_to_cam = Matrix3x3{};
+            d_ndc_to_cam(0, 0) += d_local_org[0] * ndc[0];
+            d_ndc_to_cam(0, 1) += d_local_org[0] * ndc[1];
+            d_ndc_to_cam(0, 2) += d_local_org[0] * ndc[2];
+            d_ndc_to_cam(1, 0) += d_local_org[1] * ndc[0];
+            d_ndc_to_cam(1, 1) += d_local_org[1] * ndc[1];
+            d_ndc_to_cam(1, 2) += d_local_org[1] * ndc[2];
+            d_ndc_to_cam(2, 0) += d_local_org[2] * ndc[0];
+            d_ndc_to_cam(2, 1) += d_local_org[2] * ndc[1];
+            d_ndc_to_cam(2, 2) += d_local_org[2] * ndc[2];
+            atomic_add(d_camera.ndc_to_cam, d_ndc_to_cam);
+            auto d_p = Vector3{0, 0, 0};
+            auto d_l = Vector3{0, 0, 0};
+            auto d_up = Vector3{0, 0, 0};
+            d_look_at_matrix(camera.position, camera.look, camera.up,
+                d_cam_to_world, d_p, d_l, d_up);
+            atomic_add(d_camera.position, d_p);
+            atomic_add(d_camera.look, d_l);
+            atomic_add(d_camera.up, d_up);
         } break;
         case CameraType::Fisheye: {
             // Equi-angular projection
@@ -265,8 +283,14 @@ inline void d_sample_primary_ray(const Camera &camera,
             auto cam_org = Vector3{0, 0, 0};
             d_xfm_point(camera.cam_to_world, Vector3{0, 0, 0}, d_org,
                         d_cam_to_world, cam_org);
+            auto d_p = Vector3{0, 0, 0};
+            auto d_l = Vector3{0, 0, 0};
+            auto d_up = Vector3{0, 0, 0};
             d_look_at_matrix(camera.position, camera.look, camera.up,
-                d_cam_to_world, d_camera.position, d_camera.look, d_camera.up);
+                d_cam_to_world, d_p, d_l, d_up);
+            atomic_add(d_camera.position, d_p);
+            atomic_add(d_camera.look, d_l);
+            atomic_add(d_camera.up, d_up);
         } break;
         default: {
             assert(false);
