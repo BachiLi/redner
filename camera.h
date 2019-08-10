@@ -114,7 +114,7 @@ Ray sample_primary(const Camera &camera,
             auto n_dir = normalize(dir);
             auto world_dir = xfm_vector(camera.cam_to_world, n_dir);
             return Ray{org, world_dir};
-        } break;
+        }
         case CameraType::Orthographic: {
             // Linear projection
             // [0, 1] x [0, 1] -> [-1, 1/aspect_ratio] x [1, -1/aspect_ratio]
@@ -125,7 +125,7 @@ Ray sample_primary(const Camera &camera,
             auto org = xfm_point(camera.cam_to_world, camera.ndc_to_cam * ndc);
             auto dir = xfm_vector(camera.cam_to_world, Vector3{0, 0, 1});
             return Ray{org, dir};
-        } break;
+        }
         case CameraType::Fisheye: {
             // Equi-angular projection
             auto org = xfm_point(camera.cam_to_world, Vector3{0, 0, 0});
@@ -147,7 +147,7 @@ Ray sample_primary(const Camera &camera,
             auto n_dir = normalize(dir);
             auto world_dir = xfm_vector(camera.cam_to_world, n_dir);
             return Ray{org, world_dir};
-        } break;
+        }
         default: {
             assert(false);
             return Ray{};
