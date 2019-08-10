@@ -294,7 +294,7 @@ TVector2<T> camera_to_screen(const Camera &camera,
             auto x = (ndc[0] + 1.f) * 0.5f;
             auto y = (-ndc[1] * aspect_ratio + 1.f) * 0.5f;
             return TVector2<T>{x, y};
-        } break;
+        }
         case CameraType::Orthographic: {
             // Linear projection
             auto aspect_ratio = Real(camera.width) / Real(camera.height);
@@ -304,7 +304,7 @@ TVector2<T> camera_to_screen(const Camera &camera,
             auto x = (ndc[0] + 1.f) * 0.5f;
             auto y = (-ndc[1] * aspect_ratio + 1.f) * 0.5f;
             return TVector2<T>{x, y};
-        } break;
+        }
         case CameraType::Fisheye: {
             // Equi-angular projection
             auto dir = normalize(pt);
@@ -315,7 +315,7 @@ TVector2<T> camera_to_screen(const Camera &camera,
             auto x = 0.5f * (-r * cos(phi) + 1.f);
             auto y = 0.5f * (-r * sin(phi) + 1.f);
             return TVector2<T>{x, y};
-        } break;
+        }
         default: {
             assert(false);
             return TVector2<T>{T(0), T(0)};
