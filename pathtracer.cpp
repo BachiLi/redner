@@ -896,9 +896,6 @@ void render(const Scene &scene,
                 const auto d_ray_differentials =
                     path_buffer.d_next_ray_differentials.view(0, num_pixels);
                 auto d_points = path_buffer.d_next_points.view(0, num_pixels);
-                auto d_diffuse_texs = path_buffer.d_diffuse_texs.view(0, num_actives_primary);
-                auto d_specular_texs = path_buffer.d_specular_texs.view(0, num_actives_primary);
-                auto d_roughness_texs = path_buffer.d_roughness_texs.view(0, num_actives_primary);
                 auto d_primary_vertices =
                     path_buffer.d_general_vertices.view(0, 3 * num_actives_primary);
                 auto d_cameras = path_buffer.d_cameras.view(0, num_actives_primary);
@@ -917,10 +914,7 @@ void render(const Scene &scene,
                                               d_scene.get(),
                                               d_rays,
                                               d_ray_differentials,
-                                              d_points,
-                                              d_diffuse_texs,
-                                              d_specular_texs,
-                                              d_roughness_texs);
+                                              d_points);
                 // Propagate to camera
                 d_primary_intersection(scene,
                                        primary_active_pixels,
@@ -940,24 +934,6 @@ void render(const Scene &scene,
                     path_buffer.d_vertex_reduce_buffer.view(0, num_actives_primary),
                     d_scene->shapes.view(0, d_scene->shapes.size()),
                     scene.use_gpu,
-                    thrust_alloc);
-                accumulate_diffuse(
-                    scene,
-                    d_diffuse_texs,
-                    path_buffer.d_tex3_reduce_buffer.view(0, num_actives_primary),
-                    d_scene->materials.view(0, d_scene->materials.size()),
-                    thrust_alloc);
-                accumulate_specular(
-                    scene,
-                    d_specular_texs,
-                    path_buffer.d_tex3_reduce_buffer.view(0, num_actives_primary),
-                    d_scene->materials.view(0, d_scene->materials.size()),
-                    thrust_alloc);
-                accumulate_roughness(
-                    scene,
-                    d_roughness_texs,
-                    path_buffer.d_tex1_reduce_buffer.view(0, num_actives_primary),
-                    d_scene->materials.view(0, d_scene->materials.size()),
                     thrust_alloc);
 
                 // Reduce the camera array

@@ -334,9 +334,6 @@ struct d_primary_contribs_accumulator {
         const auto &throughput = throughputs[pixel_id];
         const auto &shading_isect = shading_isects[pixel_id];
         const auto &incoming_ray = incoming_rays[pixel_id];
-        d_diffuse_texs[idx] = DTexture3{};
-        d_specular_texs[idx] = DTexture3{};
-        d_roughness_texs[idx] = DTexture1{};
         auto nc = channel_info.num_channels;
         auto nd = channel_info.num_total_dimensions;
         auto d = 0;
@@ -472,9 +469,8 @@ struct d_primary_contribs_accumulator {
                             d_refl[1] *= channel_multipliers[nd * pixel_id + d + 1];
                             d_refl[2] *= channel_multipliers[nd * pixel_id + d + 2];
                         }
-                        d_diffuse_texs[idx].material_id = shape.material_id;
                         d_get_diffuse_reflectance(material, shading_point, d_refl,
-                            d_diffuse_texs[idx],
+                            d_materials[shape.material_id].diffuse_reflectance,
                             d_shading_points[pixel_id]);
                     }
                     d += 3;
@@ -493,9 +489,8 @@ struct d_primary_contribs_accumulator {
                             d_refl[1] *= channel_multipliers[nd * pixel_id + d + 1];
                             d_refl[2] *= channel_multipliers[nd * pixel_id + d + 2];
                         }
-                        d_specular_texs[idx].material_id = shape.material_id;
                         d_get_specular_reflectance(material, shading_point, d_refl,
-                            d_specular_texs[idx],
+                            d_materials[shape.material_id].specular_reflectance,
                             d_shading_points[pixel_id]);
                     }
                     d += 3;
@@ -510,9 +505,8 @@ struct d_primary_contribs_accumulator {
                         if (channel_multipliers != nullptr) {
                             d_roughness *= channel_multipliers[nd * pixel_id + d];
                         }
-                        d_roughness_texs[idx].material_id = shape.material_id;
                         d_get_roughness(material, shading_point, d_roughness,
-                            d_roughness_texs[idx],
+                            d_materials[shape.material_id].roughness,
                             d_shading_points[pixel_id]);
                     }
                     d += 1;
@@ -544,12 +538,10 @@ struct d_primary_contribs_accumulator {
     const float *d_rendered_image;
     DAreaLight *d_area_lights;
     DEnvironmentMap *d_envmap;
+    DMaterial *d_materials;
     DRay *d_incoming_rays;
     RayDifferential *d_incoming_ray_differentials;
     SurfacePoint *d_shading_points;
-    DTexture3 *d_diffuse_texs;
-    DTexture3 *d_specular_texs;
-    DTexture1 *d_roughness_texs;
 };
 
 void accumulate_primary_contribs(
@@ -596,10 +588,7 @@ void d_accumulate_primary_contribs(
         DScene *d_scene,
         BufferView<DRay> d_incoming_rays,
         BufferView<RayDifferential> d_incoming_ray_differentials,
-        BufferView<SurfacePoint> d_shading_points,
-        BufferView<DTexture3> d_diffuse_texs,
-        BufferView<DTexture3> d_specular_texs,
-        BufferView<DTexture1> d_roughness_texs) {
+        BufferView<SurfacePoint> d_shading_points) {
     parallel_for(d_primary_contribs_accumulator{
         get_flatten_scene(scene),
         active_pixels.begin(),
@@ -614,11 +603,9 @@ void d_accumulate_primary_contribs(
         d_rendered_image,
         d_scene->area_lights.data,
         d_scene->envmap,
+        d_scene->materials.data,
         d_incoming_rays.begin(),
         d_incoming_ray_differentials.begin(),
-        d_shading_points.begin(),
-        d_diffuse_texs.begin(),
-        d_specular_texs.begin(),
-        d_roughness_texs.begin()
+        d_shading_points.begin()
     }, active_pixels.size(), scene.use_gpu);
 }

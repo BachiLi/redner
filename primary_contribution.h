@@ -46,7 +46,4 @@ void d_accumulate_primary_contribs(
         DScene *d_scene,
         BufferView<DRay> d_incoming_rays,
         BufferView<RayDifferential> d_incoming_ray_differentials,
-        BufferView<SurfacePoint> d_shading_points,
-        BufferView<DTexture3> d_diffuse_texs,
-        BufferView<DTexture3> d_specular_texs,
-        BufferView<DTexture1> d_roughness_texs);
+        BufferView<SurfacePoint> d_shading_points);
