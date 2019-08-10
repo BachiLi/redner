@@ -11,7 +11,7 @@
 
 struct Scene;
 struct ChannelInfo;
-struct DEnvironmentMap;
+struct DScene;
 
 /// Compute the contribution at a path vertex, by combining next event estimation & BSDF sampling. 
 void accumulate_path_contribs(const Scene &scene,
@@ -58,10 +58,7 @@ void d_accumulate_path_contribs(const Scene &scene,
                                 const BufferView<DRay> &d_next_rays,
                                 const BufferView<RayDifferential> &d_next_ray_differentials,
                                 const BufferView<SurfacePoint> &d_next_points,
-                                BufferView<DShape> d_shapes,
-                                BufferView<DMaterial> d_materials,
-                                BufferView<DAreaLight> d_area_lights,
-                                DEnvironmentMap *d_envmap,
+                                DScene *d_scene,
                                 BufferView<Vector3> d_throughputs,
                                 BufferView<DRay> d_incoming_rays,
                                 BufferView<RayDifferential> d_incoming_ray_differentials,
