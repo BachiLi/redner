@@ -20,9 +20,9 @@ endif()
 
 find_package(Embree)
 if(NOT EMBREE_FOUND)
+    message("Embree not found in the system. Building from scratch.")
     add_subdirectory(embree)
     set(EMBREE_INCLUDE_PATH "${PROJECT_SOURCE_DIR}/embree/include")
-    set(EMBREE_LIBRARY "${CMAKE_CURRENT_BINARY_DIR}/embree/libembree3.so")
 endif()
 
 include_directories(${Python_INCLUDE_DIRS})
@@ -168,13 +168,25 @@ if (NOT WIN32)
     # https://github.com/pybind/pybind11/blob/master/tools/pybind11Tools.cmake
     # is to not link against Python library at all and resolve the symbols
     # at compile time.
-    target_link_libraries(redner
-        ${EMBREE_LIBRARY}
-        ${DYNAMIC_LOOKUP})
+    if(NOT EMBREE_FOUND)
+        target_link_libraries(redner
+            embree
+            ${DYNAMIC_LOOKUP})
+    else()
+        target_link_libraries(redner
+            ${EMBREE_LIBRARY}
+            ${DYNAMIC_LOOKUP})
+    endif()
 else()
-    target_link_libraries(redner
-        PRIVATE
-        ${EMBREE_LIBRARY})
+    if(NOT EMBREE_FOUND)
+        target_link_libraries(redner
+            PRIVATE
+            embree)
+    else()
+        target_link_libraries(redner
+            PRIVATE
+            ${EMBREE_LIBRARY})
+    endif()
 endif()
 
 endif()
