@@ -262,8 +262,8 @@ void update_primary_edge_weights(const Scene &scene,
 void compute_primary_edge_derivatives(const Scene &scene,
                                       const BufferView<PrimaryEdgeRecord> &edge_records,
                                       const BufferView<Real> &edge_contribs,
-                                      BufferView<DVertex> d_vertices,
-                                      BufferView<DCameraInst> d_cameras);
+                                      BufferView<DShape> d_shapes,
+                                      DCamera d_camera);
 
 void sample_secondary_edges(const Scene &scene,
                             const BufferView<int> &active_pixels,

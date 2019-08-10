@@ -352,7 +352,7 @@ DEVICE
 inline void d_camera_to_screen(const Camera &camera,
                                const TVector3<T> &pt,
                                T dx, T dy,
-                               DCameraInst &d_camera,
+                               DCamera &d_camera,
                                TVector3<T> &d_pt) {
     switch(camera.camera_type) {
         case CameraType::Perspective: {
@@ -370,15 +370,17 @@ inline void d_camera_to_screen(const Camera &camera,
                                   - (d_ndc[0] * ndc[0] / ndc3[2] +
                                      d_ndc[1] * ndc[1] / ndc3[2])};
             // ndc3 = camera.cam_to_ndc * pt
-            d_camera.cam_to_ndc(0, 0) += d_ndc3[0] * pt[0];
-            d_camera.cam_to_ndc(0, 1) += d_ndc3[0] * pt[1];
-            d_camera.cam_to_ndc(0, 2) += d_ndc3[0] * pt[2];
-            d_camera.cam_to_ndc(1, 0) += d_ndc3[1] * pt[0];
-            d_camera.cam_to_ndc(1, 1) += d_ndc3[1] * pt[1];
-            d_camera.cam_to_ndc(1, 2) += d_ndc3[1] * pt[2];
-            d_camera.cam_to_ndc(2, 0) += d_ndc3[2] * pt[0];
-            d_camera.cam_to_ndc(2, 1) += d_ndc3[2] * pt[1];
-            d_camera.cam_to_ndc(2, 2) += d_ndc3[2] * pt[2];
+            auto d_cam_to_ndc = Matrix3x3{};
+            d_cam_to_ndc(0, 0) += d_ndc3[0] * pt[0];
+            d_cam_to_ndc(0, 1) += d_ndc3[0] * pt[1];
+            d_cam_to_ndc(0, 2) += d_ndc3[0] * pt[2];
+            d_cam_to_ndc(1, 0) += d_ndc3[1] * pt[0];
+            d_cam_to_ndc(1, 1) += d_ndc3[1] * pt[1];
+            d_cam_to_ndc(1, 2) += d_ndc3[1] * pt[2];
+            d_cam_to_ndc(2, 0) += d_ndc3[2] * pt[0];
+            d_cam_to_ndc(2, 1) += d_ndc3[2] * pt[1];
+            d_cam_to_ndc(2, 2) += d_ndc3[2] * pt[2];
+            atomic_add(d_camera.cam_to_ndc, d_cam_to_ndc);
             d_pt[0] += d_ndc3[0] * camera.cam_to_ndc(0, 0) +
                        d_ndc3[1] * camera.cam_to_ndc(1, 0) +
                        d_ndc3[2] * camera.cam_to_ndc(2, 0);
@@ -398,12 +400,14 @@ inline void d_camera_to_screen(const Camera &camera,
 
             auto d_ndc = Vector2{dx * 0.5f, dy * -0.5f * aspect_ratio};
             // ndc = camera.cam_to_ndc * pt
-            d_camera.cam_to_ndc(0, 0) += d_ndc[0] * pt[0];
-            d_camera.cam_to_ndc(0, 1) += d_ndc[0] * pt[1];
-            d_camera.cam_to_ndc(0, 2) += d_ndc[0] * pt[2];
-            d_camera.cam_to_ndc(1, 0) += d_ndc[1] * pt[0];
-            d_camera.cam_to_ndc(1, 1) += d_ndc[1] * pt[1];
-            d_camera.cam_to_ndc(1, 2) += d_ndc[1] * pt[2];
+            auto d_cam_to_ndc = Matrix3x3{};
+            d_cam_to_ndc(0, 0) += d_ndc[0] * pt[0];
+            d_cam_to_ndc(0, 1) += d_ndc[0] * pt[1];
+            d_cam_to_ndc(0, 2) += d_ndc[0] * pt[2];
+            d_cam_to_ndc(1, 0) += d_ndc[1] * pt[0];
+            d_cam_to_ndc(1, 1) += d_ndc[1] * pt[1];
+            d_cam_to_ndc(1, 2) += d_ndc[1] * pt[2];
+            atomic_add(d_camera.cam_to_ndc, d_cam_to_ndc);
             d_pt[0] += d_ndc[0] * camera.cam_to_ndc(0, 0) +
                        d_ndc[1] * camera.cam_to_ndc(1, 0);
             d_pt[1] += d_ndc[0] * camera.cam_to_ndc(0, 1) +
@@ -479,7 +483,7 @@ inline void d_project(const Camera &camera,
                       const Vector3 &p1,
                       Real dp0x, Real dp0y,
                       Real dp1x, Real dp1y,
-                      DCameraInst &d_camera,
+                      DCamera &d_camera,
                       Vector3 &d_p0,
                       Vector3 &d_p1) {
     auto p0_local = xfm_point(camera.world_to_cam, p0);
@@ -560,8 +564,14 @@ inline void d_project(const Camera &camera,
     // Super cool article btw
     auto tw2c = transpose(camera.world_to_cam);
     auto d_cam_to_world = -tw2c * d_world_to_cam * tw2c;
+    auto d_p = Vector3{0, 0, 0};
+    auto d_l = Vector3{0, 0, 0};
+    auto d_up = Vector3{0, 0, 0};
     d_look_at_matrix(camera.position, camera.look, camera.up,
-        d_cam_to_world, d_camera.position, d_camera.look, d_camera.up);
+        d_cam_to_world, d_p, d_l, d_up);
+    atomic_add(d_camera.position, d_p);
+    atomic_add(d_camera.look, d_l);
+    atomic_add(d_camera.up, d_up);
 }
 
 template <typename T>

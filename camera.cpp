@@ -263,7 +263,12 @@ void test_d_camera_to_screen() {
     auto pt = Vector3{0.5, 0.5, 1.0};
     auto dx = Real(1);
     auto dy = Real(1);
-    auto d_camera = DCameraInst{};
+    auto d_pos = Vector3f{0, 0, 0};
+    auto d_look = Vector3f{0, 0, 0};
+    auto d_up = Vector3f{0, 0, 0};
+    Matrix3x3f d_n2c = Matrix3x3f{};
+    Matrix3x3f d_c2n = Matrix3x3f{};
+    DCamera d_camera{&d_pos[0], &d_look[0], &d_up[0], &d_n2c(0, 0), &d_c2n(0, 0)};
     auto d_pt = Vector3{0, 0, 0};
     d_camera_to_screen(camera, pt, dx, dy, d_camera, d_pt);
     // Compare with central difference
@@ -357,7 +362,7 @@ void test_d_camera_to_screen() {
             delta_camera.cam_to_ndc(i, j) -= 2 * finite_delta;
             auto nxy = camera_to_screen(delta_camera, pt);
             auto diff = sum(pxy - nxy) / (2 * finite_delta);
-            equal_or_error(__FILE__, __LINE__, (Real)diff, (Real)d_camera.cam_to_ndc(i, j));
+            equal_or_error(__FILE__, __LINE__, (Real)diff, (Real)d_camera.cam_to_ndc[3 * i + j]);
         }
     }
 }

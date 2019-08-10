@@ -1097,48 +1097,9 @@ void render(const Scene &scene,
                 }
 
                 // Convert edge contributions to vertex derivatives
-                auto d_vertices = path_buffer.d_general_vertices.view(0, 2 * num_pixels);
-                auto d_cameras = path_buffer.d_cameras.view(0, num_pixels);
                 compute_primary_edge_derivatives(
-                    scene, edge_records, edge_contribs, d_vertices, d_cameras);
-
-                // for (int i = 0; i < edge_records.size(); i++) {
-                //     auto rec = edge_records[i];
-                //     if (rec.edge.shape_id >= 0) {
-                //         auto edge_pt = rec.edge_pt;
-                //         auto xi = int(edge_pt[0] * camera.width);
-                //         auto yi = int(edge_pt[1] * camera.height);
-                //         auto d_v0 = d_vertices[2 * i + 0].d_v;
-                //         auto d_v1 = d_vertices[2 * i + 1].d_v;
-                //         debug_image[3 * (yi * camera.width + xi) + 0] += d_v0[0] + d_v1[0];
-                //         debug_image[3 * (yi * camera.width + xi) + 1] += d_v0[0] + d_v1[0];
-                //         debug_image[3 * (yi * camera.width + xi) + 2] += d_v0[0] + d_v1[0];
-                //     }
-                // }
-
-                // Deposit vertices
-                accumulate_vertex(
-                    d_vertices,
-                    path_buffer.d_vertex_reduce_buffer.view(0, d_vertices.size()),
-                    d_scene->shapes.view(0, d_scene->shapes.size()),
-                    scene.use_gpu,
-                    thrust_alloc);
-
-                // Reduce the camera array
-                DCameraInst d_camera = DISPATCH_CACHED(scene.use_gpu, thrust_alloc, thrust::reduce,
-                    d_cameras.begin(), d_cameras.end(), DCameraInst{});
-                accumulate_camera(camera, d_camera, d_scene->camera, scene.use_gpu);
-
-                // for (int i = 0; i < edge_records.size(); i++) {
-                //     auto rec = edge_records[i];
-                //     auto edge_pt = rec.edge_pt;
-                //     auto xi = int(edge_pt[0] * camera.width);
-                //     auto yi = int(edge_pt[1] * camera.height);
-                //     auto d_pos = d_cameras[i].position;
-                //     debug_image[3 * (yi * camera.width + xi) + 0] += d_pos[0];
-                //     debug_image[3 * (yi * camera.width + xi) + 1] += d_pos[0];
-                //     debug_image[3 * (yi * camera.width + xi) + 2] += d_pos[0];
-                // }
+                    scene, edge_records, edge_contribs,
+                    d_scene->shapes.view(0, d_scene->shapes.size()), d_scene->camera);
             }
             /////////////////////////////////////////////////////////////////////////////////
         }

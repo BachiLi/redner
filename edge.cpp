@@ -687,20 +687,10 @@ struct primary_edge_derivatives_computer {
         auto edge_contrib_lower = edge_contribs[2 * idx + 1];
         auto edge_contrib = edge_contrib_upper + edge_contrib_lower;
 
-        auto &d_v0 = d_vertices[2 * idx + 0];
-        auto &d_v1 = d_vertices[2 * idx + 1];
-        auto &d_camera = d_cameras[idx];
         // Initialize derivatives
-        d_v0 = DVertex{};
-        d_v1 = DVertex{};
-        d_camera = DCameraInst{};
         if (edge_record.edge.shape_id < 0) {
             return;
         }
-        d_v0.shape_id = edge_record.edge.shape_id;
-        d_v1.shape_id = edge_record.edge.shape_id;
-        d_v0.vertex_id = edge_record.edge.v0;
-        d_v1.vertex_id = edge_record.edge.v1;
 
         auto v0 = Vector3{get_v0(shapes, edge_record.edge)};
         auto v1 = Vector3{get_v1(shapes, edge_record.edge)};
@@ -744,32 +734,36 @@ struct primary_edge_derivatives_computer {
         d_v1_ss *= edge_contrib;
 
         // v0_ss, v1_ss = project(camera, v0, v1)
+        auto d_v0 = Vector3{0, 0, 0};
+        auto d_v1 = Vector3{0, 0, 0};
         d_project(camera, v0, v1,
             d_v0_ss.x, d_v0_ss.y,
             d_v1_ss.x, d_v1_ss.y,
-            d_camera,
-            d_v0.d_v, d_v1.d_v);
+            d_camera, d_v0, d_v1);
+        atomic_add(&d_shapes[edge_record.edge.shape_id].vertices[3 * edge_record.edge.v0], d_v0);
+        atomic_add(&d_shapes[edge_record.edge.shape_id].vertices[3 * edge_record.edge.v1], d_v1);
+
     }
 
     const Camera camera;
     const Shape *shapes;
     const PrimaryEdgeRecord *edge_records;
     const Real *edge_contribs;
-    DVertex *d_vertices;
-    DCameraInst *d_cameras;
+    DShape *d_shapes;
+    DCamera d_camera;
 };
 
 void compute_primary_edge_derivatives(const Scene &scene,
                                       const BufferView<PrimaryEdgeRecord> &edge_records,
                                       const BufferView<Real> &edge_contribs,
-                                      BufferView<DVertex> d_vertices,
-                                      BufferView<DCameraInst> d_cameras) {
+                                      BufferView<DShape> d_shapes,
+                                      DCamera d_camera) {
     parallel_for(primary_edge_derivatives_computer{
         scene.camera,
         scene.shapes.data,
         edge_records.begin(),
         edge_contribs.begin(),
-        d_vertices.begin(), d_cameras.begin()
+        d_shapes.begin(), d_camera
     }, edge_records.size(), scene.use_gpu);
 }
 
