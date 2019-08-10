@@ -334,7 +334,6 @@ struct d_primary_contribs_accumulator {
         const auto &throughput = throughputs[pixel_id];
         const auto &shading_isect = shading_isects[pixel_id];
         const auto &incoming_ray = incoming_rays[pixel_id];
-        d_direct_lights[idx] = DAreaLightInst{};
         if (scene.envmap != nullptr) {
             d_envmap_vals[idx] = DTexture3{};
             d_world_to_envs[idx] = Matrix4x4{};
@@ -362,8 +361,7 @@ struct d_primary_contribs_accumulator {
                                 dot(wi, shading_point.shading_frame.n) > 0) {
                             const auto &light = scene.area_lights[shading_shape.light_id];
                             if (light.two_sided || dot(wi, shading_point.shading_frame.n) > 0) {
-                                d_direct_lights[idx].light_id = shading_shape.light_id;
-                                d_direct_lights[idx].intensity = d_emission;
+                                atomic_add(d_area_lights[idx].intensity, d_emission);
                             }
                         }
                     } else if (scene.envmap != nullptr) {
@@ -549,7 +547,7 @@ struct d_primary_contribs_accumulator {
     const Real weight;
     const ChannelInfo channel_info;
     const float *d_rendered_image;
-    DAreaLightInst *d_direct_lights;
+    DAreaLight *d_area_lights;
     DTexture3 *d_envmap_vals;
     Matrix4x4 *d_world_to_envs;
     DRay *d_incoming_rays;
@@ -601,7 +599,7 @@ void d_accumulate_primary_contribs(
         const Real weight,
         const ChannelInfo &channel_info,
         const float *d_rendered_image,
-        BufferView<DAreaLightInst> d_direct_lights,
+        DScene *d_scene,
         BufferView<DTexture3> d_envmap_vals,
         BufferView<Matrix4x4> d_world_to_envs,
         BufferView<DRay> d_incoming_rays,
@@ -622,7 +620,7 @@ void d_accumulate_primary_contribs(
         weight,
         channel_info,
         d_rendered_image,
-        d_direct_lights.begin(),
+        d_scene->area_lights.data,
         d_envmap_vals.begin(),
         d_world_to_envs.begin(),
         d_incoming_rays.begin(),
