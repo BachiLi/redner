@@ -1,7 +1,7 @@
 # https://github.com/PatWie/tensorflow-cmake/blob/master/cmake/modules/FindTensorFlow.cmake
 
 execute_process(
-    COMMAND python -c "import tensorflow as tf; print(tf.__version__); print(tf.__cxx11_abi_flag__); print(tf.sysconfig.get_include()); print(tf.sysconfig.get_lib())"
+    COMMAND python -c "exec(\"try:\\n  import tensorflow as tf; print(tf.__version__); print(tf.__cxx11_abi_flag__);print(tf.sysconfig.get_include()); print(tf.sysconfig.get_lib())\\nexcept ImportError:\\n  exit(1)\")"
     OUTPUT_VARIABLE TF_INFORMATION_STRING
     OUTPUT_STRIP_TRAILING_WHITESPACE
     RESULT_VARIABLE retcode)
