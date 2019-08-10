@@ -569,9 +569,9 @@ inline bool is_zero(const Vector3 &v) {
     return v.x == 0 && v.y == 0 && v.z == 0;
 }
 
-template <typename T>
+template <typename T0, typename T1>
 DEVICE
-inline TVector2<T> atomic_add(TVector2<T> &target, const TVector2<T> &source) {
+inline TVector2<T0> atomic_add(TVector2<T0> &target, const TVector2<T1> &source) {
     atomic_add(target[0], source[0]);
     atomic_add(target[1], source[1]);
     return target;
@@ -584,9 +584,9 @@ inline void atomic_add(T0 *target, const TVector2<T1> &source) {
     atomic_add(target[1], (T0)source[1]);
 }
 
-template <typename T>
+template <typename T0, typename T1>
 DEVICE
-inline TVector3<T> atomic_add(TVector3<T> &target, const TVector3<T> &source) {
+inline TVector3<T0> atomic_add(TVector3<T0> &target, const TVector3<T1> &source) {
     atomic_add(target[0], source[0]);
     atomic_add(target[1], source[1]);
     atomic_add(target[2], source[2]);

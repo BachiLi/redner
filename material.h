@@ -87,6 +87,23 @@ inline void d_get_diffuse_reflectance(const Material &material,
 }
 
 DEVICE
+inline void d_get_diffuse_reflectance(const Material &material,
+                                      const SurfacePoint &shading_point,
+                                      const Vector3 &d_output,
+                                      Texture3 &d_texture,
+                                      SurfacePoint &d_shading_point) {
+    d_get_texture_value(material.diffuse_reflectance,
+                        shading_point.uv,
+                        shading_point.du_dxy,
+                        shading_point.dv_dxy,
+                        d_output,
+                        d_texture,
+                        d_shading_point.uv,
+                        d_shading_point.du_dxy,
+                        d_shading_point.dv_dxy);
+}
+
+DEVICE
 inline Vector3 get_specular_reflectance(const Material &material,
                                         const SurfacePoint &shading_point) {
     return get_texture_value(material.specular_reflectance,
@@ -224,7 +241,7 @@ void d_bsdf(const Material &material,
             const Vector3 &wo,
             const Real min_roughness,
             const Vector3 &d_output,
-            DTexture3 &d_diffuse_tex,
+            Texture3 &d_diffuse_tex,
             DTexture3 &d_specular_tex,
             DTexture1 &d_roughness_tex,
             SurfacePoint &d_shading_point,

@@ -161,9 +161,6 @@ struct d_path_contribs_accumulator {
         const auto &light_ray = light_rays[pixel_id];
         const auto &min_rough = min_roughness[pixel_id];
 
-        // auto d_light_v = d_light_vertices + 3 * idx;
-        auto d_bsdf_v = d_bsdf_vertices + 3 * idx;
-        auto &d_diffuse_tex = d_diffuse_texs[idx];
         auto &d_specular_tex = d_specular_texs[idx];
         auto &d_roughness_tex = d_roughness_texs[idx];
         auto &d_nee_light = d_nee_lights[idx];
@@ -181,6 +178,8 @@ struct d_path_contribs_accumulator {
         const auto &shading_shape = scene.shapes[shading_isect.shape_id];
         const auto &material = scene.materials[shading_shape.material_id];
 
+        auto &d_material = d_materials[shading_shape.material_id];
+
         auto nd = channel_info.num_total_dimensions;
         auto d = channel_info.radiance_dimension;
         // rendered_image[nd * pixel_id + d    ] += weight * path_contrib[0];
@@ -192,10 +191,6 @@ struct d_path_contribs_accumulator {
                     d_rendered_image[nd * pixel_id + d + 2]};
 
         // Initialize derivatives
-        d_bsdf_v[0] = DVertex{};
-        d_bsdf_v[1] = DVertex{};
-        d_bsdf_v[2] = DVertex{};
-        d_diffuse_tex = DTexture3{};
         d_specular_tex = DTexture3{};
         d_roughness_tex = DTexture1{};
         d_nee_light = DAreaLightInst{};
@@ -223,7 +218,6 @@ struct d_path_contribs_accumulator {
                 if (light_shape.light_id >= 0) {
                     const auto &light = scene.area_lights[light_shape.light_id];
                     if (light.two_sided || dot(-wo, light_point.shading_frame.n) > 0) {
-                        d_diffuse_tex.material_id = shading_shape.material_id;
                         d_specular_tex.material_id = shading_shape.material_id;
                         d_roughness_tex.material_id = shading_shape.material_id;
                         Vector3 d_light_vertices[3] = {
@@ -281,7 +275,7 @@ struct d_path_contribs_accumulator {
                         // bsdf_val = bsdf(material, shading_point, wi, wo)
                         auto d_wi = Vector3{0, 0, 0};
                         d_bsdf(material, shading_point, wi, wo, min_rough, d_bsdf_val,
-                               d_diffuse_tex, d_specular_tex, d_roughness_tex,
+                               d_material.diffuse_reflectance, d_specular_tex, d_roughness_tex,
                                d_shading_point, d_wi, d_wo);
                         // wo = dir / sqrt(dist_sq)
                         auto d_dir = d_wo / sqrt(dist_sq);
@@ -300,6 +294,7 @@ struct d_path_contribs_accumulator {
                         d_sample_shape(light_shape, light_isect.tri_id,
                             light_sample.uv, d_light_point, d_light_vertices);
 
+                        // Accumulate derivatives
                         auto light_tri_index = get_indices(light_shape, light_isect.tri_id);
                         atomic_add(&d_shapes[light_isect.shape_id].vertices[3 * light_tri_index[0]],
                             d_light_vertices[0]);
@@ -314,7 +309,6 @@ struct d_path_contribs_accumulator {
                 auto wo = light_ray.dir;
                 auto pdf_nee = envmap_pdf(*scene.envmap, wo);
                 if (pdf_nee > 0) {
-                    d_diffuse_tex.material_id = shading_shape.material_id;
                     d_specular_tex.material_id = shading_shape.material_id;
                     d_roughness_tex.material_id = shading_shape.material_id;
 
@@ -348,7 +342,7 @@ struct d_path_contribs_accumulator {
                     // bsdf_val = bsdf(material, shading_point, wi, wo, min_rough)
                     auto d_wi = Vector3{0, 0, 0};
                     d_bsdf(material, shading_point, wi, wo, min_rough, d_bsdf_val,
-                        d_diffuse_tex, d_specular_tex, d_roughness_tex,
+                        d_material.diffuse_reflectance, d_specular_tex, d_roughness_tex,
                         d_shading_point, d_wi, d_wo);
                     // wi = -incoming_ray.dir
                     d_incoming_ray.dir -= d_wi;
@@ -368,13 +362,6 @@ struct d_path_contribs_accumulator {
             const auto &d_next_throughput = d_next_throughputs[pixel_id];
 
             // Initialize bsdf vertex derivatives
-            auto bsdf_tri_index = get_indices(bsdf_shape, bsdf_isect.tri_id);
-            d_bsdf_v[0].shape_id = bsdf_isect.shape_id;
-            d_bsdf_v[0].vertex_id = bsdf_tri_index[0];
-            d_bsdf_v[1].shape_id = bsdf_isect.shape_id;
-            d_bsdf_v[1].vertex_id = bsdf_tri_index[1];
-            d_bsdf_v[2].shape_id = bsdf_isect.shape_id;
-            d_bsdf_v[2].vertex_id = bsdf_tri_index[2];
             d_bsdf_light.light_id = bsdf_shape.light_id;
 
             auto dir = bsdf_point.position - p;
@@ -382,9 +369,12 @@ struct d_path_contribs_accumulator {
             auto wo = dir / sqrt(dist_sq);
             auto pdf_bsdf = bsdf_pdf(material, shading_point, wi, wo, min_rough);
             if (pdf_bsdf > 0) {
-                d_diffuse_tex.material_id = shading_shape.material_id;
                 d_specular_tex.material_id = shading_shape.material_id;
                 d_roughness_tex.material_id = shading_shape.material_id;
+
+                Vector3 d_bsdf_v_p[3] = {Vector3{0, 0, 0}, Vector3{0, 0, 0}, Vector3{0, 0, 0}};
+                Vector3 d_bsdf_v_n[3] = {Vector3{0, 0, 0}, Vector3{0, 0, 0}, Vector3{0, 0, 0}};
+                Vector2 d_bsdf_v_uv[3] = {Vector2{0, 0}, Vector2{0, 0}};
 
                 auto bsdf_val = bsdf(material, shading_point, wi, wo, min_rough);
                 auto scatter_bsdf = bsdf_val / pdf_bsdf;
@@ -439,7 +429,7 @@ struct d_path_contribs_accumulator {
                 //            d_roughness_tex, d_shading_point, d_wi, d_wo);
                 // bsdf_val = bsdf(material, shading_point, wi, wo)
                 d_bsdf(material, shading_point, wi, wo, min_rough, d_bsdf_val,
-                       d_diffuse_tex, d_specular_tex, d_roughness_tex,
+                       d_material.diffuse_reflectance, d_specular_tex, d_roughness_tex,
                        d_shading_point, d_wi, d_wo);
 
                 // wo = dir / sqrt(dist_sq)
@@ -467,7 +457,9 @@ struct d_path_contribs_accumulator {
                                   d_next_ray_differential,
                                   d_ray,
                                   d_bsdf_ray_differential,
-                                  d_bsdf_v);
+                                  d_bsdf_v_p,
+                                  d_bsdf_v_n,
+                                  d_bsdf_v_uv);
 
                 // XXX HACK: diffuse interreflection causes a lot of noise
                 // on position derivatives but has small impact on the final derivatives,
@@ -496,6 +488,31 @@ struct d_path_contribs_accumulator {
 
                 // wi = -incoming_ray.dir
                 d_incoming_ray.dir -= d_wi;
+
+                // Accumulate derivatives
+                auto bsdf_tri_index = get_indices(bsdf_shape, bsdf_isect.tri_id);
+                atomic_add(&d_shapes[bsdf_isect.shape_id].vertices[3 * bsdf_tri_index[0]],
+                    d_bsdf_v_p[0]);
+                atomic_add(&d_shapes[bsdf_isect.shape_id].vertices[3 * bsdf_tri_index[1]],
+                    d_bsdf_v_p[1]);
+                atomic_add(&d_shapes[bsdf_isect.shape_id].vertices[3 * bsdf_tri_index[2]],
+                    d_bsdf_v_p[2]);
+                if (has_uvs(bsdf_shape)) {
+                    atomic_add(&d_shapes[bsdf_isect.shape_id].uvs[2 * bsdf_tri_index[0]],
+                        d_bsdf_v_uv[0]);
+                    atomic_add(&d_shapes[bsdf_isect.shape_id].uvs[2 * bsdf_tri_index[1]],
+                        d_bsdf_v_uv[1]);
+                    atomic_add(&d_shapes[bsdf_isect.shape_id].uvs[2 * bsdf_tri_index[2]],
+                        d_bsdf_v_uv[2]);
+                }
+                if (has_shading_normals(bsdf_shape)) {
+                    atomic_add(&d_shapes[bsdf_isect.shape_id].normals[3 * bsdf_tri_index[0]],
+                        d_bsdf_v_n[0]);
+                    atomic_add(&d_shapes[bsdf_isect.shape_id].normals[3 * bsdf_tri_index[1]],
+                        d_bsdf_v_n[1]);
+                    atomic_add(&d_shapes[bsdf_isect.shape_id].normals[3 * bsdf_tri_index[2]],
+                        d_bsdf_v_n[2]);
+                }
             }
         } else if (scene.envmap != nullptr) {
             // Hit environment map
@@ -505,7 +522,6 @@ struct d_path_contribs_accumulator {
             auto pdf_bsdf = bsdf_pdf(material, shading_point, wi, wo, min_rough);
             // wo can be zero if bsdf_sample fails
             if (length_squared(wo) > 0 && pdf_bsdf > 0) {
-                d_diffuse_tex.material_id = shading_shape.material_id;
                 d_specular_tex.material_id = shading_shape.material_id;
                 d_roughness_tex.material_id = shading_shape.material_id;
                 d_envmap_val.material_id = 0;
@@ -545,7 +561,7 @@ struct d_path_contribs_accumulator {
                 auto d_wi = Vector3{0, 0, 0};
                 // bsdf_val = bsdf(material, shading_point, wi, wo)
                 d_bsdf(material, shading_point, wi, wo, min_rough, d_bsdf_val,
-                       d_diffuse_tex, d_specular_tex, d_roughness_tex,
+                       d_material.diffuse_reflectance, d_specular_tex, d_roughness_tex,
                        d_shading_point, d_wi, d_wo);
 
                 // pdf_bsdf = bsdf_pdf(material, shading_point, wi, wo, min_rough)
@@ -600,8 +616,7 @@ struct d_path_contribs_accumulator {
     const RayDifferential *d_next_ray_differentials;
     const SurfacePoint *d_next_points;
     DShape *d_shapes;
-    DVertex *d_bsdf_vertices;
-    DTexture3 *d_diffuse_texs;
+    DMaterial *d_materials;
     DTexture3 *d_specular_texs;
     DTexture1 *d_roughness_texs;
     DAreaLightInst *d_nee_lights;
@@ -678,8 +693,7 @@ void d_accumulate_path_contribs(const Scene &scene,
                                 const BufferView<RayDifferential> &d_next_ray_differentials,
                                 const BufferView<SurfacePoint> &d_next_points,
                                 BufferView<DShape> d_shapes,
-                                BufferView<DVertex> d_bsdf_vertices,
-                                BufferView<DTexture3> d_diffuse_texs,
+                                BufferView<DMaterial> d_materials,
                                 BufferView<DTexture3> d_specular_texs,
                                 BufferView<DTexture1> d_roughness_texs,
                                 BufferView<DAreaLightInst> d_nee_lights,
@@ -716,8 +730,7 @@ void d_accumulate_path_contribs(const Scene &scene,
         d_next_ray_differentials.begin(),
         d_next_points.begin(),
         d_shapes.begin(),
-        d_bsdf_vertices.begin(),
-        d_diffuse_texs.begin(),
+        d_materials.begin(),
         d_specular_texs.begin(),
         d_roughness_texs.begin(),
         d_nee_lights.begin(),

@@ -622,8 +622,6 @@ void render(const Scene &scene,
                 auto d_ray_differentials = path_buffer.d_ray_differentials.view(0, num_pixels);
                 auto d_points = path_buffer.d_points.view(0, num_pixels);
 
-                auto d_bsdf_vertices = path_buffer.d_bsdf_vertices.view(0, 3 * num_actives);
-                auto d_diffuse_texs = path_buffer.d_diffuse_texs.view(0, num_actives);
                 auto d_specular_texs = path_buffer.d_specular_texs.view(0, num_actives);
                 auto d_roughness_texs = path_buffer.d_roughness_texs.view(0, num_actives);
                 auto d_nee_lights = path_buffer.d_nee_lights.view(0, num_actives);
@@ -668,8 +666,7 @@ void render(const Scene &scene,
                     d_next_ray_differentials,
                     d_next_points,
                     d_scene->shapes.view(0, d_scene->shapes.size()),
-                    d_bsdf_vertices,
-                    d_diffuse_texs,
+                    d_scene->materials.view(0, d_scene->materials.size()),
                     d_specular_texs,
                     d_roughness_texs,
                     d_nee_lights,
@@ -940,18 +937,6 @@ void render(const Scene &scene,
 
                 // Deposit vertices, texture, light derivatives
                 // sort the derivatives by id & reduce by key
-                // accumulate_vertex(
-                //     d_light_vertices, 
-                //     path_buffer.d_vertex_reduce_buffer.view(0, 3 * num_actives),
-                //     d_scene->shapes.view(0, d_scene->shapes.size()),
-                //     scene.use_gpu,
-                //     thrust_alloc);
-                accumulate_vertex(
-                    d_bsdf_vertices, 
-                    path_buffer.d_vertex_reduce_buffer.view(0, 3 * num_actives),
-                    d_scene->shapes.view(0, d_scene->shapes.size()),
-                    scene.use_gpu,
-                    thrust_alloc);
 
                 // for (int i = 0; i < active_pixels.size(); i++) {
                 //     auto pixel_id = active_pixels[i];
@@ -962,12 +947,6 @@ void render(const Scene &scene,
                 //         debug_image[3 * pixel_id + 2] += d_diffuse_tex.t00[2];
                 //     }
                 // }
-                accumulate_diffuse(
-                    scene,
-                    d_diffuse_texs,
-                    path_buffer.d_tex3_reduce_buffer.view(0, num_actives),
-                    d_scene->materials.view(0, d_scene->materials.size()),
-                    thrust_alloc);
                 accumulate_specular(
                     scene,
                     d_specular_texs,
