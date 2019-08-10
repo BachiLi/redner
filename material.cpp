@@ -203,7 +203,8 @@ void test_d_bsdf() {
     Vector3f d_d{0, 0, 0};
     Vector2f d_uv_scale{0, 0};
     Texture3 d_diffuse_tex{&d_d[0], -1, -1, -1, &d_uv_scale[0]};
-    DTexture3 d_specular_tex;
+    Vector3f d_s{0, 0, 0};
+    Texture3 d_specular_tex{&d_s[0], -1, -1, -1, &d_uv_scale[0]};
     DTexture1 d_roughness_tex;
     SurfacePoint p{Vector3{0, 0, 0},
                    Vector3{0, 1, 0},
@@ -240,7 +241,7 @@ void test_d_bsdf() {
         delta_m.specular_reflectance.texels[i] -= 2 * finite_delta;
         auto negative = bsdf(delta_m, p, wi, wo, min_roughness);
         auto diff = sum(positive - negative) / (2 * finite_delta);
-        equal_or_error(__FILE__, __LINE__, diff, d_specular_tex.t000[i]);
+        equal_or_error(__FILE__, __LINE__, diff, d_s[i]);
     }
 
     // Check roughness derivatives
