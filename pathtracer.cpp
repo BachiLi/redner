@@ -622,8 +622,6 @@ void render(const Scene &scene,
                 auto d_ray_differentials = path_buffer.d_ray_differentials.view(0, num_pixels);
                 auto d_points = path_buffer.d_points.view(0, num_pixels);
 
-                auto d_specular_texs = path_buffer.d_specular_texs.view(0, num_actives);
-                auto d_roughness_texs = path_buffer.d_roughness_texs.view(0, num_actives);
                 auto d_nee_lights = path_buffer.d_nee_lights.view(0, num_actives);
                 auto d_bsdf_lights = path_buffer.d_bsdf_lights.view(0, num_actives);
                 auto d_envmap_vals = path_buffer.d_envmap_vals.view(0, num_actives);
@@ -667,7 +665,6 @@ void render(const Scene &scene,
                     d_next_points,
                     d_scene->shapes.view(0, d_scene->shapes.size()),
                     d_scene->materials.view(0, d_scene->materials.size()),
-                    d_roughness_texs,
                     d_nee_lights,
                     d_bsdf_lights,
                     d_envmap_vals,
@@ -946,12 +943,6 @@ void render(const Scene &scene,
                 //         debug_image[3 * pixel_id + 2] += d_diffuse_tex.t00[2];
                 //     }
                 // }
-                accumulate_specular(
-                    scene,
-                    d_specular_texs,
-                    path_buffer.d_tex3_reduce_buffer.view(0, num_actives),
-                    d_scene->materials.view(0, d_scene->materials.size()),
-                    thrust_alloc);
                 // for (int i = 0; i < active_pixels.size(); i++) {
                 //     auto pixel_id = active_pixels[i];
                 //     auto d_roughness_tex = d_roughness_texs[i];
@@ -961,12 +952,6 @@ void render(const Scene &scene,
                 //         debug_image[3 * pixel_id + 2] += d_roughness_tex.t000;
                 //     }
                 // }
-                accumulate_roughness(
-                    scene,
-                    d_roughness_texs,
-                    path_buffer.d_tex1_reduce_buffer.view(0, num_actives),
-                    d_scene->materials.view(0, d_scene->materials.size()),
-                    thrust_alloc);
                 accumulate_area_light(
                     d_nee_lights,
                     path_buffer.d_lgt_reduce_buffer.view(0, num_actives),

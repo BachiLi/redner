@@ -168,6 +168,23 @@ inline void d_get_roughness(const Material &material,
                         d_shading_point.dv_dxy);
 }
 
+DEVICE
+inline void d_get_roughness(const Material &material,
+                            const SurfacePoint &shading_point,
+                            const Real d_output,
+                            Texture1 &d_texture,
+                            SurfacePoint &d_shading_point) {
+    d_get_texture_value(material.roughness,
+                        shading_point.uv,
+                        shading_point.du_dxy,
+                        shading_point.dv_dxy,
+                        d_output,
+                        d_texture,
+                        d_shading_point.uv,
+                        d_shading_point.du_dxy,
+                        d_shading_point.dv_dxy);
+}
+
 // y = 2 / x - 2
 // y + 2 = 2 / x
 // x = 2 / (y + 2)
@@ -258,9 +275,7 @@ void d_bsdf(const Material &material,
             const Vector3 &wo,
             const Real min_roughness,
             const Vector3 &d_output,
-            Texture3 &d_diffuse_tex,
-            Texture3 &d_specular_tex,
-            DTexture1 &d_roughness_tex,
+            DMaterial &d_material,
             SurfacePoint &d_shading_point,
             Vector3 &d_wi,
             Vector3 &d_wo) {
@@ -288,7 +303,7 @@ void d_bsdf(const Material &material,
     // diffuse_contrib = diffuse_reflectance * bsdf_cos / Real(M_PI)
     auto d_diffuse_reflectance = d_output * (bsdf_cos / Real(M_PI));
     d_get_diffuse_reflectance(material, shading_point, d_diffuse_reflectance,
-                              d_diffuse_tex, d_shading_point);
+                              d_material.diffuse_reflectance, d_shading_point);
     auto d_bsdf_cos = d_output * sum(diffuse_reflectance) / Real(M_PI);
     // bsdf_cos = dot(shading_frame.n, wo)
     d_wo += shading_frame.n * d_bsdf_cos;
@@ -421,13 +436,13 @@ void d_bsdf(const Material &material,
             // specular_reflectance = get_specular_reflectance(material, shading_point)
             d_get_specular_reflectance(
                 material, shading_point, d_specular_reflectance,
-                d_specular_tex, d_shading_point);
+                d_material.specular_reflectance, d_shading_point);
             // roughness = get_roughness(material, shading_point.uv)
             if (roughness > min_roughness) {
                 d_get_roughness(material,
                                 shading_point,
                                 d_roughness,
-                                d_roughness_tex,
+                                d_material.roughness,
                                 d_shading_point);
             }
         }

@@ -161,7 +161,6 @@ struct d_path_contribs_accumulator {
         const auto &light_ray = light_rays[pixel_id];
         const auto &min_rough = min_roughness[pixel_id];
 
-        auto &d_roughness_tex = d_roughness_texs[idx];
         auto &d_nee_light = d_nee_lights[idx];
         auto &d_bsdf_light = d_bsdf_lights[idx];
         auto &d_envmap_val = d_envmap_vals[idx];
@@ -190,7 +189,6 @@ struct d_path_contribs_accumulator {
                     d_rendered_image[nd * pixel_id + d + 2]};
 
         // Initialize derivatives
-        d_roughness_tex = DTexture1{};
         d_nee_light = DAreaLightInst{};
         d_bsdf_light = DAreaLightInst{};
         d_envmap_val = DTexture3{};
@@ -216,7 +214,6 @@ struct d_path_contribs_accumulator {
                 if (light_shape.light_id >= 0) {
                     const auto &light = scene.area_lights[light_shape.light_id];
                     if (light.two_sided || dot(-wo, light_point.shading_frame.n) > 0) {
-                        d_roughness_tex.material_id = shading_shape.material_id;
                         Vector3 d_light_vertices[3] = {
                             Vector3{0, 0, 0}, Vector3{0, 0, 0}, Vector3{0, 0, 0}};
 
@@ -272,8 +269,7 @@ struct d_path_contribs_accumulator {
                         // bsdf_val = bsdf(material, shading_point, wi, wo)
                         auto d_wi = Vector3{0, 0, 0};
                         d_bsdf(material, shading_point, wi, wo, min_rough, d_bsdf_val,
-                               d_material.diffuse_reflectance, d_material.specular_reflectance,
-                               d_roughness_tex, d_shading_point, d_wi, d_wo);
+                               d_material, d_shading_point, d_wi, d_wo);
                         // wo = dir / sqrt(dist_sq)
                         auto d_dir = d_wo / sqrt(dist_sq);
                         // sqrt(dist_sq)
@@ -306,8 +302,6 @@ struct d_path_contribs_accumulator {
                 auto wo = light_ray.dir;
                 auto pdf_nee = envmap_pdf(*scene.envmap, wo);
                 if (pdf_nee > 0) {
-                    d_roughness_tex.material_id = shading_shape.material_id;
-
                     auto bsdf_val = bsdf(material, shading_point, wi, wo, min_rough);
                     // XXX: For now we don't use ray differentials for next event estimation.
                     //      A proper approach might be to use a filter radius based on sampling density?
@@ -338,8 +332,7 @@ struct d_path_contribs_accumulator {
                     // bsdf_val = bsdf(material, shading_point, wi, wo, min_rough)
                     auto d_wi = Vector3{0, 0, 0};
                     d_bsdf(material, shading_point, wi, wo, min_rough, d_bsdf_val,
-                        d_material.diffuse_reflectance, d_material.specular_reflectance,
-                        d_roughness_tex, d_shading_point, d_wi, d_wo);
+                        d_material, d_shading_point, d_wi, d_wo);
                     // wi = -incoming_ray.dir
                     d_incoming_ray.dir -= d_wi;
                 }
@@ -365,8 +358,6 @@ struct d_path_contribs_accumulator {
             auto wo = dir / sqrt(dist_sq);
             auto pdf_bsdf = bsdf_pdf(material, shading_point, wi, wo, min_rough);
             if (pdf_bsdf > 0) {
-                d_roughness_tex.material_id = shading_shape.material_id;
-
                 Vector3 d_bsdf_v_p[3] = {Vector3{0, 0, 0}, Vector3{0, 0, 0}, Vector3{0, 0, 0}};
                 Vector3 d_bsdf_v_n[3] = {Vector3{0, 0, 0}, Vector3{0, 0, 0}, Vector3{0, 0, 0}};
                 Vector2 d_bsdf_v_uv[3] = {Vector2{0, 0}, Vector2{0, 0}};
@@ -424,8 +415,7 @@ struct d_path_contribs_accumulator {
                 //            d_roughness_tex, d_shading_point, d_wi, d_wo);
                 // bsdf_val = bsdf(material, shading_point, wi, wo)
                 d_bsdf(material, shading_point, wi, wo, min_rough, d_bsdf_val,
-                       d_material.diffuse_reflectance, d_material.specular_reflectance,
-                       d_roughness_tex, d_shading_point, d_wi, d_wo);
+                       d_material, d_shading_point, d_wi, d_wo);
 
                 // wo = dir / sqrt(dist_sq)
                 auto d_dir = d_wo / sqrt(dist_sq);
@@ -517,7 +507,6 @@ struct d_path_contribs_accumulator {
             auto pdf_bsdf = bsdf_pdf(material, shading_point, wi, wo, min_rough);
             // wo can be zero if bsdf_sample fails
             if (length_squared(wo) > 0 && pdf_bsdf > 0) {
-                d_roughness_tex.material_id = shading_shape.material_id;
                 d_envmap_val.material_id = 0;
 
                 auto bsdf_val = bsdf(material, shading_point, wi, wo, min_rough);
@@ -555,8 +544,7 @@ struct d_path_contribs_accumulator {
                 auto d_wi = Vector3{0, 0, 0};
                 // bsdf_val = bsdf(material, shading_point, wi, wo)
                 d_bsdf(material, shading_point, wi, wo, min_rough, d_bsdf_val,
-                       d_material.diffuse_reflectance, d_material.specular_reflectance,
-                       d_roughness_tex, d_shading_point, d_wi, d_wo);
+                       d_material, d_shading_point, d_wi, d_wo);
 
                 // pdf_bsdf = bsdf_pdf(material, shading_point, wi, wo, min_rough)
                 // d_bsdf_pdf(material, shading_point, wi, wo, min_rough, d_pdf_bsdf,
@@ -611,7 +599,6 @@ struct d_path_contribs_accumulator {
     const SurfacePoint *d_next_points;
     DShape *d_shapes;
     DMaterial *d_materials;
-    DTexture1 *d_roughness_texs;
     DAreaLightInst *d_nee_lights;
     DAreaLightInst *d_bsdf_lights;
     DTexture3 *d_envmap_vals;
@@ -687,7 +674,6 @@ void d_accumulate_path_contribs(const Scene &scene,
                                 const BufferView<SurfacePoint> &d_next_points,
                                 BufferView<DShape> d_shapes,
                                 BufferView<DMaterial> d_materials,
-                                BufferView<DTexture1> d_roughness_texs,
                                 BufferView<DAreaLightInst> d_nee_lights,
                                 BufferView<DAreaLightInst> d_bsdf_lights,
                                 BufferView<DTexture3> d_envmap_vals,
@@ -723,7 +709,6 @@ void d_accumulate_path_contribs(const Scene &scene,
         d_next_points.begin(),
         d_shapes.begin(),
         d_materials.begin(),
-        d_roughness_texs.begin(),
         d_nee_lights.begin(),
         d_bsdf_lights.begin(),
         d_envmap_vals.begin(),

@@ -205,7 +205,9 @@ void test_d_bsdf() {
     Texture3 d_diffuse_tex{&d_d[0], -1, -1, -1, &d_uv_scale[0]};
     Vector3f d_s{0, 0, 0};
     Texture3 d_specular_tex{&d_s[0], -1, -1, -1, &d_uv_scale[0]};
-    DTexture1 d_roughness_tex;
+    float d_r = 0.f;
+    Texture1 d_roughness_tex{&d_r, -1, -1, -1, &d_uv_scale[0]};
+    DMaterial d_material{d_diffuse_tex, d_specular_tex, d_roughness_tex};
     SurfacePoint p{Vector3{0, 0, 0},
                    Vector3{0, 1, 0},
                    Frame(Vector3{0, 1, 0}),
@@ -218,8 +220,7 @@ void test_d_bsdf() {
     auto d_wo = Vector3{0, 0, 0};
 
     d_bsdf(m, p, wi, wo, min_roughness, Vector3{1, 1, 1},
-           d_diffuse_tex, d_specular_tex, d_roughness_tex,
-           d_p, d_wi, d_wo);
+           d_material, d_p, d_wi, d_wo);
 
     // Check diffuse derivatives
     auto finite_delta = Real(1e-6);
@@ -252,7 +253,7 @@ void test_d_bsdf() {
         delta_m.roughness.texels[0] -= 2 * finite_delta;
         auto negative = bsdf(delta_m, p, wi, wo, min_roughness);
         auto diff = sum(positive - negative) / (2 * finite_delta);
-        equal_or_error(__FILE__, __LINE__, diff, d_roughness_tex.t000);
+        equal_or_error(__FILE__, __LINE__, diff, d_r);
     }
 
     // Check surface point derivatives
