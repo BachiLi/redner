@@ -143,11 +143,19 @@ if(CUDA_FOUND)
     set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -std=c++14")
 
     cuda_add_library(redner MODULE ${SRCS})
-    target_link_libraries(redner
-        ${EMBREE_LIBRARY}
-        ${optix_prime_LIBRARY}
-        ${CUDA_curand_LIBRARY}
-        ${DYNAMIC_LOOKUP})
+    if(NOT EMBREE_FOUND)
+        target_link_libraries(redner
+            embree
+            ${optix_prime_LIBRARY}
+            ${CUDA_curand_LIBRARY}
+            ${DYNAMIC_LOOKUP})
+    else()
+        target_link_libraries(redner
+            ${EMBREE_LIBRARY}
+            ${optix_prime_LIBRARY}
+            ${CUDA_curand_LIBRARY}
+            ${DYNAMIC_LOOKUP})
+    endif()
 else()
 if (NOT WIN32)
     add_library(redner MODULE ${SRCS})
