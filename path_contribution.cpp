@@ -161,9 +161,6 @@ struct d_path_contribs_accumulator {
         const auto &light_ray = light_rays[pixel_id];
         const auto &min_rough = min_roughness[pixel_id];
 
-        auto &d_envmap_val = d_envmap_vals[idx];
-        auto &d_world_to_env = d_world_to_envs[idx];
-
         auto &d_throughput = d_throughputs[pixel_id];
         auto &d_incoming_ray = d_incoming_rays[pixel_id];
         auto &d_incoming_ray_differential = d_incoming_ray_differentials[pixel_id];
@@ -187,8 +184,6 @@ struct d_path_contribs_accumulator {
                     d_rendered_image[nd * pixel_id + d + 2]};
 
         // Initialize derivatives
-        d_envmap_val = DTexture3{};
-        d_world_to_env = Matrix4x4{};
         d_throughput = Vector3{0, 0, 0};
         d_incoming_ray = DRay{};
         d_incoming_ray_differential = RayDifferential{
@@ -322,7 +317,7 @@ struct d_path_contribs_accumulator {
                         Vector3{0, 0, 0}, Vector3{0, 0, 0}};
                     // light_contrib = eval_envmap(*scene.envmap, wo, ray_diff)
                     d_envmap_eval(*scene.envmap, wo, ray_diff, d_light_contrib,
-                        d_envmap_val, d_world_to_env, d_wo, d_ray_diff);
+                        d_envmap, d_wo, d_ray_diff);
                     // bsdf_val = bsdf(material, shading_point, wi, wo, min_rough)
                     auto d_wi = Vector3{0, 0, 0};
                     d_bsdf(material, shading_point, wi, wo, min_rough, d_bsdf_val,
@@ -499,8 +494,6 @@ struct d_path_contribs_accumulator {
             auto pdf_bsdf = bsdf_pdf(material, shading_point, wi, wo, min_rough);
             // wo can be zero if bsdf_sample fails
             if (length_squared(wo) > 0 && pdf_bsdf > 0) {
-                d_envmap_val.material_id = 0;
-
                 auto bsdf_val = bsdf(material, shading_point, wi, wo, min_rough);
                 auto ray_diff = RayDifferential{
                     Vector3{0, 0, 0}, Vector3{0, 0, 0},
@@ -532,7 +525,7 @@ struct d_path_contribs_accumulator {
                     Vector3{0, 0, 0}, Vector3{0, 0, 0}};
                 // light_contrib = eval_envmap(*scene.envmap, wo, ray_diff)
                 d_envmap_eval(*scene.envmap, wo, ray_diff, d_light_contrib,
-                    d_envmap_val, d_world_to_env, d_wo, d_ray_diff);
+                              d_envmap, d_wo, d_ray_diff);
                 auto d_wi = Vector3{0, 0, 0};
                 // bsdf_val = bsdf(material, shading_point, wi, wo)
                 d_bsdf(material, shading_point, wi, wo, min_rough, d_bsdf_val,
@@ -592,8 +585,7 @@ struct d_path_contribs_accumulator {
     DShape *d_shapes;
     DMaterial *d_materials;
     DAreaLight *d_area_lights;
-    DTexture3 *d_envmap_vals;
-    Matrix4x4 *d_world_to_envs;
+    DEnvironmentMap d_envmap;
     Vector3 *d_throughputs;
     DRay *d_incoming_rays;
     RayDifferential *d_incoming_ray_differentials;
@@ -666,8 +658,7 @@ void d_accumulate_path_contribs(const Scene &scene,
                                 BufferView<DShape> d_shapes,
                                 BufferView<DMaterial> d_materials,
                                 BufferView<DAreaLight> d_area_lights,
-                                BufferView<DTexture3> d_envmap_vals,
-                                BufferView<Matrix4x4> d_world_to_envs,
+                                DEnvironmentMap &d_envmap,
                                 BufferView<Vector3> d_throughputs,
                                 BufferView<DRay> d_incoming_rays,
                                 BufferView<RayDifferential> d_incoming_ray_differentials,
@@ -700,8 +691,7 @@ void d_accumulate_path_contribs(const Scene &scene,
         d_shapes.begin(),
         d_materials.begin(),
         d_area_lights.begin(),
-        d_envmap_vals.begin(),
-        d_world_to_envs.begin(),
+        d_envmap,
         d_throughputs.begin(),
         d_incoming_rays.begin(),
         d_incoming_ray_differentials.begin(),

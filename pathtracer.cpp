@@ -622,9 +622,6 @@ void render(const Scene &scene,
                 auto d_ray_differentials = path_buffer.d_ray_differentials.view(0, num_pixels);
                 auto d_points = path_buffer.d_points.view(0, num_pixels);
 
-                auto d_envmap_vals = path_buffer.d_envmap_vals.view(0, num_actives);
-                auto d_world_to_envs = path_buffer.d_world_to_envs.view(0, num_actives);
-
                 if (first) {
                     first = false;
                     // Initialize the derivatives propagated from the next vertex
@@ -664,8 +661,7 @@ void render(const Scene &scene,
                     d_scene->shapes.view(0, d_scene->shapes.size()),
                     d_scene->materials.view(0, d_scene->materials.size()),
                     d_scene->area_lights.view(0, d_scene->area_lights.size()),
-                    d_envmap_vals,
-                    d_world_to_envs,
+                    *d_scene->envmap,
                     d_throughputs,
                     d_rays,
                     d_ray_differentials,
@@ -886,77 +882,6 @@ void render(const Scene &scene,
                         scene.use_gpu,
                         thrust_alloc);
                     ////////////////////////////////////////////////////////////////////////////////
-                }
-                /*cuda_synchronize();
-                for (int i = 0; i < num_actives; i++) {
-                    auto pixel_id = active_pixels[i];
-                    // auto d_p = d_points[pixel_id].position;
-                    // debug_image[3 * pixel_id + 0] += d_p[0];
-                    // debug_image[3 * pixel_id + 1] += d_p[0];
-                    // debug_image[3 * pixel_id + 2] += d_p[0];
-                    auto c = 1;
-                    auto d_e_v0 = d_edge_vertices[2 * i + 0];
-                    auto d_e_v1 = d_edge_vertices[2 * i + 1];
-                    if (d_e_v0.shape_id == 1) {
-                        auto d_v0 = d_e_v0.d_v;
-                        auto d_v1 = d_e_v1.d_v;
-                        debug_image[3 * pixel_id + 0] += d_v0[c] + d_v1[c];
-                        debug_image[3 * pixel_id + 1] += d_v0[c] + d_v1[c];
-                        debug_image[3 * pixel_id + 2] += d_v0[c] + d_v1[c];
-                    }
-                    auto d_l_v0 = d_light_vertices[3 * i + 0];
-                    auto d_l_v1 = d_light_vertices[3 * i + 1];
-                    auto d_l_v2 = d_light_vertices[3 * i + 2];
-                    if (d_l_v0.shape_id == 6) {
-                        auto d_v0 = d_l_v0.d_v;
-                        auto d_v1 = d_l_v1.d_v;
-                        auto d_v2 = d_l_v2.d_v;
-                        debug_image[3 * pixel_id + 0] += d_v0[c] + d_v1[c] + d_v2[c];
-                        debug_image[3 * pixel_id + 1] += d_v0[c] + d_v1[c] + d_v2[c];
-                        debug_image[3 * pixel_id + 2] += d_v0[c] + d_v1[c] + d_v2[c];
-                    }
-                    auto d_b_v0 = d_bsdf_vertices[3 * i + 0];
-                    auto d_b_v1 = d_bsdf_vertices[3 * i + 1];
-                    auto d_b_v2 = d_bsdf_vertices[3 * i + 2];
-                    if (d_b_v0.shape_id == 6) {
-                        auto d_v0 = d_b_v0.d_v;
-                        auto d_v1 = d_b_v1.d_v;
-                        auto d_v2 = d_b_v2.d_v;
-                        debug_image[3 * pixel_id + 0] += d_v0[c] + d_v1[c] + d_v2[c];
-                        debug_image[3 * pixel_id + 1] += d_v0[c] + d_v1[c] + d_v2[c];
-                        debug_image[3 * pixel_id + 2] += d_v0[c] + d_v1[c] + d_v2[c];
-                    }
-                }*/
-
-                // Deposit vertices, texture, light derivatives
-                // sort the derivatives by id & reduce by key
-
-                // for (int i = 0; i < active_pixels.size(); i++) {
-                //     auto pixel_id = active_pixels[i];
-                //     auto d_diffuse_tex = d_diffuse_texs[i];
-                //     if (d_diffuse_tex.material_id == 4) {
-                //         debug_image[3 * pixel_id + 0] += d_diffuse_tex.t00[0];
-                //         debug_image[3 * pixel_id + 1] += d_diffuse_tex.t00[1];
-                //         debug_image[3 * pixel_id + 2] += d_diffuse_tex.t00[2];
-                //     }
-                // }
-                // for (int i = 0; i < active_pixels.size(); i++) {
-                //     auto pixel_id = active_pixels[i];
-                //     auto d_roughness_tex = d_roughness_texs[i];
-                //     if (d_roughness_tex.material_id == 4) {
-                //         debug_image[3 * pixel_id + 0] += d_roughness_tex.t000;
-                //         debug_image[3 * pixel_id + 1] += d_roughness_tex.t000;
-                //         debug_image[3 * pixel_id + 2] += d_roughness_tex.t000;
-                //     }
-                // }
-                if (scene.envmap != nullptr) {
-                    accumulate_envmap(
-                        scene,
-                        d_envmap_vals,
-                        d_world_to_envs,
-                        path_buffer.d_envmap_reduce_buffer.view(0, num_actives),
-                        d_scene->envmap,
-                        thrust_alloc);
                 }
 
                 // Previous become next
