@@ -661,7 +661,7 @@ void render(const Scene &scene,
                     d_scene->shapes.view(0, d_scene->shapes.size()),
                     d_scene->materials.view(0, d_scene->materials.size()),
                     d_scene->area_lights.view(0, d_scene->area_lights.size()),
-                    *d_scene->envmap,
+                    d_scene->envmap,
                     d_throughputs,
                     d_rays,
                     d_ray_differentials,
@@ -864,7 +864,6 @@ void render(const Scene &scene,
                     // Now the path traced contribution for the edges is stored in edge_contribs
                     // We'll compute the derivatives w.r.t. three points: two on edges and one on
                     // the shading point
-                    auto d_edge_vertices = path_buffer.d_general_vertices.view(0, num_edge_samples);
                     accumulate_secondary_edge_derivatives(scene,
                                                           active_pixels,
                                                           shading_points,
@@ -872,15 +871,7 @@ void render(const Scene &scene,
                                                           edge_surface_points,
                                                           edge_contribs,
                                                           d_points,
-                                                          d_edge_vertices);
-                    // Deposit vertices, texture, light derivatives
-                    // sort the derivatives by id & reduce by key
-                    accumulate_vertex(
-                        d_edge_vertices,
-                        path_buffer.d_vertex_reduce_buffer.view(0, 2 * num_actives),
-                        d_scene->shapes.view(0, d_scene->shapes.size()),
-                        scene.use_gpu,
-                        thrust_alloc);
+                                                          d_scene->shapes.view(0, d_scene->shapes.size()));
                     ////////////////////////////////////////////////////////////////////////////////
                 }
 

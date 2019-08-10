@@ -1974,8 +1974,6 @@ struct secondary_edge_derivatives_accumulator {
         auto pixel_id = active_pixels[idx];
         const auto &shading_point = shading_points[pixel_id];
         const auto &edge_record = edge_records[idx];
-        d_vertices[2 * idx + 0] = DVertex{};
-        d_vertices[2 * idx + 1] = DVertex{};
         if (edge_record.edge.shape_id < 0) {
             return;
         }
@@ -2011,12 +2009,8 @@ struct secondary_edge_derivatives_accumulator {
         assert(isfinite(dcolor_dp));
 
         d_points[pixel_id].position += dcolor_dp;
-        d_vertices[2 * idx + 0].shape_id = edge_record.edge.shape_id;
-        d_vertices[2 * idx + 0].vertex_id = edge_record.edge.v0;
-        d_vertices[2 * idx + 0].d_v = dcolor_dv0;
-        d_vertices[2 * idx + 1].shape_id = edge_record.edge.shape_id;
-        d_vertices[2 * idx + 1].vertex_id = edge_record.edge.v1;
-        d_vertices[2 * idx + 1].d_v = dcolor_dv1;
+        atomic_add(&(d_shapes[edge_record.edge.shape_id].vertices[3 * edge_record.edge.v0]), dcolor_dv0);
+        atomic_add(&(d_shapes[edge_record.edge.shape_id].vertices[3 * edge_record.edge.v1]), dcolor_dv1);
     }
 
     const Shape *shapes;
@@ -2026,7 +2020,7 @@ struct secondary_edge_derivatives_accumulator {
     const Vector3 *edge_surface_points;
     const Real *edge_contribs;
     SurfacePoint *d_points;
-    DVertex *d_vertices;
+    DShape *d_shapes;
 };
 
 void accumulate_secondary_edge_derivatives(const Scene &scene,
@@ -2036,7 +2030,7 @@ void accumulate_secondary_edge_derivatives(const Scene &scene,
                                            const BufferView<Vector3> &edge_surface_points,
                                            const BufferView<Real> &edge_contribs,
                                            BufferView<SurfacePoint> d_points,
-                                           BufferView<DVertex> d_vertices) {
+                                           BufferView<DShape> d_shapes) {
     parallel_for(secondary_edge_derivatives_accumulator{
         scene.shapes.data,
         active_pixels.begin(),
@@ -2045,6 +2039,6 @@ void accumulate_secondary_edge_derivatives(const Scene &scene,
         edge_surface_points.begin(),
         edge_contribs.begin(),
         d_points.begin(),
-        d_vertices.begin()
+        d_shapes.begin()
     }, active_pixels.size(), scene.use_gpu);
 }
