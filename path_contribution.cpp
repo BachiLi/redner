@@ -161,8 +161,6 @@ struct d_path_contribs_accumulator {
         const auto &light_ray = light_rays[pixel_id];
         const auto &min_rough = min_roughness[pixel_id];
 
-        auto &d_nee_light = d_nee_lights[idx];
-        auto &d_bsdf_light = d_bsdf_lights[idx];
         auto &d_envmap_val = d_envmap_vals[idx];
         auto &d_world_to_env = d_world_to_envs[idx];
 
@@ -189,8 +187,6 @@ struct d_path_contribs_accumulator {
                     d_rendered_image[nd * pixel_id + d + 2]};
 
         // Initialize derivatives
-        d_nee_light = DAreaLightInst{};
-        d_bsdf_light = DAreaLightInst{};
         d_envmap_val = DTexture3{};
         d_world_to_env = Matrix4x4{};
         d_throughput = Vector3{0, 0, 0};
@@ -216,8 +212,6 @@ struct d_path_contribs_accumulator {
                     if (light.two_sided || dot(-wo, light_point.shading_frame.n) > 0) {
                         Vector3 d_light_vertices[3] = {
                             Vector3{0, 0, 0}, Vector3{0, 0, 0}, Vector3{0, 0, 0}};
-
-                        d_nee_light.light_id = light_shape.light_id;
 
                         auto bsdf_val = bsdf(material, shading_point, wi, wo, min_rough);
                         auto cos_light = dot(wo, light_point.geom_normal);
@@ -257,7 +251,7 @@ struct d_path_contribs_accumulator {
                             -d_pdf_nee * pdf_nee / get_area(light_shape, light_isect.tri_id);
                         d_get_area(light_shape, light_isect.tri_id, d_area, d_light_vertices);
                         // light_contrib = light.intensity
-                        d_nee_light.intensity += d_light_contrib;
+                        atomic_add(d_area_lights[light_shape.light_id].intensity, d_light_contrib);
                         // geometry_term = fabs(cos_light) / dist_sq
                         auto d_cos_light = cos_light > 0 ?
                             d_geometry_term / dist_sq : -d_geometry_term / dist_sq;
@@ -351,8 +345,6 @@ struct d_path_contribs_accumulator {
             const auto &d_next_throughput = d_next_throughputs[pixel_id];
 
             // Initialize bsdf vertex derivatives
-            d_bsdf_light.light_id = bsdf_shape.light_id;
-
             auto dir = bsdf_point.position - p;
             auto dist_sq = length_squared(dir);
             auto wo = dir / sqrt(dist_sq);
@@ -404,7 +396,7 @@ struct d_path_contribs_accumulator {
                         d_bsdf_val += weight * d_scatter_contrib * light_contrib;
                         auto d_light_contrib = weight * d_scatter_contrib * bsdf_val;
                         // light_contrib = light.intensity
-                        d_bsdf_light.intensity += d_light_contrib;
+                        atomic_add(d_area_lights[bsdf_shape.light_id].intensity, d_light_contrib);
                     }
                 }
 
@@ -599,8 +591,7 @@ struct d_path_contribs_accumulator {
     const SurfacePoint *d_next_points;
     DShape *d_shapes;
     DMaterial *d_materials;
-    DAreaLightInst *d_nee_lights;
-    DAreaLightInst *d_bsdf_lights;
+    DAreaLight *d_area_lights;
     DTexture3 *d_envmap_vals;
     Matrix4x4 *d_world_to_envs;
     Vector3 *d_throughputs;
@@ -674,8 +665,7 @@ void d_accumulate_path_contribs(const Scene &scene,
                                 const BufferView<SurfacePoint> &d_next_points,
                                 BufferView<DShape> d_shapes,
                                 BufferView<DMaterial> d_materials,
-                                BufferView<DAreaLightInst> d_nee_lights,
-                                BufferView<DAreaLightInst> d_bsdf_lights,
+                                BufferView<DAreaLight> d_area_lights,
                                 BufferView<DTexture3> d_envmap_vals,
                                 BufferView<Matrix4x4> d_world_to_envs,
                                 BufferView<Vector3> d_throughputs,
@@ -709,8 +699,7 @@ void d_accumulate_path_contribs(const Scene &scene,
         d_next_points.begin(),
         d_shapes.begin(),
         d_materials.begin(),
-        d_nee_lights.begin(),
-        d_bsdf_lights.begin(),
+        d_area_lights.begin(),
         d_envmap_vals.begin(),
         d_world_to_envs.begin(),
         d_throughputs.begin(),
