@@ -161,7 +161,7 @@ struct d_path_contribs_accumulator {
         const auto &light_ray = light_rays[pixel_id];
         const auto &min_rough = min_roughness[pixel_id];
 
-        auto d_light_v = d_light_vertices + 3 * idx;
+        // auto d_light_v = d_light_vertices + 3 * idx;
         auto d_bsdf_v = d_bsdf_vertices + 3 * idx;
         auto &d_diffuse_tex = d_diffuse_texs[idx];
         auto &d_specular_tex = d_specular_texs[idx];
@@ -192,9 +192,6 @@ struct d_path_contribs_accumulator {
                     d_rendered_image[nd * pixel_id + d + 2]};
 
         // Initialize derivatives
-        d_light_v[0] = DVertex{};
-        d_light_v[1] = DVertex{};
-        d_light_v[2] = DVertex{};
         d_bsdf_v[0] = DVertex{};
         d_bsdf_v[1] = DVertex{};
         d_bsdf_v[2] = DVertex{};
@@ -229,14 +226,9 @@ struct d_path_contribs_accumulator {
                         d_diffuse_tex.material_id = shading_shape.material_id;
                         d_specular_tex.material_id = shading_shape.material_id;
                         d_roughness_tex.material_id = shading_shape.material_id;
+                        Vector3 d_light_vertices[3] = {
+                            Vector3{0, 0, 0}, Vector3{0, 0, 0}, Vector3{0, 0, 0}};
 
-                        auto light_tri_index = get_indices(light_shape, light_isect.tri_id);
-                        d_light_v[0].shape_id = light_isect.shape_id;
-                        d_light_v[0].vertex_id = light_tri_index[0];
-                        d_light_v[1].shape_id = light_isect.shape_id;
-                        d_light_v[1].vertex_id = light_tri_index[1];
-                        d_light_v[2].shape_id = light_isect.shape_id;
-                        d_light_v[2].vertex_id = light_tri_index[2];
                         d_nee_light.light_id = light_shape.light_id;
 
                         auto bsdf_val = bsdf(material, shading_point, wi, wo, min_rough);
@@ -275,7 +267,7 @@ struct d_path_contribs_accumulator {
                         //         = light_pmf * tri_pmf / tri_area
                         auto d_area =
                             -d_pdf_nee * pdf_nee / get_area(light_shape, light_isect.tri_id);
-                        d_get_area(light_shape, light_isect.tri_id, d_area, d_light_v);
+                        d_get_area(light_shape, light_isect.tri_id, d_area, d_light_vertices);
                         // light_contrib = light.intensity
                         d_nee_light.intensity += d_light_contrib;
                         // geometry_term = fabs(cos_light) / dist_sq
@@ -306,7 +298,15 @@ struct d_path_contribs_accumulator {
 
                         // sample point on light
                         d_sample_shape(light_shape, light_isect.tri_id,
-                            light_sample.uv, d_light_point, d_light_v);
+                            light_sample.uv, d_light_point, d_light_vertices);
+
+                        auto light_tri_index = get_indices(light_shape, light_isect.tri_id);
+                        atomic_add(&d_shapes[light_isect.shape_id].vertices[3 * light_tri_index[0]],
+                            d_light_vertices[0]);
+                        atomic_add(&d_shapes[light_isect.shape_id].vertices[3 * light_tri_index[1]],
+                            d_light_vertices[1]);
+                        atomic_add(&d_shapes[light_isect.shape_id].vertices[3 * light_tri_index[2]],
+                            d_light_vertices[2]);
                     }
                 }
             } else if (scene.envmap != nullptr) {
@@ -599,7 +599,7 @@ struct d_path_contribs_accumulator {
     const DRay *d_next_rays;
     const RayDifferential *d_next_ray_differentials;
     const SurfacePoint *d_next_points;
-    DVertex *d_light_vertices;
+    DShape *d_shapes;
     DVertex *d_bsdf_vertices;
     DTexture3 *d_diffuse_texs;
     DTexture3 *d_specular_texs;
@@ -677,7 +677,7 @@ void d_accumulate_path_contribs(const Scene &scene,
                                 const BufferView<DRay> &d_next_rays,
                                 const BufferView<RayDifferential> &d_next_ray_differentials,
                                 const BufferView<SurfacePoint> &d_next_points,
-                                BufferView<DVertex> d_light_vertices,
+                                BufferView<DShape> d_shapes,
                                 BufferView<DVertex> d_bsdf_vertices,
                                 BufferView<DTexture3> d_diffuse_texs,
                                 BufferView<DTexture3> d_specular_texs,
@@ -715,7 +715,7 @@ void d_accumulate_path_contribs(const Scene &scene,
         d_next_rays.begin(),
         d_next_ray_differentials.begin(),
         d_next_points.begin(),
-        d_light_vertices.begin(),
+        d_shapes.begin(),
         d_bsdf_vertices.begin(),
         d_diffuse_texs.begin(),
         d_specular_texs.begin(),

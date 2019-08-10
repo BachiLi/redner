@@ -319,7 +319,7 @@ void test_d_sample_shape() {
               Vector3{1, 1, 1}};
     d_point.uv = Vector2{1, 1};
 
-    DVertex d_v[3] = {DVertex{}, DVertex{}, DVertex{}};
+    Vector3 d_v[3] = {Vector3{0, 0, 0}, Vector3{0, 0, 0}, Vector3{0, 0, 0}};
     d_sample_shape(shape, 0, sample, d_point, d_v);
 
     // Check vertex derivatives
@@ -340,7 +340,7 @@ void test_d_sample_shape() {
                          sum(positive.shading_frame.n - negative.shading_frame.n) +
                          sum(positive.uv - negative.uv)) / (2 * finite_delta);
             equal_or_error(__FILE__, __LINE__,
-                diff, d_v[vi].d_v[i], Real(5e-3));
+                diff, d_v[vi][i], Real(5e-3));
         }
     }
 }

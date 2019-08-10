@@ -161,7 +161,7 @@ inline Real get_area(const Shape &shape, int index) {
 
 DEVICE
 inline void d_get_area(const Shape &shape, int index,
-                       const Real d_area, DVertex *d_vertices) {
+                       const Real d_area, Vector3 d_v[3]) {
     auto ind = get_indices(shape, index);
     auto v0 = Vector3{get_vertex(shape, ind[0])};
     auto v1 = Vector3{get_vertex(shape, ind[1])};
@@ -173,9 +173,9 @@ inline void d_get_area(const Shape &shape, int index,
     auto d_e1 = Vector3{0, 0, 0};
     auto d_e2 = Vector3{0, 0, 0};
     d_cross(v1 - v0, v2 - v0, d_dir, d_e1, d_e2);
-    d_vertices[0].d_v -= (d_e1 + d_e2);
-    d_vertices[1].d_v += d_e1;
-    d_vertices[2].d_v += d_e2;
+    d_v[0] -= (d_e1 + d_e2);
+    d_v[1] += d_e1;
+    d_v[2] += d_e2;
 }
 
 DEVICE
@@ -202,7 +202,7 @@ inline SurfacePoint sample_shape(const Shape &shape, int index, const Vector2 &s
 
 DEVICE
 inline void d_sample_shape(const Shape &shape, int index, const Vector2 &sample,
-                           const SurfacePoint &d_point, DVertex *d_vertices) {
+                           const SurfacePoint &d_point, Vector3 d_v[3]) {
     auto ind = get_indices(shape, index);
     auto v0 = Vector3{get_vertex(shape, ind[0])};
     auto v1 = Vector3{get_vertex(shape, ind[1])};
@@ -239,9 +239,9 @@ inline void d_sample_shape(const Shape &shape, int index, const Vector2 &sample,
     // e2 = v2 - v0
     auto d_v2 = d_e2;
     d_v0 -= d_e2;
-    d_vertices[0].d_v += d_v0;
-    d_vertices[1].d_v += d_v1;
-    d_vertices[2].d_v += d_v2;
+    d_v[0] += d_v0;
+    d_v[1] += d_v1;
+    d_v[2] += d_v2;
 }
 
 // Derivatives of projection of a point to barycentric coordinate

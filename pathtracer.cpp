@@ -622,7 +622,6 @@ void render(const Scene &scene,
                 auto d_ray_differentials = path_buffer.d_ray_differentials.view(0, num_pixels);
                 auto d_points = path_buffer.d_points.view(0, num_pixels);
 
-                auto d_light_vertices = path_buffer.d_light_vertices.view(0, 3 * num_actives);
                 auto d_bsdf_vertices = path_buffer.d_bsdf_vertices.view(0, 3 * num_actives);
                 auto d_diffuse_texs = path_buffer.d_diffuse_texs.view(0, num_actives);
                 auto d_specular_texs = path_buffer.d_specular_texs.view(0, num_actives);
@@ -668,7 +667,7 @@ void render(const Scene &scene,
                     d_next_rays,
                     d_next_ray_differentials,
                     d_next_points,
-                    d_light_vertices,
+                    d_scene->shapes.view(0, d_scene->shapes.size()),
                     d_bsdf_vertices,
                     d_diffuse_texs,
                     d_specular_texs,
@@ -941,12 +940,12 @@ void render(const Scene &scene,
 
                 // Deposit vertices, texture, light derivatives
                 // sort the derivatives by id & reduce by key
-                accumulate_vertex(
-                    d_light_vertices, 
-                    path_buffer.d_vertex_reduce_buffer.view(0, 3 * num_actives),
-                    d_scene->shapes.view(0, d_scene->shapes.size()),
-                    scene.use_gpu,
-                    thrust_alloc);
+                // accumulate_vertex(
+                //     d_light_vertices, 
+                //     path_buffer.d_vertex_reduce_buffer.view(0, 3 * num_actives),
+                //     d_scene->shapes.view(0, d_scene->shapes.size()),
+                //     scene.use_gpu,
+                //     thrust_alloc);
                 accumulate_vertex(
                     d_bsdf_vertices, 
                     path_buffer.d_vertex_reduce_buffer.view(0, 3 * num_actives),
