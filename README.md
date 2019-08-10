@@ -50,28 +50,7 @@ conda install pytorch -c pytorch
 ```
 
 redner uses [CMake](https://cmake.org) as its build system. You need CMake 3.12 or above to build redner.
-The build procedure follows common CMake instructions.
-Ideally,
-```
-mkdir build
-cd build
-cmake ..
-make install -j 8
-```
-should build and install the project, but you may need to tell CMake where the dependencies are by defining
-the following variables:
-```
-Python_INCLUDE_DIRS
-Python_LIBRARIES
-EMBREE_INCLUDE_PATH
-EMBREE_LIBRARY
-OptiX_INCLUDE
-CUDA_LIBRARIES
-THRUST_INCLUDE_DIR
-optix_prime_LIBRARY
-CUDA_curand_LIBRARY
-```
-I suggest using ccmake or other interfaces of cmake to setup the variables.
+The build procedure follows common CMake instructions. See [wiki](https://github.com/BachiLi/redner/wiki/Installation) for installation guide.
 
 See [here](https://github.com/BachiLi/redner/pull/11) for build instruction on Windows.
 
