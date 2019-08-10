@@ -90,26 +90,6 @@ struct PathBuffer {
         d_ray_differentials = Buffer<RayDifferential>(use_gpu, num_pixels);
         d_points = Buffer<SurfacePoint>(use_gpu, num_pixels);
 
-        d_general_vertices = Buffer<DVertex>(use_gpu, 3 * num_pixels);
-        d_light_vertices = Buffer<DVertex>(use_gpu, 3 * num_pixels);
-        d_bsdf_vertices = Buffer<DVertex>(use_gpu, 3 * num_pixels);
-        d_diffuse_texs = Buffer<DTexture3>(use_gpu, num_pixels);
-        d_specular_texs = Buffer<DTexture3>(use_gpu, num_pixels);
-        d_roughness_texs = Buffer<DTexture1>(use_gpu, num_pixels);
-        d_direct_lights = Buffer<DAreaLightInst>(use_gpu, num_pixels);
-        d_nee_lights = Buffer<DAreaLightInst>(use_gpu, num_pixels);
-        d_bsdf_lights = Buffer<DAreaLightInst>(use_gpu, num_pixels);
-        d_envmap_vals = Buffer<DTexture3>(use_gpu, num_pixels);
-        d_world_to_envs = Buffer<Matrix4x4>(use_gpu, num_pixels);
-
-        d_vertex_reduce_buffer = Buffer<DVertex>(use_gpu, 3 * num_pixels);
-        d_tex3_reduce_buffer = Buffer<DTexture3>(use_gpu, num_pixels);
-        d_tex1_reduce_buffer = Buffer<DTexture1>(use_gpu, num_pixels);
-        d_lgt_reduce_buffer = Buffer<DAreaLightInst>(use_gpu, num_pixels);
-        d_envmap_reduce_buffer = Buffer<DTexture3>(use_gpu, num_pixels);
-
-        d_cameras = Buffer<DCameraInst>(use_gpu, num_pixels);
-
         primary_edge_samples = Buffer<PrimaryEdgeSample>(use_gpu, num_pixels);
         secondary_edge_samples = Buffer<SecondaryEdgeSample>(use_gpu, num_pixels);
         primary_edge_records = Buffer<PrimaryEdgeRecord>(use_gpu, num_pixels);
@@ -153,25 +133,6 @@ struct PathBuffer {
     Buffer<RayDifferential> d_ray_differentials;
     Buffer<SurfacePoint> d_points;
 
-    Buffer<DVertex> d_general_vertices;
-    Buffer<DVertex> d_light_vertices;
-    Buffer<DVertex> d_bsdf_vertices;
-    Buffer<DTexture3> d_diffuse_texs;
-    Buffer<DTexture3> d_specular_texs;
-    Buffer<DTexture1> d_roughness_texs;
-    Buffer<DAreaLightInst> d_direct_lights;
-    Buffer<DAreaLightInst> d_nee_lights;
-    Buffer<DAreaLightInst> d_bsdf_lights;
-    Buffer<DTexture3> d_envmap_vals;
-    Buffer<Matrix4x4> d_world_to_envs;
-    Buffer<DVertex> d_vertex_reduce_buffer;
-    Buffer<DTexture3> d_tex3_reduce_buffer;
-    Buffer<DTexture1> d_tex1_reduce_buffer;
-    Buffer<DAreaLightInst> d_lgt_reduce_buffer;
-    Buffer<DTexture3> d_envmap_reduce_buffer;
-
-    Buffer<DCameraInst> d_cameras;
-
     // Edge sampling related
     Buffer<PrimaryEdgeSample> primary_edge_samples;
     Buffer<SecondaryEdgeSample> secondary_edge_samples;
@@ -183,167 +144,6 @@ struct PathBuffer {
     Buffer<LightSample> tmp_light_samples;
     Buffer<BSDFSample> tmp_bsdf_samples;
 };
-
-void accumulate_vertex(BufferView<DVertex> d_vertices,
-                       BufferView<DVertex> reduce_buffer,
-                       BufferView<DShape> d_shapes,
-                       bool use_gpu,
-                       ThrustCachedAllocator &thrust_alloc) {
-    if (d_vertices.size() == 0) {
-        return;
-    }
-    // Reduce into unique sequence
-    auto beg = d_vertices.begin();
-    auto end = d_vertices.end();
-    auto buffer_beg = reduce_buffer.begin();
-    auto buffer_end = DISPATCH_CACHED(use_gpu, thrust_alloc,
-        thrust::remove_copy, beg, end, buffer_beg, DVertex{-1, -1});
-    DISPATCH_CACHED(use_gpu, thrust_alloc, thrust::sort, buffer_beg, buffer_end);
-    auto new_end = DISPATCH_CACHED(use_gpu, thrust_alloc, thrust::reduce_by_key,
-        buffer_beg, buffer_end, // input keys
-        buffer_beg, // input values
-        beg, // output keys
-        beg).first; // output values
-    d_vertices.count = new_end - beg;
-    // Accumulate to output derivatives
-    accumulate_vertex(d_vertices, d_shapes, use_gpu);
-}
-
-void accumulate_diffuse(const Scene &scene,
-                        BufferView<DTexture3> d_diffuse,
-                        BufferView<DTexture3> reduce_buffer,
-                        BufferView<DMaterial> d_materials,
-                        ThrustCachedAllocator &thrust_alloc) {
-    if (d_diffuse.size() == 0) {
-        return;
-    }
-    // Reduce into unique sequence
-    auto beg = d_diffuse.begin();
-    auto end = d_diffuse.end();
-    auto buffer_beg = reduce_buffer.begin();
-    auto buffer_end = DISPATCH_CACHED(scene.use_gpu, thrust_alloc,
-        thrust::remove_copy, beg, end, buffer_beg, DTexture3{-1, -1, -1, -1});
-    DISPATCH_CACHED(scene.use_gpu, thrust_alloc, thrust::sort, buffer_beg, buffer_end);
-    auto new_end = DISPATCH_CACHED(scene.use_gpu, thrust_alloc, thrust::reduce_by_key,
-        buffer_beg, buffer_end, // input keys
-        buffer_beg, // input values
-        beg, // output keys
-        beg).first; // output values
-    d_diffuse.count = new_end - beg;
-    // Accumulate to output derivatives
-    accumulate_diffuse(scene, d_diffuse, d_materials);
-}
-
-void accumulate_specular(const Scene &scene,
-                         BufferView<DTexture3> d_specular,
-                         BufferView<DTexture3> reduce_buffer,
-                         BufferView<DMaterial> d_materials,
-                         ThrustCachedAllocator &thrust_alloc) {
-    if (d_specular.size() == 0) {
-        return;
-    }
-    // Reduce into unique sequence
-    auto beg = d_specular.begin();
-    auto end = d_specular.end();
-    auto buffer_beg = reduce_buffer.begin();
-    auto buffer_end = DISPATCH_CACHED(scene.use_gpu, thrust_alloc,
-        thrust::remove_copy, beg, end, buffer_beg, DTexture3{-1, -1, -1, -1});
-    DISPATCH_CACHED(scene.use_gpu, thrust_alloc, thrust::sort, buffer_beg, buffer_end);
-    auto new_end = DISPATCH_CACHED(scene.use_gpu, thrust_alloc, thrust::reduce_by_key,
-        buffer_beg, buffer_end, // input keys
-        buffer_beg, // input values
-        beg, // output keys
-        beg).first; // output values
-    d_specular.count = new_end - beg;
-    // Accumulate to output derivatives
-    accumulate_specular(scene, d_specular, d_materials);
-}
-
-void accumulate_roughness(const Scene &scene,
-                          BufferView<DTexture1> d_roughness,
-                          BufferView<DTexture1> reduce_buffer,
-                          BufferView<DMaterial> d_materials,
-                          ThrustCachedAllocator &thrust_alloc) {
-    if (d_roughness.size() == 0) {
-        return;
-    }
-    // Reduce into unique sequence
-    auto beg = d_roughness.begin();
-    auto end = d_roughness.end();
-    auto buffer_beg = reduce_buffer.begin();
-    auto buffer_end = DISPATCH_CACHED(scene.use_gpu, thrust_alloc,
-        thrust::remove_copy, beg, end, buffer_beg, DTexture1{-1, -1, -1, -1});
-    DISPATCH_CACHED(scene.use_gpu, thrust_alloc, thrust::sort, buffer_beg, buffer_end);
-    auto new_end = DISPATCH_CACHED(scene.use_gpu, thrust_alloc, thrust::reduce_by_key,
-        buffer_beg, buffer_end, // input keys
-        buffer_beg, // input values
-        beg, // output keys
-        beg).first; // output values
-    d_roughness.count = new_end - beg;
-    // Accumulate to output derivatives
-    accumulate_roughness(scene, d_roughness, d_materials);
-}
-
-void accumulate_area_light(BufferView<DAreaLightInst> &d_light_insts,
-                           BufferView<DAreaLightInst> reduce_buffer,
-                           BufferView<DAreaLight> d_lights,
-                           bool use_gpu,
-                           ThrustCachedAllocator &thrust_alloc) {
-    if (d_light_insts.size() == 0) {
-        return;
-    }
-    // Reduce into unique sequence
-    auto beg = d_light_insts.begin();
-    auto end = d_light_insts.end();
-    auto buffer_beg = reduce_buffer.begin();
-    auto buffer_end = DISPATCH_CACHED(use_gpu, thrust_alloc,
-        thrust::remove_copy, beg, end, buffer_beg, DAreaLightInst{-1});
-    DISPATCH_CACHED(use_gpu, thrust_alloc, thrust::sort, buffer_beg, buffer_end);
-    auto new_end = DISPATCH_CACHED(use_gpu, thrust_alloc, thrust::reduce_by_key,
-        buffer_beg, buffer_end, // input keys
-        buffer_beg, // input values
-        beg, // output keys
-        beg).first; // output values
-    d_light_insts.count = new_end - beg;
-    // Accumulate to output derivatives
-    accumulate_area_light(d_light_insts, d_lights, use_gpu);
-}
-
-void accumulate_envmap(const Scene &scene,
-                       BufferView<DTexture3> &d_envmap_vals,
-                       BufferView<Matrix4x4> &d_world_to_envs,
-                       BufferView<DTexture3> reduce_buffer,
-                       DEnvironmentMap *d_envmap,
-                       ThrustCachedAllocator &thrust_alloc) {
-    if (d_envmap_vals.size() == 0) {
-        return;
-    }
-    {
-        // Reduce into unique sequence
-        auto beg = d_envmap_vals.begin();
-        auto end = d_envmap_vals.end();
-        auto buffer_beg = reduce_buffer.begin();
-        auto buffer_end = DISPATCH_CACHED(scene.use_gpu, thrust_alloc,
-            thrust::remove_copy, beg, end, buffer_beg, DTexture3{-1});
-        DISPATCH_CACHED(scene.use_gpu, thrust_alloc, thrust::sort, buffer_beg, buffer_end);
-        auto new_end = DISPATCH_CACHED(scene.use_gpu, thrust_alloc, thrust::reduce_by_key,
-            buffer_beg, buffer_end, // input keys
-            buffer_beg, // input values
-            beg, // output keys
-            beg).first; // output values
-        d_envmap_vals.count = new_end - beg;
-    }
-    auto d_world_to_env = Matrix4x4();
-    {
-        // Reduce to a single matrix
-        auto beg = d_world_to_envs.begin();
-        auto end = d_world_to_envs.begin();
-        d_world_to_env = DISPATCH_CACHED(scene.use_gpu, thrust_alloc,
-            thrust::reduce, beg, end, Matrix4x4());
-    }
-    // Accumulate to output derivatives
-    accumulate_envmap(scene, d_envmap_vals, d_world_to_env, *d_envmap);
-}
 
 // 1 2 3 4 5 -> 1 1 2 2 3 3 4 4 5 5
 template <typename T>
@@ -420,7 +220,7 @@ void render(const Scene &scene,
     auto optix_rays = path_buffer.optix_rays.view(0, 2 * num_pixels);
     auto optix_hits = path_buffer.optix_hits.view(0, 2 * num_pixels);
 
-    ThrustCachedAllocator thrust_alloc(scene.use_gpu, num_pixels * sizeof(DTexture3));
+    ThrustCachedAllocator thrust_alloc(scene.use_gpu, num_pixels * sizeof(int));
 
     // For each sample
     for (int sample_id = 0; sample_id < options.num_samples; sample_id++) {

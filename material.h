@@ -73,23 +73,6 @@ DEVICE
 inline void d_get_diffuse_reflectance(const Material &material,
                                       const SurfacePoint &shading_point,
                                       const Vector3 &d_output,
-                                      DTexture3 &d_texture,
-                                      SurfacePoint &d_shading_point) {
-    d_get_texture_value(material.diffuse_reflectance,
-                        shading_point.uv,
-                        shading_point.du_dxy,
-                        shading_point.dv_dxy,
-                        d_output,
-                        d_texture,
-                        d_shading_point.uv,
-                        d_shading_point.du_dxy,
-                        d_shading_point.dv_dxy);
-}
-
-DEVICE
-inline void d_get_diffuse_reflectance(const Material &material,
-                                      const SurfacePoint &shading_point,
-                                      const Vector3 &d_output,
                                       Texture3 &d_texture,
                                       SurfacePoint &d_shading_point) {
     d_get_texture_value(material.diffuse_reflectance,
@@ -114,23 +97,6 @@ DEVICE
 inline void d_get_specular_reflectance(const Material &material,
                                        const SurfacePoint &shading_point,
                                        const Vector3 &d_output,
-                                       DTexture3 &d_texture,
-                                       SurfacePoint &d_shading_point) {
-    d_get_texture_value(material.specular_reflectance,
-                        shading_point.uv,
-                        shading_point.du_dxy,
-                        shading_point.dv_dxy,
-                        d_output,
-                        d_texture,
-                        d_shading_point.uv,
-                        d_shading_point.du_dxy,
-                        d_shading_point.dv_dxy);
-}
-
-DEVICE
-inline void d_get_specular_reflectance(const Material &material,
-                                       const SurfacePoint &shading_point,
-                                       const Vector3 &d_output,
                                        Texture3 &d_texture,
                                        SurfacePoint &d_shading_point) {
     d_get_texture_value(material.specular_reflectance,
@@ -149,23 +115,6 @@ inline Real get_roughness(const Material &material,
                           const SurfacePoint &shading_point) {
     return get_texture_value(material.roughness,
         shading_point.uv, shading_point.du_dxy, shading_point.dv_dxy);
-}
-
-DEVICE
-inline void d_get_roughness(const Material &material,
-                            const SurfacePoint &shading_point,
-                            const Real d_output,
-                            DTexture1 &d_texture,
-                            SurfacePoint &d_shading_point) {
-    d_get_texture_value(material.roughness,
-                        shading_point.uv,
-                        shading_point.du_dxy,
-                        shading_point.dv_dxy,
-                        d_output,
-                        d_texture,
-                        d_shading_point.uv,
-                        d_shading_point.du_dxy,
-                        d_shading_point.dv_dxy);
 }
 
 DEVICE
@@ -565,7 +514,7 @@ void d_bsdf_sample(const Material &material,
                    const RayDifferential &wi_differential,
                    const Vector3 &d_wo,
                    const RayDifferential &d_wo_differential,
-                   DTexture1 &d_roughness_tex,
+                   Texture1 &d_roughness_tex,
                    SurfacePoint &d_shading_point,
                    Vector3 &d_wi,
                    RayDifferential &d_wi_differential) {
@@ -786,7 +735,7 @@ inline void d_bsdf_pdf(const Material &material,
                        const Vector3 &wo,
                        const Real min_roughness,
                        const Real d_pdf,
-                       DTexture1 &d_roughness_tex,
+                       Texture1 &d_roughness_tex,
                        SurfacePoint &d_shading_point,
                        Vector3 &d_wi,
                        Vector3 &d_wo) {
@@ -901,18 +850,6 @@ inline void d_bsdf_pdf(const Material &material,
     }
     d_shading_point.shading_frame.n += d_n;
 }
-
-struct Scene;
-
-void accumulate_diffuse(const Scene &scene,
-                        const BufferView<DTexture3> &d_texs,
-                        BufferView<DMaterial> d_materials);
-void accumulate_specular(const Scene &scene,
-                         const BufferView<DTexture3> &d_texs,
-                         BufferView<DMaterial> d_materials);
-void accumulate_roughness(const Scene &scene,
-                          const BufferView<DTexture1> &d_texs,
-                          BufferView<DMaterial> d_materials);
 
 void test_d_bsdf();
 void test_d_bsdf_sample();

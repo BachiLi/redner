@@ -701,10 +701,5 @@ inline bool in_screen(const Camera &cam, const Vector2 &pt) {
     }
 }
 
-void accumulate_camera(const Camera &camera,
-                       const DCameraInst &d_camera_inst,
-                       DCamera &d_camera,
-                       bool use_gpu);
-
 void test_sample_primary_rays(bool use_gpu);
 void test_camera_derivatives();

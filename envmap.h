@@ -93,95 +93,6 @@ inline void d_envmap_eval(const EnvironmentMap &envmap,
                           const Vector3 &dir,
                           const RayDifferential &ray_diff,
                           const Vector3 &d_output,
-                          DTexture3 &d_envmap_val,
-                          Matrix4x4 &d_world_to_env,
-                          Vector3 &d_dir,
-                          RayDifferential &d_ray_diff) {
-    auto n_local_dir = xfm_vector(envmap.world_to_env, dir);
-    auto local_dir = normalize(n_local_dir);
-    // Project to spherical coordinate, y is up vector
-    auto uv = Vector2{
-        atan2(local_dir.x, -local_dir.z) / Real(2 * M_PI),
-        safe_acos(local_dir.y) / Real(M_PI)
-    };
-
-    // Compute ray differentials
-    // TODO: handle scaling in world_to_env
-    auto local_dir_dx = xfm_vector(envmap.world_to_env, ray_diff.dir_dx);
-    auto local_dir_dy = xfm_vector(envmap.world_to_env, ray_diff.dir_dy);
-    auto du_dlocal_dir_x = local_dir.x /
-        (Real(2 * M_PI) * (square(local_dir.x) + square(local_dir.z)));
-    auto du_dlocal_dir_z = local_dir.z /
-        (Real(2 * M_PI) * (square(local_dir.x) + square(local_dir.z)));
-    auto du_dxy = Vector2{du_dlocal_dir_x * local_dir_dx.x + du_dlocal_dir_z * local_dir_dx.z,
-                          du_dlocal_dir_x * local_dir_dy.x + du_dlocal_dir_z * local_dir_dy.z};
-    auto dv_dlocal_dir_y = -1 / (Real(M_PI) * sqrt(1 - square(local_dir.y)));
-    auto dv_dxy = Vector2{dv_dlocal_dir_y * local_dir_dx.y,
-                          dv_dlocal_dir_y * local_dir_dy.y};
-
-    // val = get_texture_value(envmap.values, uv, du_dxy, dv_dxy)
-    auto d_uv = Vector2{0, 0};
-    auto d_du_dxy = Vector2{0, 0};
-    auto d_dv_dxy = Vector2{0, 0};
-    d_get_texture_value(envmap.values, uv, du_dxy, dv_dxy, d_output,
-        d_envmap_val, d_uv, d_du_dxy, d_dv_dxy);
-    // dv_dxy = Vector2{dv_dlocal_dir_y * local_dir_dx.y,
-    //                  dv_dlocal_dir_y * local_dir_dy.y}
-    auto d_dv_dlocal_dir_y = d_dv_dxy.x * local_dir_dx.y + d_dv_dxy.y * local_dir_dy.y;
-    auto d_local_dir_dx = Vector3{Real(0), d_dv_dxy.x * dv_dlocal_dir_y, Real(0)};
-    auto d_local_dir_dy = Vector3{Real(0), d_dv_dxy.y * dv_dlocal_dir_y, Real(0)};
-    // dv_dlocal_dir_y = -1 / (Real(M_PI) * sqrt(1 - square(local_dir.y)))
-    auto d_local_dir = Vector3{Real(0), -d_dv_dlocal_dir_y * local_dir.y /
-        (Real(M_PI) * sqrt(1 - square(local_dir.y)) * (1 - square(local_dir.y))), Real(0)};
-    // du_dxy = Vector2{du_dlocal_dir_x * local_dir_dx.x + du_dlocal_dir_z * local_dir_dx.z,
-    //                  du_dlocal_dir_x * local_dir_dy.x + du_dlocal_dir_z * local_dir_dy.z}
-    auto d_du_dlocal_dir_x = d_du_dxy.x * local_dir_dx.x + d_du_dxy.y * local_dir_dy.x;
-    auto d_du_dlocal_dir_z = d_du_dxy.x * local_dir_dx.z + d_du_dxy.y * local_dir_dy.z;
-    d_local_dir_dx.x += d_du_dxy.x * du_dlocal_dir_x;
-    d_local_dir_dx.z += d_du_dxy.x * du_dlocal_dir_z;
-    d_local_dir_dy.x += d_du_dxy.y * du_dlocal_dir_x;
-    d_local_dir_dy.z += d_du_dxy.y * du_dlocal_dir_z;
-    // du_dlocal_dir_z = local_dir.z /
-    //     (Real(2 * M_PI) * (square(local_dir.x) + square(local_dir.z)))
-    d_local_dir.z += d_du_dlocal_dir_z * (square(local_dir.x) - square(local_dir.z)) /
-        (Real(2 * M_PI) * square(square(local_dir.x) + square(local_dir.z)));
-    d_local_dir.x -= d_du_dlocal_dir_z * local_dir.x * local_dir.z /
-        (Real(2 * M_PI) * square(square(local_dir.x) + square(local_dir.z)));
-    // du_dlocal_dir_x = local_dir.x /
-    //     (Real(2 * M_PI) * (square(local_dir.x) + square(local_dir.z)))
-    d_local_dir.x += d_du_dlocal_dir_x * (square(local_dir.z) - square(local_dir.x)) /
-        (Real(2 * M_PI) * square(square(local_dir.x) + square(local_dir.z)));
-    d_local_dir.z -= d_du_dlocal_dir_x * local_dir.x * local_dir.z /
-        (Real(2 * M_PI) * square(square(local_dir.x) + square(local_dir.z)));
-    // local_dir_dx = xfm_vector(envmap.world_to_env, ray_diff.dir_dx)
-    d_xfm_vector(envmap.world_to_env, ray_diff.dir_dx, d_local_dir_dx,
-        d_world_to_env, d_ray_diff.dir_dx);
-    // local_dir_dy = xfm_vector(envmap.world_to_env, ray_diff.dir_dy)
-    d_xfm_vector(envmap.world_to_env, ray_diff.dir_dy, d_local_dir_dy,
-        d_world_to_env, d_ray_diff.dir_dy);
-    // uv = Vector2{
-    //     atan2(local_dir.x, -local_dir.z) / Real(2 * M_PI),
-    //     acos(local_dir.y) / Real(M_PI)
-    // }
-    auto x2_z2 = square(local_dir.x) + square(local_dir.z);
-    if (x2_z2 > 0.f) {
-        d_local_dir.x += (- d_uv.x * local_dir.z / (x2_z2 * Real(2 * M_PI)));
-        d_local_dir.z += (- d_uv.x * local_dir.x / (x2_z2 * Real(2 * M_PI)));
-    }
-    if (local_dir.y < 1.f) {
-        d_local_dir.y += (- d_uv.y / (sqrt(1 - square(local_dir.y)) * (Real(2 * M_PI))));
-    }
-    // local_dir = normalize(n_local_dir)
-    auto d_n_local_dir = d_normalize(n_local_dir, d_local_dir);
-    // n_local_dir = xfm_vector(envmap.world_to_env, dir)
-    d_xfm_vector(envmap.world_to_env, dir, d_n_local_dir, d_world_to_env, d_dir);
-}
-
-DEVICE
-inline void d_envmap_eval(const EnvironmentMap &envmap,
-                          const Vector3 &dir,
-                          const RayDifferential &ray_diff,
-                          const Vector3 &d_output,
                           DEnvironmentMap &d_envmap,
                           Vector3 &d_dir,
                           RayDifferential &d_ray_diff) {
@@ -366,9 +277,3 @@ inline Real envmap_pdf(const EnvironmentMap &envmap, const Vector3 &dir) {
     auto sin_theta_cy = fabs(sin(Real(M_PI) * (yci + 0.5f) / h));
     return envmap.pdf_norm * fabs(lum_fy * sin_theta_fy + lum_cy * sin_theta_cy) / sin_theta;
 }
-
-void accumulate_envmap(const Scene &scene,
-                       const BufferView<DTexture3> &d_envmap_vals,
-                       const Matrix4x4 &d_world_to_env,
-                       DEnvironmentMap &d_envmap);
-

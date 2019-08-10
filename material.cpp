@@ -3,194 +3,6 @@
 #include "parallel.h"
 #include "test_utils.h"
 
-struct diffuse_accumulator {
-    DEVICE
-    inline void operator()(int idx) {
-        const auto &d_tex = d_diffuse_texs[idx];
-        auto mid = d_tex.material_id;
-        auto xi = d_tex.xi;
-        auto yi = d_tex.yi;
-        auto texels = d_materials[mid].diffuse_reflectance.texels;
-        if (xi < 0) {
-            texels[0] += d_tex.t000[0];
-            texels[1] += d_tex.t000[1];
-            texels[2] += d_tex.t000[2];
-        } else {
-            auto w = d_materials[mid].diffuse_reflectance.width;
-            auto h = d_materials[mid].diffuse_reflectance.height;
-            auto num_levels = d_materials[mid].diffuse_reflectance.num_levels;
-            auto xi0 = xi;
-            auto xi1 = modulo(xi + 1, w);
-            auto yi0 = yi;
-            auto yi1 = modulo(yi + 1, h);
-            auto level = d_tex.li;
-            if (d_tex.li == -1) {
-                level = 0;
-            }
-            auto lower_texels = texels + level * w * h * 3;
-            // Different DTexture may overlap, so we need to use atomic updates
-            // The probability of collision should be small in SIMD regime though
-            atomic_add(lower_texels[3 * (yi0 * w + xi0) + 0], d_tex.t000[0]);
-            atomic_add(lower_texels[3 * (yi0 * w + xi0) + 1], d_tex.t000[1]);
-            atomic_add(lower_texels[3 * (yi0 * w + xi0) + 2], d_tex.t000[2]);
-            atomic_add(lower_texels[3 * (yi0 * w + xi1) + 0], d_tex.t100[0]);
-            atomic_add(lower_texels[3 * (yi0 * w + xi1) + 1], d_tex.t100[1]);
-            atomic_add(lower_texels[3 * (yi0 * w + xi1) + 2], d_tex.t100[2]);
-            atomic_add(lower_texels[3 * (yi1 * w + xi0) + 0], d_tex.t010[0]);
-            atomic_add(lower_texels[3 * (yi1 * w + xi0) + 1], d_tex.t010[1]);
-            atomic_add(lower_texels[3 * (yi1 * w + xi0) + 2], d_tex.t010[2]);
-            atomic_add(lower_texels[3 * (yi1 * w + xi1) + 0], d_tex.t110[0]);
-            atomic_add(lower_texels[3 * (yi1 * w + xi1) + 1], d_tex.t110[1]);
-            atomic_add(lower_texels[3 * (yi1 * w + xi1) + 2], d_tex.t110[2]);
-            if (d_tex.li >= 0 && d_tex.li < num_levels - 1) {
-                auto higher_texels = texels + (level + 1) * w * h * 3;
-                atomic_add(higher_texels[3 * (yi0 * w + xi0) + 0], d_tex.t001[0]);
-                atomic_add(higher_texels[3 * (yi0 * w + xi0) + 1], d_tex.t001[1]);
-                atomic_add(higher_texels[3 * (yi0 * w + xi0) + 2], d_tex.t001[2]);
-                atomic_add(higher_texels[3 * (yi0 * w + xi1) + 0], d_tex.t101[0]);
-                atomic_add(higher_texels[3 * (yi0 * w + xi1) + 1], d_tex.t101[1]);
-                atomic_add(higher_texels[3 * (yi0 * w + xi1) + 2], d_tex.t101[2]);
-                atomic_add(higher_texels[3 * (yi1 * w + xi0) + 0], d_tex.t011[0]);
-                atomic_add(higher_texels[3 * (yi1 * w + xi0) + 1], d_tex.t011[1]);
-                atomic_add(higher_texels[3 * (yi1 * w + xi0) + 2], d_tex.t011[2]);
-                atomic_add(higher_texels[3 * (yi1 * w + xi1) + 0], d_tex.t111[0]);
-                atomic_add(higher_texels[3 * (yi1 * w + xi1) + 1], d_tex.t111[1]);
-                atomic_add(higher_texels[3 * (yi1 * w + xi1) + 2], d_tex.t111[2]);
-            }
-        }
-    }
-
-    const DTexture3 *d_diffuse_texs;
-    DMaterial *d_materials;
-    void *mutexes; // CUDA doesn't recognize std::mutex
-};
-
-struct specular_accumulator {
-    DEVICE
-    inline void operator()(int idx) {
-        const auto &d_tex = d_specular_texs[idx];
-        auto mid = d_tex.material_id;
-        auto xi = d_tex.xi;
-        auto yi = d_tex.yi;
-        auto texels = d_materials[mid].specular_reflectance.texels;
-        if (xi < 0) {
-            texels[0] += d_tex.t000[0];
-            texels[1] += d_tex.t000[1];
-            texels[2] += d_tex.t000[2];
-        } else {
-            auto w = d_materials[mid].specular_reflectance.width;
-            auto h = d_materials[mid].specular_reflectance.height;
-            auto num_levels = d_materials[mid].specular_reflectance.num_levels;
-            auto xi0 = xi;
-            auto xi1 = modulo(xi + 1, w);
-            auto yi0 = yi;
-            auto yi1 = modulo(yi + 1, h);
-            // Different DTexture may overlap, so we need to use atomic updates
-            // The probability of collision should be small in SIMD regime though
-            auto level = d_tex.li;
-            if (d_tex.li == -1) {
-                level = 0;
-            }
-            auto lower_texels = texels + level * w * h * 3;
-            atomic_add(lower_texels[3 * (yi0 * w + xi0) + 0], d_tex.t000[0]);
-            atomic_add(lower_texels[3 * (yi0 * w + xi0) + 1], d_tex.t000[1]);
-            atomic_add(lower_texels[3 * (yi0 * w + xi0) + 2], d_tex.t000[2]);
-            atomic_add(lower_texels[3 * (yi0 * w + xi1) + 0], d_tex.t100[0]);
-            atomic_add(lower_texels[3 * (yi0 * w + xi1) + 1], d_tex.t100[1]);
-            atomic_add(lower_texels[3 * (yi0 * w + xi1) + 2], d_tex.t100[2]);
-            atomic_add(lower_texels[3 * (yi1 * w + xi0) + 0], d_tex.t010[0]);
-            atomic_add(lower_texels[3 * (yi1 * w + xi0) + 1], d_tex.t010[1]);
-            atomic_add(lower_texels[3 * (yi1 * w + xi0) + 2], d_tex.t010[2]);
-            atomic_add(lower_texels[3 * (yi1 * w + xi1) + 0], d_tex.t110[0]);
-            atomic_add(lower_texels[3 * (yi1 * w + xi1) + 1], d_tex.t110[1]);
-            atomic_add(lower_texels[3 * (yi1 * w + xi1) + 2], d_tex.t110[2]);
-            if (d_tex.li >= 0 && d_tex.li < num_levels - 1) {
-                auto higher_texels = texels + (level + 1) * w * h * 3;
-                atomic_add(higher_texels[3 * (yi0 * w + xi0) + 0], d_tex.t001[0]);
-                atomic_add(higher_texels[3 * (yi0 * w + xi0) + 1], d_tex.t001[1]);
-                atomic_add(higher_texels[3 * (yi0 * w + xi0) + 2], d_tex.t001[2]);
-                atomic_add(higher_texels[3 * (yi0 * w + xi1) + 0], d_tex.t101[0]);
-                atomic_add(higher_texels[3 * (yi0 * w + xi1) + 1], d_tex.t101[1]);
-                atomic_add(higher_texels[3 * (yi0 * w + xi1) + 2], d_tex.t101[2]);
-                atomic_add(higher_texels[3 * (yi1 * w + xi0) + 0], d_tex.t011[0]);
-                atomic_add(higher_texels[3 * (yi1 * w + xi0) + 1], d_tex.t011[1]);
-                atomic_add(higher_texels[3 * (yi1 * w + xi0) + 2], d_tex.t011[2]);
-                atomic_add(higher_texels[3 * (yi1 * w + xi1) + 0], d_tex.t111[0]);
-                atomic_add(higher_texels[3 * (yi1 * w + xi1) + 1], d_tex.t111[1]);
-                atomic_add(higher_texels[3 * (yi1 * w + xi1) + 2], d_tex.t111[2]);
-            }
-        }
-    }
-
-    const DTexture3 *d_specular_texs;
-    DMaterial *d_materials;
-    void *mutexes; // CUDA doesn't recognize std::mutex
-};
-
-struct roughness_accumulator {
-    DEVICE
-    inline void operator()(int idx) {
-        const auto &d_tex = d_roughness_texs[idx];
-        auto mid = d_tex.material_id;
-        auto xi = d_tex.xi;
-        auto yi = d_tex.yi;
-        auto texels = d_materials[mid].roughness.texels;
-        if (xi < 0) {
-            texels[0] += d_tex.t000;
-        } else {
-            auto w = d_materials[mid].roughness.width;
-            auto h = d_materials[mid].roughness.height;
-            auto num_levels = d_materials[mid].roughness.num_levels;
-            auto xi0 = xi;
-            auto xi1 = modulo(xi + 1, w);
-            auto yi0 = yi;
-            auto yi1 = modulo(yi + 1, h);
-            // Different DTexture may overlap, so we need to use atomic updates
-            // The probability of collision should be small in SIMD regime though
-            auto level = d_tex.li;
-            if (d_tex.li == -1) {
-                level = 0;
-            }
-            auto lower_texels = texels + level * w * h;
-            atomic_add(lower_texels[yi0 * w + xi0], d_tex.t000);
-            atomic_add(lower_texels[yi0 * w + xi1], d_tex.t100);
-            atomic_add(lower_texels[yi1 * w + xi0], d_tex.t010);
-            atomic_add(lower_texels[yi1 * w + xi1], d_tex.t110);
-            if (d_tex.li >= 0 && d_tex.li < num_levels - 1) {
-                auto higher_texels = texels + (level + 1) * w * h;
-                atomic_add(higher_texels[yi0 * w + xi0], d_tex.t001);
-                atomic_add(higher_texels[yi0 * w + xi1], d_tex.t101);
-                atomic_add(higher_texels[yi1 * w + xi0], d_tex.t011);
-                atomic_add(higher_texels[yi1 * w + xi1], d_tex.t111);
-            }
-        }
-    }
-
-    const DTexture1 *d_roughness_texs;
-    DMaterial *d_materials;
-};
-
-void accumulate_diffuse(const Scene &scene,
-                        const BufferView<DTexture3> &d_diffuse_texs,
-                        BufferView<DMaterial> d_materials) {
-    parallel_for(diffuse_accumulator{d_diffuse_texs.begin(), d_materials.begin()},
-        d_diffuse_texs.size(), scene.use_gpu);
-}
-
-void accumulate_specular(const Scene &scene,
-                         const BufferView<DTexture3> &d_specular_texs,
-                         BufferView<DMaterial> d_materials) {
-    parallel_for(specular_accumulator{d_specular_texs.begin(), d_materials.begin()},
-        d_specular_texs.size(), scene.use_gpu);
-}
-
-void accumulate_roughness(const Scene &scene,
-                          const BufferView<DTexture1> &d_roughness_texs,
-                          BufferView<DMaterial> d_materials) {
-    parallel_for(roughness_accumulator{d_roughness_texs.begin(), d_materials.begin()},
-        d_roughness_texs.size(), scene.use_gpu);
-}
-
 void test_d_bsdf() {
     Vector3f d{0.5, 0.4, 0.3};
     Vector2f uv_scale{1, 1};
@@ -330,7 +142,9 @@ void test_d_bsdf_sample() {
     float r = 0.5;
     Texture1 roughness{&r, -1, -1, -1, &uv_scale[0]};
     Material m{diffuse, specular, roughness, false};
-    DTexture1 d_roughness_tex;
+    float d_r = 0.f;
+    Vector2f d_uv_scale{0, 0};
+    Texture1 d_roughness_tex{&d_r, -1, -1, -1, &d_uv_scale[0]};
     SurfacePoint p{Vector3{0, 0, 0},
                    Vector3{0, 1, 0},
                    Frame(Vector3{0, 1, 0}),
@@ -391,7 +205,7 @@ void test_d_bsdf_sample() {
                      sum(ray_diff_pos.dir_dx - ray_diff_neg.dir_dx) +
                      sum(ray_diff_pos.dir_dy - ray_diff_neg.dir_dy))
                     / (2 * finite_delta);
-            equal_or_error(__FILE__, __LINE__, diff, d_roughness_tex.t000);
+            equal_or_error(__FILE__, __LINE__, diff, d_r);
         }
 
         // Check surface point derivatives
@@ -525,7 +339,9 @@ void test_d_bsdf_pdf() {
     float r = 0.5;
     Texture1 roughness{&r, -1, -1, -1, &uv_scale[0]};
     Material m{diffuse, specular, roughness, false};
-    DTexture1 d_roughness_tex;
+    float d_r = 0.f;
+    Vector2f d_uv_scale{0, 0};
+    Texture1 d_roughness_tex{&d_r, -1, -1, -1, &d_uv_scale[0]};
     SurfacePoint p{Vector3{0, 0, 0},
                    Vector3{0, 1, 0},
                    Frame(Vector3{0, 1, 0}),
@@ -550,7 +366,7 @@ void test_d_bsdf_pdf() {
         delta_m.roughness.texels[0] -= 2 * finite_delta;
         auto negative = bsdf_pdf(delta_m, p, wi, wo, min_roughness);
         auto diff = (positive - negative) / (2 * finite_delta);
-        equal_or_error(__FILE__, __LINE__, diff, d_roughness_tex.t000);
+        equal_or_error(__FILE__, __LINE__, diff, d_r);
     }
 
     // Check surface point derivatives

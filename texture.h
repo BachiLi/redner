@@ -23,52 +23,6 @@ struct Texture1 {
     Vector2f uv_scale;
 };
 
-struct DTexture1 {
-    DEVICE DTexture1(
-        int mi = -1, int xi = -1, int yi = -1, int li = -1,
-        Real t000 = 0, Real t010 = 0, Real t100 = 0, Real t110 = 0,
-        Real t001 = 0, Real t011 = 0, Real t101 = 0, Real t111 = 0) :
-            material_id(mi),
-            xi(xi),
-            yi(yi),
-            li(li),
-            t000(t000), t010(t010), t100(t100), t110(t110),
-            t001(t001), t011(t011), t101(t101), t111(t111) {}
-    int material_id, xi, yi, li;
-    Real t000, t010, t100, t110;
-    Real t001, t011, t101, t111;
-
-    DEVICE inline bool operator<(const DTexture1 &other) const {
-        if (material_id != other.material_id) {
-            return material_id < other.material_id;
-        }
-        if (li != other.li) {
-            return li < other.li;
-        }
-        if (yi != other.yi) {
-            return yi < other.yi;
-        }
-        return xi < other.xi;
-    }
-
-    DEVICE inline bool operator==(const DTexture1 &other) const {
-        return material_id == other.material_id &&
-               xi == other.xi && yi == other.yi && li == other.li;
-    }
-
-    DEVICE inline DTexture1 operator+(const DTexture1 &other) const {
-        return DTexture1{material_id, xi, yi, li,
-                         t000 + other.t000,
-                         t010 + other.t010,
-                         t100 + other.t100,
-                         t110 + other.t110,
-                         t001 + other.t001,
-                         t011 + other.t011,
-                         t101 + other.t101,
-                         t111 + other.t111};
-    }
-};
-
 struct Texture3 {
     Texture3() {}
     Texture3(ptr<float> texels,
@@ -86,71 +40,6 @@ struct Texture3 {
     int height;
     int num_levels;
     Vector2f uv_scale;
-};
-
-struct DTexture3 {
-    DEVICE DTexture3(
-        int mi = -1, int xi = -1, int yi = -1, int li = -1,
-        const Vector3f &t000 = Vector3f{0, 0, 0},
-        const Vector3f &t010 = Vector3f{0, 0, 0},
-        const Vector3f &t100 = Vector3f{0, 0, 0},
-        const Vector3f &t110 = Vector3f{0, 0, 0},
-        const Vector3f &t001 = Vector3f{0, 0, 0},
-        const Vector3f &t011 = Vector3f{0, 0, 0},
-        const Vector3f &t101 = Vector3f{0, 0, 0},
-        const Vector3f &t111 = Vector3f{0, 0, 0}) :
-        material_id(mi),
-        xi(xi),
-        yi(yi),
-        li(li),
-        t000(t000), t010(t010), t100(t100), t110(t110),
-        t001(t001), t011(t011), t101(t101), t111(t111) {}
-    int material_id, xi, yi, li;
-    /**
-     * HACK: We use Vector3f instead of Vector3 as a workaround for a bug in thrust
-     * It seems that thrust has some memory bugs when a struct is larger than 128 bytes
-     * see https://devtalk.nvidia.com/default/topic/1036643/cuda-programming-and-performance/thrust-remove_if-memory-corruption/
-     * (and after 5 months the bugs is still not fixed ; ( )
-     * maybe we should drop thrust dependencies at some point.
-     */
-    Vector3f t000;
-    Vector3f t010;
-    Vector3f t100;
-    Vector3f t110;
-    Vector3f t001;
-    Vector3f t011;
-    Vector3f t101;
-    Vector3f t111;
-
-    DEVICE inline bool operator<(const DTexture3 &other) const {
-        if (material_id != other.material_id) {
-            return material_id < other.material_id;
-        }
-        if (li != other.li) {
-            return li < other.li;
-        }
-        if (yi != other.yi) {
-            return yi < other.yi;
-        }
-        return xi < other.xi;
-    }
-
-    DEVICE inline bool operator==(const DTexture3 &other) const {
-        return material_id == other.material_id &&
-               xi == other.xi && yi == other.yi && li == other.li;
-    }
-
-    DEVICE inline DTexture3 operator+(const DTexture3 &other) const {
-        return DTexture3{material_id, xi, yi, li,
-                         t000 + other.t000,
-                         t010 + other.t010,
-                         t100 + other.t100,
-                         t110 + other.t110,
-                         t001 + other.t001,
-                         t011 + other.t011,
-                         t101 + other.t101,
-                         t111 + other.t111};
-    }
 };
 
 DEVICE

@@ -48,29 +48,6 @@ void sample_primary_rays(const Camera &camera,
         samples.size(), use_gpu);
 }
 
-void accumulate_camera(const Camera &camera,
-                       const DCameraInst &d_camera_inst,
-                       DCamera &d_camera,
-                       bool use_gpu) {
-    for (int i = 0; i < 3; i++) {
-        d_camera.position[i] += d_camera_inst.position[i];
-    }
-    for (int i = 0; i < 3; i++) {
-        d_camera.look[i] += d_camera_inst.look[i];
-    }
-    for (int i = 0; i < 3; i++) {
-        d_camera.up[i] += d_camera_inst.up[i];
-    }
-    auto d_ndc_to_cam =
-        d_camera_inst.ndc_to_cam -
-        camera.ndc_to_cam * d_camera_inst.cam_to_ndc * camera.ndc_to_cam;
-    for (int i = 0; i < 3; i++) {
-        for (int j = 0; j < 3; j++) {
-            d_camera.ndc_to_cam[3 * i + j] += d_ndc_to_cam(i, j);
-        }
-    }
-}
-
 void test_sample_primary_rays(bool use_gpu) {
     // Let's have a perspective camera with 1x1 pixel, 
     // with identity to world matrix,
