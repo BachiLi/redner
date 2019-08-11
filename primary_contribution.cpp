@@ -354,7 +354,7 @@ struct d_primary_contribs_accumulator {
                                 dot(wi, shading_point.shading_frame.n) > 0) {
                             const auto &light = scene.area_lights[shading_shape.light_id];
                             if (light.two_sided || dot(wi, shading_point.shading_frame.n) > 0) {
-                                atomic_add(d_area_lights[idx].intensity, d_emission);
+                                atomic_add(d_area_lights[shading_shape.light_id].intensity, d_emission);
                             }
                         }
                     } else if (scene.envmap != nullptr) {
