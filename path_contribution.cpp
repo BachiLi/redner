@@ -660,6 +660,7 @@ void d_accumulate_path_contribs(const Scene &scene,
                                 BufferView<DRay> d_incoming_rays,
                                 BufferView<RayDifferential> d_incoming_ray_differentials,
                                 BufferView<SurfacePoint> d_shading_points) {
+    return;
     parallel_for(d_path_contribs_accumulator{
         get_flatten_scene(scene),
         active_pixels.begin(),

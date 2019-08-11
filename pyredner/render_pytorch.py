@@ -444,9 +444,9 @@ class RenderFunction(torch.autograd.Function):
             d_diffuse_list.append(d_diffuse)
             d_specular_list.append(d_specular)
             d_roughness_list.append(d_roughness)
-            d_diffuse_uv_scale = torch.zeros(2)
-            d_specular_uv_scale = torch.zeros(2)
-            d_roughness_uv_scale = torch.zeros(2)
+            d_diffuse_uv_scale = torch.zeros(2, device = pyredner.get_device())
+            d_specular_uv_scale = torch.zeros(2, device = pyredner.get_device())
+            d_roughness_uv_scale = torch.zeros(2, device = pyredner.get_device())
             d_diffuse_tex = redner.Texture3(\
                 redner.float_ptr(d_diffuse.data_ptr()),
                 diffuse_size[0], diffuse_size[1], diffuse_size[2],
@@ -480,12 +480,12 @@ class RenderFunction(torch.autograd.Function):
                             size[0],
                             3,
                             device = pyredner.get_device())
-            d_envmap_uv_scale = torch.zeros(2)
+            d_envmap_uv_scale = torch.zeros(2, device = pyredner.get_device())
             d_envmap_tex = redner.Texture3(\
                 redner.float_ptr(d_envmap_values.data_ptr()),
                 size[0], size[1], size[2],
                 redner.float_ptr(d_envmap_uv_scale.data_ptr()))
-            d_world_to_env = torch.zeros(4, 4)
+            d_world_to_env = torch.zeros(4, 4, device = pyredner.get_device())
             d_envmap = redner.DEnvironmentMap(\
                 d_envmap_tex,
                 redner.float_ptr(d_world_to_env.data_ptr()))
@@ -585,7 +585,7 @@ class RenderFunction(torch.autograd.Function):
             ret_list.append(d_envmap_values)
             ret_list.append(None) # uv_scale
             ret_list.append(None) # env_to_world
-            ret_list.append(d_world_to_env)
+            ret_list.append(d_world_to_env.cpu())
             ret_list.append(None) # sample_cdf_ys
             ret_list.append(None) # sample_cdf_xs
             ret_list.append(None) # pdf_norm

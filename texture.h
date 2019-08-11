@@ -14,13 +14,13 @@ struct Texture1 {
         : texels(texels.get()),
           width(width), height(height),
           num_levels(num_levels),
-          uv_scale(Vector2f{uv_scale[0], uv_scale[1]}) {}
+          uv_scale(uv_scale.get()) {}
 
     float *texels;
     int width;
     int height;
     int num_levels;
-    Vector2f uv_scale;
+    float *uv_scale;
 };
 
 struct Texture3 {
@@ -33,13 +33,13 @@ struct Texture3 {
         : texels(texels.get()),
           width(width), height(height),
           num_levels(num_levels),
-          uv_scale(Vector2{uv_scale[0], uv_scale[1]}) {}
+          uv_scale(uv_scale.get()) {}
 
     float *texels;
     int width;
     int height;
     int num_levels;
-    Vector2f uv_scale;
+    float *uv_scale;
 };
 
 DEVICE
@@ -265,9 +265,10 @@ inline auto get_texture_value(const TextureType &tex,
         return get_texture_value_constant(tex);
     } else {
         // Trilinear interpolation
-        auto uv = uv_ * tex.uv_scale;
-        auto du_dxy = du_dxy_ * tex.uv_scale[0];
-        auto dv_dxy = dv_dxy_ * tex.uv_scale[1];
+        auto uv_scale = Vector2f{tex.uv_scale[0], tex.uv_scale[1]};
+        auto uv = uv_ * uv_scale;
+        auto du_dxy = du_dxy_ * uv_scale[0];
+        auto dv_dxy = dv_dxy_ * uv_scale[1];
         auto x = uv[0] * tex.width - 0.5f;
         auto y = uv[1] * tex.height - 0.5f;
         auto xf = (int)floor(x);
@@ -312,9 +313,10 @@ inline void d_get_texture_value(const TextureType &tex,
         d_tex.t000 = d_output;
     } else {
         // Trilinear interpolation
-        auto uv = uv_ * tex.uv_scale;
-        auto du_dxy = du_dxy_ * tex.uv_scale[0];
-        auto dv_dxy = dv_dxy_ * tex.uv_scale[1];
+        auto uv_scale = Vector2f{tex.uv_scale[0], tex.uv_scale[1]};
+        auto uv = uv_ * uv_scale;
+        auto du_dxy = du_dxy_ * uv_scale[0];
+        auto dv_dxy = dv_dxy_ * uv_scale[1];
         auto x = uv[0] * tex.width - 0.5f;
         auto y = uv[1] * tex.height - 0.5f;
         auto xf = (int)floor(x);
@@ -387,12 +389,12 @@ inline void d_get_texture_value(const TextureType &tex,
         d_uv[0] += d_u * tex.width;
         d_uv[1] += d_v * tex.height;
 
-        // uv = uv_ * tex.uv_scale
-        // du_dxy = du_dxy_ * tex.uv_scale[0]
-        // dv_dxy = dv_dxy_ * tex.uv_scale[1]
-        d_uv_ += d_uv * tex.uv_scale;
-        d_du_dxy_ += d_du_dxy * tex.uv_scale[0];
-        d_dv_dxy_ += d_dv_dxy * tex.uv_scale[1];
+        // uv = uv_ * uv_scale
+        // du_dxy = du_dxy_ * uv_scale[0]
+        // dv_dxy = dv_dxy_ * uv_scale[1]
+        d_uv_ += d_uv * uv_scale;
+        d_du_dxy_ += d_du_dxy * uv_scale[0];
+        d_dv_dxy_ += d_dv_dxy * uv_scale[1];
     }
 }
 
@@ -413,9 +415,10 @@ inline void d_get_texture_value(const TextureType &tex,
         atomic_add(d_tex.texels, d_output);
     } else {
         // Trilinear interpolation
-        auto uv = uv_ * tex.uv_scale;
-        auto du_dxy = du_dxy_ * tex.uv_scale[0];
-        auto dv_dxy = dv_dxy_ * tex.uv_scale[1];
+        auto uv_scale = Vector2f{tex.uv_scale[0], tex.uv_scale[1]};
+        auto uv = uv_ * uv_scale;
+        auto du_dxy = du_dxy_ * uv_scale[0];
+        auto dv_dxy = dv_dxy_ * uv_scale[1];
         auto x = uv[0] * tex.width - 0.5f;
         auto y = uv[1] * tex.height - 0.5f;
         auto xf = (int)floor(x);
@@ -482,12 +485,12 @@ inline void d_get_texture_value(const TextureType &tex,
         d_uv[0] += d_u * tex.width;
         d_uv[1] += d_v * tex.height;
 
-        // uv = uv_ * tex.uv_scale
-        // du_dxy = du_dxy_ * tex.uv_scale[0]
-        // dv_dxy = dv_dxy_ * tex.uv_scale[1]
-        d_uv_ += d_uv * tex.uv_scale;
-        d_du_dxy_ += d_du_dxy * tex.uv_scale[0];
-        d_dv_dxy_ += d_dv_dxy * tex.uv_scale[1];
+        // uv = uv_ * uv_scale
+        // du_dxy = du_dxy_ * uv_scale[0]
+        // dv_dxy = dv_dxy_ * uv_scale[1]
+        d_uv_ += d_uv * uv_scale;
+        d_du_dxy_ += d_du_dxy * uv_scale[0];
+        d_dv_dxy_ += d_dv_dxy * uv_scale[1];
         atomic_add(d_tex.uv_scale,
             d_uv * uv_ + Vector2{sum(d_du_dxy * du_dxy_), sum(d_dv_dxy * dv_dxy_)});
     }
