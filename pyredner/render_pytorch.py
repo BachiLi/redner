@@ -413,8 +413,11 @@ class RenderFunction(torch.autograd.Function):
                 redner.float_ptr(d_normals.data_ptr() if d_normals is not None else 0)))
 
         d_diffuse_list = []
+        d_diffuse_uv_scale_list = []
         d_specular_list = []
+        d_specular_uv_scale_list = []
         d_roughness_list = []
+        d_roughness_uv_scale_list = []
         d_materials = []
         for material in ctx.materials:
             diffuse_size = material.get_diffuse_size()
@@ -447,6 +450,9 @@ class RenderFunction(torch.autograd.Function):
             d_diffuse_uv_scale = torch.zeros(2, device = pyredner.get_device())
             d_specular_uv_scale = torch.zeros(2, device = pyredner.get_device())
             d_roughness_uv_scale = torch.zeros(2, device = pyredner.get_device())
+            d_diffuse_uv_scale_list.append(d_diffuse_uv_scale)
+            d_specular_uv_scale_list.append(d_specular_uv_scale)
+            d_roughness_uv_scale_list.append(d_roughness_uv_scale)
             d_diffuse_tex = redner.Texture3(\
                 redner.float_ptr(d_diffuse.data_ptr()),
                 diffuse_size[0], diffuse_size[1], diffuse_size[2],
@@ -568,11 +574,11 @@ class RenderFunction(torch.autograd.Function):
         num_materials = len(ctx.materials)
         for i in range(num_materials):
             ret_list.append(d_diffuse_list[i])
-            ret_list.append(None) # diffuse_uv_scale
+            ret_list.append(d_diffuse_uv_scale_list[i])
             ret_list.append(d_specular_list[i])
-            ret_list.append(None) # specular_uv_scale
+            ret_list.append(d_specular_uv_scale_list[i])
             ret_list.append(d_roughness_list[i])
-            ret_list.append(None) # roughness_uv_scale
+            ret_list.append(d_roughness_uv_scale_list[i])
             ret_list.append(None) # two sided
 
         num_area_lights = len(ctx.area_lights)
@@ -583,7 +589,7 @@ class RenderFunction(torch.autograd.Function):
 
         if ctx.envmap is not None:
             ret_list.append(d_envmap_values)
-            ret_list.append(None) # uv_scale
+            ret_list.append(d_envmap_uv_scale)
             ret_list.append(None) # env_to_world
             ret_list.append(d_world_to_env.cpu())
             ret_list.append(None) # sample_cdf_ys
