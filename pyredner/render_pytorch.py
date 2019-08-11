@@ -382,11 +382,11 @@ class RenderFunction(torch.autograd.Function):
         scene = ctx.scene
         options = ctx.options
 
-        d_cam_position = torch.zeros(3)
-        d_cam_look = torch.zeros(3)
-        d_cam_up = torch.zeros(3)
-        d_ndc_to_cam = torch.zeros(3, 3)
-        d_cam_to_ndc = torch.zeros(3, 3)
+        d_cam_position = torch.zeros(3, device = pyredner.get_device())
+        d_cam_look = torch.zeros(3, device = pyredner.get_device())
+        d_cam_up = torch.zeros(3, device = pyredner.get_device())
+        d_ndc_to_cam = torch.zeros(3, 3, device = pyredner.get_device())
+        d_cam_to_ndc = torch.zeros(3, 3, device = pyredner.get_device())
         d_camera = redner.DCamera(redner.float_ptr(d_cam_position.data_ptr()),
                                   redner.float_ptr(d_cam_look.data_ptr()),
                                   redner.float_ptr(d_cam_up.data_ptr()),
@@ -547,11 +547,11 @@ class RenderFunction(torch.autograd.Function):
         ret_list.append(None) # num_shapes
         ret_list.append(None) # num_materials
         ret_list.append(None) # num_lights
-        ret_list.append(d_cam_position)
-        ret_list.append(d_cam_look)
-        ret_list.append(d_cam_up)
-        ret_list.append(d_ndc_to_cam)
-        ret_list.append(d_cam_to_ndc)
+        ret_list.append(d_cam_position.cpu())
+        ret_list.append(d_cam_look.cpu())
+        ret_list.append(d_cam_up.cpu())
+        ret_list.append(d_ndc_to_cam.cpu())
+        ret_list.append(d_cam_to_ndc.cpu())
         ret_list.append(None) # clip near
         ret_list.append(None) # resolution
         ret_list.append(None) # camera_type
