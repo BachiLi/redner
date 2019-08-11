@@ -99,70 +99,69 @@ def serialize_scene(scene: pyredner.Scene,
     for light_id, light in enumerate(scene.area_lights):
         scene.shapes[light.shape_id].light_id = light_id
 
-    # NOTE: 
     args = []
-    args.append(tf.constant(num_shapes))    # 1
-    args.append(tf.constant(num_materials)) # 2
-    args.append(tf.constant(num_lights))    # 3
-    args.append(cam.position)               # 4
-    args.append(cam.look_at)                # 5
-    args.append(cam.up)                     # 6
-    args.append(cam.ndc_to_cam)             # 7
-    args.append(cam.cam_to_ndc)             # 8
-    args.append(tf.constant(cam.clip_near)) # 9
-    args.append(tf.constant(cam.resolution))# 10
-    args.append(pyredner.RednerCameraType.asTensor(cam.camera_type))   # 11
-    for shape in scene.shapes:   
-        args.append(shape.vertices)   # 12
-        args.append(shape.indices)    # 13
-        if shape.uvs is None:         # 14
+    args.append(tf.constant(num_shapes))
+    args.append(tf.constant(num_materials))
+    args.append(tf.constant(num_lights))
+    args.append(cam.position)
+    args.append(cam.look_at)
+    args.append(cam.up)
+    args.append(cam.ndc_to_cam)
+    args.append(cam.cam_to_ndc)
+    args.append(tf.constant(cam.clip_near))
+    args.append(tf.constant(cam.resolution))
+    args.append(pyredner.RednerCameraType.asTensor(cam.camera_type))
+    for shape in scene.shapes:
+        args.append(shape.vertices)
+        args.append(shape.indices)
+        if shape.uvs is None:
             args.append(__EMPTY_TENSOR)
         else:
             args.append(shape.uvs) 
-        if shape.normals is None:     # 15
+        if shape.normals is None:
             args.append(__EMPTY_TENSOR)
         else:
             args.append(shape.normals) 
-        args.append(tf.constant(shape.material_id)) # 16
-        args.append(tf.constant(shape.light_id))    # 17
+        args.append(tf.constant(shape.material_id))
+        args.append(tf.constant(shape.light_id))
     for material in scene.materials: 
-        args.append(material.diffuse_reflectance.mipmap)    # 18
-        args.append(material.diffuse_reflectance.uv_scale)  # 19
-        args.append(material.specular_reflectance.mipmap)   # 20
-        args.append(material.specular_reflectance.uv_scale) # 21
-        args.append(material.roughness.mipmap)              # 22
-        args.append(material.roughness.uv_scale)            # 23
-        args.append(tf.constant(material.two_sided))        # 24
-    for light in scene.area_lights:  
-        args.append(tf.constant(light.shape_id))    #
-        args.append(light.intensity)    #
-        args.append(tf.constant(light.two_sided))    #
+        args.append(material.diffuse_reflectance.mipmap)
+        args.append(material.diffuse_reflectance.uv_scale)
+        args.append(material.specular_reflectance.mipmap)
+        args.append(material.specular_reflectance.uv_scale)
+        args.append(material.roughness.mipmap)
+        args.append(material.roughness.uv_scale)
+        args.append(tf.constant(material.two_sided))
+    for light in scene.area_lights:
+        args.append(tf.constant(light.shape_id))
+        args.append(light.intensity)
+        args.append(tf.constant(light.two_sided))
     if scene.envmap is not None:
-        args.append(scene.envmap.values.mipmap)    # 25
-        args.append(scene.envmap.values.uv_scale)    #
-        args.append(scene.envmap.env_to_world)    #
-        args.append(scene.envmap.world_to_env)    #
-        args.append(scene.envmap.sample_cdf_ys)    #
-        args.append(scene.envmap.sample_cdf_xs)    #
-        args.append(scene.envmap.pdf_norm)    #
+        args.append(scene.envmap.values.mipmap)
+        args.append(scene.envmap.values.uv_scale)
+        args.append(scene.envmap.env_to_world)
+        args.append(scene.envmap.world_to_env)
+        args.append(scene.envmap.sample_cdf_ys)
+        args.append(scene.envmap.sample_cdf_xs)
+        args.append(scene.envmap.pdf_norm)
     else:
-        args.append(__EMPTY_TENSOR)    #
-        args.append(__EMPTY_TENSOR)    #
-        args.append(__EMPTY_TENSOR)    #
-        args.append(__EMPTY_TENSOR)    #
-        args.append(__EMPTY_TENSOR)    #
-        args.append(__EMPTY_TENSOR)    #
-        args.append(__EMPTY_TENSOR)    #
+        args.append(__EMPTY_TENSOR)
+        args.append(__EMPTY_TENSOR)
+        args.append(__EMPTY_TENSOR)
+        args.append(__EMPTY_TENSOR)
+        args.append(__EMPTY_TENSOR)
+        args.append(__EMPTY_TENSOR)
+        args.append(__EMPTY_TENSOR)
 
-    args.append(tf.constant(num_samples))    #
-    args.append(tf.constant(max_bounces))    #
-    args.append(tf.constant(num_channels))    #
-    for ch in channels: # 1
-        args.append(pyredner.RednerChannels.asTensor(ch))    #
+    args.append(tf.constant(num_samples))
+    args.append(tf.constant(max_bounces))
+    args.append(tf.constant(num_channels))
+    for ch in channels:
+        args.append(pyredner.RednerChannels.asTensor(ch))
 
-    args.append(pyredner.RednerSamplerType.asTensor(sampler_type))    #
-    args.append(tf.constant(use_primary_edge_sampling))    #
-    args.append(tf.constant(use_secondary_edge_sampling))    #
+    args.append(pyredner.RednerSamplerType.asTensor(sampler_type))
+    args.append(tf.constant(use_primary_edge_sampling))
+    args.append(tf.constant(use_secondary_edge_sampling))
     return args
 
 def forward(seed:int, *args):
@@ -236,63 +235,62 @@ def forward(seed:int, *args):
                 light_id))
 
     materials = []
-    for i in range(num_materials):
-        diffuse_reflectance = args[current_index]
-        current_index += 1
-        diffuse_uv_scale = args[current_index]
-        current_index += 1
-        specular_reflectance = args[current_index]
-        current_index += 1
-        specular_uv_scale = args[current_index]
-        current_index += 1
-        roughness = args[current_index]
-        current_index += 1
-        roughness_uv_scale = args[current_index]
-        current_index += 1
-        two_sided = bool(args[current_index])
-        current_index += 1
+    with tf.device(pyredner.get_device_name()):
+        for i in range(num_materials):
+            diffuse_reflectance = args[current_index]
+            current_index += 1
+            diffuse_uv_scale = args[current_index]
+            current_index += 1
+            specular_reflectance = args[current_index]
+            current_index += 1
+            specular_uv_scale = args[current_index]
+            current_index += 1
+            roughness = args[current_index]
+            current_index += 1
+            roughness_uv_scale = args[current_index]
+            current_index += 1
+            two_sided = bool(args[current_index])
+            current_index += 1
         
-        with tf.device(pyredner.get_device_name()):
             diffuse_reflectance_ptr = redner.float_ptr(pyredner.data_ptr(diffuse_reflectance))
             specular_reflectance_ptr = redner.float_ptr(pyredner.data_ptr(specular_reflectance))
             roughness_ptr = redner.float_ptr(pyredner.data_ptr(roughness))
-        with tf.device('/device:cpu:' + str(pyredner.get_cpu_device_id())):
             diffuse_uv_scale_ptr = redner.float_ptr(pyredner.data_ptr(diffuse_uv_scale))
             specular_uv_scale_ptr = redner.float_ptr(pyredner.data_ptr(specular_uv_scale))
             roughness_uv_scale_ptr = redner.float_ptr(pyredner.data_ptr(roughness_uv_scale))
-        if get_tensor_dimension(diffuse_reflectance) == 1:
-            diffuse_reflectance = redner.Texture3(diffuse_reflectance_ptr, 0, 0, 0, diffuse_uv_scale_ptr)
-        else:
-            diffuse_reflectance = redner.Texture3(\
-                diffuse_reflectance_ptr,
-                int(diffuse_reflectance.shape[2]), # width
-                int(diffuse_reflectance.shape[1]), # height
-                int(diffuse_reflectance.shape[0]), # num levels
-                diffuse_uv_scale_ptr)
-        if get_tensor_dimension(specular_reflectance) == 1:
-            specular_reflectance = redner.Texture3(specular_reflectance_ptr, 0, 0, 0, specular_uv_scale_ptr)
-        else:
-            specular_reflectance = redner.Texture3(\
-                specular_reflectance_ptr,
-                int(specular_reflectance.shape[2]), # width
-                int(specular_reflectance.shape[1]), # height
-                int(specular_reflectance.shape[0]), # num levels
-                specular_uv_scale_ptr)
-        if get_tensor_dimension(roughness) == 1:
-            roughness = redner.Texture1(roughness_ptr, 0, 0, 0, roughness_uv_scale_ptr)
-        else:
-            assert(get_tensor_dimension(roughness) == 4)
-            roughness = redner.Texture1(\
-                roughness_ptr,
-                int(roughness.shape[2]), # width
-                int(roughness.shape[1]), # height
-                int(roughness.shape[0]), # num levels
-                roughness_uv_scale_ptr)
-        materials.append(redner.Material(\
-            diffuse_reflectance,
-            specular_reflectance,
-            roughness,
-            two_sided))
+            if get_tensor_dimension(diffuse_reflectance) == 1:
+                diffuse_reflectance = redner.Texture3(diffuse_reflectance_ptr, 0, 0, 0, diffuse_uv_scale_ptr)
+            else:
+                diffuse_reflectance = redner.Texture3(\
+                    diffuse_reflectance_ptr,
+                    int(diffuse_reflectance.shape[2]), # width
+                    int(diffuse_reflectance.shape[1]), # height
+                    int(diffuse_reflectance.shape[0]), # num levels
+                    diffuse_uv_scale_ptr)
+            if get_tensor_dimension(specular_reflectance) == 1:
+                specular_reflectance = redner.Texture3(specular_reflectance_ptr, 0, 0, 0, specular_uv_scale_ptr)
+            else:
+                specular_reflectance = redner.Texture3(\
+                    specular_reflectance_ptr,
+                    int(specular_reflectance.shape[2]), # width
+                    int(specular_reflectance.shape[1]), # height
+                    int(specular_reflectance.shape[0]), # num levels
+                    specular_uv_scale_ptr)
+            if get_tensor_dimension(roughness) == 1:
+                roughness = redner.Texture1(roughness_ptr, 0, 0, 0, roughness_uv_scale_ptr)
+            else:
+                assert(get_tensor_dimension(roughness) == 4)
+                roughness = redner.Texture1(\
+                    roughness_ptr,
+                    int(roughness.shape[2]), # width
+                    int(roughness.shape[1]), # height
+                    int(roughness.shape[0]), # num levels
+                    roughness_uv_scale_ptr)
+            materials.append(redner.Material(\
+                diffuse_reflectance,
+                specular_reflectance,
+                roughness,
+                two_sided))
 
     with tf.device('/device:cpu:' + str(pyredner.get_cpu_device_id())):
         area_lights = []
@@ -331,10 +329,10 @@ def forward(seed:int, *args):
             values_ptr = redner.float_ptr(pyredner.data_ptr(values))
             sample_cdf_ys = redner.float_ptr(pyredner.data_ptr(sample_cdf_ys))
             sample_cdf_xs = redner.float_ptr(pyredner.data_ptr(sample_cdf_xs))
+            envmap_uv_scale = redner.float_ptr(pyredner.data_ptr(envmap_uv_scale))
         with tf.device('/device:cpu:' + str(pyredner.get_cpu_device_id())):
             env_to_world = redner.float_ptr(pyredner.data_ptr(env_to_world))
             world_to_env = redner.float_ptr(pyredner.data_ptr(world_to_env))
-            envmap_uv_scale = redner.float_ptr(pyredner.data_ptr(envmap_uv_scale))
         values = redner.Texture3(
             values_ptr,
             int(values.shape[2]), # width
@@ -457,7 +455,7 @@ def render(*x):
         ctx = __ctx
         scene = ctx.scene
         options = ctx.options
-        with tf.device('/device:cpu:' + str(pyredner.get_cpu_device_id())):
+        with tf.device(pyredner.get_device_name()):
             d_position = tf.zeros(3, dtype=tf.float32)
             d_look_at = tf.zeros(3, dtype=tf.float32)
             d_up = tf.zeros(3, dtype=tf.float32)
@@ -493,11 +491,11 @@ def render(*x):
         d_specular_uv_scale_list = []
         d_roughness_uv_scale_list = []
         d_materials = []
-        for material in ctx.materials:
-            diffuse_size = material.get_diffuse_size()
-            specular_size = material.get_specular_size()
-            roughness_size = material.get_roughness_size()
-            with tf.device(pyredner.get_device_name()):
+        with tf.device(pyredner.get_device_name()):
+            for material in ctx.materials:
+                diffuse_size = material.get_diffuse_size()
+                specular_size = material.get_specular_size()
+                roughness_size = material.get_roughness_size()
                 if diffuse_size[0] == 0:
                     d_diffuse = tf.zeros(3, dtype=tf.float32)
                 else:
@@ -535,8 +533,6 @@ def render(*x):
                 d_diffuse = redner.float_ptr(pyredner.data_ptr(d_diffuse))
                 d_specular = redner.float_ptr(pyredner.data_ptr(d_specular))
                 d_roughness = redner.float_ptr(pyredner.data_ptr(d_roughness))
-
-            with tf.device('/device:cpu:' + str(pyredner.get_cpu_device_id())):
                 d_diffuse_uv_scale = tf.zeros([2], dtype=tf.float32)
                 d_specular_uv_scale = tf.zeros([2], dtype=tf.float32)
                 d_roughness_uv_scale = tf.zeros([2], dtype=tf.float32)
@@ -546,13 +542,13 @@ def render(*x):
                 d_diffuse_uv_scale = redner.float_ptr(pyredner.data_ptr(d_diffuse_uv_scale))
                 d_specular_uv_scale = redner.float_ptr(pyredner.data_ptr(d_specular_uv_scale))
                 d_roughness_uv_scale = redner.float_ptr(pyredner.data_ptr(d_roughness_uv_scale))
-            d_diffuse_tex = redner.Texture3(\
-                d_diffuse, diffuse_size[0], diffuse_size[1], diffuse_size[2], d_diffuse_uv_scale)
-            d_specular_tex = redner.Texture3(\
-                d_specular, specular_size[0], specular_size[1], specular_size[2], d_specular_uv_scale)
-            d_roughness_tex = redner.Texture1(\
-                d_roughness, roughness_size[0], roughness_size[1], roughness_size[2],  d_roughness_uv_scale)
-            d_materials.append(redner.DMaterial(d_diffuse_tex, d_specular_tex, d_roughness_tex))
+                d_diffuse_tex = redner.Texture3(\
+                    d_diffuse, diffuse_size[0], diffuse_size[1], diffuse_size[2], d_diffuse_uv_scale)
+                d_specular_tex = redner.Texture3(\
+                    d_specular, specular_size[0], specular_size[1], specular_size[2], d_specular_uv_scale)
+                d_roughness_tex = redner.Texture1(\
+                    d_roughness, roughness_size[0], roughness_size[1], roughness_size[2],  d_roughness_uv_scale)
+                d_materials.append(redner.DMaterial(d_diffuse_tex, d_specular_tex, d_roughness_tex))
 
         d_intensity_list = []
         d_area_lights = []
@@ -570,7 +566,6 @@ def render(*x):
             with tf.device(pyredner.get_device_name()):
                 d_envmap_values = tf.zeros([size[2], size[1], size[0], 3], dtype=tf.float32)
                 d_envmap_values_ptr = redner.float_ptr(pyredner.data_ptr(d_envmap_values))
-            with tf.device('/device:cpu:' + str(pyredner.get_cpu_device_id())):
                 d_envmap_uv_scale = tf.zeros([2], dtype=tf.float32)
                 d_envmap_uv_scale_ptr = redner.float_ptr(pyredner.data_ptr(d_envmap_uv_scale))
                 d_world_to_env = tf.zeros([4, 4], dtype=tf.float32)
@@ -662,9 +657,9 @@ def render(*x):
 
         if ctx.envmap is not None:
             ret_list.append(d_envmap_values)
-            ret_list.append(None) # uv_scale
+            ret_list.append(d_envmap_uv_scale)
             ret_list.append(None) # env_to_world
-            ret_list.append(d_world_to_env)
+            ret_list.append(d_world_to_env.cpu())
             ret_list.append(None) # sample_cdf_ys
             ret_list.append(None) # sample_cdf_xs
             ret_list.append(None) # pdf_norm

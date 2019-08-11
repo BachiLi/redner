@@ -12,8 +12,10 @@ class Texture:
         assert(tf.executing_eagerly())
         if pyredner.get_use_gpu():
             texels = tf.identity(texels).gpu(pyredner.get_gpu_device_id())
+            uv_scale = tf.identity(uv_scale).gpu(pyredner.get_gpu_device_id())
         else:
             texels = tf.identity(texels).cpu()
+            uv_scale = tf.identity(uv_scale).cpu()
         self.texels = texels
         if len(texels.shape) >= 2:
             with tf.device(pyredner.get_device_name()):
