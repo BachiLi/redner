@@ -15,9 +15,9 @@ args=pyredner.RenderFunction.serialize_scene(\
     max_bounces = 6)
 render = pyredner.RenderFunction.apply
 # Render our target. The first argument is the seed for RNG in the renderer.
-#img = render(0, *args)
-#pyredner.imwrite(img.cpu(), 'results/test_bunny_box/target.exr')
-#pyredner.imwrite(img.cpu(), 'results/test_bunny_box/target.png')
+img = render(0, *args)
+pyredner.imwrite(img.cpu(), 'results/test_bunny_box/target.exr')
+pyredner.imwrite(img.cpu(), 'results/test_bunny_box/target.png')
 target = pyredner.imread('results/test_bunny_box/target.exr')
 target = target.cuda(pyredner.get_device())
 
@@ -33,9 +33,9 @@ args=pyredner.RenderFunction.serialize_scene(\
         scene = scene,
         num_samples = 1024,
         max_bounces = 6)
-#img = render(1, *args)
-#pyredner.imwrite(img.cpu(), 'results/test_bunny_box/init.exr')
-#pyredner.imwrite(img.cpu(), 'results/test_bunny_box/init.png')
+img = render(1, *args)
+pyredner.imwrite(img.cpu(), 'results/test_bunny_box/init.exr')
+pyredner.imwrite(img.cpu(), 'results/test_bunny_box/init.png')
 
 optimizer = torch.optim.Adam([bunny_translation, bunny_rotation], lr=1e-2)
 for t in range(200):
