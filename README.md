@@ -71,8 +71,9 @@ The current development plan is to enhance the renderer. Following features will
 - Volumetric path tracing (e.g. [http://www.cs.cornell.edu/projects/translucency/#acquisition-sa13](http://www.cs.cornell.edu/projects/translucency/#acquisition-sa13))
 - Spectral rendering
 - Backface culling
-- Gradient Visualization
+- Gradient visualization
 - Install script
+- Spherical light sources
 - Documentation
 
 If you have any questions/comments/bug reports, feel free to open a github issue or e-mail to the author
