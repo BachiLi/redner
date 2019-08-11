@@ -1,0 +1,111 @@
+<?xml version='1.0' encoding='utf-8'?>
+<!--
+
+	Automatically converted from Wavefront OBJ
+
+-->
+
+<scene version="0.5.0">
+	<integrator type="path"/>
+
+	<bsdf type="diffuse" id="bunny_material">
+		<rgb name="reflectance" value="0.2 0.2 0.6"/>
+	</bsdf>
+
+	<bsdf type="diffuse" id="backWall_material">
+		<rgb name="reflectance" value="0.58 0.568 0.544"/>
+	</bsdf>
+
+	<bsdf type="diffuse" id="ceiling_material">
+		<rgb name="reflectance" value="0.58 0.568 0.544"/>
+	</bsdf>
+
+	<bsdf type="diffuse" id="floor_material">
+		<rgb name="reflectance" value="0.58 0.568 0.544"/>
+	</bsdf>
+
+	<bsdf type="diffuse" id="leftWall_material">
+		<rgb name="reflectance" value="0.504 0.052 0.04"/>
+	</bsdf>
+
+	<bsdf type="diffuse" id="light_material">
+		<rgb name="reflectance" value="0.624 0.624 0.624"/>
+	</bsdf>
+
+	<bsdf type="diffuse" id="rightWall_material">
+		<rgb name="reflectance" value="0.112 0.36 0.0728"/>
+	</bsdf>
+    
+    <shape type="serialized" id="bunny_box_mesh">
+		<string name="filename" value="bunny_box.serialized"/>
+		<integer name="shapeIndex" value="2"/>
+
+		<ref name="bsdf" id="rightWall_material"/>
+	</shape>
+
+	<shape type="serialized" id="bunny_box_1_mesh">
+		<string name="filename" value="bunny_box.serialized"/>
+		<integer name="shapeIndex" value="0"/>
+
+		<ref name="bsdf" id="light_material"/>
+
+		<emitter type="area">
+			<spectrum name="radiance" value="18.4 15.6 8"/>
+		</emitter>
+	</shape>
+
+	<shape type="serialized" id="bunny_box_2_mesh">
+		<string name="filename" value="bunny_box.serialized"/>
+		<integer name="shapeIndex" value="1"/>
+
+		<ref name="bsdf" id="floor_material"/>
+    </shape>
+
+	<shape type="serialized" id="bunny_box_3_mesh">
+		<string name="filename" value="bunny_box.serialized"/>
+		<integer name="shapeIndex" value="5"/>
+
+		<ref name="bsdf" id="backWall_material"/>
+	</shape>
+
+	<shape type="serialized" id="bunny_box_4_mesh">
+		<string name="filename" value="bunny_box.serialized"/>
+		<integer name="shapeIndex" value="4"/>
+
+		<ref name="bsdf" id="leftWall_material"/>
+	</shape>
+
+	<shape type="serialized" id="bunny_box_5_mesh">
+		<string name="filename" value="bunny_box.serialized"/>
+		<integer name="shapeIndex" value="3"/>
+
+		<ref name="bsdf" id="ceiling_material"/>
+    </shape>
+
+	<shape type="serialized" id="bunny_box_6_mesh">
+		<string name="filename" value="bunny_box.serialized"/>
+		<integer name="shapeIndex" value="6"/>
+
+		<ref name="bsdf" id="bunny_material"/>
+	</shape>
+
+	<sensor type="perspective">
+		<float name="farClip" value="12.5884"/>
+		<float name="focusDistance" value="5.16873"/>
+		<float name="fov" value="35"/>
+		<string name="fovAxis" value="x"/>
+		<float name="nearClip" value="0.0243836"/>
+		<transform name="toWorld">
+			<lookat target="0, 1, 3.12774" origin="0, 1, 4.12774" up="0, 1, 0"/>
+		</transform>
+
+		<sampler type="independent"/>
+
+		<film type="hdrfilm">
+			<integer name="height" value="256"/>
+			<integer name="width" value="256"/>
+
+			<rfilter type="box"/>
+		</film>
+	</sensor>
+</scene>
