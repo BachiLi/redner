@@ -27,7 +27,7 @@ the continuous derivatives significantly by replacing automatic differentiation 
 redner is expected to be used with [PyTorch](https://pytorch.org/), and can be used seamlessly with PyTorch operators. A good starting point to learn how to use redner is to look at the [wiki](https://github.com/BachiLi/redner/wiki).
 While the documentation is work in progress, you can take a look at the [tests directory](tests) to have some ideas.
 redner inherits a subset of [Mitsuba](http://www.mitsuba-renderer.org) scene format,
-see [tests/test_teapot_reflectance.py](https://github.com/BachiLi/redner/blob/master/tests/test_teapot_reflectance.py) and [tests/test_teapot_specular.py](https://github.com/BachiLi/redner/blob/master/tests/test_teapot_specular.py) for examples of loading Mitsuba scene files. There is also a Wavefront obj file loader for individual meshes, take a look at [tutorials/02_pose_estimation.py](https://github.com/BachiLi/redner/blob/master/tutorials/02_pose_estimation.py).
+see [tests/test_teapot_reflectance.py](https://github.com/BachiLi/redner/blob/master/tests/test_teapot_reflectance.py) and [tests/test_teapot_specular.py](https://github.com/BachiLi/redner/blob/master/tests/test_teapot_specular.py) for examples of loading Mitsuba scene files. There is also a Wavefront obj file loader for individual meshes, take a look at [tutorials/02_pose_estimation.py](https://github.com/BachiLi/redner/blob/master/tutorials/02_pose_estimation.py). redner also supports tensorflow 1.14 now with eager mode enabled, see [tests_tensorflow](tests_tensorflow) for details.
 
 redner depends on a few libraries/systems:
 - [Python 3.6 or above](https://www.python.org) (required)
