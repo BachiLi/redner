@@ -7,15 +7,9 @@ class EnvironmentMap:
         # Convert to constant texture if necessary
         if isinstance(values, torch.Tensor):
             values = pyredner.Texture(values)
-
-        assert(values.texels.is_contiguous())
-        assert(values.texels.dtype == torch.float32)
-        if pyredner.get_use_gpu():
-            assert(values.texels.is_cuda)
-        else:
-            assert(not values.texels.is_cuda)
-
+        assert(env_to_world.device.type == 'cpu')
         assert(env_to_world.dtype == torch.float32)
+        assert(env_to_world.is_contiguous())
 
         # Build sampling table
         luminance = 0.212671 * values.texels[:, :, 0] + \

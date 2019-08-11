@@ -22,21 +22,6 @@ class Material:
         if isinstance(roughness, torch.Tensor):
             roughness = pyredner.Texture(roughness)
 
-        assert(diffuse_reflectance.texels.is_contiguous())
-        assert(diffuse_reflectance.texels.dtype == torch.float32)
-        assert(specular_reflectance.texels.is_contiguous())
-        assert(specular_reflectance.texels.dtype == torch.float32)
-        assert(roughness.texels.is_contiguous())
-        assert(roughness.texels.dtype == torch.float32)
-        if pyredner.get_use_gpu():
-            assert(diffuse_reflectance.texels.is_cuda)
-            assert(specular_reflectance.texels.is_cuda)
-            assert(roughness.texels.is_cuda)
-        else:
-            assert(not diffuse_reflectance.texels.is_cuda)
-            assert(not specular_reflectance.texels.is_cuda)
-            assert(not roughness.texels.is_cuda)
-
         self.diffuse_reflectance = diffuse_reflectance
         self.specular_reflectance = specular_reflectance
         self.roughness = roughness

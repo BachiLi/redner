@@ -1,5 +1,6 @@
 class AreaLight:
     def __init__(self, shape_id, intensity, two_sided = False):
+        assert(texels.device.type == 'cpu')
         self.shape_id = shape_id
         self.intensity = intensity
         self.two_sided = two_sided

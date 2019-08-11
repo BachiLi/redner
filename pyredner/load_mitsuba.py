@@ -93,6 +93,8 @@ def parse_material(node, two_sided = False):
             elif grandchild.attrib['name'] == 'vscale':
                 uv_scale[1] = float(grandchild.attrib['value'])
         assert reflectance_texture is not None
+        if pyredner.get_use_gpu():
+            uv_scale = uv_scale.cuda(device = pyredner.get_device())
         return reflectance_texture, uv_scale
     
     # support mitsuba pulgin 'scale' for texture
@@ -139,6 +141,8 @@ def parse_material(node, two_sided = False):
             diffuse_reflectance = diffuse_reflectance.cuda(device=pyredner.get_device())
             specular_reflectance = specular_reflectance.cuda(device=pyredner.get_device())
             roughness = roughness.cuda(device=pyredner.get_device())
+            diffuse_uv_scale = diffuse_uv_scale.cuda(device = pyredner.get_device())
+            specular_uv_scale = specular_uv_scale.cuda(device = pyredner.get_device())
         return (node_id, pyredner.Material(\
                 diffuse_reflectance = pyredner.Texture(diffuse_reflectance, diffuse_uv_scale),
                 specular_reflectance = pyredner.Texture(specular_reflectance, specular_uv_scale),
@@ -175,6 +179,9 @@ def parse_material(node, two_sided = False):
             diffuse_reflectance = diffuse_reflectance.cuda(device=pyredner.get_device())
             specular_reflectance = specular_reflectance.cuda(device=pyredner.get_device())
             roughness = roughness.cuda(device=pyredner.get_device())
+            diffuse_uv_scale = diffuse_uv_scale.cuda(device = pyredner.get_device())
+            specular_uv_scale = specular_uv_scale.cuda(device = pyredner.get_device())
+            roughness_uv_scale = roughness_uv_scale.cuda(device = pyredner.get_device())
         return (node_id, pyredner.Material(\
                 diffuse_reflectance = pyredner.Texture(diffuse_reflectance, diffuse_uv_scale),
                 specular_reflectance = pyredner.Texture(specular_reflectance, specular_uv_scale),

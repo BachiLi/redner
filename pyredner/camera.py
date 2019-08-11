@@ -38,13 +38,17 @@ class Camera:
                  fisheye = False):
         assert(position.dtype == torch.float32)
         assert(len(position.shape) == 1 and position.shape[0] == 3)
+        assert(position.device.type == 'cpu')
         assert(look_at.dtype == torch.float32)
         assert(len(look_at.shape) == 1 and look_at.shape[0] == 3)
+        assert(look_at.device.type == 'cpu')
         assert(up.dtype == torch.float32)
         assert(len(up.shape) == 1 and up.shape[0] == 3)
+        assert(up.device.type == 'cpu')
         if fov is not None:
             assert(fov.dtype == torch.float32)
             assert(len(fov.shape) == 1 and fov.shape[0] == 1)
+            assert(fov.device.type == 'cpu')
         assert(isinstance(clip_near, float))
 
         self.position = position

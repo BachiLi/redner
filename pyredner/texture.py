@@ -8,7 +8,12 @@ import math
 class Texture:
     def __init__(self,
                  texels,
-                 uv_scale = torch.tensor([1.0, 1.0])):
+                 uv_scale = torch.tensor([1.0, 1.0], device = pyredner.get_device())):
+        assert(texels.device.type == pyredner.get_device().type)
+        assert(texels.dtype == torch.float32)
+        assert(uv_scale.device.type == pyredner.get_device().type)
+        assert(uv_scale.dtype == torch.float32)
+        assert(uv_scale.is_contiguous())
         self.texels = texels
         if len(texels.shape) >= 2:
             # Build a mipmap for texels
