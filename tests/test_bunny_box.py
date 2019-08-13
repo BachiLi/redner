@@ -3,7 +3,7 @@ import pyredner
 import numpy as np
 import torch
 
-pyredner.set_device(torch.device('cuda', 3))
+pyredner.set_use_gpu(torch.cuda.is_available())
 
 scene = pyredner.load_mitsuba('scenes/bunny_box.xml')
 
