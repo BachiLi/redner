@@ -198,6 +198,15 @@ inline auto operator-(const TVector3<T0> &v0,
 
 template <typename T0, typename T1>
 DEVICE
+inline auto& operator-=(TVector2<T0> &v0,
+                        const TVector2<T1> &v1) {
+    v0[0] -= v1[0];
+    v0[1] -= v1[1];
+    return v0;
+}
+
+template <typename T0, typename T1>
+DEVICE
 inline auto& operator-=(TVector3<T0> &v0,
                         const TVector3<T1> &v1) {
     v0[0] -= v1[0];

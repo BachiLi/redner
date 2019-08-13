@@ -333,6 +333,22 @@ inline SurfacePoint intersect_shape(const Shape &shape,
     auto hit_pos = ray.org + ray.dir * t;
     auto geom_normal = normalize(cross(v1 - v0, v2 - v0));
 
+    // Compute triangle derivatives (for shading frame)
+    auto uvs02 = uvs0 - uvs2;
+    auto uvs12 = uvs1 - uvs2;
+    auto uv_det = uvs02[0] * uvs12[1] - uvs02[1] * uvs12[0];
+    auto dpdu = Vector3{0, 0, 0};
+    auto dpdv = Vector3{0, 0, 0};
+    if (uv_det == 0) {
+        coordinate_system(geom_normal, dpdu, dpdv);
+    } else {
+        auto inv_det = 1 / uv_det;
+        auto v02 = v0 - v2;
+        auto v12 = v1 - v2;
+        dpdu = ( uvs12[1] * v02 - uvs02[1] * v12) * inv_det;
+        dpdv = (-uvs12[0] * v02 + uvs02[0] * v12) * inv_det;
+    }
+
     // Surface derivative for ray differentials
     auto du_dxy = (- u_dxy - v_dxy) * uvs0[0] + u_dxy * uvs1[0] + v_dxy * uvs2[0];
     auto dv_dxy = (- u_dxy - v_dxy) * uvs0[1] + u_dxy * uvs1[1] + v_dxy * uvs2[1];
@@ -364,13 +380,23 @@ inline SurfacePoint intersect_shape(const Shape &shape,
             geom_normal = -geom_normal;
         }
     }
+
+    auto frame_x = normalize(dpdu);
+    auto frame_y = cross(shading_normal, frame_x);
+    if (length_squared(frame_y) > 0) {
+        frame_y = normalize(frame_y);
+        frame_x = cross(frame_y, shading_normal);
+    } else {
+        coordinate_system(shading_normal, frame_x, frame_y);
+    }
+    auto frame = Frame(frame_x, frame_y, shading_normal);
+
     // Update ray differential
     new_ray_differential.org_dx = dpdx;
     new_ray_differential.org_dy = dpdy;
     new_ray_differential.dir_dx = ray_differential.dir_dx;
     new_ray_differential.dir_dy = ray_differential.dir_dy;
-    return SurfacePoint{hit_pos, geom_normal, Frame(shading_normal), uv,
-        du_dxy, dv_dxy, dn_dx, dn_dy};
+    return SurfacePoint{hit_pos, geom_normal, frame, uv, du_dxy, dv_dxy, dn_dx, dn_dy};
 }
 
 DEVICE
@@ -413,6 +439,22 @@ inline void d_intersect_shape(
     auto unnormalized_geom_normal = cross(v1 - v0, v2 - v0);
     auto geom_normal = normalize(unnormalized_geom_normal);
 
+    // Compute triangle derivatives (for shading frame)
+    auto uvs02 = uvs0 - uvs2;
+    auto uvs12 = uvs1 - uvs2;
+    auto uv_det = uvs02[0] * uvs12[1] - uvs02[1] * uvs12[0];
+    auto dpdu = Vector3{0, 0, 0};
+    auto dpdv = Vector3{0, 0, 0};
+    if (uv_det == 0) {
+        coordinate_system(geom_normal, dpdu, dpdv);
+    } else {
+        auto inv_det = 1 / uv_det;
+        auto v02 = v0 - v2;
+        auto v12 = v1 - v2;
+        dpdu = ( uvs12[1] * v02 - uvs02[1] * v12) * inv_det;
+        dpdv = (-uvs12[0] * v02 + uvs02[0] * v12) * inv_det;
+    }
+
     // Surface derivative for ray differentials
     // du_dxy = (- u_dxy - v_dxy) * uvs0[0] + u_dxy * uvs1[0] + v_dxy * uvs2[0]
     // dv_dxy = (- u_dxy - v_dxy) * uvs0[1] + u_dxy * uvs1[1] + v_dxy * uvs2[1]
@@ -446,10 +488,42 @@ inline void d_intersect_shape(
             geom_normal_flipped = true;
         }
     }
-    // point = SurfacePoint{hit_pos, geom_normal, Frame(shading_normal), uv,
+
+    auto frame_x_org = normalize(dpdu);
+    auto frame_y_org = cross(shading_normal, frame_x_org);
+    auto frame_y_org_not_degenerated = length_squared(frame_y_org) > 0;
+    auto frame_x = Vector3{0, 0, 0};
+    auto frame_y = Vector3{0, 0, 0};
+    if (frame_y_org_not_degenerated) {
+        frame_y = normalize(frame_y_org);
+        frame_x = cross(frame_y, shading_normal);
+    } else {
+        coordinate_system(shading_normal, frame_x, frame_y);
+    }
+    // auto frame = Frame(frame_x, frame_y, shading_normal);
+
+    // point = SurfacePoint{hit_pos, geom_normal, frame, uv,
     //     du_dxy, dv_dxy, dn_dx, dn_dy}
 
     // Backprop
+    auto d_frame_x = d_point.shading_frame[0];
+    auto d_frame_y = d_point.shading_frame[1];
+    auto d_shading_normal = d_point.shading_frame[2];
+    auto d_dpdu = Vector3{0, 0, 0};
+    if (frame_y_org_not_degenerated) {
+        // frame_y = normalize(frame_y_org);
+        // frame_x = cross(frame_y, shading_normal);
+        d_cross(frame_y, shading_normal, d_frame_x, d_frame_y, d_shading_normal);
+        auto d_frame_y_org = d_normalize(frame_y_org, d_frame_y);
+        // frame_x_org = normalize(dpdu)
+        // frame_y_org = cross(shading_normal, frame_x_org)
+        auto d_frame_x_org = Vector3{0, 0, 0};
+        d_cross(shading_normal, frame_x_org, d_frame_y_org, d_shading_normal, d_frame_x_org);
+        d_dpdu = d_normalize(dpdu, d_frame_x_org);
+    } else {
+        d_coordinate_system(shading_normal, d_frame_x, d_frame_y, d_shading_normal);
+    }
+
     auto d_geom_normal = d_point.geom_normal;
     // new_ray_differential.org_dx = dpdx;
     // new_ray_differential.org_dy = dpdy;
@@ -550,11 +624,39 @@ inline void d_intersect_shape(
     d_ray_differential.dir_dy += d_dpdy * t;
     d_t += sum(d_dpdy * ray_differential.dir_dy);
 
-    // du_dxy = (- u_dxy - v_dxy) * uvs0[0] + u_dxy * uvs1[0] + v_dxy * uvs2[0]
-    // dv_dxy = (- u_dxy - v_dxy) * uvs0[1] + u_dxy * uvs1[1] + v_dxy * uvs2[1]
+    // Partial derivatives
     auto d_uvs0 = Vector2{0, 0};
     auto d_uvs1 = Vector2{0, 0};
     auto d_uvs2 = Vector2{0, 0};
+    if (uv_det == 0) {
+        // coordinate_system(geom_normal, dpdu, dpdv)
+        d_coordinate_system(geom_normal, d_dpdu, Vector3{0, 0, 0}, d_geom_normal);
+    } else {
+        // dpdu = ( uvs12[1] * v02 - uvs02[1] * v12) * inv_det
+        auto inv_det = 1 / uv_det;
+        auto v02 = v0 - v2;
+        auto v12 = v1 - v2;
+        auto d_uvs02 = Vector2{0, 0};
+        auto d_uvs12 = Vector2{0, 0};
+        d_uvs12[1] += sum(d_dpdu * v02) * inv_det;
+        auto d_v02 = d_dpdu * uvs12[1] * inv_det;
+        d_uvs02[1] += sum(d_dpdu * v12) * inv_det;
+        auto d_inv_det = sum(d_dpdu * (uvs12[1] * v02 - uvs02[1] * v12));
+        // inv_det = 1 / uv_det
+        auto d_uv_det = -d_inv_det * inv_det * inv_det;
+        // uv_det = uvs02[0] * uvs12[1] - uvs02[1] * uvs12[0]
+        d_uvs02[0] += d_uv_det * uvs12[1];
+        d_uvs12[1] += d_uv_det * uvs02[0];
+        d_uvs02[1] -= d_uv_det * uvs12[0];
+        d_uvs12[0] -= d_uv_det * uvs02[1];
+        // uvs02 = uvs0 - uvs2
+        // uvs12 = uvs1 - uvs2
+        d_uvs0 += d_uvs02;
+        d_uvs1 += d_uvs12;
+        d_uvs2 -= (d_uvs02 + d_uvs12);
+    }
+    // du_dxy = (- u_dxy - v_dxy) * uvs0[0] + u_dxy * uvs1[0] + v_dxy * uvs2[0]
+    // dv_dxy = (- u_dxy - v_dxy) * uvs0[1] + u_dxy * uvs1[1] + v_dxy * uvs2[1]
     auto d_du_dxy = d_point.du_dxy;
     auto d_dv_dxy = d_point.dv_dxy;
     d_u_dxy += d_du_dxy * (uvs1[0] - uvs0[0]) + d_dv_dxy * (uvs1[1] - uvs0[1]);
