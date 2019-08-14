@@ -6,7 +6,7 @@ import skimage.io
 import torch
 import os
 
-def imwrite(img, filename, normalize = False):
+def imwrite(img, filename, gamma = 2.2, normalize = False):
     directory = os.path.dirname(filename)
     if directory != '' and not os.path.exists(directory):
         os.makedirs(directory)
@@ -35,7 +35,7 @@ def imwrite(img, filename, normalize = False):
         exr.close()
     else:
         skimage.io.imsave(filename,
-            (np.power(np.clip(img, 0.0, 1.0), 1.0/2.2) * 255).astype(np.uint8))
+            (np.power(np.clip(img, 0.0, 1.0), 1.0/gamma) * 255).astype(np.uint8))
 
 def imread(filename, gamma = 2.2):
     if (filename[-4:] == '.exr'):

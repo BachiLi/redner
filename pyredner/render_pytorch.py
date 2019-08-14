@@ -475,7 +475,7 @@ class RenderFunction(torch.autograd.Function):
                 d_normal_map = torch.zeros(normal_map_size[2],
                                            normal_map_size[1],
                                            normal_map_size[0],
-                                           1, device = pyredner.get_device())
+                                           3, device = pyredner.get_device())
             d_diffuse_list.append(d_diffuse)
             d_specular_list.append(d_specular)
             d_roughness_list.append(d_roughness)
@@ -504,12 +504,13 @@ class RenderFunction(torch.autograd.Function):
                 roughness_size[0], roughness_size[1], roughness_size[2],
                 redner.float_ptr(d_roughness_uv_scale.data_ptr()))
             if d_normal_map is None:
-                d_normal_map = redner.Texture3(0, 0, 0, 0, 0)
+                d_normal_map = redner.Texture3(\
+                    redner.float_ptr(0), 0, 0, 0, redner.float_ptr(0))
             else:
                 d_normal_map = redner.Texture3(\
-                    redner.float_ptr(d_specular.data_ptr()),
+                    redner.float_ptr(d_normal_map.data_ptr()),
                     normal_map_size[0], normal_map_size[1], normal_map_size[2],
-                    redner.float_ptr(d_specular_uv_scale.data_ptr()))
+                    redner.float_ptr(d_normal_map_uv_scale.data_ptr()))
             d_materials.append(redner.DMaterial(\
                 d_diffuse_tex, d_specular_tex, d_roughness_tex, d_normal_map))
 
