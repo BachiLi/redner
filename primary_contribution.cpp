@@ -95,6 +95,12 @@ struct primary_contribs_accumulator {
                         if (shading_isect.valid()) {
                             const auto &shading_point = shading_points[pixel_id];
                             auto shading_normal = shading_point.shading_frame[2] * weight;
+                            const auto &shading_shape = scene.shapes[shading_isect.shape_id];
+                            const auto &material = scene.materials[shading_shape.material_id];
+                            if (has_normal_map(material)) {
+                                auto frame = perturb_shading_frame(material, shading_point);
+                                shading_normal = frame.n * weight;
+                            }
                             if (channel_multipliers != nullptr) {
                                 shading_normal[0] *= channel_multipliers[nd * pixel_id + d];
                                 shading_normal[1] *= channel_multipliers[nd * pixel_id + d + 1];

@@ -97,18 +97,21 @@ PYBIND11_MODULE(redner, m) {
                       ptr<float>>());
 
     py::class_<Material>(m, "Material")
-        .def(py::init<Texture3,
-                      Texture3,
-                      Texture1,
+        .def(py::init<Texture3, // diffuse
+                      Texture3, // specular
+                      Texture1, // roughness
+                      Texture3, // normal_map
                       bool>())
         .def("get_diffuse_size", &Material::get_diffuse_size)
         .def("get_specular_size", &Material::get_specular_size)
-        .def("get_roughness_size", &Material::get_roughness_size);
+        .def("get_roughness_size", &Material::get_roughness_size)
+        .def("get_normal_map_size", &Material::get_normal_map_size);
 
     py::class_<DMaterial>(m, "DMaterial")
         .def(py::init<Texture3,
                       Texture3,
-                      Texture1>());
+                      Texture1,
+                      Texture3>());
 
     py::class_<AreaLight>(m, "AreaLight")
         .def(py::init<int,

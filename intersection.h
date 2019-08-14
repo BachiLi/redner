@@ -23,6 +23,7 @@ struct TSurfacePoint {
     TVector3<T> position;
     TVector3<T> geom_normal;
     TFrame<T> shading_frame;
+    TVector3<T> dpdu;
     TVector2<T> uv;
 
     // Ray differential information
@@ -36,6 +37,7 @@ struct TSurfacePoint {
             TFrame<T>{TVector3<T>{0, 0, 0},
                       TVector3<T>{0, 0, 0},
                       TVector3<T>{0, 0, 0}},
+            TVector3<T>{0, 0, 0},
             TVector2<T>{0, 0},
             TVector2<T>{0, 0}, TVector2<T>{0, 0},
             TVector3<T>{0, 0, 0}, TVector3<T>{0, 0, 0}

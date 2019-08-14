@@ -163,6 +163,7 @@ inline SurfacePoint sample_shape(const Shape &shape, int index, const Vector2 &s
         v0 + e1 * b1 + e2 * b2,
         normalized_n,
         Frame(normalized_n), // TODO: phong interpolate this
+        Vector3{0, 0, 0}, // TODO: compute proper dpdu
         sample, // TODO: give true light source uv
         Vector2{0, 0}, // TODO: inherit derivatives from previous path vertex
         Vector2{0, 0}}; 
@@ -396,7 +397,15 @@ inline SurfacePoint intersect_shape(const Shape &shape,
     new_ray_differential.org_dy = dpdy;
     new_ray_differential.dir_dx = ray_differential.dir_dx;
     new_ray_differential.dir_dy = ray_differential.dir_dy;
-    return SurfacePoint{hit_pos, geom_normal, frame, uv, du_dxy, dv_dxy, dn_dx, dn_dy};
+    return SurfacePoint{hit_pos,
+                        geom_normal,
+                        frame,
+                        dpdu,
+                        uv,
+                        du_dxy,
+                        dv_dxy,
+                        dn_dx,
+                        dn_dy};
 }
 
 DEVICE
@@ -502,14 +511,20 @@ inline void d_intersect_shape(
     }
     // auto frame = Frame(frame_x, frame_y, shading_normal);
 
-    // point = SurfacePoint{hit_pos, geom_normal, frame, uv,
-    //     du_dxy, dv_dxy, dn_dx, dn_dy}
+    // point = SurfacePoint{hit_pos,
+    //                      geom_normal,
+    //                      frame,
+    //                      uv,
+    //                      du_dxy,
+    //                      dv_dxy,
+    //                      dn_dx,
+    //                      dn_dy}
 
     // Backprop
     auto d_frame_x = d_point.shading_frame[0];
     auto d_frame_y = d_point.shading_frame[1];
     auto d_shading_normal = d_point.shading_frame[2];
-    auto d_dpdu = Vector3{0, 0, 0};
+    auto d_dpdu = d_point.dpdu;
     if (frame_y_org_not_degenerated) {
         // frame_y = normalize(frame_y_org);
         // frame_x = cross(frame_y, shading_normal);
@@ -536,6 +551,9 @@ inline void d_intersect_shape(
     auto d_u = Real(0), d_v = Real(0), d_w = Real(0);
     auto d_u_dxy = Vector2{0, 0};
     auto d_v_dxy = Vector2{0, 0};
+    auto d_v0 = Vector3{0, 0, 0};
+    auto d_v1 = Vector3{0, 0, 0};
+    auto d_v2 = Vector3{0, 0, 0};
     if (has_shading_normals(shape)) {
         if (geom_normal_flipped) {
             d_geom_normal = -d_geom_normal;
@@ -641,6 +659,7 @@ inline void d_intersect_shape(
         d_uvs12[1] += sum(d_dpdu * v02) * inv_det;
         auto d_v02 = d_dpdu * uvs12[1] * inv_det;
         d_uvs02[1] += sum(d_dpdu * v12) * inv_det;
+        auto d_v12 = d_dpdu * uvs02[1] * inv_det;
         auto d_inv_det = sum(d_dpdu * (uvs12[1] * v02 - uvs02[1] * v12));
         // inv_det = 1 / uv_det
         auto d_uv_det = -d_inv_det * inv_det * inv_det;
@@ -654,6 +673,11 @@ inline void d_intersect_shape(
         d_uvs0 += d_uvs02;
         d_uvs1 += d_uvs12;
         d_uvs2 -= (d_uvs02 + d_uvs12);
+        // v02 = v0 - v2
+        // v12 = v1 - v2
+        d_v0 += d_v02;
+        d_v1 += d_v12;
+        d_v2 -= (d_v02 + d_v12);
     }
     // du_dxy = (- u_dxy - v_dxy) * uvs0[0] + u_dxy * uvs1[0] + v_dxy * uvs2[0]
     // dv_dxy = (- u_dxy - v_dxy) * uvs0[1] + u_dxy * uvs1[1] + v_dxy * uvs2[1]
@@ -674,9 +698,9 @@ inline void d_intersect_shape(
     auto d_v1_v0 = Vector3{0, 0, 0};
     auto d_v2_v0 = Vector3{0, 0, 0};
     d_cross(v1 - v0, v2 - v0, d_unnormalized_geom_normal, d_v1_v0, d_v2_v0);
-    auto d_v0 = (- d_v1_v0 - d_v2_v0);
-    auto d_v1 = d_v1_v0;
-    auto d_v2 = d_v2_v0;
+    d_v0 += (- d_v1_v0 - d_v2_v0);
+    d_v1 += d_v1_v0;
+    d_v2 += d_v2_v0;
     // hit_pos = ray.org + ray.dir * t
     auto d_hit_pos = d_point.position;
     d_ray.org += d_hit_pos;

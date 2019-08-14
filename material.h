@@ -15,10 +15,12 @@ struct Material {
     Material(Texture3 diffuse_reflectance,
              Texture3 specular_reflectance,
              Texture1 roughness,
+             Texture3 normal_map,
              bool two_sided)
         : diffuse_reflectance(diffuse_reflectance),
           specular_reflectance(specular_reflectance),
           roughness(roughness),
+          normal_map(normal_map),
           two_sided(two_sided) {}
 
     inline std::tuple<int, int, int> get_diffuse_size() const {
@@ -42,9 +44,17 @@ struct Material {
             roughness.num_levels);
     }
 
+    inline std::tuple<int, int, int> get_normal_map_size() const {
+        return std::make_tuple(
+            normal_map.width,
+            normal_map.height,
+            normal_map.num_levels);
+    }
+
     Texture3 diffuse_reflectance;
     Texture3 specular_reflectance;
     Texture1 roughness;
+    Texture3 normal_map;
     bool two_sided;
 };
 
@@ -52,6 +62,7 @@ struct DMaterial {
     Texture3 diffuse_reflectance;
     Texture3 specular_reflectance;
     Texture1 roughness;
+    Texture3 normal_map;
 };
 
 template <typename T>
@@ -134,6 +145,35 @@ inline void d_get_roughness(const Material &material,
                         d_shading_point.dv_dxy);
 }
 
+DEVICE
+inline bool has_normal_map(const Material &material) {
+    return material.normal_map.texels != nullptr;
+}
+
+DEVICE
+inline Vector3 get_normal(const Material &material,
+                          const SurfacePoint &shading_point) {
+    return get_texture_value(material.normal_map,
+        shading_point.uv, shading_point.du_dxy, shading_point.dv_dxy);
+}
+
+DEVICE
+inline void d_get_normal(const Material &material,
+                         const SurfacePoint &shading_point,
+                         const Vector3 &d_output,
+                         Texture3 &d_texture,
+                         SurfacePoint &d_shading_point) {
+    d_get_texture_value(material.normal_map,
+                        shading_point.uv,
+                        shading_point.du_dxy,
+                        shading_point.dv_dxy,
+                        d_output,
+                        d_texture,
+                        d_shading_point.uv,
+                        d_shading_point.du_dxy,
+                        d_shading_point.dv_dxy);
+}
+
 // y = 2 / x - 2
 // y + 2 = 2 / x
 // x = 2 / (y + 2)
@@ -149,6 +189,81 @@ inline Real d_roughness_to_phong(Real roughness, Real d_exponent) {
 }
 
 DEVICE
+inline Frame perturb_shading_frame(const Material &material,
+                                   const SurfacePoint &shading_point) {
+    auto n = 2 * get_normal(material, shading_point) - 1;
+    auto perturb_n = normalize(to_world(shading_point.shading_frame, n));
+    auto perturb_x = normalize(
+        shading_point.dpdu - perturb_n * dot(perturb_n, shading_point.dpdu));
+    auto perturb_y = cross(perturb_n, perturb_x);
+    return Frame(perturb_x, perturb_y, perturb_n);
+}
+
+DEVICE
+inline void d_perturb_shading_frame(const Material &material,
+                                    const SurfacePoint &shading_point,
+                                    const Frame &d_frame,
+                                    DMaterial &d_material,
+                                    SurfacePoint &d_shading_point) {
+    // Perturb shading frame
+    auto n = 2 * get_normal(material, shading_point) - 1;
+    auto npn = to_world(shading_point.shading_frame, n);
+    auto perturb_n = normalize(npn);
+    auto dot_pn_dpdu = dot(perturb_n, shading_point.dpdu);
+    auto npx = shading_point.dpdu - perturb_n * dot_pn_dpdu;
+    auto perturb_x = normalize(npx);
+    // perturb_y = cross(perturb_n, perturb_x)
+    // return Frame(perturb_x, perturb_y, perturb_n)
+    auto d_perturb_n = Vector3{0, 0, 0};
+    auto d_perturb_x = Vector3{0, 0, 0};
+    d_cross(perturb_n, perturb_x, d_frame[1], d_perturb_n, d_perturb_x);
+    // perturb_x = normalize(npx)
+    auto d_npx = d_normalize(npx, d_perturb_x);
+    // npx = shading_point.dpdu - perturb_n * dot(perturb_n, shading_point.dpdu)
+    d_shading_point.dpdu += d_npx;
+    d_perturb_n -= d_npx * dot_pn_dpdu;
+    auto d_dot_pn_dpdu = -d_npx * dot_pn_dpdu;
+    // dot_pn_dpdu = dot(perturb_n, shading_point.dpdu)
+    d_perturb_n += dot_pn_dpdu * shading_point.dpdu;
+    d_shading_point.dpdu += d_dot_pn_dpdu * perturb_n;
+    // perturb_n = normalize(npn)
+    auto d_npn = d_normalize(npn, d_perturb_n);
+    // npn = to_world(shading_point.shading_frame, n)
+    auto d_normal_map_n = Vector3{0, 0, 0};
+    d_to_world(shading_point.shading_frame, n, d_npn,
+        d_shading_point.shading_frame, d_normal_map_n);
+    // n = 2 * get_normal(material, shading_point) - 1
+    d_get_normal(material,
+                 shading_point,
+                 2 * d_normal_map_n,
+                 d_material.normal_map,
+                 d_shading_point);
+}
+
+// Specialized version
+DEVICE
+inline void d_perturb_shading_frame(const Material &material,
+                                    const SurfacePoint &shading_point,
+                                    const Vector3 &d_n,
+                                    DMaterial &d_material,
+                                    SurfacePoint &d_shading_point) {
+    // Perturb shading frame
+    auto n = get_normal(material, shading_point);
+    auto npn = to_world(shading_point.shading_frame, n);
+    // perturb_n = normalize(npn)
+    auto d_npn = d_normalize(npn, d_n);
+    auto d_normal_map_n = Vector3{0, 0, 0};
+    d_to_world(shading_point.shading_frame, n, d_npn,
+        d_shading_point.shading_frame, d_normal_map_n);
+    // n = 2 * get_normal(material, shading_point) - 1
+    d_get_normal(material,
+                 shading_point,
+                 2 * d_normal_map_n,
+                 d_material.normal_map,
+                 d_shading_point);
+}
+
+DEVICE
 inline
 Vector3 bsdf(const Material &material,
              const SurfacePoint &shading_point,
@@ -157,6 +272,11 @@ Vector3 bsdf(const Material &material,
              const Real min_roughness) {
     auto shading_frame = shading_point.shading_frame;
     auto geom_n = shading_point.geom_normal;
+    if (has_normal_map(material)) {
+        // Perturb shading frame
+        shading_frame = perturb_shading_frame(material, shading_point);
+    }
+
     if (material.two_sided) {
         if (dot(wi, shading_frame.n) < 0.f) {
             shading_frame = -shading_frame;
@@ -168,7 +288,7 @@ Vector3 bsdf(const Material &material,
     auto geom_cos = dot(geom_n, wo);
     auto cos_wi = dot(shading_frame.n, wi);
     if (geom_wi <= 0 || bsdf_cos <= 1e-3f || geom_cos <= 1e-3f) {
-        // XXX: kind of hacky. we ignore extreme grazing angles
+        // XXX: kind of hacky. We ignore extreme grazing angles
         // for numerical robustness
         return Vector3{0, 0, 0};
     }
@@ -229,6 +349,11 @@ void d_bsdf(const Material &material,
             Vector3 &d_wi,
             Vector3 &d_wo) {
     auto shading_frame = shading_point.shading_frame;
+    if (has_normal_map(material)) {
+        // Perturb shading frame
+        shading_frame = perturb_shading_frame(material, shading_point);
+    }
+
     auto geom_n = shading_point.geom_normal;
     auto d_n = Vector3{0, 0, 0};
     bool flipped_normal = false;
@@ -400,7 +525,16 @@ void d_bsdf(const Material &material,
     if (flipped_normal) {
         d_n = -d_n;
     }
-    d_shading_point.shading_frame.n += d_n;
+
+    if (has_normal_map(material)) {
+        d_perturb_shading_frame(material,
+                                shading_point,
+                                d_n,
+                                d_material,
+                                d_shading_point);
+    } else {
+        d_shading_point.shading_frame.n += d_n;
+    }
 }
 
 DEVICE
@@ -425,6 +559,10 @@ Vector3 bsdf_sample(const Material &material,
         *next_min_roughness = min_roughness;
     }
     auto shading_frame = shading_point.shading_frame;
+    if (has_normal_map(material)) {
+        // Perturb shading frame
+        shading_frame = perturb_shading_frame(material, shading_point);
+    }
     auto geom_wi = dot(shading_point.geom_normal, wi);
     if (material.two_sided && geom_wi < 0.f) {
         shading_frame = -shading_frame;
@@ -514,11 +652,15 @@ void d_bsdf_sample(const Material &material,
                    const RayDifferential &wi_differential,
                    const Vector3 &d_wo,
                    const RayDifferential &d_wo_differential,
-                   Texture1 &d_roughness_tex,
+                   DMaterial &d_material,
                    SurfacePoint &d_shading_point,
                    Vector3 &d_wi,
                    RayDifferential &d_wi_differential) {
     auto shading_frame = shading_point.shading_frame;
+    if (has_normal_map(material)) {
+        // Perturb shading frame
+        shading_frame = perturb_shading_frame(material, shading_point);
+    }
     auto geom_wi = dot(shading_point.geom_normal, wi);
     bool normal_flipped = false;
     if (material.two_sided && geom_wi < 0.f) {
@@ -665,7 +807,7 @@ void d_bsdf_sample(const Material &material,
             d_get_roughness(material,
                             shading_point,
                             d_roughness,
-                            d_roughness_tex,
+                            d_material.roughness,
                             d_shading_point);
         }
     }
@@ -673,7 +815,16 @@ void d_bsdf_sample(const Material &material,
     if (normal_flipped) {
         d_shading_frame = - d_shading_frame;
     }
-    d_shading_point.shading_frame += d_shading_frame;
+
+    if (has_normal_map(material)) {
+        d_perturb_shading_frame(material,
+                                shading_point,
+                                d_shading_frame,
+                                d_material,
+                                d_shading_point);
+    } else {
+        d_shading_point.shading_frame += d_shading_frame;
+    }
 }
 
 DEVICE
@@ -683,6 +834,10 @@ inline Real bsdf_pdf(const Material &material,
                      const Vector3 &wo,
                      const Real min_roughness) {
     auto shading_frame = shading_point.shading_frame;
+    if (has_normal_map(material)) {
+        // Perturb shading frame
+        shading_frame = perturb_shading_frame(material, shading_point);
+    }
     auto geom_wi = dot(shading_point.geom_normal, wi);
     if (material.two_sided) {
         if (geom_wi < 0) {
@@ -735,11 +890,15 @@ inline void d_bsdf_pdf(const Material &material,
                        const Vector3 &wo,
                        const Real min_roughness,
                        const Real d_pdf,
-                       Texture1 &d_roughness_tex,
+                       DMaterial &d_material,
                        SurfacePoint &d_shading_point,
                        Vector3 &d_wi,
                        Vector3 &d_wo) {
     auto shading_frame = shading_point.shading_frame;
+    if (has_normal_map(material)) {
+        // Perturb shading frame
+        shading_frame = perturb_shading_frame(material, shading_point);
+    }
     auto geom_wi = dot(shading_point.geom_normal, wi);
     bool normal_flipped = false;
     if (material.two_sided) {
@@ -839,7 +998,7 @@ inline void d_bsdf_pdf(const Material &material,
                 d_get_roughness(material,
                                 shading_point,
                                 d_roughness,
-                                d_roughness_tex,
+                                d_material.roughness,
                                 d_shading_point);
             }
         }
@@ -848,7 +1007,15 @@ inline void d_bsdf_pdf(const Material &material,
     if (normal_flipped) {
         d_n = -d_n;
     }
-    d_shading_point.shading_frame.n += d_n;
+    if (has_normal_map(material)) {
+        d_perturb_shading_frame(material,
+                                shading_point,
+                                d_n,
+                                d_material,
+                                d_shading_point);
+    } else {
+        d_shading_point.shading_frame.n += d_n;
+    }
 }
 
 void test_d_bsdf();

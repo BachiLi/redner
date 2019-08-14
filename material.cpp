@@ -11,7 +11,8 @@ void test_d_bsdf() {
     Texture3 specular{&s[0], -1, -1, -1, &uv_scale[0]};
     float r = 0.5;
     Texture1 roughness{&r, -1, -1, -1, &uv_scale[0]};
-    Material m{diffuse, specular, roughness,false};
+    Texture3 normal_map{nullptr, 0, 0, 0, nullptr};
+    Material m{diffuse, specular, roughness, normal_map, false};
     Vector3f d_d{0, 0, 0};
     Vector2f d_uv_scale{0, 0};
     Texture3 d_diffuse_tex{&d_d[0], -1, -1, -1, &d_uv_scale[0]};
@@ -19,10 +20,12 @@ void test_d_bsdf() {
     Texture3 d_specular_tex{&d_s[0], -1, -1, -1, &d_uv_scale[0]};
     float d_r = 0.f;
     Texture1 d_roughness_tex{&d_r, -1, -1, -1, &d_uv_scale[0]};
-    DMaterial d_material{d_diffuse_tex, d_specular_tex, d_roughness_tex};
+    Texture3 d_normal_map{nullptr, 0, 0, 0, nullptr};
+    DMaterial d_material{d_diffuse_tex, d_specular_tex, d_roughness_tex, d_normal_map};
     SurfacePoint p{Vector3{0, 0, 0},
                    Vector3{0, 1, 0},
                    Frame(Vector3{0, 1, 0}),
+                   Vector3{1, 0, 0}, // dpdu
                    Vector2{0.5, 0.5}};
     auto wi = normalize(Vector3{0.5, 1.0, 0.5});
     auto wo = normalize(Vector3{-0.5, 1.0, -0.5});
@@ -141,13 +144,21 @@ void test_d_bsdf_sample() {
     Texture3 specular{&s[0], -1, -1, -1, &uv_scale[0]};
     float r = 0.5;
     Texture1 roughness{&r, -1, -1, -1, &uv_scale[0]};
-    Material m{diffuse, specular, roughness, false};
-    float d_r = 0.f;
+    Texture3 normal_map{nullptr, 0, 0, 0, nullptr};
+    Material m{diffuse, specular, roughness, normal_map, false};
+    Vector3f d_d{0, 0, 0};
     Vector2f d_uv_scale{0, 0};
+    Texture3 d_diffuse_tex{&d_d[0], -1, -1, -1, &d_uv_scale[0]};
+    Vector3f d_s{0, 0, 0};
+    Texture3 d_specular_tex{&d_s[0], -1, -1, -1, &d_uv_scale[0]};
+    float d_r = 0.f;
     Texture1 d_roughness_tex{&d_r, -1, -1, -1, &d_uv_scale[0]};
+    Texture3 d_normal_map{nullptr, 0, 0, 0, nullptr};
+    DMaterial d_material{d_diffuse_tex, d_specular_tex, d_roughness_tex, d_normal_map};
     SurfacePoint p{Vector3{0, 0, 0},
                    Vector3{0, 1, 0},
                    Frame(Vector3{0, 1, 0}),
+                   Vector3{1, 0, 0},
                    Vector2{0.5, 0.5},
                    Vector2{1, 1}, Vector2{1, 1},
                    Vector3{1, 1, 1}, Vector3{1, 1, 1}};
@@ -178,7 +189,7 @@ void test_d_bsdf_sample() {
                       wi_differential,
                       Vector3{1, 1, 1},
                       d_wo_differential,
-                      d_roughness_tex,
+                      d_material,
                       d_p,
                       d_wi,
                       d_wi_differential);
@@ -338,13 +349,21 @@ void test_d_bsdf_pdf() {
     Texture3 specular{&s[0], -1, -1, -1, &uv_scale[0]};
     float r = 0.5;
     Texture1 roughness{&r, -1, -1, -1, &uv_scale[0]};
-    Material m{diffuse, specular, roughness, false};
-    float d_r = 0.f;
+    Texture3 normal_map{nullptr, 0, 0, 0, nullptr};
+    Material m{diffuse, specular, roughness, normal_map, false};
+    Vector3f d_d{0, 0, 0};
     Vector2f d_uv_scale{0, 0};
+    Texture3 d_diffuse_tex{&d_d[0], -1, -1, -1, &d_uv_scale[0]};
+    Vector3f d_s{0, 0, 0};
+    Texture3 d_specular_tex{&d_s[0], -1, -1, -1, &d_uv_scale[0]};
+    float d_r = 0.f;
     Texture1 d_roughness_tex{&d_r, -1, -1, -1, &d_uv_scale[0]};
+    Texture3 d_normal_map{nullptr, 0, 0, 0, nullptr};
+    DMaterial d_material{d_diffuse_tex, d_specular_tex, d_roughness_tex, d_normal_map};
     SurfacePoint p{Vector3{0, 0, 0},
                    Vector3{0, 1, 0},
                    Frame(Vector3{0, 1, 0}),
+                   Vector3{1, 0, 0},
                    Vector2{0.5, 0.5}};
     auto wi = normalize(Vector3{0.5, 1.0, 0.5});
     auto wo = normalize(Vector3{-0.5, 1.0, -0.5});
@@ -354,8 +373,7 @@ void test_d_bsdf_pdf() {
     auto min_roughness = Real(0.0);
 
     d_bsdf_pdf(m, p, wi, wo, min_roughness, 1,
-               d_roughness_tex,
-               d_p, d_wi, d_wo);
+               d_material, d_p, d_wi, d_wo);
 
     // Check roughness derivatives
     auto finite_delta = Real(1e-5);
