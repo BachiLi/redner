@@ -206,9 +206,6 @@ install(
 
 # OpenEXR
 find_package(OpenEXR REQUIRED)
-if(NOT OPENEXR_FOUND)
-    add_subdirectory(openexr)
-endif()
 
 # Install openexrpython
 if(APPLE)
