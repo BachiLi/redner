@@ -60,7 +60,7 @@ See [here](https://github.com/BachiLi/redner/pull/11) for build instruction on W
 redner is tested under MacOS with clang 7 and Ubuntu with gcc 7. In general any compiler with c++14 support should work.
 
 ## Docker environment
-We provide two dockerfiles for cpu and gpu modes.
+We provide two dockerfiles for cpu and gpu modes: cpu.Dockerfile and gpu.Dockerfile.
 
 **Unfortunately, for the gpu dockerfile, we cannot provide a Docker image due to the NVIDIA Optix license.** Users need to agree the license and download [it](https://developer.nvidia.com/optix) to `dockerfiles/dependencies/`. Note that, the dockerfiles have `OPTIX_VERSION=5.1.0`. Remember to change it in the dockerfiles if you use a different version of Optix, 
 
