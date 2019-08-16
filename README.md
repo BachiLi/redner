@@ -2,6 +2,7 @@
 
 News
 
+08/16/2019 - Added docker files for easier installation. Thanks [Seyoung Park](https://github.com/SuperShinyEyes) for the contribution again.  
 08/13/2019 - Added normal map support. See tests/test_teapot_normal_map.py.  
 08/10/2019 - Significantly simplified the derivatives accumulation code (segmented reduction -> atomics). Also GPU backward pass got 20~30% speedup.  
 08/07/2019 - Fixed a roughness texture bug.  
@@ -59,17 +60,9 @@ See [here](https://github.com/BachiLi/redner/pull/11) for build instruction on W
 redner is tested under MacOS with clang 7 and Ubuntu with gcc 7. In general any compiler with c++14 support should work.
 
 ## Docker environment
-We provide two dockerfiles. They are identical except the followings,
+We provide two dockerfiles for cpu and gpu modes.
 
-- `cpu.Dockerfile`
-   - `conda install pytorch-cpu=1.1.0 torchvision-cpu=0.3.0 -c pytorch`
-
-- `gpu.Dockerfile`
-   - `conda install pytorch=1.1.0 torchvision=0.3.0 cudatoolkit=10.0 -c pytorch`
-
-Tensorflow is CPU mode for both dockerfiles because pyrednertensorflow includes C++ custom ops which lacks CUDA support for now.
-
-**Unfortunately, we cannot provide a Docker image due to the NVIDIA Optix license.** Users need to agree the license and download [it](https://developer.nvidia.com/optix) to `dockerfiles/dependencies/`. Note that, the dockerfiles have `OPTIX_VERSION=5.1.0`. Remember to change it in the dockerfiles if you use a different version of Optix, 
+**Unfortunately, for the gpu dockerfile, we cannot provide a Docker image due to the NVIDIA Optix license.** Users need to agree the license and download [it](https://developer.nvidia.com/optix) to `dockerfiles/dependencies/`. Note that, the dockerfiles have `OPTIX_VERSION=5.1.0`. Remember to change it in the dockerfiles if you use a different version of Optix, 
 
 ### Docker environment requirement
 - CUDA driver 10.x
@@ -107,19 +100,14 @@ $ docker build -t username/redner:gpu -f gpu.Dockerfile .
 ### Using the Docker image
 ```bash
 # Start a shell in your container. 
-# NOTE: you need to pass the NVIDIA runtime as an argument for both CPU and GPU.
-#       Other wise you will run into the following error you import redner in Python:
-#           ImportError: libembree3.so.3: cannot open shared object file: No such file or directory
 
 # CPU version
-docker run --runtime=nvidia --cap-add=SYS_PTRACE --security-opt seccomp=unconfined -it --rm -v /your-path-to/redner:/app -w /app  username/redner:cpu /bin/bash
+docker run --cap-add=SYS_PTRACE --security-opt seccomp=unconfined -it --rm -v /your-path-to/redner:/app -w /app  username/redner:cpu /bin/bash
 # GPU version
 docker run --runtime=nvidia --cap-add=SYS_PTRACE --security-opt seccomp=unconfined -it --rm -v /your-path-to/redner:/app -w /app  username/redner:gpu /bin/bash
 
 $ pwd
 /app
-# Setup Pyredner and Pyrednertensorflow
-$ make setup
 # Test the setup
 $ python -c 'import redner'
 
@@ -127,17 +115,6 @@ $ python -c 'import redner'
 $ cd tests
 $ python test_two_triangles.py
 # Check your result in redner/tests/results/test_two_triangles/
-```
-
-### Using Jupyter notebook in the Docker image
-```bash
-# CPU version
-docker run --runtime=nvidia --cap-add=SYS_PTRACE --security-opt seccomp=unconfined -p 8888:8888 -it --rm -v /your-path-to/redner:/app -w /app  username/redner:cpu /bin/bash
-# GPU version
-docker run --runtime=nvidia --cap-add=SYS_PTRACE --security-opt seccomp=unconfined -p 8888:8888 -it --rm -v /your-path-to/redner:/app -w /app  username/redner:gpu /bin/bash
-
-$ make setup
-$ make jupyter    # Now go to localhost:8888 on your browser
 ```
 ------------------------
 
