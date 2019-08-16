@@ -1,6 +1,4 @@
 *Dockerfile
-pyredner/
-pyrednertensorflow/
 tests/
 tests-tensorflow/
 examples/
