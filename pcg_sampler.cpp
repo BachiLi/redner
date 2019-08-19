@@ -1,8 +1,6 @@
 #include "pcg_sampler.h"
 #include "parallel.h"
 
-#include <thrust/random.h>
-
 // http://www.pcg-random.org/download.html
 DEVICE inline uint32_t next_pcg32(pcg32_state *rng) {
     uint64_t oldstate = rng->state;
