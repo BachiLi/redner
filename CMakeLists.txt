@@ -147,13 +147,11 @@ if(CUDA_FOUND)
         target_link_libraries(redner
             embree
             ${optix_prime_LIBRARY}
-            ${CUDA_curand_LIBRARY}
             ${DYNAMIC_LOOKUP})
     else()
         target_link_libraries(redner
             ${EMBREE_LIBRARY}
             ${optix_prime_LIBRARY}
-            ${CUDA_curand_LIBRARY}
             ${DYNAMIC_LOOKUP})
     endif()
 else()
