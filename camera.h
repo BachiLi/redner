@@ -6,6 +6,7 @@
 #include "ray.h"
 #include "transform.h"
 #include "ptr.h"
+#include "atomic.h"
 
 enum class CameraType {
     Perspective,

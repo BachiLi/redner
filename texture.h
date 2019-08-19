@@ -3,6 +3,7 @@
 #include "redner.h"
 #include "vector.h"
 #include "ptr.h"
+#include "atomic.h"
 
 struct Texture1 {
     Texture1() {}

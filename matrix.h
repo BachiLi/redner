@@ -460,26 +460,6 @@ TMatrix4x4<T> inverse(const TMatrix4x4<T> &m) {
     return inv;
 }
 
-template <typename T0, typename T1>
-DEVICE
-inline void atomic_add(T0 *target, const TMatrix3x3<T1> &source) {
-    for (int i = 0; i < 3; i++) {
-        for (int j = 0; j < 3; j++) {
-            atomic_add(target[3 * i + j], (T0)source(i, j));
-        }
-    }
-}
-
-template <typename T0, typename T1>
-DEVICE
-inline void atomic_add(T0 *target, const TMatrix4x4<T1> &source) {
-    for (int i = 0; i < 4; i++) {
-        for (int j = 0; j < 4; j++) {
-            atomic_add(target[4 * i + j], (T0)source(i, j));
-        }
-    }
-}
-
 template <typename T>
 inline std::ostream& operator<<(std::ostream &os, const TMatrix3x3<T> &m) {
     for (int i = 0; i < 3; i++) {
