@@ -2,7 +2,7 @@
 
 News
 
-08/16/2019 - Added docker files for easier installation. Thanks [Seyoung Park](https://github.com/SuperShinyEyes) for the contribution again.  
+08/16/2019 - Added docker files for easier installation. Thanks [Seyoung Park](https://github.com/SuperShinyEyes) for the contribution again. Also I significantly improved the [wiki installation guide](https://github.com/BachiLi/redner/wiki).  
 08/13/2019 - Added normal map support. See tests/test_teapot_normal_map.py.  
 08/10/2019 - Significantly simplified the derivatives accumulation code (segmented reduction -> atomics). Also GPU backward pass got 20~30% speedup.  
 08/07/2019 - Fixed a roughness texture bug.  
@@ -31,6 +31,10 @@ While the documentation is work in progress, you can take a look at the [tests d
 redner inherits a subset of [Mitsuba](http://www.mitsuba-renderer.org) scene format,
 see [tests/test_teapot_reflectance.py](https://github.com/BachiLi/redner/blob/master/tests/test_teapot_reflectance.py) and [tests/test_teapot_specular.py](https://github.com/BachiLi/redner/blob/master/tests/test_teapot_specular.py) for examples of loading Mitsuba scene files. There is also a Wavefront obj file loader for individual meshes, take a look at [tutorials/02_pose_estimation.py](https://github.com/BachiLi/redner/blob/master/tutorials/02_pose_estimation.py). redner also supports tensorflow 1.14 now with eager mode enabled, see [tests_tensorflow](tests_tensorflow) for details.
 
+See [wiki](https://github.com/BachiLi/redner/wiki/Installation) for an installation guide. We provide CMake installation or dockerfiles for Unix systems. redner is tested under MacOS with clang 7 and Ubuntu with gcc 7. In general any compiler with c++14 support should work.
+
+See [here](https://github.com/BachiLi/redner/pull/11) for a build instruction on Windows. It might be out-of-date though.
+
 redner depends on a few libraries/systems:
 - [Python 3.6 or above](https://www.python.org) (required)
 - [pybind11](https://github.com/pybind/pybind11) (required)
@@ -45,78 +49,6 @@ redner depends on a few libraries/systems:
 - [Thrust](https://thrust.github.io) (required, included in a submodule)
 - [miniz](https://github.com/richgel999/miniz) (already in this repository)
 - A few other python packages: numpy, scikit-image
-
-I recommend using conda to setup the Python related dependencies, e.g.:
-```
-conda install pybind11
-conda install pytorch -c pytorch
-```
-
-redner uses [CMake](https://cmake.org) as its build system. You need CMake 3.12 or above to build redner.
-The build procedure follows common CMake instructions. See [wiki](https://github.com/BachiLi/redner/wiki/Installation) for installation guide.
-
-See [here](https://github.com/BachiLi/redner/pull/11) for build instruction on Windows.
-
-redner is tested under MacOS with clang 7 and Ubuntu with gcc 7. In general any compiler with c++14 support should work.
-
-## Docker environment
-We provide two dockerfiles for cpu and gpu modes: cpu.Dockerfile and gpu.Dockerfile.
-
-**Unfortunately, for the gpu dockerfile, we cannot provide a Docker image due to the NVIDIA Optix license.** Users need to agree the license and download [it](https://developer.nvidia.com/optix) to `dockerfiles/dependencies/`. Note that, the dockerfiles have `OPTIX_VERSION=5.1.0`. Remember to change it in the dockerfiles if you use a different version of Optix, 
-
-### Docker environment requirement
-- CUDA driver 10.x
-- NVIDIA driver 418.x
-- NVIDIA Optix 5.1.0
-
-The docker images are tested on 
-- CUDA driver 10.1
-- NVIDIA driver 418.67
-- GeForce RTX 2060
-- Intel(R) Xeon(R) W-2133 CPU @ 3.60GHz (model: 85)
-
-### Build a Docker image
-```bash
-$ git clone --recurse-submodules git@github.com:BachiLi/redner.git
-
-# Download NVIDIA Optix 5.1.0 and unpack to the corresponding directory. 
-$ mv {optix_library} redner/dockerfiles/dependencies/
-$ ls redner/dockerfiles/dependencies/
-NVIDIA-OptiX-SDK-5.1.0-linux64
-
-# Build the image
-$ cd redner
-
-# CPU version. This may take 30 min.
-$ docker build -t username/redner:cpu -f cpu.Dockerfile .
-# GPU version. This may take 40 min.
-$ docker build -t username/redner:gpu -f gpu.Dockerfile .
-
-# NOTE: the build process is very CPU heavy. It will use all your cores. 
-#       Do not build multiple images at the same time unless you have more 
-#       than 8 cores. On 6 cores, it may freeze the computer.
-```
-
-### Using the Docker image
-```bash
-# Start a shell in your container. 
-
-# CPU version
-docker run --cap-add=SYS_PTRACE --security-opt seccomp=unconfined -it --rm -v /your-path-to/redner:/app -w /app  username/redner:cpu /bin/bash
-# GPU version
-docker run --runtime=nvidia --cap-add=SYS_PTRACE --security-opt seccomp=unconfined -it --rm -v /your-path-to/redner:/app -w /app  username/redner:gpu /bin/bash
-
-$ pwd
-/app
-# Test the setup
-$ python -c 'import redner'
-
-# Run some test
-$ cd tests
-$ python test_two_triangles.py
-# Check your result in redner/tests/results/test_two_triangles/
-```
-------------------------
 
 The current development plan is to enhance the renderer. Following features will be added in the near future (not listed in any particular order):
 - More BSDFs e.g. glass/GGX

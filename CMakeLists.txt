@@ -23,6 +23,12 @@ if(NOT EMBREE_FOUND)
     message("Embree not found in the system. Building from scratch.")
     add_subdirectory(embree)
     set(EMBREE_INCLUDE_PATH "${PROJECT_SOURCE_DIR}/embree/include")
+    if(NOT DEFINED EMBREE_INSTALL_PREFIX)
+        set(EMBREE_INSTALL_PREFIX "${CMAKE_INSTALL_PREFIX}" CACHE PATH "Where to install Embree?")
+    endif()
+    install(TARGETS embree
+        RUNTIME DESTINATION "${EMBREE_INSTALL_PREFIX}/embree"
+        LIBRARY DESTINATION "${EMBREE_INSTALL_PREFIX}/embree")
 endif()
 
 include_directories(${Python_INCLUDE_DIRS})
