@@ -33,27 +33,6 @@ struct DAreaLight {
     float *intensity;
 };
 
-struct DAreaLightInst {
-    DEVICE DAreaLightInst(int light_id = -1,
-                  const Vector3 &intensity = Vector3{ 0, 0, 0 })
-        : light_id(light_id), intensity(intensity) {}
-
-    int light_id;
-    Vector3 intensity;
-
-    DEVICE inline bool operator<(const DAreaLightInst &other) const {
-        return light_id < other.light_id;
-    }
-
-    DEVICE inline bool operator==(const DAreaLightInst &other) const {
-        return light_id == other.light_id;
-    }
-
-    DEVICE inline DAreaLightInst operator+(const DAreaLightInst &other) const {
-        return DAreaLightInst{light_id, intensity + other.intensity};
-    }
-};
-
 template <typename T>
 struct TLightSample {
     T light_sel;
@@ -63,6 +42,3 @@ struct TLightSample {
 
 using LightSample = TLightSample<Real>;
 
-void accumulate_area_light(const BufferView<DAreaLightInst> &d_light_insts,
-                           BufferView<DAreaLight> d_lights,
-                           bool use_gpu);

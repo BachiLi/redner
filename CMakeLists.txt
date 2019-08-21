@@ -86,7 +86,6 @@ set(SRCS aabb.h
          vector.h
          aabb.cpp
          active_pixels.cpp
-         area_light.cpp
          bsdf_sample.cpp
          camera.cpp
          channels.cpp
@@ -128,7 +127,6 @@ if(CUDA_FOUND)
     set_source_files_properties(
         aabb.cpp
         active_pixels.cpp
-        area_light.cpp
         bsdf_sample.cpp
         camera.cpp
         channels.cpp
