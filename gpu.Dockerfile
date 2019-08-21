@@ -14,12 +14,11 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 #-----------------------------------------------------
-# Build CMake
-RUN curl -L -O https://github.com/Kitware/CMake/releases/download/v3.12.4/cmake-3.12.4.tar.gz && \
-    tar -xvzf cmake-3.12.4.tar.gz && \
-    rm cmake-3.12.4.tar.gz && \
-    cd cmake-3.12.4 && \
-    ./bootstrap && make -j24 && make install -j24
+# Download CMake
+RUN curl -L -O https://github.com/Kitware/CMake/releases/download/v3.15.2/cmake-3.15.2-Linux-x86_64.tar.gz && \
+    tar -xvzf cmake-3.15.2-Linux-x86_64.tar.gz && \
+    rm cmake-3.15.2-Linux-x86_64.tar.gz
+ENV PATH /cmake-3.15.2-Linux-x86_64/bin:$PATH
 
 #-----------------------------------------------------
 # Upgrade to gcc 7
