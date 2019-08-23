@@ -11,6 +11,5 @@ debug.exr
 fit_ltc/fitLTC
 fit_ltc/results
 playground
-
 dockerfiles/dependencies/
 .vscode

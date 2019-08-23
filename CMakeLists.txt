@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.12)
+cmake_minimum_required(VERSION 3.13)
 
 project(redner VERSION 0.0.1 DESCRIPTION "Differentiable Path Tracer")
 
@@ -86,7 +86,6 @@ set(SRCS aabb.h
          vector.h
          aabb.cpp
          active_pixels.cpp
-         area_light.cpp
          bsdf_sample.cpp
          camera.cpp
          channels.cpp
@@ -128,7 +127,6 @@ if(CUDA_FOUND)
     set_source_files_properties(
         aabb.cpp
         active_pixels.cpp
-        area_light.cpp
         bsdf_sample.cpp
         camera.cpp
         channels.cpp

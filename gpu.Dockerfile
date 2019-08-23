@@ -14,12 +14,11 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 #-----------------------------------------------------
-# Build CMake
-RUN curl -L -O https://github.com/Kitware/CMake/releases/download/v3.12.4/cmake-3.12.4.tar.gz && \
-    tar -xvzf cmake-3.12.4.tar.gz && \
-    rm cmake-3.12.4.tar.gz && \
-    cd cmake-3.12.4 && \
-    ./bootstrap && make -j24 && make install -j24
+# Download CMake
+RUN curl -L -O https://github.com/Kitware/CMake/releases/download/v3.15.2/cmake-3.15.2-Linux-x86_64.tar.gz && \
+    tar -xvzf cmake-3.15.2-Linux-x86_64.tar.gz && \
+    rm cmake-3.15.2-Linux-x86_64.tar.gz
+ENV PATH /cmake-3.15.2-Linux-x86_64/bin:$PATH
 
 #-----------------------------------------------------
 # Upgrade to gcc 7
@@ -70,7 +69,7 @@ RUN chmod -R a+w /app
 #---------------------------------------------------
 # Setup runtime
 ARG OPTIX_VERSION=5.1.0
-ENV LD_LIBRARY_PATH /usr/local/lib:/app/dockerfiles/dependencies/NVIDIA-OptiX-SDK-${OPTIX_VERSION}-linux64/lib64:${LD_LIBRARY_PATH}
+ENV LD_LIBRARY_PATH /usr/local/lib:/app/NVIDIA-OptiX-SDK-${OPTIX_VERSION}-linux64/lib64:${LD_LIBRARY_PATH}
 
 
 #---------------------------------------------------
@@ -85,7 +84,7 @@ WORKDIR /app
 RUN if [ -d "build" ]; then rm -rf build; fi \
     && mkdir build \
     && cd build \
-    && cmake .. -DEMBREE_ISPC_SUPPORT=false -DEMBREE_TUTORIALS=false -DOptiX_INSTALL_DIR=/app/dockerfiles/dependencies/NVIDIA-OptiX-SDK-${OPTIX_VERSION}-linux64 \
+    && cmake .. -DEMBREE_ISPC_SUPPORT=false -DEMBREE_TUTORIALS=false -DOptiX_INSTALL_DIR=/app/NVIDIA-OptiX-SDK-${OPTIX_VERSION}-linux64 \
     && make install -j24 \
     && cd / \
     && rm -rf /app/build/
