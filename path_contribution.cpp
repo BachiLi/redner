@@ -52,7 +52,7 @@ struct path_contribs_accumulator {
                 // Environment light
                 auto wo = light_ray.dir;
                 auto envmap_id = scene.num_lights - 1;
-                auto light_pmf = scene.light_pmf[envmap_id];  
+                auto light_pmf = scene.light_pmf[envmap_id];
                 auto pdf_nee = envmap_pdf(*scene.envmap, wo) * light_pmf;
                 if (pdf_nee > 0) {
                     auto bsdf_val = bsdf(material, shading_point, wi, wo, min_rough);
@@ -107,7 +107,9 @@ struct path_contribs_accumulator {
                                          Vector3{0, 0, 0}, Vector3{0, 0, 0}};
                 auto bsdf_val = bsdf(material, shading_point, wi, wo, min_rough);
                 auto light_contrib = envmap_eval(*scene.envmap, wo, ray_diff);
-                auto pdf_nee = envmap_pdf(*scene.envmap, wo);
+                auto envmap_id = scene.num_lights - 1;
+                auto light_pmf = scene.light_pmf[envmap_id];
+                auto pdf_nee = envmap_pdf(*scene.envmap, wo) * light_pmf;
                 auto mis_weight = square(pdf_bsdf) / (square(pdf_nee) + square(pdf_bsdf));
                 scatter_contrib = (mis_weight / pdf_bsdf) * bsdf_val * light_contrib;
             } else {
@@ -291,7 +293,9 @@ struct d_path_contribs_accumulator {
             } else if (scene.envmap != nullptr) {
                 // Environment light
                 auto wo = light_ray.dir;
-                auto pdf_nee = envmap_pdf(*scene.envmap, wo);
+                auto envmap_id = scene.num_lights - 1;
+                auto light_pmf = scene.light_pmf[envmap_id];
+                auto pdf_nee = envmap_pdf(*scene.envmap, wo) * light_pmf;
                 if (pdf_nee > 0) {
                     auto bsdf_val = bsdf(material, shading_point, wi, wo, min_rough);
                     // XXX: For now we don't use ray differentials for next event estimation.
@@ -501,7 +505,9 @@ struct d_path_contribs_accumulator {
                     Vector3{0, 0, 0}, Vector3{0, 0, 0},
                     Vector3{0, 0, 0}, Vector3{0, 0, 0}};
                 auto light_contrib = envmap_eval(*scene.envmap, wo, ray_diff);
-                auto pdf_nee = envmap_pdf(*scene.envmap, wo);
+                auto envmap_id = scene.num_lights - 1;
+                auto light_pmf = scene.light_pmf[envmap_id];
+                auto pdf_nee = envmap_pdf(*scene.envmap, wo) * light_pmf;
                 auto mis_weight = square(pdf_bsdf) / (square(pdf_nee) + square(pdf_bsdf));
                 auto scatter_contrib = (mis_weight / pdf_bsdf) * bsdf_val * light_contrib;
 
