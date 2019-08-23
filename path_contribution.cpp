@@ -51,7 +51,9 @@ struct path_contribs_accumulator {
             } else if (scene.envmap != nullptr) {
                 // Environment light
                 auto wo = light_ray.dir;
-                auto pdf_nee = envmap_pdf(*scene.envmap, wo);
+                auto envmap_id = scene.num_lights - 1;
+                auto light_pmf = scene.light_pmf[envmap_id];  
+                auto pdf_nee = envmap_pdf(*scene.envmap, wo) * light_pmf;
                 if (pdf_nee > 0) {
                     auto bsdf_val = bsdf(material, shading_point, wi, wo, min_rough);
                     // XXX: For now we don't use ray differentials for envmap
