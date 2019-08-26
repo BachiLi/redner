@@ -9,6 +9,9 @@ def compute_vertex_normal(vertices, indices):
         return torch.sum(v * v, dim = 1)
     def length(v):
         return torch.sqrt(squared_length(v))
+    def safe_asin(v):
+        # Hack: asin(1)' is infinite, so we want to clamp the contribution
+        return torch.asin(v.clamp(0, 1-1e-6))
     # Nelson Max, "Weights for Computing Vertex Normals from Facet Vectors", 1999
     normals = torch.zeros(vertices.shape, dtype = torch.float32, device = vertices.device)
     v = [vertices[indices[:, 0].long(), :],
@@ -26,18 +29,30 @@ def compute_vertex_normal(vertices, indices):
         side_b = e2 / torch.reshape(e2_len, [-1, 1])
         if i == 0:
             n = torch.cross(side_a, side_b)
-            n = n / torch.reshape(length(n), [-1, 1])
+            n = torch.where(length(n).reshape(-1, 1).expand(-1, 3) > 0,
+                n / torch.reshape(length(n), [-1, 1]),
+                torch.zeros(n.shape, dtype=n.dtype, device=n.device))
         angle = torch.where(dot(side_a, side_b) < 0, 
-            math.pi - 2.0 * torch.asin(0.5 * length(side_a + side_b)),
-            2.0 * torch.asin(0.5 * length(side_b - side_a)))
+            math.pi - 2.0 * safe_asin(0.5 * length(side_a + side_b)),
+            2.0 * safe_asin(0.5 * length(side_b - side_a)))
         sin_angle = torch.sin(angle)
         
         # XXX: Inefficient but it's PyTorch's limitation
-        contrib = n * (sin_angle / (e1_len * e2_len)).reshape(-1, 1).expand(-1, 3)
-        index = indices[:, i].long().reshape(-1, 1).expand([-1, 3])
+        e1e2 = e1_len * e2_len
+        # contrib is 0 when e1e2 is 0
+        contrib = torch.where(e1e2.reshape(-1, 1).expand(-1, 3) > 0,
+            n * (sin_angle / e1e2).reshape(-1, 1).expand(-1, 3),
+            torch.zeros(n.shape, dtype = torch.float32, device = vertices.device))
+        index = indices[:, i].long().reshape(-1, 1).expand(-1, 3)
         normals.scatter_add_(0, index, contrib)
 
-    normals = normals / torch.reshape(length(normals), [-1, 1])
+    # Assign 0, 0, 1 to degenerate faces
+    degenerate_normals = torch.zeros(normals.shape, dtype = torch.float32, device = vertices.device)
+    degenerate_normals[:, 2] = 1.0
+    normals = torch.where(length(normals).reshape(-1, 1).expand(-1, 3) > 0,
+        normals / torch.reshape(length(normals), [-1, 1]),
+        degenerate_normals)
+    assert(torch.isfinite(normals).all())
     return normals.contiguous()
 
 class Shape:

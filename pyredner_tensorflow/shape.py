@@ -11,6 +11,10 @@ def compute_vertex_normal(vertices, indices):
         return tf.math.reduce_sum(v * v, axis=1)
     def length(v):
         return tf.sqrt(squared_length(v))
+    def safe_asin(v):
+        # Hack: asin(1)' is infinite, so we want to clamp the contribution
+        return tf.asin(tf.clip_by_value(v, 0, 1-1e-6))
+
     # Nelson Max, "Weights for Computing Vertex Normals from Facet Vectors", 1999
     normals = tf.zeros(vertices.shape, dtype = tf.float32)
 
@@ -31,17 +35,26 @@ def compute_vertex_normal(vertices, indices):
         side_b = e2 / tf.reshape(e2_len, [-1, 1])
         if i == 0:
             n = tf.linalg.cross(side_a, side_b)
-            n = n / tf.reshape(length(n), [-1, 1])
+            n = tf.where(tf.broadcast_to(tf.reshape(length(n) > 0, (-1, 1), (-1, 3)),
+                n / tf.reshape(length(n), [-1, 1]),
+                tf.zeros(tf.shape(n), dtype=n.dtype))
+
         angle = tf.where(dot(side_a, side_b) < 0, 
-            math.pi - 2.0 * tf.asin(0.5 * length(side_a + side_b)),
-            2.0 * tf.asin(0.5 * length(side_b - side_a)))
+            math.pi - 2.0 * safe_asin(0.5 * length(side_a + side_b)),
+            2.0 * safe_asin(0.5 * length(side_b - side_a)))
         sin_angle = tf.sin(angle)
         
-        contrib = tf.reshape((sin_angle / (e1_len * e2_len)), (-1, 1))
+        e1e2 = e1_len * e2_len
+        # contrib is 0 when e1e2 is 0
+        contrib = tf.reshape(\
+            tf.where(e1e2 > 0, sin_angle / e1e2, tf.zeros(tf.shape(e1e2), dtype=e1e2.dtype)), (-1, 1))
         contrib = n * tf.broadcast_to(contrib, [tf.shape(contrib)[0],3]) # In torch, `expand(-1, 3)`
         normals += tf.scatter_nd(tf.reshape(indices[:, i], [-1, 1]), contrib, shape = tf.shape(normals))
 
-    normals = normals / tf.reshape(length(normals), [-1, 1])
+    degenerate_normals = tf.zeros(normals.shape, dtype = torch.float32)
+    degenerate_normals[:, 2] = 1.0
+    normals = tf.where(tf.broadcast_to(tf.reshape(length(normals), (-1, 1)), (-1, 3)) > 0,
+        normals / tf.reshape(length(normals), [-1, 1], degenerate_normals))
     return normals
 
 class Shape:
