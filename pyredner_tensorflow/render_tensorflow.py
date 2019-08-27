@@ -18,7 +18,7 @@ __EMPTY_TENSOR = tf.constant([])
 use_correlated_random_number = False
 def set_use_correlated_random_number(v):
     global use_correlated_random_number
-    use_gpu = v
+    use_correlated_random_number = v
 
 def get_use_correlated_random_number():
     global use_correlated_random_number
