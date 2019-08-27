@@ -80,6 +80,11 @@ class RenderFunction(torch.autograd.Function):
         args.append(num_shapes)
         args.append(num_materials)
         args.append(num_lights)
+        assert(torch.isfinite(cam.position).all())
+        assert(torch.isfinite(cam.look_at).all())
+        assert(torch.isfinite(cam.up).all())
+        assert(torch.isfinite(cam.ndc_to_cam).all())
+        assert(torch.isfinite(cam.cam_to_ndc).all())
         args.append(cam.position)
         args.append(cam.look_at)
         args.append(cam.up)
@@ -89,6 +94,11 @@ class RenderFunction(torch.autograd.Function):
         args.append(cam.resolution)
         args.append(cam.camera_type)
         for shape in scene.shapes:
+            assert(torch.isfinite(shape.vertices).all())
+            if (shape.uvs is not None):
+                assert(torch.isfinite(shape.uvs).all())
+            if (shape.normals is not None):
+                assert(torch.isfinite(shape.normals).all())
             args.append(shape.vertices)
             args.append(shape.indices)
             args.append(shape.uvs)
@@ -96,6 +106,12 @@ class RenderFunction(torch.autograd.Function):
             args.append(shape.material_id)
             args.append(shape.light_id)
         for material in scene.materials:
+            assert(torch.isfinite(material.diffuse_reflectance.mipmap).all())
+            assert(torch.isfinite(material.diffuse_reflectance.uv_scale).all())
+            assert(torch.isfinite(material.specular_reflectance.mipmap).all())
+            assert(torch.isfinite(material.specular_reflectance.uv_scale).all())
+            assert(torch.isfinite(material.roughness.mipmap).all())
+            assert(torch.isfinite(material.roughness.uv_scale).all())
             args.append(material.diffuse_reflectance.mipmap)
             args.append(material.diffuse_reflectance.uv_scale)
             args.append(material.specular_reflectance.mipmap)
@@ -103,6 +119,8 @@ class RenderFunction(torch.autograd.Function):
             args.append(material.roughness.mipmap)
             args.append(material.roughness.uv_scale)
             if material.normal_map is not None:
+                assert(torch.isfinite(material.normal_map.mipmap).all())
+                assert(torch.isfinite(material.normal_map.uv_scale).all())
                 args.append(material.normal_map.mipmap)
                 args.append(material.normal_map.uv_scale)
             else:
@@ -114,6 +132,12 @@ class RenderFunction(torch.autograd.Function):
             args.append(light.intensity)
             args.append(light.two_sided)
         if scene.envmap is not None:
+            assert(torch.isfinite(scene.envmap.values.mipmap).all())
+            assert(torch.isfinite(scene.envmap.values.uv_scale).all())
+            assert(torch.isfinite(scene.envmap.env_to_world).all())
+            assert(torch.isfinite(scene.envmap.world_to_env).all())
+            assert(torch.isfinite(scene.envmap.sample_cdf_ys).all())
+            assert(torch.isfinite(scene.envmap.sample_cdf_xs).all())
             args.append(scene.envmap.values.mipmap)
             args.append(scene.envmap.values.uv_scale)
             args.append(scene.envmap.env_to_world)
