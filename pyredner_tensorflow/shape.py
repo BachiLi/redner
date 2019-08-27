@@ -37,13 +37,13 @@ def compute_vertex_normal(vertices, indices):
             n = tf.linalg.cross(side_a, side_b)
             n = tf.where(tf.broadcast_to(tf.reshape(length(n) > 0, (-1, 1), (-1, 3)),
                 n / tf.reshape(length(n), [-1, 1]),
-                tf.zeros(tf.shape(n), dtype=n.dtype))
+                tf.zeros(tf.shape(n), dtype=n.dtype)))
 
-        angle = tf.where(dot(side_a, side_b) < 0, 
+        angle = tf.where(dot(side_a, side_b) < 0,
             math.pi - 2.0 * safe_asin(0.5 * length(side_a + side_b)),
             2.0 * safe_asin(0.5 * length(side_b - side_a)))
         sin_angle = tf.sin(angle)
-        
+
         e1e2 = e1_len * e2_len
         # contrib is 0 when e1e2 is 0
         contrib = tf.reshape(\
@@ -58,11 +58,11 @@ def compute_vertex_normal(vertices, indices):
     return normals
 
 class Shape:
-    def __init__(self, 
-                 vertices: tf.Tensor, 
-                 indices: tf.Tensor, 
-                 uvs: Optional[tf.Tensor] = None, 
-                 normals: Optional[tf.Tensor] = None, 
+    def __init__(self,
+                 vertices: tf.Tensor,
+                 indices: tf.Tensor,
+                 uvs: Optional[tf.Tensor] = None,
+                 normals: Optional[tf.Tensor] = None,
                  material_id: int = 0):
         assert(tf.executing_eagerly())
         assert(vertices.dtype == tf.float32)
