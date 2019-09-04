@@ -1618,6 +1618,7 @@ struct secondary_edge_sampler {
             auto edge_pdf = m_pmf * line_pdf(l);
             assert(edge_pdf > 0);
             edge_weight /= (m_pmf * line_pdf(l));
+            assert(isfinite(edge_weight));
             mwt = m * wt;
         } else {
             // edge_sel *= 2;
@@ -1625,6 +1626,7 @@ struct secondary_edge_sampler {
                  shading_point, m, m_inv, nee_ray, nee_isect, nee_point,
                  edge_sample.resample_sel, edge_weight, sample_p,
                  mwt);
+            assert(isfinite(edge_weight));
             if (edge_id == -1 || edge_weight <= 0) {
                 return;
             }

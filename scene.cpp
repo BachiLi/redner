@@ -448,7 +448,8 @@ __global__ void intersect_shape_kernel(
         out_isects[pixel_id].tri_id = tri_id;
         const auto &shape = shapes[shape_id];
         const auto &ray = rays[pixel_id];
-        const auto &ray_differential = ray_differentials[pixel_id];
+        auto ray_differential = ray_differentials != nullptr ?
+            ray_differentials[pixel_id] : RayDifferential();
         out_points[pixel_id] =
             intersect_shape(shape, tri_id, ray, ray_differential,
                 new_ray_differentials != nullptr ?
@@ -460,7 +461,9 @@ __global__ void intersect_shape_kernel(
         out_isects[pixel_id].shape_id = -1;
         out_isects[pixel_id].tri_id = -1;
         if (new_ray_differentials != nullptr) {
-            new_ray_differentials[pixel_id] = ray_differentials[pixel_id];
+            auto ray_differential = ray_differentials != nullptr ?
+                ray_differentials[pixel_id] : RayDifferential();
+            new_ray_differentials[pixel_id] = ray_differential;
         }
         if (is_occluded != nullptr) {
             is_occluded[pixel_id] = false;
@@ -569,9 +572,16 @@ void intersect(const Scene &scene,
                 rtcIntersect1(scene.embree_scene, &rtc_context, &rtc_ray_hit);
                 if (rtc_ray_hit.hit.geomID == RTC_INVALID_GEOMETRY_ID ||
                          length_squared(ray.dir) <= 1e-3f) {
-                    intersections[pixel_id] = Intersection{-1, -1};
+                    if (is_occluded.data == nullptr) {
+                        // Invalidate the intersection if occlusion data is not requested
+                        // If is_occluded actually represents a buffer, the intersection & points
+                        // represent points on the light sources and we shouldn't overwrite it.
+                        intersections[pixel_id] = Intersection{-1, -1};
+                    }
                     if (new_ray_differentials.data != nullptr) {
-                        new_ray_differentials[pixel_id] = ray_differentials[pixel_id];
+                        auto ray_differential = ray_differentials.data != nullptr ?
+                            ray_differentials[pixel_id] : RayDifferential();
+                        new_ray_differentials[pixel_id] = ray_differential;
                     }
                     if (is_occluded.data != nullptr) {
                         is_occluded[pixel_id] = false;
@@ -582,7 +592,8 @@ void intersect(const Scene &scene,
                     intersections[pixel_id] =
                         Intersection{shape_id, tri_id};
                     const auto &shape = scene.shapes[shape_id];
-                    const auto &ray_differential = ray_differentials[pixel_id];
+                    auto ray_differential = ray_differentials.data != nullptr ?
+                        ray_differentials[pixel_id] : RayDifferential();
                     points[pixel_id] =
                         intersect_shape(shape,
                                         tri_id,

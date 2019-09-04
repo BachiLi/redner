@@ -323,7 +323,17 @@ void render(const Scene &scene,
                                   light_isects,
                                   light_points,
                                   nee_rays);
-            occluded(scene, active_pixels, nee_rays, optix_rays, optix_hits, light_occluded);
+            // occluded(scene, active_pixels, nee_rays, optix_rays, optix_hits, light_occluded);
+            intersect(scene,
+                      active_pixels,
+                      nee_rays,
+                      BufferView<RayDifferential>(),
+                      light_isects,
+                      light_points,
+                      BufferView<RayDifferential>(),
+                      optix_rays,
+                      optix_hits,
+                      light_occluded);
             
             // Sample directions based on BRDF
             sampler->next_bsdf_samples(bsdf_samples);
