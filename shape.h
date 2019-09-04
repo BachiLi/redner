@@ -307,7 +307,7 @@ inline SurfacePoint intersect_shape(const Shape &shape,
                                     int index,
                                     const Ray &ray,
                                     const RayDifferential &ray_differential,
-                                    RayDifferential &new_ray_differential) {
+                                    RayDifferential *new_ray_differential) {
     auto ind = get_indices(shape, index);
     auto v0 = Vector3{get_vertex(shape, ind[0])};
     auto v1 = Vector3{get_vertex(shape, ind[1])};
@@ -392,11 +392,13 @@ inline SurfacePoint intersect_shape(const Shape &shape,
     }
     auto frame = Frame(frame_x, frame_y, shading_normal);
 
-    // Update ray differential
-    new_ray_differential.org_dx = dpdx;
-    new_ray_differential.org_dy = dpdy;
-    new_ray_differential.dir_dx = ray_differential.dir_dx;
-    new_ray_differential.dir_dy = ray_differential.dir_dy;
+    if (new_ray_differential != nullptr) {
+        // Update ray differential
+        new_ray_differential->org_dx = dpdx;
+        new_ray_differential->org_dy = dpdy;
+        new_ray_differential->dir_dx = ray_differential.dir_dx;
+        new_ray_differential->dir_dy = ray_differential.dir_dy;
+    }
     return SurfacePoint{hit_pos,
                         geom_normal,
                         frame,

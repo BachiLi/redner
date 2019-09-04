@@ -12,6 +12,7 @@ struct path_contribs_accumulator {
         const auto &light_isect = light_isects[pixel_id];
         const auto &light_point = light_points[pixel_id];
         const auto &light_ray = light_rays[pixel_id];
+        const auto &light_occluded = occluded[pixel_id];
         const auto &bsdf_isect = bsdf_isects[pixel_id];
         const auto &bsdf_point = bsdf_points[pixel_id];
         const auto &bsdf_ray = bsdf_rays[pixel_id];
@@ -25,7 +26,7 @@ struct path_contribs_accumulator {
 
         // Next event estimation
         auto nee_contrib = Vector3{0, 0, 0};
-        if (light_ray.tmax >= 0) { // tmax < 0 means the ray is blocked
+        if (!light_occluded) {
             if (light_isect.valid()) {
                 // area light
                 const auto &light_shape = scene.shapes[light_isect.shape_id];
@@ -141,6 +142,7 @@ struct path_contribs_accumulator {
     const Intersection *light_isects;
     const SurfacePoint *light_points;
     const Ray *light_rays;
+    const bool *occluded;
     const Intersection *bsdf_isects;
     const SurfacePoint *bsdf_points;
     const Ray *bsdf_rays;
@@ -163,6 +165,7 @@ struct d_path_contribs_accumulator {
         const auto &shading_point = shading_points[pixel_id];
         const auto &light_isect = light_isects[pixel_id];
         const auto &light_ray = light_rays[pixel_id];
+        const auto &light_occluded = occluded[pixel_id];
         const auto &min_rough = min_roughness[pixel_id];
 
         auto &d_throughput = d_throughputs[pixel_id];
@@ -196,7 +199,7 @@ struct d_path_contribs_accumulator {
         d_shading_point = SurfacePoint::zero();
 
         // Next event estimation
-        if (light_ray.tmax >= 0) { // tmax < 0 means the ray is blocked
+        if (!light_occluded) {
             if (light_isect.valid()) {
                 // Area light
                 const auto &light_shape = scene.shapes[light_isect.shape_id];
@@ -578,6 +581,7 @@ struct d_path_contribs_accumulator {
     const Intersection *light_isects;
     const SurfacePoint *light_points;
     const Ray *light_rays;
+    const bool *occluded;
     const Intersection *bsdf_isects;
     const SurfacePoint *bsdf_points;
     const Ray *bsdf_rays;
@@ -609,6 +613,7 @@ void accumulate_path_contribs(const Scene &scene,
                               const BufferView<Intersection> &light_isects,
                               const BufferView<SurfacePoint> &light_points,
                               const BufferView<Ray> &light_rays,
+                              const BufferView<bool> &occluded,
                               const BufferView<Intersection> &bsdf_isects,
                               const BufferView<SurfacePoint> &bsdf_points,
                               const BufferView<Ray> &bsdf_rays,
@@ -628,6 +633,7 @@ void accumulate_path_contribs(const Scene &scene,
         light_isects.begin(),
         light_points.begin(),
         light_rays.begin(),
+        occluded.begin(),
         bsdf_isects.begin(),
         bsdf_points.begin(),
         bsdf_rays.begin(),
@@ -651,6 +657,7 @@ void d_accumulate_path_contribs(const Scene &scene,
                                 const BufferView<Intersection> &light_isects,
                                 const BufferView<SurfacePoint> &light_points,
                                 const BufferView<Ray> &light_rays,
+                                const BufferView<bool> &occluded,
                                 const BufferView<Intersection> &bsdf_isects,
                                 const BufferView<SurfacePoint> &bsdf_points,
                                 const BufferView<Ray> &bsdf_rays,
@@ -681,6 +688,7 @@ void d_accumulate_path_contribs(const Scene &scene,
         light_isects.begin(),
         light_points.begin(),
         light_rays.begin(),
+        occluded.begin(),
         bsdf_isects.begin(),
         bsdf_points.begin(),
         bsdf_rays.begin(),

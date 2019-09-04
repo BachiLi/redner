@@ -69,6 +69,8 @@ struct PathBuffer {
         edge_light_isects = Buffer<Intersection>(use_gpu, 2 * num_pixels);
         light_points = Buffer<SurfacePoint>(use_gpu, max_bounces * num_pixels);
         edge_light_points = Buffer<SurfacePoint>(use_gpu, 2 * num_pixels);
+        light_occluded = Buffer<bool>(use_gpu, max_bounces * num_pixels);
+        edge_light_occluded = Buffer<bool>(use_gpu, 2 * num_pixels);
         throughputs = Buffer<Vector3>(use_gpu, (max_bounces + 1) * num_pixels);
         edge_throughputs = Buffer<Vector3>(use_gpu, 4 * num_pixels);
         channel_multipliers = Buffer<Real>(use_gpu,
@@ -115,6 +117,7 @@ struct PathBuffer {
     Buffer<SurfacePoint> shading_points, edge_shading_points;
     Buffer<Intersection> light_isects, edge_light_isects;
     Buffer<SurfacePoint> light_points, edge_light_points;
+    Buffer<bool> light_occluded, edge_light_occluded;
     Buffer<Vector3> throughputs, edge_throughputs;
     Buffer<Real> channel_multipliers;
     Buffer<Real> min_roughness, edge_min_roughness;
@@ -255,7 +258,8 @@ void render(const Scene &scene,
                   shading_points,
                   ray_differentials,
                   optix_rays,
-                  optix_hits);
+                  optix_hits,
+                  BufferView<bool>());
         accumulate_primary_contribs(scene,
                                     primary_active_pixels,
                                     throughputs,
@@ -285,6 +289,7 @@ void render(const Scene &scene,
                 depth * num_pixels, num_pixels);
             auto light_isects = path_buffer.light_isects.view(depth * num_pixels, num_pixels);
             auto light_points = path_buffer.light_points.view(depth * num_pixels, num_pixels);
+            auto light_occluded = path_buffer.light_occluded.view(depth * num_pixels, num_pixels);
             auto bsdf_samples = path_buffer.bsdf_samples.view(depth * num_pixels, num_pixels);
             auto incoming_rays = path_buffer.rays.view(depth * num_pixels, num_pixels);
             auto incoming_ray_differentials =
@@ -318,7 +323,7 @@ void render(const Scene &scene,
                                   light_isects,
                                   light_points,
                                   nee_rays);
-            occluded(scene, active_pixels, nee_rays, optix_rays, optix_hits);
+            occluded(scene, active_pixels, nee_rays, optix_rays, optix_hits, light_occluded);
             
             // Sample directions based on BRDF
             sampler->next_bsdf_samples(bsdf_samples);
@@ -342,7 +347,8 @@ void render(const Scene &scene,
                       bsdf_points,
                       next_ray_differentials,
                       optix_rays,
-                      optix_hits);
+                      optix_hits,
+                      BufferView<bool>());
 
             // Compute path contribution & update throughput
             accumulate_path_contribs(
@@ -355,6 +361,7 @@ void render(const Scene &scene,
                 light_isects,
                 light_points,
                 nee_rays,
+                light_occluded,
                 bsdf_isects,
                 bsdf_points,
                 next_rays,
@@ -410,6 +417,7 @@ void render(const Scene &scene,
                     path_buffer.light_isects.view(depth * num_pixels, num_pixels);
                 auto light_points =
                     path_buffer.light_points.view(depth * num_pixels, num_pixels);
+                auto light_occluded = path_buffer.light_occluded.view(depth * num_pixels, num_pixels);
                 auto bsdf_isects = path_buffer.shading_isects.view(
                     (depth + 1) * num_pixels, num_pixels);
                 auto bsdf_points = path_buffer.shading_points.view(
@@ -448,7 +456,7 @@ void render(const Scene &scene,
                     incoming_ray_differentials,
                     light_samples, bsdf_samples,
                     shading_isects, shading_points,
-                    light_isects, light_points, nee_rays,
+                    light_isects, light_points, nee_rays, light_occluded,
                     bsdf_isects, bsdf_points, next_rays, bsdf_ray_differentials,
                     min_roughness,
                     Real(1) / options.num_samples, // weight
@@ -514,7 +522,8 @@ void render(const Scene &scene,
                               edge_shading_points,
                               edge_ray_differentials,
                               optix_rays,
-                              optix_hits);
+                              optix_hits,
+                              BufferView<bool>());
                     // Update edge throughputs: take geometry terms and Jacobians into account
                     update_secondary_edge_weights(scene,
                                                   active_pixels,
@@ -571,6 +580,7 @@ void render(const Scene &scene,
                             path_buffer.edge_shading_points.view(main_buffer_beg, num_edge_samples);
                         auto light_isects = path_buffer.edge_light_isects.view(0, num_edge_samples);
                         auto light_points = path_buffer.edge_light_points.view(0, num_edge_samples);
+                        auto light_occluded = path_buffer.edge_light_occluded.view(0, num_edge_samples);
                         auto incoming_rays =
                             path_buffer.edge_rays.view(main_buffer_beg, num_edge_samples);
                         auto ray_differentials =
@@ -601,7 +611,7 @@ void render(const Scene &scene,
                         sample_point_on_light(
                             scene, active_pixels, shading_points,
                             light_samples, light_isects, light_points, nee_rays);
-                        occluded(scene, active_pixels, nee_rays, optix_rays, optix_hits);
+                        occluded(scene, active_pixels, nee_rays, optix_rays, optix_hits, light_occluded);
 
                         // Sample directions based on BRDF
                         edge_sampler->next_bsdf_samples(tmp_bsdf_samples);
@@ -629,7 +639,8 @@ void render(const Scene &scene,
                                   bsdf_points,
                                   ray_differentials,
                                   optix_rays,
-                                  optix_hits);
+                                  optix_hits,
+                                  BufferView<bool>());
 
                         // Compute path contribution & update throughput
                         accumulate_path_contribs(
@@ -642,6 +653,7 @@ void render(const Scene &scene,
                             light_isects,
                             light_points,
                             nee_rays,
+                            light_occluded,
                             bsdf_isects,
                             bsdf_points,
                             next_rays,
@@ -771,7 +783,8 @@ void render(const Scene &scene,
                           shading_points,
                           ray_differentials,
                           optix_rays,
-                          optix_hits);
+                          optix_hits,
+                          BufferView<bool>());
                 update_primary_edge_weights(scene,
                                             edge_records,
                                             shading_isects,
@@ -809,6 +822,7 @@ void render(const Scene &scene,
                         path_buffer.edge_shading_points.view(main_buffer_beg, 2 * num_pixels);
                     auto light_isects = path_buffer.edge_light_isects.view(0, 2 * num_pixels);
                     auto light_points = path_buffer.edge_light_points.view(0, 2 * num_pixels);
+                    auto light_occluded = path_buffer.edge_light_occluded.view(0, 2 * num_pixels);
                     auto nee_rays = path_buffer.edge_nee_rays.view(0, 2 * num_pixels);
                     auto incoming_rays =
                         path_buffer.edge_rays.view(main_buffer_beg, 2 * num_pixels);
@@ -839,7 +853,7 @@ void render(const Scene &scene,
                     sample_point_on_light(
                         scene, active_pixels, shading_points,
                         light_samples, light_isects, light_points, nee_rays);
-                    occluded(scene, active_pixels, nee_rays, optix_rays, optix_hits);
+                    occluded(scene, active_pixels, nee_rays, optix_rays, optix_hits, light_occluded);
 
                     // Sample directions based on BRDF
                     edge_sampler->next_bsdf_samples(tmp_bsdf_samples);
@@ -867,7 +881,8 @@ void render(const Scene &scene,
                               bsdf_points,
                               ray_differentials,
                               optix_rays,
-                              optix_hits);
+                              optix_hits,
+                              BufferView<bool>());
                     // Compute path contribution & update throughput
                     accumulate_path_contribs(
                         scene,
@@ -879,6 +894,7 @@ void render(const Scene &scene,
                         light_isects,
                         light_points,
                         nee_rays,
+                        light_occluded,
                         bsdf_isects,
                         bsdf_points,
                         next_rays,

@@ -64,9 +64,9 @@ void test_d_intersect() {
             Vector3{0, 0, 0}, Vector3{0, 0, 0}};
         auto delta_ray = ray;
         delta_ray.org[i] += finite_delta;
-        auto positive = intersect_shape(shape, 0, delta_ray, ray_diff, ray_diff_pos);
+        auto positive = intersect_shape(shape, 0, delta_ray, ray_diff, &ray_diff_pos);
         delta_ray.org[i] -= 2 * finite_delta;
-        auto negative = intersect_shape(shape, 0, delta_ray, ray_diff, ray_diff_neg);
+        auto negative = intersect_shape(shape, 0, delta_ray, ray_diff, &ray_diff_neg);
         auto diff = (sum(positive.position - negative.position) +
                      sum(positive.geom_normal - negative.geom_normal) +
                      sum(positive.shading_frame.x - negative.shading_frame.x) +
@@ -92,9 +92,9 @@ void test_d_intersect() {
             Vector3{0, 0, 0}, Vector3{0, 0, 0}};
         auto delta_ray = ray;
         delta_ray.dir[i] += finite_delta;
-        auto positive = intersect_shape(shape, 0, delta_ray, ray_diff, ray_diff_pos);
+        auto positive = intersect_shape(shape, 0, delta_ray, ray_diff, &ray_diff_pos);
         delta_ray.dir[i] -= 2 * finite_delta;
-        auto negative = intersect_shape(shape, 0, delta_ray, ray_diff, ray_diff_neg);
+        auto negative = intersect_shape(shape, 0, delta_ray, ray_diff, &ray_diff_neg);
         auto diff = (sum(positive.position - negative.position) +
                      sum(positive.geom_normal - negative.geom_normal) +
                      sum(positive.shading_frame.x - negative.shading_frame.x) +
@@ -122,9 +122,9 @@ void test_d_intersect() {
             Vector3{0, 0, 0}, Vector3{0, 0, 0}};
         auto delta_ray_diff = ray_diff;
         delta_ray_diff.org_dx[i] += finite_delta;
-        auto positive = intersect_shape(shape, 0, ray, delta_ray_diff, ray_diff_pos);
+        auto positive = intersect_shape(shape, 0, ray, delta_ray_diff, &ray_diff_pos);
         delta_ray_diff.org_dx[i] -= 2 * finite_delta;
-        auto negative = intersect_shape(shape, 0, ray, delta_ray_diff, ray_diff_neg);
+        auto negative = intersect_shape(shape, 0, ray, delta_ray_diff, &ray_diff_neg);
         auto diff = (sum(positive.position - negative.position) +
                      sum(positive.geom_normal - negative.geom_normal) +
                      sum(positive.shading_frame.x - negative.shading_frame.x) +
@@ -150,9 +150,9 @@ void test_d_intersect() {
             Vector3{0, 0, 0}, Vector3{0, 0, 0}};
         auto delta_ray_diff = ray_diff;
         delta_ray_diff.org_dy[i] += finite_delta;
-        auto positive = intersect_shape(shape, 0, ray, delta_ray_diff, ray_diff_pos);
+        auto positive = intersect_shape(shape, 0, ray, delta_ray_diff, &ray_diff_pos);
         delta_ray_diff.org_dy[i] -= 2 * finite_delta;
-        auto negative = intersect_shape(shape, 0, ray, delta_ray_diff, ray_diff_neg);
+        auto negative = intersect_shape(shape, 0, ray, delta_ray_diff, &ray_diff_neg);
         auto diff = (sum(positive.position - negative.position) +
                      sum(positive.geom_normal - negative.geom_normal) +
                      sum(positive.shading_frame.x - negative.shading_frame.x) +
@@ -178,9 +178,9 @@ void test_d_intersect() {
             Vector3{0, 0, 0}, Vector3{0, 0, 0}};
         auto delta_ray_diff = ray_diff;
         delta_ray_diff.dir_dx[i] += finite_delta;
-        auto positive = intersect_shape(shape, 0, ray, delta_ray_diff, ray_diff_pos);
+        auto positive = intersect_shape(shape, 0, ray, delta_ray_diff, &ray_diff_pos);
         delta_ray_diff.dir_dx[i] -= 2 * finite_delta;
-        auto negative = intersect_shape(shape, 0, ray, delta_ray_diff, ray_diff_neg);
+        auto negative = intersect_shape(shape, 0, ray, delta_ray_diff, &ray_diff_neg);
         auto diff = (sum(positive.position - negative.position) +
                      sum(positive.geom_normal - negative.geom_normal) +
                      sum(positive.shading_frame.x - negative.shading_frame.x) +
@@ -206,9 +206,9 @@ void test_d_intersect() {
             Vector3{0, 0, 0}, Vector3{0, 0, 0}};
         auto delta_ray_diff = ray_diff;
         delta_ray_diff.dir_dy[i] += finite_delta;
-        auto positive = intersect_shape(shape, 0, ray, delta_ray_diff, ray_diff_pos);
+        auto positive = intersect_shape(shape, 0, ray, delta_ray_diff, &ray_diff_pos);
         delta_ray_diff.dir_dy[i] -= 2 * finite_delta;
-        auto negative = intersect_shape(shape, 0, ray, delta_ray_diff, ray_diff_neg);
+        auto negative = intersect_shape(shape, 0, ray, delta_ray_diff, &ray_diff_neg);
         auto diff = (sum(positive.position - negative.position) +
                      sum(positive.geom_normal - negative.geom_normal) +
                      sum(positive.shading_frame.x - negative.shading_frame.x) +
@@ -238,9 +238,9 @@ void test_d_intersect() {
                 Vector3{0, 0, 0}, Vector3{0, 0, 0}};
             float tmp = vertices[vi][i];
             vertices[vi][i] += finite_delta;
-            auto positive = intersect_shape(shape, 0, ray, ray_diff, ray_diff_pos);
+            auto positive = intersect_shape(shape, 0, ray, ray_diff, &ray_diff_pos);
             vertices[vi][i] -= 2 * finite_delta;
-            auto negative = intersect_shape(shape, 0, ray, ray_diff, ray_diff_neg);
+            auto negative = intersect_shape(shape, 0, ray, ray_diff, &ray_diff_neg);
             vertices[vi][i] = tmp;
             auto diff = (sum(positive.position - negative.position) +
                          sum(positive.geom_normal - negative.geom_normal) +

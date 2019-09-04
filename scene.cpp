@@ -429,11 +429,12 @@ __global__ void intersect_shape_kernel(
         const Shape *shapes,
         const int *active_pixels,
         const OptiXHit *hits,
-        Ray *rays,
+        const Ray *rays,
         const RayDifferential *ray_differentials,
         Intersection *out_isects,
         SurfacePoint *out_points,
-        RayDifferential *new_ray_differentials) {
+        RayDifferential *new_ray_differentials,
+        bool *is_occluded) {
     auto idx = threadIdx.x + blockIdx.x * blockDim.x;
     if (idx >= N) {
         return;
@@ -450,23 +451,32 @@ __global__ void intersect_shape_kernel(
         const auto &ray_differential = ray_differentials[pixel_id];
         out_points[pixel_id] =
             intersect_shape(shape, tri_id, ray, ray_differential,
-                new_ray_differentials[pixel_id]);
-        rays[pixel_id].tmax = hits[idx].t;
+                new_ray_differentials != nullptr ?
+                    &new_ray_differentials[pixel_id] : nullptr);
+        if (is_occluded != nullptr) {
+            is_occluded[pixel_id] = true;
+        }
     } else {
         out_isects[pixel_id].shape_id = -1;
         out_isects[pixel_id].tri_id = -1;
-        new_ray_differentials[pixel_id] = ray_differentials[pixel_id];
+        if (new_ray_differentials != nullptr) {
+            new_ray_differentials[pixel_id] = ray_differentials[pixel_id];
+        }
+        if (is_occluded != nullptr) {
+            is_occluded[pixel_id] = false;
+        }
     }
 }
 
 void intersect_shape(const Shape *shapes,
                      const BufferView<int> &active_pixels,
                      const BufferView<OptiXHit> &optix_hits,
-                     BufferView<Ray> rays,
+                     const BufferView<Ray> &rays,
                      const BufferView<RayDifferential> &ray_differentials,
                      BufferView<Intersection> isects,
                      BufferView<SurfacePoint> points,
-                     BufferView<RayDifferential> new_ray_differentials) {
+                     BufferView<RayDifferential> new_ray_differentials,
+                     BufferView<bool> is_occluded) {
     auto block_size = 64;
     auto block_count = idiv_ceil(active_pixels.size(), block_size);
     intersect_shape_kernel<<<block_count, block_size>>>(
@@ -478,19 +488,21 @@ void intersect_shape(const Shape *shapes,
         ray_differentials.begin(),
         isects.begin(),
         points.begin(),
-        new_ray_differentials.begin());
+        new_ray_differentials.begin(),
+        is_occluded.begin());
 }
 #endif
 
 void intersect(const Scene &scene,
                const BufferView<int> &active_pixels,
-               BufferView<Ray> rays,
+               const BufferView<Ray> &rays,
                const BufferView<RayDifferential> &ray_differentials,
                BufferView<Intersection> intersections,
                BufferView<SurfacePoint> points,
                BufferView<RayDifferential> new_ray_differentials,
                BufferView<OptiXRay> optix_rays,
-               BufferView<OptiXHit> optix_hits) {
+               BufferView<OptiXHit> optix_hits,
+               BufferView<bool> is_occluded) {
     if (active_pixels.size() == 0) {
         return;
     }
@@ -519,7 +531,8 @@ void intersect(const Scene &scene,
                         ray_differentials,
                         intersections,
                         points,
-                        new_ray_differentials);
+                        new_ray_differentials,
+                        is_occluded.data);
 #else
         assert(false);
 #endif
@@ -534,7 +547,7 @@ void intersect(const Scene &scene,
             for (int work_id = id_offset; work_id < work_end; work_id++) {
                 auto id = work_id;
                 auto pixel_id = active_pixels[id];
-                Ray &ray = rays[pixel_id];
+                const Ray &ray = rays[pixel_id];
                 RTCIntersectContext rtc_context;
                 rtcInitIntersectContext(&rtc_context);
                 RTCRayHit rtc_ray_hit;
@@ -557,7 +570,12 @@ void intersect(const Scene &scene,
                 if (rtc_ray_hit.hit.geomID == RTC_INVALID_GEOMETRY_ID ||
                          length_squared(ray.dir) <= 1e-3f) {
                     intersections[pixel_id] = Intersection{-1, -1};
-                    new_ray_differentials[pixel_id] = ray_differentials[pixel_id];
+                    if (new_ray_differentials.data != nullptr) {
+                        new_ray_differentials[pixel_id] = ray_differentials[pixel_id];
+                    }
+                    if (is_occluded.data != nullptr) {
+                        is_occluded[pixel_id] = false;
+                    }
                 } else {
                     auto shape_id = (int)rtc_ray_hit.hit.geomID;
                     auto tri_id = (int)rtc_ray_hit.hit.primID;
@@ -570,8 +588,11 @@ void intersect(const Scene &scene,
                                         tri_id,
                                         ray,
                                         ray_differential,
-                                        new_ray_differentials[pixel_id]);
-                    ray.tmax = rtc_ray_hit.ray.tfar;
+                                        new_ray_differentials.data != nullptr ?
+                                            &new_ray_differentials[pixel_id] : nullptr);
+                    if (is_occluded.data != nullptr) {
+                        is_occluded[pixel_id] = true;
+                    }
                 }
             }
         }, num_threads);
@@ -582,29 +603,29 @@ void intersect(const Scene &scene,
 __global__ void update_occluded_rays_kernel(int N,
                                             const int *active_pixels,
                                             const OptiXHit *optix_hits,
-                                            Ray *rays) {
+                                            bool *is_occluded) {
     auto idx = threadIdx.x + blockIdx.x * blockDim.x;
     if (idx >= N) {
         return;
     }
 
-    if (optix_hits[idx].t >= 0.f) {
-        // Invalidate ray if occluded
-        auto pixel_id = active_pixels[idx];
-        rays[pixel_id].tmax = -1;
-    }
+    // Mark occlusion
+    auto pixel_id = active_pixels[idx];
+    is_occluded[pixel_id] = optix_hits[idx].t >= 0.f;
 }
 
 void update_occluded_rays(const BufferView<int> &active_pixels,
                           const BufferView<OptiXHit> &optix_hits,
-                          BufferView<Ray> rays) {
+                          BufferView<Ray> rays,
+                          BufferView<bool> is_occluded) {
     auto block_size = 256;
     auto block_count = idiv_ceil(active_pixels.size(), block_size);
     update_occluded_rays_kernel<<<block_count, block_size>>>(
         active_pixels.size(),
         active_pixels.begin(),
         optix_hits.begin(),
-        rays.begin());
+        rays.begin(),
+        is_occluded.begin());
 }
 #endif
 
@@ -612,7 +633,8 @@ void occluded(const Scene &scene,
               const BufferView<int> &active_pixels,
               BufferView<Ray> rays,
               BufferView<OptiXRay> optix_rays,
-              BufferView<OptiXHit> optix_hits) {
+              BufferView<OptiXHit> optix_hits,
+              BufferView<bool> is_occluded) {
     if (scene.use_gpu) {
 #ifdef __NVCC__
         // OptiX prime query
@@ -630,7 +652,7 @@ void occluded(const Scene &scene,
                        optix_hits.data);
         // XXX: should use watertight intersection here?
         query->execute(0);
-        update_occluded_rays(active_pixels, optix_hits, rays);
+        update_occluded_rays(active_pixels, optix_hits, rays, is_occluded);
 #else
         assert(false);
 #endif
@@ -662,10 +684,8 @@ void occluded(const Scene &scene,
                 rtc_ray.flags = 0;
                 // TODO: switch to rtcOccluded16
                 rtcOccluded1(scene.embree_scene, &rtc_context, &rtc_ray);
-                if (rtc_ray.tfar < 0) {
-                    // intersections[pixel_id] = Intersection{-1, -1};
-                    rays[pixel_id].tmax = -1;
-                }
+                // Mark occlusion
+                is_occluded[pixel_id] = rtc_ray.tfar < 0;
             }
         }, num_threads); 
     }
@@ -801,7 +821,8 @@ void test_scene_intersect(bool use_gpu) {
               surface_points.view(0, rays.size()),
               ray_diffs.view(0, rays.size()),
               optix_rays.view(0, rays.size()),
-              optix_hits.view(0, rays.size()));
+              optix_hits.view(0, rays.size()),
+              BufferView<bool>());
     cuda_synchronize();
     equal_or_error(__FILE__, __LINE__, isects[0].shape_id, 0);
     equal_or_error(__FILE__, __LINE__, isects[0].tri_id, 0);

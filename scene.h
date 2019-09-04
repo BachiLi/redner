@@ -105,19 +105,22 @@ FlattenScene get_flatten_scene(const Scene &scene);
 
 void intersect(const Scene &scene,
                const BufferView<int> &active_pixels,
-               BufferView<Ray> rays,
+               const BufferView<Ray> &rays,
                const BufferView<RayDifferential> &ray_differentials,
                BufferView<Intersection> intersections,
                BufferView<SurfacePoint> surface_points,
                BufferView<RayDifferential> new_ray_differentials,
                BufferView<OptiXRay> optix_rays,
-               BufferView<OptiXHit> optix_hits);
-// Set ray.tmax to negative if occluded
+               BufferView<OptiXHit> optix_hits,
+               // occluded is set to true if we intersect something
+               BufferView<bool> is_occluded);
 void occluded(const Scene &scene,
               const BufferView<int> &active_pixels,
               BufferView<Ray> rays,
               BufferView<OptiXRay> optix_rays,
-              BufferView<OptiXHit> optix_hits);
+              BufferView<OptiXHit> optix_hits,
+              // occluded is set to true if we intersect something
+              BufferView<bool> is_occluded);
 void sample_point_on_light(const Scene &scene,
                            const BufferView<int> &active_pixels,
                            const BufferView<SurfacePoint> &shading_points,
