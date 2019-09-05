@@ -76,9 +76,9 @@ struct d_primary_intersector {
         auto d_ray_dy = DRay{d_primary_ray_differential.org_dy * pixel_size_y / delta,
                              d_primary_ray_differential.dir_dy * pixel_size_y / delta};
         d_ray.org += (d_primary_ray_differential.org_dx * -pixel_size_x +
-                      d_primary_ray_differential.org_dx * -pixel_size_y) / delta;
+                      d_primary_ray_differential.org_dy * -pixel_size_y) / delta;
         d_ray.dir += (d_primary_ray_differential.dir_dx * -pixel_size_x +
-                      d_primary_ray_differential.dir_dx * -pixel_size_y) / delta;
+                      d_primary_ray_differential.dir_dy * -pixel_size_y) / delta;
 
         d_sample_primary_ray(camera, screen_pos, d_ray, d_camera);
         d_sample_primary_ray(camera, screen_pos_dx, d_ray_dx, d_camera);
