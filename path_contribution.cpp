@@ -43,7 +43,7 @@ struct path_contribs_accumulator {
                         auto pdf_nee = light_pmf / light_area;
                         auto pdf_bsdf =
                             bsdf_pdf(material, shading_point, wi, wo, min_rough) * geometry_term;
-                        auto mis_weight = square(pdf_nee) / (square(pdf_nee) + square(pdf_bsdf));
+                        auto mis_weight = Real(1 / (1 + square((double)pdf_bsdf / (double)pdf_nee)));
                         nee_contrib =
                             (mis_weight * geometry_term / pdf_nee) * bsdf_val * light_contrib;
                     }
@@ -62,7 +62,7 @@ struct path_contribs_accumulator {
                                              Vector3{0, 0, 0}, Vector3{0, 0, 0}};
                     auto light_contrib = envmap_eval(*scene.envmap, wo, ray_diff);
                     auto pdf_bsdf = bsdf_pdf(material, shading_point, wi, wo, min_rough);
-                    auto mis_weight = square(pdf_nee) / (square(pdf_nee) + square(pdf_bsdf));
+                    auto mis_weight = Real(1 / (1 + square((double)pdf_bsdf / (double)pdf_nee)));
                     nee_contrib = (mis_weight / pdf_nee) * bsdf_val * light_contrib;
                 }
             }
@@ -84,9 +84,10 @@ struct path_contribs_accumulator {
                         auto light_contrib = light.intensity;
                         auto light_pmf = scene.light_pmf[bsdf_shape.light_id];
                         auto light_area = scene.light_areas[bsdf_shape.light_id];
+                        auto inv_area = 1 / light_area;
                         auto geometry_term = fabs(dot(wo, bsdf_point.geom_normal)) / dist_sq;
-                        auto pdf_nee = (light_pmf / light_area) / geometry_term;
-                        auto mis_weight = square(pdf_bsdf) / (square(pdf_nee) + square(pdf_bsdf));
+                        auto pdf_nee = (light_pmf * inv_area) / geometry_term;
+                        auto mis_weight = Real(1 / (1 + square((double)pdf_nee / (double)pdf_bsdf)));
                         scatter_contrib = (mis_weight / pdf_bsdf) * bsdf_val * light_contrib;
                     }
                 }
@@ -110,7 +111,7 @@ struct path_contribs_accumulator {
                 auto envmap_id = scene.num_lights - 1;
                 auto light_pmf = scene.light_pmf[envmap_id];
                 auto pdf_nee = envmap_pdf(*scene.envmap, wo) * light_pmf;
-                auto mis_weight = square(pdf_bsdf) / (square(pdf_nee) + square(pdf_bsdf));
+                auto mis_weight = Real(1 / (1 + square((double)pdf_nee / (double)pdf_bsdf)));
                 scatter_contrib = (mis_weight / pdf_bsdf) * bsdf_val * light_contrib;
             } else {
                 next_throughput = Vector3{0, 0, 0};
@@ -219,10 +220,11 @@ struct d_path_contribs_accumulator {
                         auto light_contrib = light.intensity;
                         auto light_pmf = scene.light_pmf[light_shape.light_id];
                         auto light_area = scene.light_areas[light_shape.light_id];
-                        auto pdf_nee = light_pmf / light_area;
+                        auto inv_area = 1 / light_area;
+                        auto pdf_nee = light_pmf * inv_area;
                         auto pdf_bsdf =
                             bsdf_pdf(material, shading_point, wi, wo, min_rough) * geometry_term;
-                        auto mis_weight = square(pdf_nee) / (square(pdf_nee) + square(pdf_bsdf));
+                        auto mis_weight = Real(1 / (1 + square((double)pdf_bsdf / (double)pdf_nee)));
 
                         auto nee_contrib = (mis_weight * geometry_term / pdf_nee) *
                                             bsdf_val * light_contrib;
@@ -305,7 +307,7 @@ struct d_path_contribs_accumulator {
                         Vector3{0, 0, 0}, Vector3{0, 0, 0}};
                     auto light_contrib = envmap_eval(*scene.envmap, wo, ray_diff);
                     auto pdf_bsdf = bsdf_pdf(material, shading_point, wi, wo, min_rough);
-                    auto mis_weight = square(pdf_nee) / (square(pdf_nee) + square(pdf_bsdf));
+                    auto mis_weight = Real(1 / (1 + square((double)pdf_bsdf / (double)pdf_nee)));
                     auto nee_contrib = (mis_weight / pdf_nee) * bsdf_val * light_contrib;
 
                     // path_contrib = throughput * (nee_contrib + scatter_contrib)
@@ -380,8 +382,9 @@ struct d_path_contribs_accumulator {
                         auto light_contrib = light.intensity;
                         auto light_pmf = scene.light_pmf[bsdf_shape.light_id];
                         auto light_area = scene.light_areas[bsdf_shape.light_id];
-                        auto pdf_nee = (light_pmf / light_area) / geometry_term;
-                        auto mis_weight = square(pdf_bsdf) / (square(pdf_nee) + square(pdf_bsdf));
+                        auto inv_area = 1 / light_area;
+                        auto pdf_nee = (light_pmf * inv_area) / geometry_term;
+                        auto mis_weight = Real(1 / (1 + square((double)pdf_nee / (double)pdf_bsdf)));
                         auto scatter_contrib = (mis_weight / pdf_bsdf) * bsdf_val * light_contrib;
 
                         // path_contrib = throughput * (nee_contrib + scatter_contrib)
@@ -508,7 +511,7 @@ struct d_path_contribs_accumulator {
                 auto envmap_id = scene.num_lights - 1;
                 auto light_pmf = scene.light_pmf[envmap_id];
                 auto pdf_nee = envmap_pdf(*scene.envmap, wo) * light_pmf;
-                auto mis_weight = square(pdf_bsdf) / (square(pdf_nee) + square(pdf_bsdf));
+                auto mis_weight = Real(1 / (1 + square((double)pdf_nee / (double)pdf_bsdf)));
                 auto scatter_contrib = (mis_weight / pdf_bsdf) * bsdf_val * light_contrib;
 
                 // path_contrib = throughput * (nee_contrib + scatter_contrib)
