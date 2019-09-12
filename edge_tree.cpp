@@ -1,10 +1,11 @@
 #include "edge_tree.h"
-#include "vector.h"
-#include "cuda_utils.h"
 #include "atomic.h"
+#include "cuda_utils.h"
 #include "edge.h"
 #include "parallel.h"
+#include "scene.h"
 #include "thrust_utils.h"
+#include "vector.h"
 
 #include <thrust/transform_reduce.h>
 #include <thrust/sequence.h>
@@ -81,6 +82,41 @@ void compute_edge_bounds(const Shape *shapes,
     parallel_for(edge_6d_bounds_computer{
                      shapes, edges.begin(), cam_org, edge_aabbs.begin()},
                  edges.size(),
+                 use_gpu);
+}
+
+struct light_bounds_computer {
+    DEVICE void operator()(int idx) {
+        const auto &light_triangle = light_triangles[idx];
+        const auto &shape = shapes[light_triangle.shape_id];
+        auto index = get_indices(shape, light_triangle.tri_id);
+        auto v0 = get_vertex(shape, index[0]);
+        auto v1 = get_vertex(shape, index[1]);
+        auto v2 = get_vertex(shape, index[2]);
+        auto p_min = Vector3{0, 0, 0};
+        auto p_max = Vector3{0, 0, 0};
+        for (int i = 0; i < 3; i++) {
+            p_min[i] = min(min(v0[i], v1[i]), v2[i]);
+            p_max[i] = max(max(v0[i], v1[i]), v2[i]);
+        }
+        light_aabbs[idx].p_min = p_min;
+        light_aabbs[idx].p_max = p_max;
+        assert(isfinite(p_min));
+        assert(isfinite(p_max));
+    }
+
+    const Shape *shapes;
+    const LightTriangle *light_triangles;
+    AABB3 *light_aabbs;
+};
+
+void compute_area_light_bounds(const Shape *shapes,
+                               const BufferView<LightTriangle> &light_triangles,
+                               BufferView<AABB3> light_aabbs,
+                               bool use_gpu) {
+    parallel_for(light_bounds_computer{
+                     shapes, light_triangles.begin(), light_aabbs.begin()},
+                 light_triangles.size(),
                  use_gpu);
 }
 
@@ -279,6 +315,55 @@ void compute_morton_codes(const AABB6 &scene_bounds,
                  use_gpu);
 }
 
+struct light_morton_code_computer {
+    DEVICE uint64_t expand_bits(uint64_t x) {
+        // Insert two zero after every bit given a 21-bit integer
+        // https://github.com/leonardo-domingues/atrbvh/blob/master/BVHRT-Core/src/Commons.cuh#L599
+        uint64_t expanded = x;
+        expanded &= 0x1fffff;
+        expanded = (expanded | expanded << 32) & 0x1f00000000ffff;
+        expanded = (expanded | expanded << 16) & 0x1f0000ff0000ff;
+        expanded = (expanded | expanded << 8) & 0x100f00f00f00f00f;
+        expanded = (expanded | expanded << 4) & 0x10c30c30c30c30c3;
+        expanded = (expanded | expanded << 2) & 0x1249249249249249;
+        return expanded;
+    }
+
+    DEVICE uint64_t morton3D(const Vector3 &p) {
+        auto pp = (p - scene_bounds.p_min) / (scene_bounds.p_max - scene_bounds.p_min);
+        for (int i = 0; i < 3; i++) {
+            if (scene_bounds.p_max[i] - scene_bounds.p_min[i] <= 0.f) {
+                pp[i] = 0.5f;
+            }
+        }
+        auto scale = (1 << 21) - 1;
+        TVector3<uint64_t> pp_i{pp.x * scale, pp.y * scale, pp.z * scale};
+        return (expand_bits(pp_i.x) << 2u) |
+               (expand_bits(pp_i.y) << 1u) |
+               (expand_bits(pp_i.z) << 0u);
+    }
+
+    DEVICE void operator()(int idx) {
+        // This might be suboptimal -- should probably use raw edge information directly
+        const auto &box = light_aabbs[idx];
+        morton_codes[idx] = morton3D(0.5f * (box.p_min + box.p_max));
+    }
+
+    const AABB3 scene_bounds;
+    const AABB3 *light_aabbs;
+    uint64_t *morton_codes;
+};
+
+void compute_light_morton_codes(const AABB3 &scene_bounds,
+                                const BufferView<AABB3> &light_bounds,
+                                BufferView<uint64_t> morton_codes,
+                                bool use_gpu) {
+    parallel_for(light_morton_code_computer{
+                     scene_bounds, light_bounds.begin(), morton_codes.begin()},
+                 morton_codes.size(),
+                 use_gpu);
+}
+
 template <typename BVHNodeType>
 struct radix_tree_builder {
     // https://github.com/henrikdahlberg/GPUPathTracer/blob/master/Source/Core/BVHConstruction.cu#L62
@@ -290,8 +375,8 @@ struct radix_tree_builder {
         auto mc1 = morton_codes[idx1];
         if (mc0 == mc1) {
             // Break even when the Morton codes are the same
-            auto id0 = (uint64_t)edge_ids[idx0];
-            auto id1 = (uint64_t)edge_ids[idx1];
+            auto id0 = (uint64_t)object_ids[idx0];
+            auto id1 = (uint64_t)object_ids[idx1];
             return clz(mc0 ^ mc1) + clz(id0 ^ id1);
         }
         else {
@@ -369,7 +454,7 @@ struct radix_tree_builder {
     }
 
     const uint64_t *morton_codes;
-    const int *edge_ids;
+    const int *object_ids;
     const int num_primitives;
     BVHNodeType *nodes;
     BVHNodeType *leaves;
@@ -377,12 +462,12 @@ struct radix_tree_builder {
 
 template <typename BVHNodeType>
 void build_radix_tree(const BufferView<uint64_t> &morton_codes,
-                      const BufferView<int> &edge_ids,
+                      const BufferView<int> &object_ids,
                       BufferView<BVHNodeType> nodes,
                       BufferView<BVHNodeType> leaves,
                       bool use_gpu) {
     parallel_for(radix_tree_builder<BVHNodeType>{
-        morton_codes.begin(), edge_ids.begin(),
+        morton_codes.begin(), object_ids.begin(),
             morton_codes.size(), nodes.begin(), leaves.begin()},
         morton_codes.size(),
         use_gpu);
@@ -456,6 +541,71 @@ void compute_bvh(const BufferView<Shape> &shapes,
     assert(leaves.size() == edge_ids.size());
     parallel_for(bvh_computer<BVHNodeType>{
             shapes.begin(), edges.begin(), edges.size(), edge_ids.begin(), bounds.begin(), leaves.size(),
+            node_counters.begin(), nodes.begin(), leaves.begin()},
+        leaves.size(),
+        use_gpu);
+}
+
+struct light_bvh_computer {
+    DEVICE void operator()(int idx) {
+        auto light_triangle_id = light_triangles_id[idx];
+        assert(light_triangle_id >= 0 && light_triangle_id < num_light_triangles);
+        const auto &light_triangle = light_triangles[light_triangle_id];
+        auto leaf = &leaves[idx];
+        leaf->bounds = bounds[light_triangle_id];
+        leaf->shape_id = light_triangle.shape_id;
+        leaf->tri_id = light_triangle.tri_id;
+
+        // Trace from leaf to root and merge bounding boxes & length
+        auto current = leaf->parent;
+        auto node_idx = current - nodes;
+        if (current != nullptr) {
+            while(true) {
+                assert(node_idx >= 0 && node_idx < num_leaves);
+                auto res = atomic_increment(node_counters + node_idx);
+                if (res == 1) {
+                    // Terminate the first thread entering this node to avoid duplicate computation
+                    // It is important to terminate the first not the second so we ensure all children
+                    // are processed
+                    return;
+                }
+                auto bbox = current->children[0]->bounds;
+                for (int i = 1; i < 2; i++) {
+                    bbox = merge(bbox, current->children[i]->bounds);
+                }
+                current->bounds = bbox;
+                if (current->parent == nullptr) {
+                    return;
+                }
+                current = current->parent;
+                node_idx = current - nodes;
+            }
+        }
+    }
+
+    const Shape *shapes;
+    const LightTriangle *light_triangles;
+    const int num_light_triangles;
+    const int *light_triangles_id;
+    const AABB3 *bounds;
+    const int num_leaves;
+    int *node_counters;
+    LightBVHNode *nodes;
+    LightBVHNode *leaves;
+};
+
+void compute_bvh(const BufferView<Shape> &shapes,
+                 const BufferView<LightTriangle> &light_triangles,
+                 const BufferView<int> &light_triangles_id,
+                 const BufferView<AABB3> &bounds,
+                 BufferView<int> node_counters,
+                 BufferView<LightBVHNode> nodes,
+                 BufferView<LightBVHNode> leaves,
+                 bool use_gpu) {
+    assert(leaves.size() == light_triangles_id.size());
+    parallel_for(light_bvh_computer{
+            shapes.begin(), light_triangles.begin(), light_triangles.size(),
+            light_triangles_id.begin(), bounds.begin(), leaves.size(),
             node_counters.begin(), nodes.begin(), leaves.begin()},
         leaves.size(),
         use_gpu);
@@ -724,7 +874,8 @@ void optimize_bvh(BufferView<int> node_counters,
 EdgeTree::EdgeTree(bool use_gpu,
                    const Camera &camera,
                    const BufferView<Shape> &shapes,
-                   const BufferView<Edge> &edges) {
+                   const BufferView<Edge> &edges,
+                   const BufferView<LightTriangle> &light_triangles) {
     if (edges.size() == 0) {
         return;
     }
@@ -770,7 +921,7 @@ EdgeTree::EdgeTree(bool use_gpu,
         id_to_edge_pt_abs{shapes.begin(), edges.begin(), edge_pt_mean},
         Vector3{0, 0, 0}, sum_vec3{});
     edge_pt_mad /= Real(edge_ids.size());
-    edge_bounds_expand = 0.01f * length(edge_pt_mad);
+    edge_cylinder_radius = 0.001f * length(edge_pt_mad);
 
     // We build a 3D BVH over the camera silhouette edges, and build
     // a 6D BVH over the non camera silhouette edges
@@ -878,5 +1029,61 @@ EdgeTree::EdgeTree(bool use_gpu,
                      ncs_bvh_nodes.view(0, ncs_bvh_nodes.size()),
                      ncs_bvh_leaves.view(0, ncs_bvh_leaves.size()),
                      use_gpu);
+    }
+
+    // We also construct a BVH for area lights. This is important for the edge sampling
+    // MIS computation.
+    if (light_triangles.size() > 0) {
+        // Bounding boxes for lights
+        Buffer<AABB3> light_bounds(use_gpu, light_triangles.size());
+        compute_area_light_bounds(shapes.begin(),
+                                  light_triangles,
+                                  light_bounds.view(0, light_bounds.size()),
+                                  use_gpu);
+        // Compute scene bounding box for BVH
+        AABB3 light_scene_bounds = DISPATCH(use_gpu,
+            thrust::reduce, light_bounds.begin(), light_bounds.end(),
+            AABB3(), union_bounding_box{});
+        // Compute Morton code for LBVH
+        Buffer<uint64_t> light_morton_codes(use_gpu, light_triangles.size());
+        compute_light_morton_codes(light_scene_bounds,
+                                   light_bounds.view(0, light_triangles.size()),
+                                   light_morton_codes.view(0, light_triangles.size()),
+                                   use_gpu);
+        // Sort by Morton code
+        Buffer<int> light_triangles_id(use_gpu, light_triangles.size());
+        DISPATCH(use_gpu, thrust::sequence,
+            light_triangles_id.begin(), light_triangles_id.end());
+        DISPATCH(use_gpu, thrust::stable_sort_by_key,
+            light_morton_codes.begin(), light_morton_codes.end(),
+            light_triangles_id.begin());
+        light_bvh_nodes = Buffer<LightBVHNode>(use_gpu, max(light_morton_codes.size() - 1, 1));
+        light_bvh_leaves = Buffer<LightBVHNode>(use_gpu, light_morton_codes.size());
+        // Initialize nodes
+        LightBVHNode init_node{AABB3(), nullptr, {nullptr, nullptr}, -1, -1};
+        DISPATCH(use_gpu, thrust::fill,
+            light_bvh_nodes.begin(), light_bvh_nodes.end(), init_node);
+        DISPATCH(use_gpu, thrust::fill,
+            light_bvh_leaves.begin(), light_bvh_leaves.end(), init_node);
+        // Build tree (see
+        // "Maximizing Parallelism in the Construction of BVHs, Octrees, and k-d Trees")
+        build_radix_tree(light_morton_codes.view(0, light_morton_codes.size()),
+                         light_triangles_id.view(0, light_triangles_id.size()),
+                         light_bvh_nodes.view(0, light_bvh_nodes.size()),
+                         light_bvh_leaves.view(0, light_bvh_leaves.size()),
+                         use_gpu);
+        // Compute BVH node information (bounding box, length of edges, etc)
+        DISPATCH(use_gpu, thrust::fill,
+            node_counters.begin(), node_counters.begin() + light_bvh_leaves.size(), 0);
+        compute_bvh(shapes,
+                    light_triangles,
+                    light_triangles_id.view(0, light_triangles_id.size()),
+                    light_bounds.view(0, light_bounds.size()),
+                    node_counters.view(0, light_triangles_id.size()),
+                    light_bvh_nodes.view(0, light_bvh_nodes.size()),
+                    light_bvh_leaves.view(0, light_bvh_leaves.size()),
+                    use_gpu);
+        // We don't optimize for the BVH here. The number of triangles is probably
+        // small here.
     }
 }

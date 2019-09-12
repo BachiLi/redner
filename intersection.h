@@ -49,6 +49,39 @@ using SurfacePoint = TSurfacePoint<Real>;
 
 template <typename T>
 DEVICE
+inline bool intersect(const TVector3<T> &v0,
+                      const TVector3<T> &v1,
+                      const TVector3<T> &v2,
+                      const TRay<T> &ray,
+                      TVector3<T> *position = nullptr,
+                      TVector3<T> *geom_normal = nullptr) {
+    auto e1 = v1 - v0;
+    auto e2 = v2 - v0;
+    auto pvec = cross(ray.dir, e2);
+    auto divisor = dot(pvec, e1);
+    if (fabs(divisor) < Real(1e-8f)) {
+        return false;
+    }
+    auto s = ray.org - v0;
+    auto dot_s_pvec = dot(s, pvec);
+    auto u = dot_s_pvec / divisor;
+    auto qvec = cross(s, e1);
+    auto dot_dir_qvec = dot(ray.dir, qvec);
+    auto v = dot_dir_qvec / divisor;
+    auto dot_e2_qvec = dot(e2, qvec);
+    auto t = dot_e2_qvec / divisor;
+    auto w = 1 - (u + v);
+    if (position != nullptr) {
+        *position = ray.org + ray.dir * t;
+    }
+    if (geom_normal != nullptr) {
+        *geom_normal = normalize(cross(e1, e2));
+    }
+    return u >= 0 && u <= 1 && v >= 0 && v <= 1 && w >= 0 && w <= 1 && t >= ray.tmin;
+}
+
+template <typename T>
+DEVICE
 inline TVector3<T> intersect(const TVector3<T> &v0,
                              const TVector3<T> &v1,
                              const TVector3<T> &v2,

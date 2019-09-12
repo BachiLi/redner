@@ -142,6 +142,20 @@ inline bool inside(const AABB6 &b, const Vector3 &p) {
 }
 
 DEVICE
+inline bool inside(const AABB3 &b, const Vector3 &p, Real expand) {
+    return p.x >= (b.p_min.x - expand) && p.x <= (b.p_max.x + expand) &&
+           p.y >= (b.p_min.y - expand) && p.y <= (b.p_max.y + expand) &&
+           p.z >= (b.p_min.z - expand) && p.z <= (b.p_max.z + expand);
+}
+
+DEVICE
+inline bool inside(const AABB6 &b, const Vector3 &p, Real expand) {
+    return p.x >= (b.p_min.x - expand) && p.x <= (b.p_max.x + expand) &&
+           p.y >= (b.p_min.y - expand) && p.y <= (b.p_max.y + expand) &&
+           p.z >= (b.p_min.z - expand) && p.z <= (b.p_max.z + expand);
+}
+
+DEVICE
 inline bool inside(const Sphere &b, const Vector3 &p) {
     return distance(p, b.center) <= b.radius;
 }

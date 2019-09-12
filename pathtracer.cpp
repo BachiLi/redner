@@ -71,6 +71,9 @@ struct PathBuffer {
         edge_light_points = Buffer<SurfacePoint>(use_gpu, 2 * num_pixels);
         light_occluded = Buffer<bool>(use_gpu, max_bounces * num_pixels);
         edge_light_occluded = Buffer<bool>(use_gpu, 2 * num_pixels);
+        // Used by secondary edge sampling for sampling the light occluders
+        light_occluder_isects = Buffer<Intersection>(use_gpu, max_bounces * num_pixels);
+        light_occluder_points = Buffer<SurfacePoint>(use_gpu, max_bounces * num_pixels);
         throughputs = Buffer<Vector3>(use_gpu, (max_bounces + 1) * num_pixels);
         edge_throughputs = Buffer<Vector3>(use_gpu, 4 * num_pixels);
         channel_multipliers = Buffer<Real>(use_gpu,
@@ -117,6 +120,8 @@ struct PathBuffer {
     Buffer<SurfacePoint> shading_points, edge_shading_points;
     Buffer<Intersection> light_isects, edge_light_isects;
     Buffer<SurfacePoint> light_points, edge_light_points;
+    Buffer<Intersection> light_occluder_isects;
+    Buffer<SurfacePoint> light_occluder_points;
     Buffer<bool> light_occluded, edge_light_occluded;
     Buffer<Vector3> throughputs, edge_throughputs;
     Buffer<Real> channel_multipliers;
@@ -187,9 +192,6 @@ void render(const Scene &scene,
     }
 #endif
     parallel_init();
-    if (d_rendered_image.get() != nullptr) {
-        initialize_ltc_table(scene.use_gpu);
-    }
     ChannelInfo channel_info(options.channels, scene.use_gpu);
 
     // Some common variables
@@ -290,6 +292,10 @@ void render(const Scene &scene,
             auto light_isects = path_buffer.light_isects.view(depth * num_pixels, num_pixels);
             auto light_points = path_buffer.light_points.view(depth * num_pixels, num_pixels);
             auto light_occluded = path_buffer.light_occluded.view(depth * num_pixels, num_pixels);
+            auto light_occluder_isects =
+                path_buffer.light_occluder_isects.view(depth * num_pixels, num_pixels);
+            auto light_occluder_points =
+                path_buffer.light_occluder_points.view(depth * num_pixels, num_pixels);
             auto bsdf_samples = path_buffer.bsdf_samples.view(depth * num_pixels, num_pixels);
             auto incoming_rays = path_buffer.rays.view(depth * num_pixels, num_pixels);
             auto incoming_ray_differentials =
@@ -328,8 +334,8 @@ void render(const Scene &scene,
                       active_pixels,
                       nee_rays,
                       BufferView<RayDifferential>(),
-                      light_isects,
-                      light_points,
+                      light_occluder_isects,
+                      light_occluder_points,
                       BufferView<RayDifferential>(),
                       optix_rays,
                       optix_hits,
@@ -428,6 +434,10 @@ void render(const Scene &scene,
                 auto light_points =
                     path_buffer.light_points.view(depth * num_pixels, num_pixels);
                 auto light_occluded = path_buffer.light_occluded.view(depth * num_pixels, num_pixels);
+                auto light_occluder_isects =
+                    path_buffer.light_occluder_isects.view(depth * num_pixels, num_pixels);
+                auto light_occluder_points =
+                    path_buffer.light_occluder_points.view(depth * num_pixels, num_pixels);
                 auto bsdf_isects = path_buffer.shading_isects.view(
                     (depth + 1) * num_pixels, num_pixels);
                 auto bsdf_points = path_buffer.shading_points.view(
@@ -507,9 +517,10 @@ void render(const Scene &scene,
                         incoming_ray_differentials,
                         shading_isects,
                         shading_points,
-                        nee_rays,
-                        light_isects,
-                        light_points,
+                        light_occluder_isects,
+                        light_occluder_points,
+                        bsdf_isects,
+                        bsdf_points,
                         throughputs,
                         min_roughness,
                         d_rendered_image.get(),
@@ -690,7 +701,8 @@ void render(const Scene &scene,
                                                           edge_surface_points,
                                                           edge_contribs,
                                                           d_points,
-                                                          d_scene->shapes.view(0, d_scene->shapes.size()));
+                                                          d_scene->shapes.view(0, d_scene->shapes.size()),
+                                                          debug_image.get());
                     ////////////////////////////////////////////////////////////////////////////////
                 }
 

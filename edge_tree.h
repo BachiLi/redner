@@ -10,6 +10,7 @@
 struct Camera;
 struct Shape;
 struct Edge;
+struct LightTriangle;
 
 struct BVHNode3 {
     AABB3 bounds;
@@ -26,6 +27,15 @@ struct BVHNode6 {
     BVHNode6 *parent;
     BVHNode6 *children[2];
     int edge_id;
+    Real cost;
+};
+
+struct LightBVHNode {
+    AABB3 bounds;
+    LightBVHNode *parent;
+    LightBVHNode *children[2];
+    int shape_id;
+    int tri_id;
     Real cost;
 };
 
@@ -99,26 +109,31 @@ struct EdgeTree {
     EdgeTree(bool use_gpu,
              const Camera &camera,
              const BufferView<Shape> &shapes,
-             const BufferView<Edge> &edges);
+             const BufferView<Edge> &edges,
+             const BufferView<LightTriangle> &light_triangles);
 
     Buffer<BVHNode3> cs_bvh_nodes;
     Buffer<BVHNode3> cs_bvh_leaves;
     Buffer<BVHNode6> ncs_bvh_nodes;
     Buffer<BVHNode6> ncs_bvh_leaves;
-    Real edge_bounds_expand;
+    Real edge_cylinder_radius;
+    Buffer<LightBVHNode> light_bvh_nodes;
+    Buffer<LightBVHNode> light_bvh_leaves;
 };
 
 struct EdgeTreeRoots {
     const BVHNode3 *cs_bvh_root;
     const BVHNode6 *ncs_bvh_root;
+    const LightBVHNode *light_bvh_root;
 };
 
 inline EdgeTreeRoots get_edge_tree_roots(const EdgeTree *edge_tree) {
     if (edge_tree == nullptr) {
-        return EdgeTreeRoots{nullptr, nullptr};
+        return EdgeTreeRoots{nullptr, nullptr, nullptr};
     } else {
         return EdgeTreeRoots{
             edge_tree->cs_bvh_nodes.begin(),
-            edge_tree->ncs_bvh_nodes.begin()};
+            edge_tree->ncs_bvh_nodes.begin(),
+            edge_tree->light_bvh_nodes.begin()};
     }
 }

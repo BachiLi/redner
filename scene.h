@@ -18,6 +18,12 @@
   #include <optix_prime/optix_primepp.h>
 #endif
 
+struct LightTriangle {
+    int light_id;
+    int shape_id;
+    int tri_id;
+};
+
 struct Scene {
     /// XXX should use py::list to avoid copy?
     Scene(const Camera &camera,
@@ -63,6 +69,7 @@ struct Scene {
     Buffer<Real> light_areas;
     Buffer<Real*> area_cdfs;
     Buffer<Real> area_cdf_pool;
+    Buffer<LightTriangle> light_triangles;
 
     // For edge sampling
     EdgeSampler edge_sampler;
@@ -112,15 +119,15 @@ void intersect(const Scene &scene,
                BufferView<RayDifferential> new_ray_differentials,
                BufferView<OptiXRay> optix_rays,
                BufferView<OptiXHit> optix_hits,
-               // occluded is set to true if we intersect something
-               BufferView<bool> is_occluded);
+               // intersected is set to true if we intersect something
+               BufferView<bool> intersected);
 void occluded(const Scene &scene,
               const BufferView<int> &active_pixels,
-              BufferView<Ray> rays,
+              const BufferView<Ray> &rays,
               BufferView<OptiXRay> optix_rays,
               BufferView<OptiXHit> optix_hits,
-              // occluded is set to true if we intersect something
-              BufferView<bool> is_occluded);
+              // intersected is set to true if we intersect something
+              BufferView<bool> intersected);
 void sample_point_on_light(const Scene &scene,
                            const BufferView<int> &active_pixels,
                            const BufferView<SurfacePoint> &shading_points,

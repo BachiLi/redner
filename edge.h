@@ -38,9 +38,6 @@ struct PrimaryEdgeRecord {
 struct SecondaryEdgeRecord {
     Edge edge;
     Vector3 edge_pt;
-    Vector3 mwt;
-    bool use_nee_ray;
-    bool is_diffuse_or_glossy;
 };
 
 template <typename T>
@@ -240,8 +237,6 @@ inline Real compute_exterior_dihedral_angle(const Shape *shapes, const Edge &edg
     return exterior_dihedral;
 }
 
-void initialize_ltc_table(bool use_gpu);
-
 void sample_primary_edges(const Scene &scene,
                           const BufferView<PrimaryEdgeSample> &samples,
                           const float *d_rendered_image,
@@ -272,16 +267,17 @@ void sample_secondary_edges(const Scene &scene,
                             const BufferView<RayDifferential> &incoming_ray_differentials,
                             const BufferView<Intersection> &shading_isects,
                             const BufferView<SurfacePoint> &shading_points,
-                            const BufferView<Ray> &nee_rays,
-                            const BufferView<Intersection> &nee_isects,
-                            const BufferView<SurfacePoint> &nee_points,
+                            const BufferView<Intersection> &nee_occluder_isects,
+                            const BufferView<SurfacePoint> &nee_occluder_points,
+                            const BufferView<Intersection> &bsdf_isects,
+                            const BufferView<SurfacePoint> &bsdf_points,
                             const BufferView<Vector3> &throughputs,
                             const BufferView<Real> &min_roughness,
                             const float *d_rendered_image,
                             const ChannelInfo &channel_info,
                             BufferView<SecondaryEdgeRecord> edge_records,
                             BufferView<Ray> rays,
-                            BufferView<RayDifferential> &bsdf_ray_differentials,
+                            BufferView<RayDifferential> &bsdf_differentials,
                             BufferView<Vector3> new_throughputs,
                             BufferView<Real> edge_min_roughness);
 
@@ -300,4 +296,5 @@ void accumulate_secondary_edge_derivatives(const Scene &scene,
                                            const BufferView<Vector3> &edge_surface_points,
                                            const BufferView<Real> &edge_contribs,
                                            BufferView<SurfacePoint> d_points,
-                                           BufferView<DShape> d_shapes);
+                                           BufferView<DShape> d_shapes,
+                                           float *debug_image);
