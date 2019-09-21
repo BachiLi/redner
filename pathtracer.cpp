@@ -272,8 +272,7 @@ void render(const Scene &scene,
         update_active_pixels(primary_active_pixels, shading_isects, active_pixels, scene.use_gpu);
         std::fill(num_active_pixels.begin(), num_active_pixels.end(), 0);
         num_active_pixels[0] = active_pixels.size();
-        for (int depth = 0; depth < max_bounces &&
-                num_active_pixels[depth] > 0; depth++) {
+        for (int depth = 0; depth < max_bounces && num_active_pixels[depth] > 0; depth++) {
             // Buffer views for this path vertex
             const auto active_pixels =
                 path_buffer.active_pixels.view(depth * num_pixels, num_active_pixels[depth]);

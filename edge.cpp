@@ -445,11 +445,14 @@ struct primary_edge_sampler {
             auto xi = clamp(int(edge_pt[0] * camera.width), 0, camera.width - 1);
             auto yi = clamp(int(edge_pt[1] * camera.height), 0, camera.height - 1);
             auto rd = channel_info.radiance_dimension;
-            auto d_color = Vector3{
-                d_rendered_image[nd * (yi * camera.width + xi) + rd + 0],
-                d_rendered_image[nd * (yi * camera.width + xi) + rd + 1],
-                d_rendered_image[nd * (yi * camera.width + xi) + rd + 2]
-            };
+            auto d_color = Vector3{0, 0, 0};
+            if (rd != -1) {
+                d_color = Vector3{
+                    d_rendered_image[nd * (yi * camera.width + xi) + rd + 0],
+                    d_rendered_image[nd * (yi * camera.width + xi) + rd + 1],
+                    d_rendered_image[nd * (yi * camera.width + xi) + rd + 2]
+                };
+            }
             // The weight is the length of edge divided by the probability
             // of selecting this edge, divided by the length of gradients
             // of the edge equation w.r.t. screen coordinate.
@@ -527,11 +530,14 @@ struct primary_edge_sampler {
             auto xi = int(edge_pt[0] * camera.width);
             auto yi = int(edge_pt[1] * camera.height);
             auto rd = channel_info.radiance_dimension;
-            auto d_color = Vector3{
-                d_rendered_image[nd * (yi * camera.width + xi) + rd + 0],
-                d_rendered_image[nd * (yi * camera.width + xi) + rd + 1],
-                d_rendered_image[nd * (yi * camera.width + xi) + rd + 2]
-            };
+            auto d_color = Vector3{0, 0, 0};
+            if (rd != -1) {
+                d_color = Vector3{
+                    d_rendered_image[nd * (yi * camera.width + xi) + rd + 0],
+                    d_rendered_image[nd * (yi * camera.width + xi) + rd + 1],
+                    d_rendered_image[nd * (yi * camera.width + xi) + rd + 2]
+                };
+            }
             // The weight is the length of edge divided by the probability
             // of selecting this edge, divided by the length of gradients
             // of the edge equation w.r.t. screen coordinate.
@@ -742,7 +748,6 @@ struct primary_edge_derivatives_computer {
             d_camera, d_v0, d_v1);
         atomic_add(&d_shapes[edge_record.edge.shape_id].vertices[3 * edge_record.edge.v0], d_v0);
         atomic_add(&d_shapes[edge_record.edge.shape_id].vertices[3 * edge_record.edge.v1], d_v1);
-
     }
 
     const Camera camera;
@@ -1653,11 +1658,14 @@ struct secondary_edge_sampler {
         // Setup output
         auto nd = channel_info.num_total_dimensions;
         auto rd = channel_info.radiance_dimension;
-        auto d_color = Vector3{
-            d_rendered_image[nd * pixel_id + rd + 0],
-            d_rendered_image[nd * pixel_id + rd + 1],
-            d_rendered_image[nd * pixel_id + rd + 2]
-        };
+        auto d_color = Vector3{0, 0, 0};
+        if (rd != -1) {
+            d_color = Vector3{
+                d_rendered_image[nd * pixel_id + rd + 0],
+                d_rendered_image[nd * pixel_id + rd + 1],
+                d_rendered_image[nd * pixel_id + rd + 2]
+            };
+        }
         edge_records[idx].edge = edge;
         edge_records[idx].edge_pt = sample_p; // for Jacobian computation 
         edge_records[idx].mwt = mwt; // for Jacobian computation
@@ -1998,8 +2006,8 @@ struct secondary_edge_derivatives_accumulator {
         };
         grad(shading_point.position, edge_surface_point0, edge_contrib0);
         grad(shading_point.position, edge_surface_point1, edge_contrib1);
-        assert(isfinite(edge_contrib0));
-        assert(isfinite(edge_contrib1));
+        //assert(isfinite(edge_contrib0));
+        //assert(isfinite(edge_contrib1));
         assert(isfinite(dcolor_dp));
 
         d_points[pixel_id].position += dcolor_dp;
