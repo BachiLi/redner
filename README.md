@@ -2,6 +2,7 @@
 
 News
 
+09/21/2019 - Fixed a serious buffer overrun bug in the deferred rendering code when there is no radiance output channel. If things didn't work for you, maybe try again.
 08/16/2019 - Added docker files for easier installation. Thanks [Seyoung Park](https://github.com/SuperShinyEyes) for the contribution again. Also I significantly improved the [wiki installation guide](https://github.com/BachiLi/redner/wiki).  
 08/13/2019 - Added normal map support. See tests/test_teapot_normal_map.py.  
 08/10/2019 - Significantly simplified the derivatives accumulation code (segmented reduction -> atomics). Also GPU backward pass got 20~30% speedup.  
