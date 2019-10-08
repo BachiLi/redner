@@ -2,7 +2,7 @@
 
 News
 
-10/08/2019 - Slightly changed the Shape class interface. The constructor order is different and it now takes an extra 'uv_indices' argument for dealing with seams in UV mapping. See pyredner/shape.py.  
+10/08/2019 - Slightly changed the Shape class interface. The constructor order is different and it now takes extra 'uv_indices' and 'normal_indices' arguments for dealing with seams in UV mapping and obj loading. See pyredner/shape.py and tutorial 2.  
 09/22/2019 - We now handle inconsistencies between shading normals and geometry normals more gracefully (instead of just return zero in most cases). This helps with rendering models in the wild, say, models in ShapeNet.  
 09/21/2019 - Fixed a serious buffer overrun bug in the deferred rendering code when there is no radiance output channel. If things didn't work for you, maybe try again.  
 08/16/2019 - Added docker files for easier installation. Thanks [Seyoung Park](https://github.com/SuperShinyEyes) for the contribution again. Also I significantly improved the [wiki installation guide](https://github.com/BachiLi/redner/wiki).  
