@@ -58,10 +58,19 @@ def load_mtl(filename):
         mtllib[current_mtl.name] = current_mtl
     return mtllib
 
-def load_obj(filename, obj_group = True, flip_tex_coords = True):
+def load_obj(filename,
+             obj_group = True,
+             flip_tex_coords = True,
+             use_common_indices = False):
     """
         Load from a Wavefront obj file as PyTorch tensors.
         XXX: this is slow, maybe move to C++?
+
+        Args: obj_group -- split the meshes based on materials
+              flip_tex_coords -- flip the v coordinate of uv by applying v' = 1 - v
+              use_common_indices -- use the same indices for position, uvs, normals.
+                                    Not recommended since texture seams in the objects sharing
+                                    the same positions would cause the optimization to "tear" the object.
     """
     vertices_pool = []
     uvs_pool = []
@@ -72,6 +81,9 @@ def load_obj(filename, obj_group = True, flip_tex_coords = True):
     vertices = []
     uvs = []
     normals = []
+    vertices_map = {}
+    uvs_map = {}
+    normals_map = {}
     material_map = {}
     current_mtllib = {}
     current_material_name = None
@@ -86,11 +98,11 @@ def load_obj(filename, obj_group = True, flip_tex_coords = True):
         if len(uv_indices) == 0:
             uv_indices = None
         else:
-            uv_indices = torch.tensor(uv_indices, device = pyredner.get_device())
+            uv_indices = torch.tensor(uv_indices, dtype = torch.int32, device = pyredner.get_device())
         if len(normal_indices) == 0:
             normal_indices = None
         else:
-            normal_indices = torch.tensor(normal_indices, device = pyredner.get_device())
+            normal_indices = torch.tensor(normal_indices, dtype = torch.int32, device = pyredner.get_device())
         vertices = torch.tensor(vertices, device = pyredner.get_device())
         if len(uvs) == 0:
             uvs = None
@@ -132,6 +144,10 @@ def load_obj(filename, obj_group = True, flip_tex_coords = True):
                 vertices = []
                 normals = []
                 uvs = []
+                vertices_map = {}
+                uvs_map = {}
+                normals_map = {}
+
             mtl_name = splitted[1]
             current_material_name = mtl_name
             if mtl_name not in material_map:
@@ -195,21 +211,51 @@ def load_obj(filename, obj_group = True, flip_tex_coords = True):
                 ni = None
                 if (num_indices(indices) > 2 and re.split('/', indices)[2] != ''):
                     ni = parse_face_index(indices, 2)
+                if use_common_indices:
+                    # vertex, uv, normals share the same indexing
+                    key = (pi, uvi, ni)
+                    if key in vertices_map:
+                        vertex_id = vertices_map[key]
+                        return vertex_id, vertex_id, vertex_id
 
-                vertex_id = len(vertices)
-                uv_id = None
-                normal_id = None
-                if uvi is not None:
-                    uv_id = len(uvs)
-                if ni is not None:
-                    normal_id = len(normals)
+                    vertex_id = len(vertices)
+                    vertices_map[key] = vertex_id
+                    vertices.append(vertices_pool[pi])
+                    if uvi is not None:
+                        uvs.append(uvs_pool[uvi])
+                    if ni is not None:
+                        normals.append(normals_pool[ni])
+                    return vertex_id, vertex_id, vertex_id
+                else:
+                    # vertex, uv, normals use separate indexing
+                    vertex_id = None
+                    uv_id = None
+                    normal_id = None
 
-                vertices.append(vertices_pool[pi])
-                if uvi is not None:
-                    uvs.append(uvs_pool[uvi])
-                if ni is not None:
-                    normals.append(normals_pool[ni])
-                return vertex_id, uv_id, normal_id
+                    if pi in vertices_map:
+                        vertex_id = vertices_map[pi]
+                    else:
+                        vertex_id = len(vertices)
+                        vertices.append(vertices_pool[pi])
+                        vertices_map[pi] = vertex_id
+
+                    if uvi is not None:
+                        if uvi in uvs_map:
+                            uv_id = uvs_map[uvi]
+                        else:
+                            uv_id = len(uvs)
+                            uvs.append(uvs_pool[uvi])
+                            uvs_map[uvi] = uv_id
+
+                    if ni is not None:
+                        if ni in normals_map:
+                            normal_id = normals_map[ni]
+                        else:
+                            normal_id = len(normals)
+                            normals.append(normals_pool[uvi])
+                            normals_map[ni] = normal_id
+                    return vertex_id, uv_id, normal_id
+
             vid0, uv_id0, n_id0 = get_vertex_id(splitted[1])
             vid1, uv_id1, n_id1 = get_vertex_id(splitted[2])
             vid2, uv_id2, n_id2 = get_vertex_id(splitted[3])
