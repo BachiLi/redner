@@ -103,6 +103,7 @@ class RenderFunction(torch.autograd.Function):
             args.append(shape.indices)
             args.append(shape.uvs)
             args.append(shape.normals)
+            args.append(shape.uv_indices)
             args.append(shape.material_id)
             args.append(shape.light_id)
         for material in scene.materials:
@@ -212,6 +213,8 @@ class RenderFunction(torch.autograd.Function):
             current_index += 1
             normals = args[current_index]
             current_index += 1
+            uv_indices = args[current_index]
+            current_index += 1
             material_id = args[current_index]
             current_index += 1
             light_id = args[current_index]
@@ -222,12 +225,16 @@ class RenderFunction(torch.autograd.Function):
                 assert(uvs.is_contiguous())
             if normals is not None:
                 assert(normals.is_contiguous())
+            if uv_indices is not None:
+                assert(uv_indices.is_contiguous())
             shapes.append(redner.Shape(\
                 redner.float_ptr(vertices.data_ptr()),
                 redner.int_ptr(indices.data_ptr()),
                 redner.float_ptr(uvs.data_ptr() if uvs is not None else 0),
                 redner.float_ptr(normals.data_ptr() if normals is not None else 0),
+                redner.int_ptr(uv_indices.data_ptr() if uv_indices is not None else 0),
                 int(vertices.shape[0]),
+                int(uvs.shape[0]) if uvs is not None else 0,
                 int(indices.shape[0]),
                 material_id,
                 light_id))
@@ -443,9 +450,10 @@ class RenderFunction(torch.autograd.Function):
         d_shapes = []
         for shape in ctx.shapes:
             num_vertices = shape.num_vertices
+            num_uv_vertices = shape.num_uv_vertices
             d_vertices = torch.zeros(num_vertices, 3,
                 device = pyredner.get_device())
-            d_uvs = torch.zeros(num_vertices, 2,
+            d_uvs = torch.zeros(num_uv_vertices, 2,
                 device = pyredner.get_device()) if shape.has_uvs() else None
             d_normals = torch.zeros(num_vertices, 3,
                 device = pyredner.get_device()) if shape.has_normals() else None
@@ -587,9 +595,9 @@ class RenderFunction(torch.autograd.Function):
         if print_timing:
             print('Backward pass, time: %.5f s' % time_elapsed)
 
-        # # For debugging
-        # # pyredner.imwrite(grad_img, 'grad_img.exr')
-        # # grad_img = torch.ones(256, 256, 3, device = pyredner.get_device())
+        # For debugging
+        # pyredner.imwrite(grad_img, 'grad_img.exr')
+        # grad_img = torch.ones(256, 256, 3, device = pyredner.get_device())
         # debug_img = torch.zeros(256, 256, 3)
         # start = time.time()
         # redner.render(scene, options,
@@ -600,6 +608,7 @@ class RenderFunction(torch.autograd.Function):
         # time_elapsed = time.time() - start
         # if print_timing:
         #     print('Backward pass, time: %.5f s' % time_elapsed)
+        # debug_img = debug_img[:, :, 0]
         # pyredner.imwrite(debug_img, 'debug.exr')
         # pyredner.imwrite(-debug_img, 'debug_.exr')
         # debug_img = debug_img.numpy()
@@ -611,7 +620,7 @@ class RenderFunction(torch.autograd.Function):
         # debug_max = 0.5
         # debug_min = -0.5
         # debug_img = np.clip((debug_img - debug_min) / (debug_max - debug_min), 0, 1)
-        # debug_img = debug_img[:, :, 0]
+        # # debug_img = debug_img[:, :, 0]
         # import matplotlib.cm as cm
         # debug_img = cm.viridis(debug_img)
         # skimage.io.imsave('debug.png', np.power(debug_img, 1/2.2))
@@ -637,6 +646,7 @@ class RenderFunction(torch.autograd.Function):
             ret_list.append(None) # indices
             ret_list.append(d_uvs_list[i])
             ret_list.append(d_normals_list[i])
+            ret_list.append(None) # uv_indices
             ret_list.append(None) # material id
             ret_list.append(None) # light id
 

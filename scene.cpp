@@ -764,9 +764,11 @@ void test_scene_intersect(bool use_gpu) {
     ray_diffs[1] = ray_diff1;
     Shape triangle{(float*)vertices.data,
                    (int*)indices.data,
-                   nullptr,
-                   nullptr,
+                   nullptr, // uvs
+                   nullptr, // normal
+                   nullptr, // uv_indices
                    3, // num_vertices
+                   0, // num_uv_vertices
                    1, // num_triangles
                    0,
                    -1};
@@ -844,17 +846,21 @@ void test_sample_point_on_light(bool use_gpu) {
     samples[2] = LightSample{0.5f, 0.5f, Vector2{0.f, 0.f}};
     Shape shape0{(float*)vertices0.data,
                  (int*)indices0.data,
-                 nullptr,
-                 nullptr,
+                 nullptr, // uvs
+                 nullptr, // normals
+                 nullptr, // uv_indices
                  6, // num_vertices
+                 0, // num_uv_vertices
                  2, // num_triangles
                  0,
                  0};
     Shape shape1{(float*)vertices1.data,
                  (int*)indices1.data,
-                 nullptr,
-                 nullptr,
+                 nullptr, // uvs
+                 nullptr, // normals
+                 nullptr, // uv_indices
                  3, // num_vertices
+                 0, // num_uv_vertices
                  1, // num_triangles
                  0,
                  0};

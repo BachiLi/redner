@@ -14,10 +14,12 @@ void test_d_intersect() {
                              Vector3{1, 1, 1}, Vector3{1, 1, 1}};
     Shape shape{ptr<float>(&vertices[0][0]),
                 ptr<int>(&indices[0][0]),
-                nullptr,
-                nullptr,
-                3,
-                1,
+                nullptr, // uvs
+                nullptr, // normals
+                nullptr, // uv_indices
+                3, // num_vertices
+                1, // num_indices
+                0, // num_uvs
                 0,
                 -1};
     SurfacePoint d_point;
@@ -270,10 +272,12 @@ void test_d_sample_shape() {
     indices[0] = Vector3i{0, 1, 2};
     Shape shape{ptr<float>(&vertices[0][0]),
                 ptr<int>(&indices[0][0]),
-                nullptr,
-                nullptr,
-                3,
-                1,
+                nullptr, // uvs
+                nullptr, // normals
+                nullptr, // uv_indices
+                3, // num_vertices
+                1, // num_indices
+                0, // num_uvs
                 0,
                 -1};
     auto sample = Vector2{0.5, 0.5};

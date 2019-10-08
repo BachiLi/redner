@@ -56,7 +56,29 @@ def compute_vertex_normal(vertices, indices):
     return normals.contiguous()
 
 class Shape:
-    def __init__(self, vertices, indices, uvs, normals, material_id):
+    """
+        redner supports only triangle meshes for now. It stores a pool of
+        vertices and access the pool using integer index. Some times the
+        two vertices can have the same 3D position but different texture
+        coordinates, because UV mapping creates seams and need to duplicate
+        vertices. In this can we canta an additional "uv_indices" array
+        to access the uv pool.
+
+        Args:
+            vertices (float tensor with size N x 3): 3D position of vertices.
+            indices (int tensor with size M x 3): vertex indices of triangle faces.
+            material_id (integer): index of the assigned material.
+            uvs (optional, float tensor with size N' x 2): optional texture coordinates.
+            normals (optional, float tensor with size N x 3): shading normal.
+            uv_indices (optional, int tensor with size M x 3): overrides indices when accessing uv coordinates.
+    """
+    def __init__(self,
+                 vertices,
+                 indices,
+                 material_id,
+                 uvs = None,
+                 normals = None,
+                 uv_indices = None):
         assert(vertices.dtype == torch.float32)
         assert(indices.dtype == torch.int32)
         assert(vertices.is_contiguous())
@@ -67,32 +89,40 @@ class Shape:
         if (normals is not None):
             assert(normals.dtype == torch.float32)
             assert(normals.is_contiguous())
+        if (uv_indices is not None):
+            assert(uv_indices.dtype == torch.int32)
+            assert(uv_indices.is_contiguous())
+
         if pyredner.get_use_gpu():
             assert(vertices.is_cuda)
-            assert(indices.is_cuda)        
+            assert(indices.is_cuda)
             assert(uvs is None or uvs.is_cuda)
             assert(normals is None or normals.is_cuda)
+            assert(uv_indices is None or uv_indices.is_cuda)
         else:
             assert(not vertices.is_cuda)
             assert(not indices.is_cuda)        
             assert(uvs is None or not uvs.is_cuda)
             assert(normals is None or not normals.is_cuda)
+            assert(uv_indices is None or not uv_indices.is_cuda)
 
         self.vertices = vertices
         self.indices = indices
+        self.material_id = material_id
         self.uvs = uvs
         self.normals = normals
-        self.material_id = material_id
+        self.uv_indices = uv_indices
         self.light_id = -1
 
     def state_dict(self):
         return {
             'vertices': self.vertices,
             'indices': self.indices,
-            'uvs': self.uvs,
-            'normals': self.normals,
             'material_id': self.material_id,
             'light_id': self.light_id,
+            'uvs': self.uvs,
+            'normals': self.normals,
+            'uv_indices': self.uv_indices
         }
 
     @classmethod
@@ -100,7 +130,9 @@ class Shape:
         out = cls(
             state_dict['vertices'],
             state_dict['indices'],
+            state_dict['material_id'],
             state_dict['uvs'],
             state_dict['normals'],
-            state_dict['material_id'])
+            state_dict['uv_indices'])
+        out.light_id = state_dict['light_id']
         return out

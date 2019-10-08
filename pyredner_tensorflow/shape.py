@@ -63,9 +63,10 @@ class Shape:
     def __init__(self,
                  vertices: tf.Tensor,
                  indices: tf.Tensor,
+                 material_id: int,
                  uvs: Optional[tf.Tensor] = None,
                  normals: Optional[tf.Tensor] = None,
-                 material_id: int = 0):
+                 uv_indices: Optional[tf.Tensor] = None):
         assert(tf.executing_eagerly())
         assert(vertices.dtype == tf.float32)
         assert(indices.dtype == tf.int32)
@@ -82,6 +83,8 @@ class Shape:
                 uvs = tf.identity(uvs).gpu(pyredner.get_gpu_device_id())
             if normals is not None:
                 normals = tf.identity(normals).gpu(pyredner.get_gpu_device_id())
+            if uv_indices is not None:
+                uv_indices = tf.identity(uv_indices).gpu(pyredner.get_gpu_device_id())
         else:
             # Automatically copy to CPU
             vertices = tf.identity(vertices).cpu()
@@ -90,22 +93,26 @@ class Shape:
                 uvs = tf.identity(uvs).cpu()
             if normals is not None:
                 normals = tf.identity(normals).cpu()
+            if uv_indices is not None:
+                uv_indices = tf.identity(uv_indices).cpu()
 
         self.vertices = vertices
         self.indices = indices
+        self.material_id = material_id
         self.uvs = uvs
         self.normals = normals
-        self.material_id = material_id
+        self.uv_indices = uv_indices
         self.light_id = -1
 
     def state_dict(self):
         return {
             'vertices': self.vertices,
             'indices': self.indices,
+            'material_id': self.material_id,
             'uvs': self.uvs,
             'normals': self.normals,
-            'material_id': self.material_id,
-            'light_id': self.light_id,
+            'uv_indices': self.uv_indices,
+            'light_id': self.light_id
         }
 
     @classmethod
@@ -115,5 +122,7 @@ class Shape:
             state_dict['indices'],
             state_dict['uvs'],
             state_dict['normals'],
+            state_dict['uv_indices'],
             state_dict['material_id'])
+        out.light_id = state_dict['light_id']
         return out

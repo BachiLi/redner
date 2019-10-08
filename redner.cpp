@@ -65,15 +65,19 @@ PYBIND11_MODULE(redner, m) {
                       int>());
 
     py::class_<Shape>(m, "Shape")
-        .def(py::init<ptr<float>,
-                      ptr<int>,
-                      ptr<float>,
-                      ptr<float>,
-                      int,
-                      int,
-                      int,
-                      int>())
+        .def(py::init<ptr<float>, // vertices
+                      ptr<int>, // indices
+                      ptr<float>, // uvs
+                      ptr<float>, // normals
+                      ptr<int>, // uv_indices
+                      int, // num_vertices
+                      int, // num_uv_vertices
+                      int, // num_triangles
+                      int, // material_id
+                      int  // light_id
+                      >())
         .def_readonly("num_vertices", &Shape::num_vertices)
+        .def_readonly("num_uv_vertices", &Shape::num_uv_vertices)
         .def("has_uvs", &Shape::has_uvs)
         .def("has_normals", &Shape::has_normals);
 

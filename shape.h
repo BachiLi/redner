@@ -10,9 +10,11 @@ struct Shape {
     Shape() {}
     Shape(ptr<float> vertices,
           ptr<int> indices,
-          ptr<float> uvs,
-          ptr<float> normals,
+          ptr<float> uvs, // optional
+          ptr<float> normals, // optional
+          ptr<int> uv_indices, // optional, for duplicated uvs
           int num_vertices,
+          int num_uv_vertices,
           int num_triangles,
           int material_id,
           int light_id) :
@@ -20,7 +22,9 @@ struct Shape {
         indices(indices.get()),
         uvs(uvs.get()),
         normals(normals.get()),
+        uv_indices(uv_indices.get()),
         num_vertices(num_vertices),
+        num_uv_vertices(num_uv_vertices),
         num_triangles(num_triangles),
         material_id(material_id),
         light_id(light_id) {}
@@ -37,7 +41,9 @@ struct Shape {
     int *indices;
     float *uvs;
     float *normals;
+    int *uv_indices;
     int num_vertices;
+    int num_uv_vertices;
     int num_triangles;
     int material_id;
     int light_id;
@@ -69,6 +75,13 @@ inline Vector3i get_indices(const Shape &shape, int index) {
     return Vector3i{shape.indices[3 * index + 0],
                     shape.indices[3 * index + 1],
                     shape.indices[3 * index + 2]};
+}
+
+DEVICE
+inline Vector3i get_uv_indices(const Shape &shape, int index) {
+    return Vector3i{shape.uv_indices[3 * index + 0],
+                    shape.uv_indices[3 * index + 1],
+                    shape.uv_indices[3 * index + 2]};
 }
 
 DEVICE
@@ -312,11 +325,15 @@ inline SurfacePoint intersect_shape(const Shape &shape,
     auto v0 = Vector3{get_vertex(shape, ind[0])};
     auto v1 = Vector3{get_vertex(shape, ind[1])};
     auto v2 = Vector3{get_vertex(shape, ind[2])};
+    auto uv_ind = ind;
+    if (shape.uv_indices != nullptr) {
+        uv_ind = get_uv_indices(shape, index);
+    }
     Vector2 uvs0, uvs1, uvs2;
     if (has_uvs(shape)) {
-        uvs0 = get_uv(shape, ind[0]);
-        uvs1 = get_uv(shape, ind[1]);
-        uvs2 = get_uv(shape, ind[2]);
+        uvs0 = get_uv(shape, uv_ind[0]);
+        uvs1 = get_uv(shape, uv_ind[1]);
+        uvs2 = get_uv(shape, uv_ind[2]);
     } else {
         uvs0 = Vector2{0.f, 0.f};
         uvs1 = Vector2{1.f, 0.f};
@@ -425,11 +442,15 @@ inline void d_intersect_shape(
     auto v0 = Vector3{get_vertex(shape, ind[0])};
     auto v1 = Vector3{get_vertex(shape, ind[1])};
     auto v2 = Vector3{get_vertex(shape, ind[2])};
+    auto uv_ind = ind;
+    if (shape.uv_indices != nullptr) {
+        uv_ind = get_uv_indices(shape, index);
+    }
     Vector2 uvs0, uvs1, uvs2;
     if (has_uvs(shape)) {
-        uvs0 = get_uv(shape, ind[0]);
-        uvs1 = get_uv(shape, ind[1]);
-        uvs2 = get_uv(shape, ind[2]);
+        uvs0 = get_uv(shape, uv_ind[0]);
+        uvs1 = get_uv(shape, uv_ind[1]);
+        uvs2 = get_uv(shape, uv_ind[2]);
     } else {
         uvs0 = Vector2{0.f, 0.f};
         uvs1 = Vector2{1.f, 0.f};
