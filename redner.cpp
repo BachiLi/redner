@@ -70,8 +70,10 @@ PYBIND11_MODULE(redner, m) {
                       ptr<float>, // uvs
                       ptr<float>, // normals
                       ptr<int>, // uv_indices
+                      ptr<int>, // normal_indices
                       int, // num_vertices
                       int, // num_uv_vertices
+                      int, // num_normal_vertices
                       int, // num_triangles
                       int, // material_id
                       int  // light_id

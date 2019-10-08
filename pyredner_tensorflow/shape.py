@@ -66,7 +66,8 @@ class Shape:
                  material_id: int,
                  uvs: Optional[tf.Tensor] = None,
                  normals: Optional[tf.Tensor] = None,
-                 uv_indices: Optional[tf.Tensor] = None):
+                 uv_indices: Optional[tf.Tensor] = None,
+                 normal_indices: Optional[tf.Tensor] = None):
         assert(tf.executing_eagerly())
         assert(vertices.dtype == tf.float32)
         assert(indices.dtype == tf.int32)
@@ -85,6 +86,8 @@ class Shape:
                 normals = tf.identity(normals).gpu(pyredner.get_gpu_device_id())
             if uv_indices is not None:
                 uv_indices = tf.identity(uv_indices).gpu(pyredner.get_gpu_device_id())
+            if normal_indices is not None:
+                normal_indices = tf.identity(normal_indices).gpu(pyredner.get_gpu_device_id())
         else:
             # Automatically copy to CPU
             vertices = tf.identity(vertices).cpu()
@@ -95,6 +98,8 @@ class Shape:
                 normals = tf.identity(normals).cpu()
             if uv_indices is not None:
                 uv_indices = tf.identity(uv_indices).cpu()
+            if normal_indices is not None:
+                normal_indices = tf.identity(uv_indices).cpu()
 
         self.vertices = vertices
         self.indices = indices
@@ -102,6 +107,7 @@ class Shape:
         self.uvs = uvs
         self.normals = normals
         self.uv_indices = uv_indices
+        self.normal_indices = normal_indices
         self.light_id = -1
 
     def state_dict(self):
@@ -112,6 +118,7 @@ class Shape:
             'uvs': self.uvs,
             'normals': self.normals,
             'uv_indices': self.uv_indices,
+            'normal_indices': self.normal_indices,
             'light_id': self.light_id
         }
 
@@ -123,6 +130,7 @@ class Shape:
             state_dict['uvs'],
             state_dict['normals'],
             state_dict['uv_indices'],
+            state_dict['normal_indices'],
             state_dict['material_id'])
         out.light_id = state_dict['light_id']
         return out

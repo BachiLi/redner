@@ -104,6 +104,7 @@ class RenderFunction(torch.autograd.Function):
             args.append(shape.uvs)
             args.append(shape.normals)
             args.append(shape.uv_indices)
+            args.append(shape.normal_indices)
             args.append(shape.material_id)
             args.append(shape.light_id)
         for material in scene.materials:
@@ -215,6 +216,8 @@ class RenderFunction(torch.autograd.Function):
             current_index += 1
             uv_indices = args[current_index]
             current_index += 1
+            normal_indices = args[current_index]
+            current_index += 1
             material_id = args[current_index]
             current_index += 1
             light_id = args[current_index]
@@ -227,14 +230,18 @@ class RenderFunction(torch.autograd.Function):
                 assert(normals.is_contiguous())
             if uv_indices is not None:
                 assert(uv_indices.is_contiguous())
+            if normal_indices is not None:
+                assert(normal_indices.is_contiguous())
             shapes.append(redner.Shape(\
                 redner.float_ptr(vertices.data_ptr()),
                 redner.int_ptr(indices.data_ptr()),
                 redner.float_ptr(uvs.data_ptr() if uvs is not None else 0),
                 redner.float_ptr(normals.data_ptr() if normals is not None else 0),
                 redner.int_ptr(uv_indices.data_ptr() if uv_indices is not None else 0),
+                redner.int_ptr(normal_indices.data_ptr() if normal_indices is not None else 0),
                 int(vertices.shape[0]),
                 int(uvs.shape[0]) if uvs is not None else 0,
+                int(normals.shape[0]) if normals is not None else 0,
                 int(indices.shape[0]),
                 material_id,
                 light_id))
@@ -647,6 +654,7 @@ class RenderFunction(torch.autograd.Function):
             ret_list.append(d_uvs_list[i])
             ret_list.append(d_normals_list[i])
             ret_list.append(None) # uv_indices
+            ret_list.append(None) # normal_indices
             ret_list.append(None) # material id
             ret_list.append(None) # light id
 

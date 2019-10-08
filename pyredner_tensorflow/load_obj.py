@@ -15,9 +15,17 @@ class WavefrontMaterial:
         self.map_Ns = None
 
 class TriangleMesh:
-    def __init__(self, vertices, indices, uvs, normals):
+    def __init__(self,
+                 indices,
+                 uv_indices,
+                 normal_indices,
+                 vertices,
+                 uvs,
+                 normals):
         self.vertices = vertices
         self.indices = indices
+        self.uv_indices = uv_indices
+        self.normal_indices = normal_indices
         self.uvs = uvs
         self.normals = normals
 
@@ -60,16 +68,30 @@ def load_obj(filename, obj_group = True, flip_tex_coords = True):
     uvs_pool = []
     normals_pool = []
     indices = []
+    uv_indices = []
+    normal_indices = []
     vertices = []
-    normals = []
     uvs = []
-    vertices_map = {}
+    normals = []
     material_map = {}
     current_mtllib = {}
     current_material_name = None
 
-    def create_mesh(indices, vertices, normals, uvs):
+    def create_mesh(indices,
+                    uv_indices,
+                    normal_indices,
+                    vertices,
+                    uvs,
+                    normals):
         indices = tf.constant(indices, dtype = tf.int32)
+        if len(uv_indices) == 0:
+            uv_indices = None
+        else:
+            uv_indices = tf.constant(uv_indices, dtype = tf.int32)
+        if len(normal_indices) == 0:
+            normal_indices = None
+        else:
+            normal_indices = tf.constant(normal_indices, dtype = tf.int32)
         vertices = tf.constant(vertices)
         if len(uvs) == 0:
             uvs = None
@@ -79,7 +101,12 @@ def load_obj(filename, obj_group = True, flip_tex_coords = True):
             normals = None
         else:
             normals = tf.constant(normals)
-        return TriangleMesh(vertices, indices, uvs, normals)
+        return TriangleMesh(indices,
+                            uv_indices,
+                            normal_indices,
+                            vertices,
+                            uvs,
+                            normals)
 
     mesh_list = []
     light_map = {}
@@ -97,12 +124,15 @@ def load_obj(filename, obj_group = True, flip_tex_coords = True):
         elif splitted[0] == 'usemtl':
             if len(indices) > 0 and obj_group is True:
                 # Flush
-                mesh_list.append((current_material_name, create_mesh(indices, vertices, normals, uvs)))
+                mesh_list.append((current_material_name,
+                    create_mesh(indices, uv_indices, normal_indices,
+                                vertices, uvs, normals)))
                 indices = []
+                uv_indices = []
+                normal_indices = []
                 vertices = []
                 normals = []
                 uvs = []
-                vertices_map = {}
             mtl_name = splitted[1]
             current_material_name = mtl_name
             if mtl_name not in material_map:
@@ -160,29 +190,44 @@ def load_obj(filename, obj_group = True, flip_tex_coords = True):
                 ni = None
                 if (num_indices(indices) > 2 and re.split('/', indices)[2] != ''):
                     ni = parse_face_index(indices, 2)
-                key = (pi, uvi, ni)
-                if key in vertices_map:
-                    return vertices_map[key]
 
                 vertex_id = len(vertices)
-                vertices_map[key] = vertex_id
+                uv_id = None
+                normal_id = None
+                if uvi is not None:
+                    uv_id = len(uvs)
+                if ni is not None:
+                    normal_id = len(normals)
+
                 vertices.append(vertices_pool[pi])
                 if uvi is not None:
                     uvs.append(uvs_pool[uvi])
                 if ni is not None:
                     normals.append(normals_pool[ni])
-                return vertex_id
-            vid0 = get_vertex_id(splitted[1])
-            vid1 = get_vertex_id(splitted[2])
-            vid2 = get_vertex_id(splitted[3])
+                return vertex_id, uv_id, normal_id
+            vid0, uv_id0, n_id0 = get_vertex_id(splitted[1])
+            vid1, uv_id1, n_id1 = get_vertex_id(splitted[2])
+            vid2, uv_id2, n_id2 = get_vertex_id(splitted[3])
 
             indices.append([vid0, vid1, vid2])
+            if uv_id0 is not None:
+                assert(uv_id1 is not None and uv_id2 is not None)
+                uv_indices.append([uv_id0, uv_id1, uv_id2])
+            if n_id0 is not None:
+                assert(n_id1 is not None and n_id2 is not None)
+                normal_indices.append([n_id0, n_id1, n_id2])
             if (len(splitted) == 5):
-                vid3 = get_vertex_id(splitted[4])
+                vid3, uv_id3, n_id3 = get_vertex_id(splitted[4])
                 indices.append([vid0, vid2, vid3])
+                if uv_id0 is not None:
+                    assert(uv_id3 is not None)
+                    uv_indices.append([uv_id0, uv_id2, uv_id3])
+                if n_id0 is not None:
+                    assert(n_id3 is not None)
+                    normal_indices.append([n_id0, n_id2, n_id3])
     
     mesh_list.append((current_material_name,
-        create_mesh(indices, vertices, normals, uvs)))
+        create_mesh(indices, uv_indices, normal_indices, vertices, uvs, normals)))
     if d != '':
         os.chdir(cwd)
 

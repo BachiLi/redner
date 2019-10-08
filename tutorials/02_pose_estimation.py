@@ -53,15 +53,20 @@ for key, value in material_map.items():
     count += 1
     materials.append(value)
 
-# Now we build a list of shapes using the list loaded from the Wavefront object file
+# Now we build a list of shapes using the list loaded from the Wavefront object file.
+# Meshes loaded from .obj files may have different indices for uvs and normals,
+# we use mesh.uv_indices and mesh.normal_indices to access them.
+# This mesh does not have normal_indices so the value is None.
 shapes = []
 for mtl_name, mesh in mesh_list:
+    assert(mesh.normal_indices is None)
     shapes.append(pyredner.Shape(\
         vertices = mesh.vertices,
         indices = mesh.indices,
+        material_id = material_id_map[mtl_name],
         uvs = mesh.uvs,
         normals = mesh.normals,
-        material_id = material_id_map[mtl_name]))
+        uv_indices = mesh.uv_indices))
 
 # The previous tutorial used a mesh area light for the scene lighting, 
 # here we use an environment light,

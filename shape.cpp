@@ -17,9 +17,11 @@ void test_d_intersect() {
                 nullptr, // uvs
                 nullptr, // normals
                 nullptr, // uv_indices
+                nullptr, // normal_indices
                 3, // num_vertices
-                1, // num_indices
-                0, // num_uvs
+                0, // num_uv_vertices
+                0, // num_normal_vertices
+                1, // num_triangles
                 0,
                 -1};
     SurfacePoint d_point;
@@ -275,9 +277,11 @@ void test_d_sample_shape() {
                 nullptr, // uvs
                 nullptr, // normals
                 nullptr, // uv_indices
+                nullptr, // normal_indices
                 3, // num_vertices
-                1, // num_indices
-                0, // num_uvs
+                0, // num_uv_vertices
+                0, // num_normal_vertices
+                1, // num_triangles
                 0,
                 -1};
     auto sample = Vector2{0.5, 0.5};

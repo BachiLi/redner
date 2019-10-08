@@ -126,6 +126,10 @@ def serialize_scene(scene: pyredner.Scene,
             args.append(__EMPTY_TENSOR)
         else:
             args.append(shape.uv_indices)
+        if shape.normal_indices is None:
+            args.append(__EMPTY_TENSOR)
+        else:
+            args.append(shape.normal_indices)
         args.append(tf.constant(shape.material_id))
         args.append(tf.constant(shape.light_id))
     for material in scene.materials: 
@@ -232,6 +236,8 @@ def forward(seed:int, *args):
             current_index += 1
             uv_indices = args[current_index]
             current_index += 1
+            normal_indices = args[current_index]
+            current_index += 1
             material_id = int(args[current_index])
             current_index += 1
             light_id = int(args[current_index])
@@ -242,8 +248,10 @@ def forward(seed:int, *args):
                 redner.float_ptr(pyredner.data_ptr(uvs) if uvs is not None else 0),
                 redner.float_ptr(pyredner.data_ptr(normals) if normals is not None else 0),
                 redner.int_ptr(pyredner.data_ptr(uv_indices) if uv_indices is not None else 0),
+                redner.int_ptr(pyredner.data_ptr(normal_indices) if normal_indices is not None else 0),
                 int(vertices.shape[0]),
                 int(uvs.shape[0]) if uvs is not None else 0,
+                int(normals.shape[0]) if normals is not None else 0,
                 int(indices.shape[0]),
                 material_id,
                 light_id))
@@ -696,6 +704,7 @@ def render(*x):
             ret_list.append(d_uvs_list[i])
             ret_list.append(d_normals_list[i])
             ret_list.append(None) # uv_indices
+            ret_list.append(None) # normal_indices
             ret_list.append(None) # material id
             ret_list.append(None) # light id
 
