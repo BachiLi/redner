@@ -59,7 +59,7 @@ def compute_vertex_normal(vertices, indices):
         degenerate_normals)
     return normals
 
-def compute_uvs(vertices, indices):
+def compute_uvs(vertices, indices, print_progress = True):
     """
         Args: vertices -- N x 3 float tensor
               indices -- M x 3 int tensor
@@ -78,7 +78,7 @@ def compute_uvs(vertices, indices):
                                       int(indices.shape[0]))
 
         atlas = redner.TextureAtlas()
-        num_uv_vertices = redner.automatic_uv_map([uv_trimesh], atlas, True)[0]
+        num_uv_vertices = redner.automatic_uv_map([uv_trimesh], atlas, print_progress)[0]
 
         uvs = tf.zeros(num_uv_vertices, 2, dtype=tf.float32)
         uv_indices = tf.zeros_like(indices)
