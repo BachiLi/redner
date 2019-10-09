@@ -247,7 +247,7 @@ def load_obj(filename,
                             normal_id = normals_map[ni]
                         else:
                             normal_id = len(normals)
-                            normals.append(normals_pool[uvi])
+                            normals.append(normals_pool[ni])
                             normals_map[ni] = normal_id
                     return vertex_id, uv_id, normal_id
 
