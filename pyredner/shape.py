@@ -1,6 +1,7 @@
 import pyredner
 import torch
 import math
+import redner
 
 def compute_vertex_normal(vertices, indices):
     def dot(v1, v2):
@@ -54,6 +55,41 @@ def compute_vertex_normal(vertices, indices):
         degenerate_normals)
     assert(torch.isfinite(normals).all())
     return normals.contiguous()
+
+def compute_uvs(vertices, indices):
+    """
+        Args: vertices -- N x 3 float tensor
+              indices -- M x 3 int tensor
+        Return: uvs & uvs_indices
+    """
+    vertices = vertices.cpu()
+    indices = indices.cpu()
+
+    uv_trimesh = redner.UVTriMesh(redner.float_ptr(vertices.data_ptr()),
+                                  redner.int_ptr(indices.data_ptr()),
+                                  redner.float_ptr(0),
+                                  redner.int_ptr(0),
+                                  int(vertices.shape[0]),
+                                  0,
+                                  int(indices.shape[0]))
+
+    atlas = redner.TextureAtlas()
+    num_uv_vertices = redner.automatic_uv_map([uv_trimesh], atlas, True)[0]
+
+    uvs = torch.zeros(num_uv_vertices, 2, dtype=torch.float32)
+    uv_indices = torch.zeros_like(indices)
+    uv_trimesh.uvs = redner.float_ptr(uvs.data_ptr())
+    uv_trimesh.uv_indices = redner.int_ptr(uv_indices.data_ptr())
+    uv_trimesh.num_uv_vertices = num_uv_vertices
+
+    redner.copy_texture_atlas(atlas, [uv_trimesh])
+
+    if pyredner.get_use_gpu():
+        vertices = vertices.cuda(device = pyredner.get_device())
+        indices = indices.cuda(device = pyredner.get_device())
+        uvs = uvs.cuda(device = pyredner.get_device())
+        uv_indices = uv_indices.cuda(device = pyredner.get_device())
+    return uvs, uv_indices
 
 class Shape:
     """

@@ -59,6 +59,42 @@ def compute_vertex_normal(vertices, indices):
         degenerate_normals)
     return normals
 
+def compute_uvs(vertices, indices):
+    """
+        Args: vertices -- N x 3 float tensor
+              indices -- M x 3 int tensor
+        Return: uvs & uvs_indices
+    """
+    vertices = tf.identity(vertices).cpu()
+    indices = tf.identity(indices).cpu()
+
+    with tf.device('/device:cpu:' + str(pyredner.get_cpu_device_id())):
+        uv_trimesh = redner.UVTriMesh(redner.float_ptr(pyredner.data_ptr(vertices)),
+                                      redner.int_ptr(pyredner.data_ptr(indices)),
+                                      redner.float_ptr(0),
+                                      redner.int_ptr(0),
+                                      int(vertices.shape[0]),
+                                      0,
+                                      int(indices.shape[0]))
+
+        atlas = redner.TextureAtlas()
+        num_uv_vertices = redner.automatic_uv_map([uv_trimesh], atlas, True)[0]
+
+        uvs = tf.zeros(num_uv_vertices, 2, dtype=tf.float32)
+        uv_indices = tf.zeros_like(indices)
+        uv_trimesh.uvs = redner.float_ptr(pyredner.data_ptr(uvs))
+        uv_trimesh.uv_indices = redner.int_ptr(pyredner.data_ptr(uv_indices))
+        uv_trimesh.num_uv_vertices = num_uv_vertices
+
+        redner.copy_texture_atlas(atlas, [uv_trimesh])
+
+    if pyredner.get_use_gpu():
+        vertices = tf.identity(vertices).gpu(pyredner.get_gpu_device_id())
+        indices = tf.identity(indices).gpu(pyredner.get_gpu_device_id())
+        uvs = tf.identity(uvs).cuda(device = pyredner.get_device())
+        uv_indices = tf.identity(uv_indices).cuda(device = pyredner.get_device())
+    return uvs, uv_indices
+
 class Shape:
     def __init__(self,
                  vertices: tf.Tensor,

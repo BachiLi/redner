@@ -50,6 +50,7 @@ set(SRCS aabb.h
          active_pixels.h
          area_light.h
          atomic.h
+         automatic_uv_map.h
          bsdf_sample.h
          buffer.h
          camera.h
@@ -84,8 +85,10 @@ set(SRCS aabb.h
          texture.h
          transform.h
          vector.h
+         xatlas/xatlas.h
          aabb.cpp
          active_pixels.cpp
+         automatic_uv_map.cpp
          bsdf_sample.cpp
          camera.cpp
          channels.cpp
@@ -105,7 +108,8 @@ set(SRCS aabb.h
          redner.cpp
          scene.cpp
          shape.cpp
-         sobol_sampler.cpp)
+         sobol_sampler.cpp
+         xatlas/xatlas.cpp)
 
 if(APPLE)
     # The "-undefined dynamic_lookup" is a hack for systems with

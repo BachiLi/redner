@@ -7,3 +7,6 @@
 [submodule "embree"]
 	path = embree
 	url = https://github.com/embree/embree.git
+[submodule "xatlas"]
+	path = xatlas
+	url = https://github.com/jpcy/xatlas.git
