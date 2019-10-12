@@ -1,4 +1,8 @@
 #include "automatic_uv_map.h"
+#include <ctime>
+#include <cstdio>
+#include <cstdarg>
+#include <stdexcept>
 
 class Stopwatch {
 public:
