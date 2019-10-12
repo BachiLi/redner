@@ -35,11 +35,11 @@ with tf.device(pyredner.get_device_name()):
     vertices = tf.Variable([[-1.7,1.0,0.0], [1.0,1.0,0.0], [-0.5,-1.0,0.0]],
         dtype=tf.float32, use_resource=True)
     indices = tf.constant([[0, 1, 2]], dtype=tf.int32)
-    shape_triangle = pyredner.Shape(vertices, indices, None, None, 0)
+    shape_triangle = pyredner.Shape(vertices, indices, 0)
     light_vertices = tf.Variable([[-1.0,-1.0,-9.0],[1.0,-1.0,-9.0],[-1.0,1.0,-9.0],[1.0,1.0,-9.0]],
         dtype=tf.float32, use_resource=True)
     light_indices = tf.constant([[0,1,2],[1,3,2]], dtype=tf.int32)
-    shape_light = pyredner.Shape(light_vertices, light_indices, None, None, 0)
+    shape_light = pyredner.Shape(light_vertices, light_indices, 0)
 shapes = [shape_triangle, shape_light]
 
 with tf.device('/device:cpu:' + str(pyredner.get_cpu_device_id())):

@@ -80,14 +80,16 @@ class RenderFunction(torch.autograd.Function):
         args.append(num_shapes)
         args.append(num_materials)
         args.append(num_lights)
-        assert(torch.isfinite(cam.position).all())
-        assert(torch.isfinite(cam.look_at).all())
-        assert(torch.isfinite(cam.up).all())
+        assert(cam.position is None or torch.isfinite(cam.position).all())
+        assert(cam.look_at is None or torch.isfinite(cam.look_at).all())
+        assert(cam.up is None or torch.isfinite(cam.up).all())
         assert(torch.isfinite(cam.ndc_to_cam).all())
         assert(torch.isfinite(cam.cam_to_ndc).all())
         args.append(cam.position)
         args.append(cam.look_at)
         args.append(cam.up)
+        args.append(cam.cam_to_world)
+        args.append(cam.world_to_cam)
         args.append(cam.ndc_to_cam)
         args.append(cam.cam_to_ndc)
         args.append(cam.clip_near)
@@ -179,11 +181,16 @@ class RenderFunction(torch.autograd.Function):
         current_index += 1
         num_lights = args[current_index]
         current_index += 1
+        
         cam_position = args[current_index]
         current_index += 1
         cam_look_at = args[current_index]
         current_index += 1
         cam_up = args[current_index]
+        current_index += 1
+        cam_to_world = args[current_index]
+        current_index += 1
+        world_to_cam = args[current_index]
         current_index += 1
         ndc_to_cam = args[current_index]
         current_index += 1
@@ -195,15 +202,30 @@ class RenderFunction(torch.autograd.Function):
         current_index += 1
         camera_type = args[current_index]
         current_index += 1
-        camera = redner.Camera(resolution[1],
-                               resolution[0],
-                               redner.float_ptr(cam_position.data_ptr()),
-                               redner.float_ptr(cam_look_at.data_ptr()),
-                               redner.float_ptr(cam_up.data_ptr()),
-                               redner.float_ptr(ndc_to_cam.data_ptr()),
-                               redner.float_ptr(cam_to_ndc.data_ptr()),
-                               clip_near,
-                               camera_type)
+        if cam_to_world is None:
+            camera = redner.Camera(resolution[1],
+                                   resolution[0],
+                                   redner.float_ptr(cam_position.data_ptr()),
+                                   redner.float_ptr(cam_look_at.data_ptr()),
+                                   redner.float_ptr(cam_up.data_ptr()),
+                                   redner.float_ptr(0), # cam_to_world
+                                   redner.float_ptr(0), # world_to_cam
+                                   redner.float_ptr(ndc_to_cam.data_ptr()),
+                                   redner.float_ptr(cam_to_ndc.data_ptr()),
+                                   clip_near,
+                                   camera_type)
+        else:
+            camera = redner.Camera(resolution[1],
+                                   resolution[0],
+                                   redner.float_ptr(0), # cam_position
+                                   redner.float_ptr(0), # cam_look_at
+                                   redner.float_ptr(0), # cam_up
+                                   redner.float_ptr(cam_to_world.data_ptr()),
+                                   redner.float_ptr(world_to_cam.data_ptr()),
+                                   redner.float_ptr(ndc_to_cam.data_ptr()),
+                                   redner.float_ptr(cam_to_ndc.data_ptr()),
+                                   clip_near,
+                                   camera_type)
         shapes = []
         for i in range(num_shapes):
             vertices = args[current_index]
@@ -424,6 +446,7 @@ class RenderFunction(torch.autograd.Function):
         # pyredner.imwrite(debug_img, 'debug.exr')
         # exit()
 
+        ctx.camera = camera
         ctx.shapes = shapes
         ctx.materials = materials
         ctx.area_lights = area_lights
@@ -440,17 +463,38 @@ class RenderFunction(torch.autograd.Function):
             grad_img = grad_img.contiguous()
         scene = ctx.scene
         options = ctx.options
-
-        d_cam_position = torch.zeros(3, device = pyredner.get_device())
-        d_cam_look = torch.zeros(3, device = pyredner.get_device())
-        d_cam_up = torch.zeros(3, device = pyredner.get_device())
+        camera = ctx.camera
+        
+        if camera.use_look_at:
+            d_cam_position = torch.zeros(3, device = pyredner.get_device())
+            d_cam_look = torch.zeros(3, device = pyredner.get_device())
+            d_cam_up = torch.zeros(3, device = pyredner.get_device())
+            d_cam_to_world = None
+            d_wolrd_to_cam = None
+        else:
+            d_cam_position = None
+            d_cam_look = None
+            d_cam_up = None
+            d_cam_to_world = torch.zeros(4, 4, device = pyredner.get_device())
+            d_wolrd_to_cam = torch.zeros(4, 4, device = pyredner.get_device())
         d_ndc_to_cam = torch.zeros(3, 3, device = pyredner.get_device())
         d_cam_to_ndc = torch.zeros(3, 3, device = pyredner.get_device())
-        d_camera = redner.DCamera(redner.float_ptr(d_cam_position.data_ptr()),
-                                  redner.float_ptr(d_cam_look.data_ptr()),
-                                  redner.float_ptr(d_cam_up.data_ptr()),
-                                  redner.float_ptr(d_ndc_to_cam.data_ptr()),
-                                  redner.float_ptr(d_cam_to_ndc.data_ptr()))
+        if camera.use_look_at:
+            d_camera = redner.DCamera(redner.float_ptr(d_cam_position.data_ptr()),
+                                      redner.float_ptr(d_cam_look.data_ptr()),
+                                      redner.float_ptr(d_cam_up.data_ptr()),
+                                      redner.float_ptr(0), # cam_to_world
+                                      redner.float_ptr(0), # world_to_cam
+                                      redner.float_ptr(d_ndc_to_cam.data_ptr()),
+                                      redner.float_ptr(d_cam_to_ndc.data_ptr()))
+        else:
+            d_camera = redner.DCamera(redner.float_ptr(0), # pos
+                                      redner.float_ptr(0), # look
+                                      redner.float_ptr(0), # up
+                                      redner.float_ptr(d_cam_to_world.data_ptr()),
+                                      redner.float_ptr(d_wolrd_to_cam.data_ptr()),
+                                      redner.float_ptr(d_ndc_to_cam.data_ptr()),
+                                      redner.float_ptr(d_cam_to_ndc.data_ptr()))
         d_vertices_list = []
         d_uvs_list = []
         d_normals_list = []
@@ -638,9 +682,18 @@ class RenderFunction(torch.autograd.Function):
         ret_list.append(None) # num_shapes
         ret_list.append(None) # num_materials
         ret_list.append(None) # num_lights
-        ret_list.append(d_cam_position.cpu())
-        ret_list.append(d_cam_look.cpu())
-        ret_list.append(d_cam_up.cpu())
+        if camera.use_look_at:
+            ret_list.append(d_cam_position.cpu())
+            ret_list.append(d_cam_look.cpu())
+            ret_list.append(d_cam_up.cpu())
+            ret_list.append(None) # cam_to_world
+            ret_list.append(None) # world_to_cam
+        else:
+            ret_list.append(None) # pos
+            ret_list.append(None) # look
+            ret_list.append(None) # up
+            ret_list.append(d_cam_to_world.cpu())
+            ret_list.append(d_world_to_cam.cpu())
         ret_list.append(d_ndc_to_cam.cpu())
         ret_list.append(d_cam_to_ndc.cpu())
         ret_list.append(None) # clip near

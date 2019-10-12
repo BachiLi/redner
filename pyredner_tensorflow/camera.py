@@ -22,6 +22,7 @@ class Camera:
                                          no effect if the camera is a fisheye camera
             clip_near (float): the near clipping plane of the camera, need to > 0
             resolution (length 2 tuple): the size of the output image in (height, width)
+            cam_to_world (4x4 matrix): overrides position, look_at, up vectors.
             cam_to_ndc (3x3 matrix): a matrix that transforms
                 [-1, 1/aspect_ratio] x [1, -1/aspect_ratio] to [0, 1] x [0, 1]
                 where aspect_ratio = width / height
@@ -35,6 +36,7 @@ class Camera:
                  fov: tf.Tensor,
                  clip_near: float,
                  resolution: Tuple[int],
+                 cam_to_world: tf.Tensor = None,
                  cam_to_ndc: tf.Tensor = None,
                  camera_type = redner.CameraType.perspective,
                  fisheye: bool = False):
@@ -55,6 +57,11 @@ class Camera:
             self.look_at = tf.identity(look_at).cpu()
             self.up = tf.identity(up).cpu()
             self.fov = tf.identity(fov).cpu()
+            self._cam_to_world = cam_to_world
+            if cam_to_world is not None:
+                self.world_to_cam = tf.linalg.inv(self.cam_to_world)
+            else:
+                self.world_to_cam = None
             if cam_to_ndc is None:
                 if camera_type == redner.CameraType.perspective:
                     fov_factor = 1.0 / tf.tan(transform.radians(0.5 * fov))
@@ -96,12 +103,23 @@ class Camera:
             self._cam_to_ndc = tf.identity(value).cpu()
             self.ndc_to_cam = tf.linalg.inv(self._cam_to_ndc)
 
+    @property
+    def cam_to_world(self):
+        return self._cam_to_world
+
+    @cam_to_world.setter
+    def cam_to_world(self, value):
+        self._cam_to_world = value
+        self.world_to_cam = tf.linalg.inv(self.cam_to_world)
+
     def state_dict(self):
         return {
             'position': self.position,
             'look_at': self.look_at,
             'up': self.up,
             'fov': self.fov,
+            'cam_to_world': self._cam_to_world,
+            'world_to_cam': self.world_to_cam,
             'cam_to_ndc': self._cam_to_ndc,
             'ndc_to_cam': self.ndc_to_cam,
             'clip_near': self.clip_near,
@@ -116,6 +134,8 @@ class Camera:
         out.look_at = state_dict['look_at']
         out.up = state_dict['up']
         out.fov = state_dict['fov']
+        out._cam_to_world = state_dict['cam_to_world']
+        out.world_to_cam = state_dict['world_to_cam']
         out._cam_to_ndc = state_dict['cam_to_ndc']
         out.ndc_to_cam = state_dict['ndc_to_cam']
         out.clip_near = state_dict['clip_near']

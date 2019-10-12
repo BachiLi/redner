@@ -91,11 +91,11 @@ with tf.device(pyredner.get_device_name()):
     indices = tf.constant([[0, 1, 2], [1, 3, 2]], dtype=tf.int32)
     uvs = tf.Variable([[0.05, 0.05], [0.05, 0.95], [0.95, 0.05], [0.95, 0.95]],
         dtype=tf.float32, use_resource=True)
-    shape_plane = pyredner.Shape(vertices, indices, uvs, None, 0)
+    shape_plane = pyredner.Shape(vertices, indices, 0, uvs)
     light_vertices = tf.Variable([[-1.0,-1.0,-7.0],[1.0,-1.0,-7.0],[-1.0,1.0,-7.0],[1.0,1.0,-7.0]],
         dtype=tf.float32, use_resource=True)
     light_indices = tf.constant([[0,1,2],[1,3,2]], dtype=tf.int32)
-    shape_light = pyredner.Shape(light_vertices, light_indices, None, None, 1)
+    shape_light = pyredner.Shape(light_vertices, light_indices, 1)
 shapes = [shape_plane, shape_light]
 with tf.device('/device:cpu:' + str(pyredner.get_cpu_device_id())):
     light_intensity = tf.Variable([20.0, 20.0, 20.0], dtype=tf.float32, use_resource=True)

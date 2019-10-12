@@ -38,11 +38,14 @@ indices = torch.tensor([[0, 1, 2], [1, 3, 2]], dtype = torch.int32,
                        device = pyredner.get_device())
 uvs = torch.tensor([[0.05, 0.05], [0.05, 0.95], [0.95, 0.05], [0.95, 0.95]],
 				   device = pyredner.get_device())
-shape_plane = pyredner.Shape(vertices, indices, uvs, None, 0)
+shape_plane = pyredner.Shape(vertices = vertices,
+                             indices = indices,
+                             uvs = uvs,
+                             material_id = 0)
 light_vertices = torch.tensor([[-1.0,-1.0,-7.0],[1.0,-1.0,-7.0],[-1.0,1.0,-7.0],[1.0,1.0,-7.0]],
                               device = pyredner.get_device())
 light_indices = torch.tensor([[0,1,2],[1,3,2]], dtype = torch.int32, device = pyredner.get_device())
-shape_light = pyredner.Shape(light_vertices, light_indices, None, None, 1)
+shape_light = pyredner.Shape(light_vertices, light_indices, 1)
 shapes = [shape_plane, shape_light]
 light_intensity = torch.tensor([20.0, 20.0, 20.0])
 # The first argument is the shape id of the light

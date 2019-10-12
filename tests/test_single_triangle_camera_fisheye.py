@@ -29,11 +29,11 @@ mat_grey = pyredner.Material(\
 materials = [mat_grey]
 vertices = torch.tensor([[-1.7,1.0,0.0], [1.0,1.0,0.0], [-0.5,-1.0,0.0]], device = pyredner.get_device())
 indices = torch.tensor([[0, 1, 2]], dtype = torch.int32, device = pyredner.get_device())
-shape_triangle = pyredner.Shape(vertices, indices, None, None, 0)
+shape_triangle = pyredner.Shape(vertices, indices, 0)
 light_vertices = torch.tensor([[-1.0,-1.0,-9.0],[1.0,-1.0,-9.0],[-1.0,1.0,-9.0],[1.0,1.0,-9.0]],
                               device = pyredner.get_device())
 light_indices = torch.tensor([[0,1,2],[1,3,2]], dtype = torch.int32, device = pyredner.get_device())
-shape_light = pyredner.Shape(light_vertices, light_indices, None, None, 0)
+shape_light = pyredner.Shape(light_vertices, light_indices, 0)
 shapes = [shape_triangle, shape_light]
 light_intensity = torch.tensor([30.0,30.0,30.0])
 light = pyredner.AreaLight(1, light_intensity)

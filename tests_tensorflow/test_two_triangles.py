@@ -41,12 +41,12 @@ with tf.device(pyredner.get_device_name()):
         [[-1.0,1.5,1.0], [0.2,1.5,1.0], [0.2,-1.5,1.0]], dtype=tf.float32, use_resource=True)
     tri0_indices = tf.constant([[0, 1, 2]], dtype=tf.int32)
     tri1_indices = tf.constant([[0, 1, 2]], dtype=tf.int32)
-    shape_tri0 = pyredner.Shape(tri0_vertices, tri0_indices, None, None, 0)
-    shape_tri1 = pyredner.Shape(tri1_vertices, tri1_indices, None, None, 1)
+    shape_tri0 = pyredner.Shape(tri0_vertices, tri0_indices, 0)
+    shape_tri1 = pyredner.Shape(tri1_vertices, tri1_indices, 1)
     light_vertices = tf.Variable([[-1.0,-1.0,-7.0],[1.0,-1.0,-7.0],[-1.0,1.0,-7.0],[1.0,1.0,-7.0]],
         dtype=tf.float32, use_resource=True)
     light_indices = tf.constant([[0,1,2],[1,3,2]], dtype=tf.int32)
-    shape_light = pyredner.Shape(light_vertices, light_indices, None, None, 2)
+    shape_light = pyredner.Shape(light_vertices, light_indices, 2)
     shapes = [shape_tri0, shape_tri1, shape_light]
 
 with tf.device('/device:cpu:' + str(pyredner.get_cpu_device_id())):

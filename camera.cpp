@@ -61,6 +61,8 @@ void test_sample_primary_rays(bool use_gpu) {
         &pos[0],
         &look[0],
         &up[0],
+        nullptr, // cam_to_world
+        nullptr, // world_to_cam
         &n2c.data[0][0],
         &c2n.data[0][0],
         1e-2f,
@@ -96,6 +98,8 @@ void test_d_sample_primary_rays() {
         &pos[0],
         &look[0],
         &up[0],
+        nullptr, // cam_to_world
+        nullptr, // world_to_cam
         &n2c.data[0][0],
         &c2n.data[0][0],
         1e-2f,
@@ -105,7 +109,13 @@ void test_d_sample_primary_rays() {
     auto d_up = Vector3f{0, 0, 0};
     Matrix3x3f d_n2c = Matrix3x3f{};
     Matrix3x3f d_c2n = Matrix3x3f{};
-    DCamera d_camera{&d_pos[0], &d_look[0], &d_up[0], &d_n2c(0, 0), &d_c2n(0, 0)};
+    DCamera d_camera{&d_pos[0],
+                     &d_look[0],
+                     &d_up[0],
+                     nullptr, // cam_to_world
+                     nullptr, // world_to_cam
+                     &d_n2c(0, 0),
+                     &d_c2n(0, 0)};
     DRay d_ray{Vector3{1, 1, 1}, Vector3{1, 1, 1}};
     d_sample_primary_ray(camera,
                          Vector2{0.5, 0.5},
@@ -121,6 +131,8 @@ void test_d_sample_primary_rays() {
             &delta_pos[0],
             &look[0],
             &up[0],
+            nullptr, // cam_to_world
+            nullptr, // world_to_cam
             &n2c.data[0][0],
             &c2n.data[0][0],
             1e-2f,
@@ -133,6 +145,8 @@ void test_d_sample_primary_rays() {
             &delta_pos[0],
             &look[0],
             &up[0],
+            nullptr, // cam_to_world
+            nullptr, // world_to_cam
             &n2c.data[0][0],
             &c2n.data[0][0],
             1e-2f,
@@ -152,6 +166,8 @@ void test_d_sample_primary_rays() {
             &pos[0],
             &delta_look[0],
             &up[0],
+            nullptr, // cam_to_world
+            nullptr, // world_to_cam
             &n2c.data[0][0],
             &c2n.data[0][0],
             1e-2f,
@@ -164,6 +180,8 @@ void test_d_sample_primary_rays() {
             &pos[0],
             &delta_look[0],
             &up[0],
+            nullptr, // cam_to_world
+            nullptr, // world_to_cam
             &n2c.data[0][0],
             &c2n.data[0][0],
             1e-2f,
@@ -182,6 +200,8 @@ void test_d_sample_primary_rays() {
             1, 1,
             &pos[0],
             &look[0],
+            nullptr, // cam_to_world
+            nullptr, // world_to_cam
             &delta_up[0],
             &n2c.data[0][0],
             &c2n.data[0][0],
@@ -194,6 +214,8 @@ void test_d_sample_primary_rays() {
             1, 1,
             &pos[0],
             &look[0],
+            nullptr, // cam_to_world
+            nullptr, // world_to_cam
             &delta_up[0],
             &n2c.data[0][0],
             &c2n.data[0][0],
@@ -233,6 +255,8 @@ void test_d_camera_to_screen() {
         &pos[0],
         &look[0],
         &up[0],
+        nullptr, // cam_to_world
+        nullptr, // world_to_cam
         &n2c.data[0][0],
         &c2n.data[0][0],
         1e-2f,
@@ -245,7 +269,13 @@ void test_d_camera_to_screen() {
     auto d_up = Vector3f{0, 0, 0};
     Matrix3x3f d_n2c = Matrix3x3f{};
     Matrix3x3f d_c2n = Matrix3x3f{};
-    DCamera d_camera{&d_pos[0], &d_look[0], &d_up[0], &d_n2c(0, 0), &d_c2n(0, 0)};
+    DCamera d_camera{&d_pos[0],
+                     &d_look[0],
+                     &d_up[0],
+                     nullptr, // cam_to_world
+                     nullptr, // world_to_cam
+                     &d_n2c(0, 0),
+                     &d_c2n(0, 0)};
     auto d_pt = Vector3{0, 0, 0};
     d_camera_to_screen(camera, pt, dx, dy, d_camera, d_pt);
     // Compare with central difference
@@ -258,6 +288,8 @@ void test_d_camera_to_screen() {
             &delta_pos[0],
             &look[0],
             &up[0],
+            nullptr, // cam_to_world
+            nullptr, // world_to_cam
             &n2c.data[0][0],
             &c2n.data[0][0],
             1e-2f,
@@ -269,6 +301,8 @@ void test_d_camera_to_screen() {
             &delta_pos[0],
             &look[0],
             &up[0],
+            nullptr, // cam_to_world
+            nullptr, // world_to_cam
             &n2c.data[0][0],
             &c2n.data[0][0],
             1e-2f,
@@ -285,6 +319,8 @@ void test_d_camera_to_screen() {
             &pos[0],
             &delta_look[0],
             &up[0],
+            nullptr, // cam_to_world
+            nullptr, // world_to_cam
             &n2c.data[0][0],
             &c2n.data[0][0],
             1e-2f,
@@ -296,6 +332,8 @@ void test_d_camera_to_screen() {
             &pos[0],
             &delta_look[0],
             &up[0],
+            nullptr, // cam_to_world
+            nullptr, // world_to_cam
             &n2c.data[0][0],
             &c2n.data[0][0],
             1e-2f,
@@ -312,6 +350,8 @@ void test_d_camera_to_screen() {
             &pos[0],
             &look[0],
             &delta_up[0],
+            nullptr, // cam_to_world
+            nullptr, // world_to_cam
             &n2c.data[0][0],
             &c2n.data[0][0],
             1e-2f,
@@ -323,6 +363,8 @@ void test_d_camera_to_screen() {
             &pos[0],
             &look[0],
             &delta_up[0],
+            nullptr, // cam_to_world
+            nullptr, // world_to_cam
             &n2c.data[0][0],
             &c2n.data[0][0],
             1e-2f,

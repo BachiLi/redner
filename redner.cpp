@@ -25,25 +25,31 @@ PYBIND11_MODULE(redner, m) {
     py::enum_<CameraType>(m, "CameraType")
         .value("perspective", CameraType::Perspective)
         .value("orthographic", CameraType::Orthographic)
-        .value("fisheye", CameraType::Fisheye);
+        .value("fisheye", CameraType::Fisheye)
+        .value("panorama", CameraType::Panorama);
 
     py::class_<Camera>(m, "Camera")
         .def(py::init<int,
                       int,
-                      ptr<float>,
-                      ptr<float>,
-                      ptr<float>,
-                      ptr<float>,
-                      ptr<float>,
-                      float,
-                      CameraType>());
+                      ptr<float>, // position
+                      ptr<float>, // look
+                      ptr<float>, // up
+                      ptr<float>, // cam_to_world
+                      ptr<float>, // world_to_cam
+                      ptr<float>, // ndc_to_cam
+                      ptr<float>, // cam_to_ndc
+                      float, // clip_near
+                      CameraType>())
+        .def_readonly("use_look_at", &Camera::use_look_at);
 
     py::class_<DCamera>(m, "DCamera")
-        .def(py::init<ptr<float>,
-                      ptr<float>,
-                      ptr<float>,
-                      ptr<float>,
-                      ptr<float>>());
+        .def(py::init<ptr<float>, // position
+                      ptr<float>, // look
+                      ptr<float>, // up
+                      ptr<float>, // cam_to_world
+                      ptr<float>, // world_to_cam
+                      ptr<float>, // ndc_to_cam
+                      ptr<float>>()); // cam_to_ndc
 
     py::class_<Scene>(m, "Scene")
         .def(py::init<const Camera &,

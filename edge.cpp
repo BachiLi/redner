@@ -417,7 +417,8 @@ struct primary_edge_sampler {
             return;
         }
 
-        if (camera.camera_type != CameraType::Fisheye) {
+        if (camera.camera_type == CameraType::Perspective ||
+                camera.camera_type == CameraType::Orthographic) {
             // Perspective or Orthographic cameras
 
             // Uniform sample on the edge
@@ -458,7 +459,7 @@ struct primary_edge_sampler {
             // of the edge equation w.r.t. screen coordinate.
             // For perspective projection the length of edge and gradients
             // cancel each other out.
-            // For fisheye we need to compute the Jacobians
+            // For fisheye & panorama we need to compute the Jacobians
             auto upper_weight = d_color / edges_pmf[edge_id];
             auto lower_weight = -d_color / edges_pmf[edge_id];
 
@@ -474,6 +475,10 @@ struct primary_edge_sampler {
                 channel_multipliers[2 * nd * idx + d + nd] = -d_channel / edges_pmf[edge_id];
             }
         } else {
+            assert(camera.camera_type == CameraType::Fisheye ||
+                camera.camera_type == CameraType::Panorama);
+            // Fisheye or Panorama
+
             // In paper we focused on linear projection model.
             // However we also support non-linear models such as fisheye
             // projection.
@@ -506,7 +511,7 @@ struct primary_edge_sampler {
             edge_records[idx].edge = edge;
             edge_records[idx].edge_pt = edge_pt;
 
-            // The edge equation for the fisheye camera is:
+            // The 3D edge equation for the fisheye & panorama camera is:
             // alpha(p) = dot(p, cross(v0_dir, v1_dir))
             // Thus the half-space normal is cross(v0_dir, v1_dir)
             // Generate two rays at the two sides of the edge
@@ -543,7 +548,7 @@ struct primary_edge_sampler {
             // of the edge equation w.r.t. screen coordinate.
             // For perspective projection the length of edge and gradients
             // cancel each other out.
-            // For fisheye we need to compute the Jacobians
+            // For fisheye & Panorama we need to compute the Jacobians
             auto upper_weight = d_color / edges_pmf[edge_id];
             auto lower_weight = -d_color / edges_pmf[edge_id];
 
@@ -708,13 +713,17 @@ struct primary_edge_derivatives_computer {
         auto d_v0_ss = Vector2{0, 0};
         auto d_v1_ss = Vector2{0, 0};
         auto edge_pt = edge_record.edge_pt;
-        if (camera.camera_type != CameraType::Fisheye) {
+        if (camera.camera_type == CameraType::Perspective ||
+                camera.camera_type == CameraType::Orthographic) {
             // Equation 8 in the paper
             d_v0_ss.x = v1_ss.y - edge_pt.y;
             d_v0_ss.y = edge_pt.x - v1_ss.x;
             d_v1_ss.x = edge_pt.y - v0_ss.y;
             d_v1_ss.y = v0_ss.x - edge_pt.x;
         } else {
+            assert(camera.camera_type == CameraType::Fisheye ||
+                   camera.camera_type == CameraType::Panorama);
+
             // This also works for perspective camera,
             // but for consistency we provide two versions.
             // alpha(p) = dot(p, cross(v0_dir, v1_dir))

@@ -39,7 +39,7 @@ with tf.device(pyredner.get_device_name()):
     floor_vertices = tf.Variable([[-20.0,0.0,-20.0],[-20.0,0.0,20.0],[20.0,0.0,-20.0],[20.0,0.0,20.0]],
         dtype=tf.float32, use_resource=True)
     floor_indices = tf.constant([[0,1,2], [1,3,2]], dtype=tf.int32)
-    shape_floor = pyredner.Shape(floor_vertices, floor_indices, None, None, 0)
+    shape_floor = pyredner.Shape(floor_vertices, floor_indices, 0)
     blocker_vertices = tf.Variable([[-0.5,10.0,-0.5],[-0.5,10.0,0.5],[0.5,10.0,-0.5],[0.5,10.0,0.5]],
         dtype=tf.float32, use_resource=True)
     blocker_indices = tf.constant([[0,1,2], [1,3,2]], dtype=tf.int32)
@@ -47,7 +47,7 @@ with tf.device(pyredner.get_device_name()):
     light_vertices = tf.Variable([[-0.1,15,-0.1],[-0.1,15,0.1],[0.1,15,-0.1],[0.1,15,0.1]],
         dtype=tf.float32, use_resource=True)
     light_indices = tf.constant([[0,2,1], [1,2,3]], dtype=tf.int32)
-    shape_light = pyredner.Shape(light_vertices, light_indices, None, None, 1)
+    shape_light = pyredner.Shape(light_vertices, light_indices, 1)
     shapes = [shape_floor, shape_blocker, shape_light]
 
 with tf.device('/device:cpu:' + str(pyredner.get_cpu_device_id())):

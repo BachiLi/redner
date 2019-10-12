@@ -1,0 +1,236 @@
+# File produced by Open Asset Import Library (http://www.assimp.sf.net)
+# (assimp v3.2.202087883)
+
+newmtl material_8
+Kd 0.752941 0.752941 0.752941
+Ka 0.1 0.1 0.1
+Ks 0.4 0.4 0.4
+Ke 0 0 0
+Ns 10
+illum 2
+
+newmtl material_9
+Kd 0.905882 0.909804 0.921569
+Ka 0.1 0.1 0.1
+Ks 0.4 0.4 0.4
+Ke 0 0 0
+Ns 10
+illum 2
+
+newmtl material_10
+Kd 0.0156863 0.0156863 0.0156863
+Ka 0.1 0.1 0.1
+Ks 0.4 0.4 0.4
+Ke 0 0 0
+Ns 10
+illum 2
+
+newmtl material_11
+Kd 0.776471 0.776471 0.776471
+Ka 0.1 0.1 0.1
+Ks 0.4 0.4 0.4
+Ke 0 0 0
+Ns 10
+illum 2
+
+newmtl material_12
+Kd 1 0.498039 0
+Ka 0.1 0.1 0.1
+Ks 0.4 0.4 0.4
+Ke 0 0 0
+Ns 10
+illum 2
+
+newmtl material_13
+Kd 1 1 1
+Ka 0.1 0.1 0.1
+Ks 0.4 0.4 0.4
+Ke 0 0 0
+Ns 10
+illum 2
+
+newmtl material_14
+Kd 0.8 0 0
+Ka 0.1 0.1 0.1
+Ks 0.4 0.4 0.4
+Ke 0 0 0
+Ns 10
+illum 2
+
+newmtl material_15
+Kd 0.00784314 0.00784314 0.00784314
+Ka 0.1 0.1 0.1
+Ks 0.4 0.4 0.4
+Ke 0 0 0
+Ns 10
+illum 2
+
+newmtl material_0
+Kd 0.137255 0.137255 0.137255
+Ka 0.1 0.1 0.1
+Ks 0.4 0.4 0.4
+Ke 0 0 0
+Ns 10
+illum 2
+
+newmtl material_5
+Kd 0.862745 0.862745 0.862745
+Ka 0.1 0.1 0.1
+Ks 0.4 0.4 0.4
+Ke 0 0 0
+Ns 10
+illum 2
+
+newmtl material_16
+Kd 0.117647 0.117647 0.117647
+Ka 0.1 0.1 0.1
+Ks 0.4 0.4 0.4
+Ke 0 0 0
+Ns 10
+illum 2
+
+newmtl material_17
+Kd 0.752941 0.752941 0.752941
+Ka 0.1 0.1 0.1
+Ks 0.4 0.4 0.4
+Ke 0 0 0
+Ns 10
+illum 2
+
+newmtl material_18
+Kd 0 0 0
+Ka 0.1 0.1 0.1
+Ks 0.4 0.4 0.4
+Ke 0 0 0
+Ns 10
+illum 2
+
+newmtl material_19
+Kd 1 0.384314 0
+Ka 0.1 0.1 0.1
+Ks 0.4 0.4 0.4
+Ke 0 0 0
+Ns 10
+illum 2
+
+newmtl material_20
+Kd 0.752941 0.752941 0.752941
+Ka 0.1 0.1 0.1
+Ks 0.4 0.4 0.4
+Ke 0 0 0
+Ns 10
+illum 2
+
+newmtl material_21
+Kd 0.752941 0.752941 0.752941
+Ka 0.1 0.1 0.1
+Ks 0.4 0.4 0.4
+Ke 0 0 0
+Ns 10
+illum 2
+
+newmtl material_22
+Kd 1 1 1
+Ka 0.1 0.1 0.1
+Ks 0.4 0.4 0.4
+Ke 0 0 0
+Ns 10
+illum 2
+
+newmtl material_23
+Kd 0.0509804 0.0509804 0.0509804
+Ka 0.1 0.1 0.1
+Ks 0.4 0.4 0.4
+Ke 0 0 0
+Ns 10
+illum 2
+
+newmtl material_24
+Kd 0.666667 0.666667 0.666667
+Ka 0.1 0.1 0.1
+Ks 0.4 0.4 0.4
+Ke 0 0 0
+Ns 10
+illum 2
+
+newmtl material_25
+Kd 1 0.74902 0
+Ka 0.1 0.1 0.1
+Ks 0.4 0.4 0.4
+Ke 0 0 0
+Ns 10
+illum 2
+
+newmtl material_6
+Kd 0.168628 0.168628 0.168628
+Ka 0.1 0.1 0.1
+Ks 0.4 0.4 0.4
+Ke 0 0 0
+Ns 10
+illum 2
+
+newmtl material_26
+Kd 1 0 0
+Ka 0.1 0.1 0.1
+Ks 0.4 0.4 0.4
+Ke 0 0 0
+Ns 10
+illum 2
+
+newmtl material_7
+Kd 0.501961 0.501961 0.501961
+Ka 0.1 0.1 0.1
+Ks 0.4 0.4 0.4
+Ke 0 0 0
+Ns 10
+illum 2
+
+newmtl edge_color434343255
+Kd 0.168628 0.168628 0.168628
+Ka 0 0 0
+Ks 0.4 0.4 0.4
+Ke 0 0 0
+d 1
+Ns 10
+illum 2
+
+newmtl material_1
+Kd 1 0.0117647 0
+Ka 0.1 0.1 0.1
+Ks 0.4 0.4 0.4
+Ke 0 0 0
+Ns 10
+illum 2
+
+newmtl material_2
+Kd 0.168628 0.168628 0.168628
+Ka 0.1 0.1 0.1
+Ks 0.4 0.4 0.4
+Ke 0 0 0
+Ns 10
+illum 2
+
+newmtl material_3
+Kd 0.717647 0.717647 0.717647
+Ka 0.1 0.1 0.1
+Ks 0.4 0.4 0.4
+Ke 0 0 0
+Ns 10
+illum 2
+
+newmtl material_4
+Kd 0 0 0
+Ka 0.1 0.1 0.1
+Ks 0.4 0.4 0.4
+Ke 0 0 0
+Ns 10
+illum 2
+
+newmtl material
+Kd 0.752941 0.752941 0.752941
+Ka 0.1 0.1 0.1
+Ks 0.4 0.4 0.4
+Ke 0 0 0
+Ns 10
+illum 2
+

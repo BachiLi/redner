@@ -103,9 +103,20 @@ def serialize_scene(scene: pyredner.Scene,
     args.append(tf.constant(num_shapes))
     args.append(tf.constant(num_materials))
     args.append(tf.constant(num_lights))
-    args.append(cam.position)
-    args.append(cam.look_at)
-    args.append(cam.up)
+    if cam.position is None:
+        args.append(__EMPTY_TENSOR)
+        args.append(__EMPTY_TENSOR)
+        args.append(__EMPTY_TENSOR)
+    else:
+        args.append(cam.position)
+        args.append(cam.look_at)
+        args.append(cam.up)
+    if cam.cam_to_world is None:
+        args.append(__EMPTY_TENSOR)
+        args.append(__EMPTY_TENSOR)
+    else:
+        args.append(cam.cam_to_world)
+        args.append(cam.world_to_cam)
     args.append(cam.ndc_to_cam)
     args.append(cam.cam_to_ndc)
     args.append(tf.constant(cam.clip_near))
@@ -201,6 +212,10 @@ def forward(seed:int, *args):
     current_index += 1
     cam_up = args[current_index]
     current_index += 1
+    cam_to_world = args[current_index]
+    current_index += 1
+    world_to_cam = args[current_index]
+    current_index += 1
     ndc_to_cam = args[current_index]
     current_index += 1
     cam_to_ndc = args[current_index]
@@ -213,15 +228,30 @@ def forward(seed:int, *args):
     current_index += 1
 
     with tf.device('/device:cpu:' + str(pyredner.get_cpu_device_id())):
-        camera = redner.Camera(resolution[1],
-                               resolution[0],
-                               redner.float_ptr(pyredner.data_ptr(cam_position)),
-                               redner.float_ptr(pyredner.data_ptr(cam_look_at)),
-                               redner.float_ptr(pyredner.data_ptr(cam_up)),
-                               redner.float_ptr(pyredner.data_ptr(ndc_to_cam)),
-                               redner.float_ptr(pyredner.data_ptr(cam_to_ndc)),
-                               clip_near,
-                               camera_type)
+        if is_empty_tensor(cam_to_world):
+            camera = redner.Camera(resolution[1],
+                                   resolution[0],
+                                   redner.float_ptr(pyredner.data_ptr(cam_position)),
+                                   redner.float_ptr(pyredner.data_ptr(cam_look_at)),
+                                   redner.float_ptr(pyredner.data_ptr(cam_up)),
+                                   redner.float_ptr(0), # cam_to_world
+                                   redner.float_ptr(0), # world_to_cam
+                                   redner.float_ptr(pyredner.data_ptr(ndc_to_cam)),
+                                   redner.float_ptr(pyredner.data_ptr(cam_to_ndc)),
+                                   clip_near,
+                                   camera_type)
+        else:
+            camera = redner.Camera(resolution[1],
+                                   resolution[0],
+                                   redner.float_ptr(0),
+                                   redner.float_ptr(0),
+                                   redner.float_ptr(0),
+                                   redner.float_ptr(pyredner.data_ptr(cam_to_world)),
+                                   redner.float_ptr(pyredner.data_ptr(world_to_cam)),
+                                   redner.float_ptr(pyredner.data_ptr(ndc_to_cam)),
+                                   redner.float_ptr(pyredner.data_ptr(cam_to_ndc)),
+                                   clip_near,
+                                   camera_type)
 
     with tf.device(pyredner.get_device_name()):
         shapes = []
@@ -467,6 +497,7 @@ def forward(seed:int, *args):
 
         # import pdb; pdb.set_trace()
 
+    ctx.camera = camera
     ctx.shapes = shapes
     ctx.materials = materials
     ctx.area_lights = area_lights
@@ -494,19 +525,42 @@ def render(*x):
     def backward(grad_img):
         global __ctx
         ctx = __ctx
+        camera = ctx.camera
         scene = ctx.scene
         options = ctx.options
+
         with tf.device(pyredner.get_device_name()):
-            d_position = tf.zeros(3, dtype=tf.float32)
-            d_look_at = tf.zeros(3, dtype=tf.float32)
-            d_up = tf.zeros(3, dtype=tf.float32)
+            if camera.use_look_at:
+                d_position = tf.zeros(3, dtype=tf.float32)
+                d_look_at = tf.zeros(3, dtype=tf.float32)
+                d_up = tf.zeros(3, dtype=tf.float32)
+                d_cam_to_world = None
+                d_wolrd_to_cam = None
+            else:
+                d_position = None
+                d_look_at = None
+                d_up = None
+                d_cam_to_world = tf.zeros([4, 4], dtype=tf.float32)
+                d_wolrd_to_cam = tf.zeros([4, 4], dtype=tf.float32)
             d_ndc_to_cam = tf.zeros([3,3], dtype=tf.float32)
             d_cam_to_ndc = tf.zeros([3,3], dtype=tf.float32)
-            d_camera = redner.DCamera(redner.float_ptr(pyredner.data_ptr(d_position)),
-                                      redner.float_ptr(pyredner.data_ptr(d_look_at)),
-                                      redner.float_ptr(pyredner.data_ptr(d_up)),
-                                      redner.float_ptr(pyredner.data_ptr(d_ndc_to_cam)),
-                                      redner.float_ptr(pyredner.data_ptr(d_cam_to_ndc)))
+            if camera.use_look_at:
+                d_camera = redner.DCamera(redner.float_ptr(pyredner.data_ptr(d_position)),
+                                          redner.float_ptr(pyredner.data_ptr(d_look_at)),
+                                          redner.float_ptr(pyredner.data_ptr(d_up)),
+                                          redner.float_ptr(0), # cam_to_world
+                                          redner.float_ptr(0), # world_to_cam
+                                          redner.float_ptr(pyredner.data_ptr(d_ndc_to_cam)),
+                                          redner.float_ptr(pyredner.data_ptr(d_cam_to_ndc)))
+            else:
+                d_camera = redner.DCamera(redner.float_ptr(0),
+                                          redner.float_ptr(0),
+                                          redner.float_ptr(0),
+                                          redner.float_ptr(pyredner.data_ptr(d_cam_to_world)),
+                                          redner.float_ptr(pyredner.data_ptr(d_world_to_cam)),
+                                          redner.float_ptr(pyredner.data_ptr(d_ndc_to_cam)),
+                                          redner.float_ptr(pyredner.data_ptr(d_cam_to_ndc)))
+
         d_vertices_list = []
         d_uvs_list = []
         d_normals_list = []
@@ -688,9 +742,18 @@ def render(*x):
         ret_list.append(None) # num_shapes
         ret_list.append(None) # num_materials 
         ret_list.append(None) # num_lights
-        ret_list.append(d_position)
-        ret_list.append(d_look_at)
-        ret_list.append(d_up)
+        if camera.use_look_at:
+            ret_list.append(d_position)
+            ret_list.append(d_look_at)
+            ret_list.append(d_up)
+            ret_list.append(None) # cam_to_world
+            ret_list.append(None) # world_to_cam
+        else:
+            ret_list.append(None) # pos
+            ret_list.append(None) # look
+            ret_list.append(None) # up
+            ret_list.append(d_cam_to_world)
+            ret_list.append(d_world_to_cam)
         ret_list.append(d_ndc_to_cam)
         ret_list.append(d_cam_to_ndc)
         ret_list.append(None) # clip near
@@ -753,7 +816,6 @@ def render(*x):
         ret_list.append(None) # use_primary_edge_sampling
         ret_list.append(None) # use_secondary_edge_sampling
 
-        # pdb.set_trace()
         return ret_list
 
     return img, backward

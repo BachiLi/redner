@@ -34,19 +34,19 @@ floor_vertices = torch.tensor([[-20.0,0.0,-20.0],[-20.0,0.0,20.0],[20.0,0.0,-20.
     device = pyredner.get_device())
 floor_indices = torch.tensor([[0,1,2], [1,3,2]],
     device = pyredner.get_device(), dtype = torch.int32)
-shape_floor = pyredner.Shape(floor_vertices, floor_indices, None, None, 0)
+shape_floor = pyredner.Shape(floor_vertices, floor_indices, 0)
 blocker_vertices = torch.tensor(\
     [[-0.5,10.0,-0.5],[-0.5,10.0,0.5],[0.5,10.0,-0.5],[0.5,10.0,0.5]],
     device = pyredner.get_device())
 blocker_indices = torch.tensor([[0,1,2], [1,3,2]],
     device = pyredner.get_device(), dtype = torch.int32)
-shape_blocker = pyredner.Shape(blocker_vertices, blocker_indices, None, None, 0)
+shape_blocker = pyredner.Shape(blocker_vertices, blocker_indices, 0)
 light_vertices = torch.tensor(\
     [[-0.1,15,-0.1],[-0.1,15,0.1],[0.1,15,-0.1],[0.1,15,0.1]],
     device = pyredner.get_device())
 light_indices = torch.tensor([[0,2,1], [1,2,3]],
     device = pyredner.get_device(), dtype = torch.int32)
-shape_light = pyredner.Shape(light_vertices, light_indices, None, None, 1)
+shape_light = pyredner.Shape(light_vertices, light_indices, 1)
 shapes = [shape_floor, shape_blocker, shape_light]
 light_intensity = torch.tensor([5000.0, 5000.0, 5000.0])
 # The first argument is the shape id of the light

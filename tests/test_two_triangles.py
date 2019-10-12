@@ -40,13 +40,13 @@ tri1_vertices = torch.tensor(\
     device = pyredner.get_device())
 tri0_indices = torch.tensor([[0, 1, 2]], dtype = torch.int32, device = pyredner.get_device())
 tri1_indices = torch.tensor([[0, 1, 2]], dtype = torch.int32, device = pyredner.get_device())
-shape_tri0 = pyredner.Shape(tri0_vertices, tri0_indices, None, None, 0)
-shape_tri1 = pyredner.Shape(tri1_vertices, tri1_indices, None, None, 1)
+shape_tri0 = pyredner.Shape(tri0_vertices, tri0_indices, 0)
+shape_tri1 = pyredner.Shape(tri1_vertices, tri1_indices, 1)
 light_vertices = torch.tensor(\
     [[-1.0,-1.0,-7.0],[1.0,-1.0,-7.0],[-1.0,1.0,-7.0],[1.0,1.0,-7.0]],
     device = pyredner.get_device())
 light_indices = torch.tensor([[0,1,2],[1,3,2]], dtype = torch.int32, device = pyredner.get_device())
-shape_light = pyredner.Shape(light_vertices, light_indices, None, None, 2)
+shape_light = pyredner.Shape(light_vertices, light_indices, 2)
 shapes = [shape_tri0, shape_tri1, shape_light]
 light_intensity = torch.tensor([20.0,20.0,20.0])
 # The first argument is the shape id of the light

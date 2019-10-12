@@ -11,7 +11,7 @@ scene.shapes[-1].vertices += torch.tensor([0, 0.01, 0], device = pyredner.get_de
 
 args=pyredner.RenderFunction.serialize_scene(\
     scene = scene,
-    num_samples = 1024,
+    num_samples = 4,
     max_bounces = 6)
 render = pyredner.RenderFunction.apply
 # Render our target. The first argument is the seed for RNG in the renderer.
@@ -19,7 +19,8 @@ img = render(0, *args)
 pyredner.imwrite(img.cpu(), 'results/test_bunny_box/target.exr')
 pyredner.imwrite(img.cpu(), 'results/test_bunny_box/target.png')
 target = pyredner.imread('results/test_bunny_box/target.exr')
-target = target.cuda(pyredner.get_device())
+if pyredner.get_use_gpu():
+    target = target.cuda(device = pyredner.get_device())
 
 bunny_vertices = scene.shapes[-1].vertices.clone()
 bunny_translation = torch.tensor([0.1,0.4,0.1], device = pyredner.get_device(), requires_grad=True)
@@ -31,7 +32,7 @@ scene.shapes[-1].vertices = \
     torch.mean(bunny_vertices, 0) + bunny_translation
 args=pyredner.RenderFunction.serialize_scene(\
         scene = scene,
-        num_samples = 1024,
+        num_samples = 4,
         max_bounces = 6)
 img = render(1, *args)
 pyredner.imwrite(img.cpu(), 'results/test_bunny_box/init.exr')
@@ -63,7 +64,8 @@ for t in range(200):
     f[1, 1, :, :] = gf
     f[2, 2, :, :] = gf
     f = torch.from_numpy(f)
-    f = f.cuda(pyredner.get_device())
+    if pyredner.get_use_gpu():
+        f = f.cuda(device = pyredner.get_device())
     m = torch.nn.AvgPool2d(2)
 
     res = 256

@@ -783,6 +783,8 @@ void test_scene_intersect(bool use_gpu) {
         &pos[0],
         &look[0],
         &up[0],
+        nullptr, // cam_to_world
+        nullptr, // world_to_cam
         &n2c.data[0][0],
         &c2n.data[0][0],
         1e-2f,
@@ -888,6 +890,8 @@ void test_sample_point_on_light(bool use_gpu) {
         &pos[0],
         &look[0],
         &up[0],
+        nullptr, // cam_to_world
+        nullptr, // world_to_cam
         &n2c.data[0][0],
         &c2n.data[0][0],
         1e-2f,
