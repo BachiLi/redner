@@ -169,6 +169,9 @@ for t in range(200):
 
     loss.backward()
     optimizer.step()
+    diffuse_tex.data = diffuse_tex.data.clamp(0, 1)
+    specular_tex.data = specular_tex.data.clamp(0, 1)
+    roughness_tex.data = roughness_tex.data.clamp(1e-5, 1)
 
 args = pyredner.RenderFunction.serialize_scene(\
     scene = scene,
