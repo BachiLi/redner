@@ -231,16 +231,16 @@ void test_d_sample_primary_rays() {
     for (int i = 0; i < 3; i++) {
         for (int j = 0; j < 3; j++) {
             auto delta_camera = camera;
-            delta_camera.ndc_to_cam(i, j) += finite_delta;
+            delta_camera.intrinsic_mat_inv(i, j) += finite_delta;
             auto positive_ray =
                 sample_primary(delta_camera, Vector2{0.5, 0.5});
-            delta_camera.ndc_to_cam(i, j) -= 2 * finite_delta;
+            delta_camera.intrinsic_mat_inv(i, j) -= 2 * finite_delta;
             auto negative_ray =
                 sample_primary(delta_camera, Vector2{0.5, 0.5});
             auto diff = (sum(positive_ray.org - negative_ray.org) +
                          sum(positive_ray.dir - negative_ray.dir)) /
                         (2 * finite_delta);
-            equal_or_error(__FILE__, __LINE__, (Real)diff, (Real)d_camera.ndc_to_cam[3 * i + j]);
+            equal_or_error(__FILE__, __LINE__, (Real)diff, (Real)d_camera.intrinsic_mat_inv[3 * i + j]);
         }
     }
 }
@@ -376,12 +376,12 @@ void test_d_camera_to_screen() {
     for (int i = 0; i < 3; i++) {
         for (int j = 0; j < 3; j++) {
             auto delta_camera = camera;
-            delta_camera.cam_to_ndc(i, j) += finite_delta;
+            delta_camera.intrinsic_mat(i, j) += finite_delta;
             auto pxy = camera_to_screen(delta_camera, pt);
-            delta_camera.cam_to_ndc(i, j) -= 2 * finite_delta;
+            delta_camera.intrinsic_mat(i, j) -= 2 * finite_delta;
             auto nxy = camera_to_screen(delta_camera, pt);
             auto diff = sum(pxy - nxy) / (2 * finite_delta);
-            equal_or_error(__FILE__, __LINE__, (Real)diff, (Real)d_camera.cam_to_ndc[3 * i + j]);
+            equal_or_error(__FILE__, __LINE__, (Real)diff, (Real)d_camera.intrinsic_mat[3 * i + j]);
         }
     }
 }
