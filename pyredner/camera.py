@@ -20,38 +20,49 @@ class Camera:
                                          no effect if the camera is a fisheye camera
             clip_near (float): the near clipping plane of the camera, need to > 0
             resolution (length 2 tuple): the size of the output image in (height, width)
-            cam_to_world (4x4 matrix): overrides position, look_at, up vectors.
-            cam_to_ndc (3x3 matrix): a matrix that transforms
-                [-1, 1/aspect_ratio] x [1, -1/aspect_ratio] to [0, 1] x [0, 1]
-                where aspect_ratio = width / height
+            cam_to_world (4x4 matrix, optional): overrides position, look_at, up vectors.
+            cam_to_ndc (3x3 matrix, optional):
+                A matrix that transforms a point in camera space before the point
+                is projected to 2D screen space. Used for modelling field of view and
+                camera skewing. After the multiplication the point should be in
+                [-1, 1/aspect_ratio] x [1, -1/aspect_ratio] in homogeneous coordinates.
+                The projection is then carried by the specific camera types.
+                Perspective camera normalizes the homogeneous coordinates, while
+                orthogonal camera drop the Z coordinate.
+                This matrix overrides fov.
             camera_type (render.camera_type): the type of the camera (perspective, orthographic, or fisheye)
             fisheye (bool): whether the camera is a fisheye camera (legacy parameter just to ensure compatibility).
     """
     def __init__(self,
-                 position,
-                 look_at,
-                 up,
-                 fov,
-                 clip_near,
-                 resolution,
+                 position = None,
+                 look_at = None,
+                 up = None,
+                 fov = None,
+                 clip_near = 1e-4,
+                 resolution = (256, 256),
                  cam_to_world = None,
                  cam_to_ndc = None,
                  camera_type = redner.CameraType.perspective,
                  fisheye = False):
-        assert(position.dtype == torch.float32)
-        assert(len(position.shape) == 1 and position.shape[0] == 3)
-        assert(position.device.type == 'cpu')
-        assert(look_at.dtype == torch.float32)
-        assert(len(look_at.shape) == 1 and look_at.shape[0] == 3)
-        assert(look_at.device.type == 'cpu')
-        assert(up.dtype == torch.float32)
-        assert(len(up.shape) == 1 and up.shape[0] == 3)
-        assert(up.device.type == 'cpu')
+        if position is not None:
+            assert(position.dtype == torch.float32)
+            assert(len(position.shape) == 1 and position.shape[0] == 3)
+            assert(position.device.type == 'cpu')
+        if look_at is not None:
+            assert(look_at.dtype == torch.float32)
+            assert(len(look_at.shape) == 1 and look_at.shape[0] == 3)
+            assert(look_at.device.type == 'cpu')
+        if up is not None:
+            assert(up.dtype == torch.float32)
+            assert(len(up.shape) == 1 and up.shape[0] == 3)
+            assert(up.device.type == 'cpu')
         if fov is not None:
             assert(fov.dtype == torch.float32)
             assert(len(fov.shape) == 1 and fov.shape[0] == 1)
             assert(fov.device.type == 'cpu')
         assert(isinstance(clip_near, float))
+        if position is None and look_at is None and up is None:
+            assert(cam_to_world is  not None)
 
         self.position = position
         self.look_at = look_at

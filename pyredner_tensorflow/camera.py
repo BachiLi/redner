@@ -23,19 +23,25 @@ class Camera:
             clip_near (float): the near clipping plane of the camera, need to > 0
             resolution (length 2 tuple): the size of the output image in (height, width)
             cam_to_world (4x4 matrix): overrides position, look_at, up vectors.
-            cam_to_ndc (3x3 matrix): a matrix that transforms
-                [-1, 1/aspect_ratio] x [1, -1/aspect_ratio] to [0, 1] x [0, 1]
-                where aspect_ratio = width / height
+            cam_to_ndc (3x3 matrix):
+                A matrix that transforms a point in camera space before the point
+                is projected to 2D screen space. Used for modelling field of view and
+                camera skewing. After the multiplication the point should be in
+                [-1, 1/aspect_ratio] x [1, -1/aspect_ratio] in homogeneous coordinates.
+                The projection is then carried by the specific camera types.
+                Perspective camera normalizes the homogeneous coordinates, while
+                orthogonal camera drop the Z coordinate.
+                This matrix overrides fov.
             camera_type (render.camera_type): the type of the camera (perspective, orthographic, or fisheye)
             fisheye (bool): whether the camera is a fisheye camera (legacy parameter just to ensure compatibility).
     """
     def __init__(self,
-                 position: tf.Tensor,
-                 look_at: tf.Tensor,
-                 up: tf.Tensor,
-                 fov: tf.Tensor,
-                 clip_near: float,
-                 resolution: Tuple[int],
+                 position: tf.Tensor = None,
+                 look_at: tf.Tensor = None,
+                 up: tf.Tensor = None,
+                 fov: tf.Tensor = None,
+                 clip_near: float = 1e-4,
+                 resolution: Tuple[int] = (256, 256),
                  cam_to_world: tf.Tensor = None,
                  cam_to_ndc: tf.Tensor = None,
                  camera_type = redner.CameraType.perspective,
@@ -51,6 +57,8 @@ class Camera:
             assert(fov.dtype == tf.float32)
             assert(len(fov.shape) == 1 and fov.shape[0] == 1)
         assert(isinstance(clip_near, float))
+        if position is None and look_at is None and up is None:
+            assert(cam_to_world is  not None)
 
         with tf.device('/device:cpu:' + str(pyredner.get_cpu_device_id())):
             self.position = tf.identity(position).cpu()
