@@ -269,8 +269,7 @@ Vector3 bsdf(const Material &material,
              const SurfacePoint &shading_point,
              const Vector3 &wi,
              const Vector3 &wo,
-             const Real min_roughness,
-             bool debug = false) {
+             const Real min_roughness) {
     // To address the discrepancy between shading normal and geometry normal,
     // we use the strategy recommended by Veach: we define the BSDFs
     // over the whole spherical domain, instead of just the hemisphere domain.
@@ -593,8 +592,7 @@ Vector3 bsdf_sample(const Material &material,
                     const Real min_roughness,
                     const RayDifferential &wi_differential,
                     RayDifferential &wo_differential,
-                    Real *next_min_roughness = nullptr,
-                    bool debug = false) {
+                    Real *next_min_roughness = nullptr) {
     if (next_min_roughness != nullptr) {
         *next_min_roughness = min_roughness;
     }
