@@ -59,7 +59,7 @@ class Camera:
         self._fov = fov
         self._cam_to_world = cam_to_world
         if cam_to_world is not None:
-            self.world_to_cam = torch.inverse(self.cam_to_world)
+            self.world_to_cam = torch.inverse(self.cam_to_world).contiguous()
         else:
             self.world_to_cam = None
         if cam_to_ndc is None:
@@ -72,7 +72,7 @@ class Camera:
                 self._cam_to_ndc = torch.eye(3, dtype=torch.float32)
         else:
             self._cam_to_ndc = cam_to_ndc
-        self.ndc_to_cam = torch.inverse(self.cam_to_ndc)
+        self.ndc_to_cam = torch.inverse(self.cam_to_ndc).contiguous()
         self.clip_near = clip_near
         self.resolution = resolution
         self.camera_type = camera_type
@@ -90,7 +90,7 @@ class Camera:
         o = torch.ones([1], dtype=torch.float32)
         diag = torch.cat([fov_factor, fov_factor, o], 0)
         self._cam_to_ndc = torch.diag(diag)
-        self.ndc_to_cam = torch.inverse(self._cam_to_ndc)
+        self.ndc_to_cam = torch.inverse(self._cam_to_ndc).contiguous()
 
     @property
     def cam_to_ndc(self):
@@ -99,7 +99,7 @@ class Camera:
     @cam_to_ndc.setter
     def cam_to_ndc(self, value):
         self._cam_to_ndc = value
-        self.ndc_to_cam = torch.inverse(self._cam_to_ndc)
+        self.ndc_to_cam = torch.inverse(self._cam_to_ndc).contiguous()
 
     @property
     def cam_to_world(self):
@@ -108,7 +108,7 @@ class Camera:
     @cam_to_world.setter
     def cam_to_world(self, value):
         self._cam_to_world = value
-        self.world_to_cam = torch.inverse(self.cam_to_world)
+        self.world_to_cam = torch.inverse(self.cam_to_world).contiguous()
 
     def state_dict(self):
         return {
