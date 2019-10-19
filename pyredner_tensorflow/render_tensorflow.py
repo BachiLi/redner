@@ -117,8 +117,8 @@ def serialize_scene(scene: pyredner.Scene,
     else:
         args.append(cam.cam_to_world)
         args.append(cam.world_to_cam)
-    args.append(cam.ndc_to_cam)
-    args.append(cam.cam_to_ndc)
+    args.append(cam.intrinsic_mat_inv)
+    args.append(cam.intrinsic_mat)
     args.append(tf.constant(cam.clip_near))
     args.append(tf.constant(cam.resolution))
     args.append(pyredner.RednerCameraType.asTensor(cam.camera_type))
@@ -216,9 +216,9 @@ def forward(seed:int, *args):
     current_index += 1
     world_to_cam = args[current_index]
     current_index += 1
-    ndc_to_cam = args[current_index]
+    intrinsic_mat_inv = args[current_index]
     current_index += 1
-    cam_to_ndc = args[current_index]
+    intrinsic_mat = args[current_index]
     current_index += 1
     clip_near = float(args[current_index])
     current_index += 1
@@ -236,8 +236,8 @@ def forward(seed:int, *args):
                                    redner.float_ptr(pyredner.data_ptr(cam_up)),
                                    redner.float_ptr(0), # cam_to_world
                                    redner.float_ptr(0), # world_to_cam
-                                   redner.float_ptr(pyredner.data_ptr(ndc_to_cam)),
-                                   redner.float_ptr(pyredner.data_ptr(cam_to_ndc)),
+                                   redner.float_ptr(pyredner.data_ptr(intrinsic_mat_inv)),
+                                   redner.float_ptr(pyredner.data_ptr(intrinsic_mat)),
                                    clip_near,
                                    camera_type)
         else:
@@ -248,8 +248,8 @@ def forward(seed:int, *args):
                                    redner.float_ptr(0),
                                    redner.float_ptr(pyredner.data_ptr(cam_to_world)),
                                    redner.float_ptr(pyredner.data_ptr(world_to_cam)),
-                                   redner.float_ptr(pyredner.data_ptr(ndc_to_cam)),
-                                   redner.float_ptr(pyredner.data_ptr(cam_to_ndc)),
+                                   redner.float_ptr(pyredner.data_ptr(intrinsic_mat_inv)),
+                                   redner.float_ptr(pyredner.data_ptr(intrinsic_mat)),
                                    clip_near,
                                    camera_type)
 
@@ -542,24 +542,24 @@ def render(*x):
                 d_up = None
                 d_cam_to_world = tf.zeros([4, 4], dtype=tf.float32)
                 d_wolrd_to_cam = tf.zeros([4, 4], dtype=tf.float32)
-            d_ndc_to_cam = tf.zeros([3,3], dtype=tf.float32)
-            d_cam_to_ndc = tf.zeros([3,3], dtype=tf.float32)
+            d_intrinsic_mat_inv = tf.zeros([3,3], dtype=tf.float32)
+            d_intrinsic_mat = tf.zeros([3,3], dtype=tf.float32)
             if camera.use_look_at:
                 d_camera = redner.DCamera(redner.float_ptr(pyredner.data_ptr(d_position)),
                                           redner.float_ptr(pyredner.data_ptr(d_look_at)),
                                           redner.float_ptr(pyredner.data_ptr(d_up)),
                                           redner.float_ptr(0), # cam_to_world
                                           redner.float_ptr(0), # world_to_cam
-                                          redner.float_ptr(pyredner.data_ptr(d_ndc_to_cam)),
-                                          redner.float_ptr(pyredner.data_ptr(d_cam_to_ndc)))
+                                          redner.float_ptr(pyredner.data_ptr(d_intrinsic_mat_inv)),
+                                          redner.float_ptr(pyredner.data_ptr(d_intrinsic_mat)))
             else:
                 d_camera = redner.DCamera(redner.float_ptr(0),
                                           redner.float_ptr(0),
                                           redner.float_ptr(0),
                                           redner.float_ptr(pyredner.data_ptr(d_cam_to_world)),
                                           redner.float_ptr(pyredner.data_ptr(d_world_to_cam)),
-                                          redner.float_ptr(pyredner.data_ptr(d_ndc_to_cam)),
-                                          redner.float_ptr(pyredner.data_ptr(d_cam_to_ndc)))
+                                          redner.float_ptr(pyredner.data_ptr(d_intrinsic_mat_inv)),
+                                          redner.float_ptr(pyredner.data_ptr(d_intrinsic_mat)))
 
         d_vertices_list = []
         d_uvs_list = []
@@ -754,8 +754,8 @@ def render(*x):
             ret_list.append(None) # up
             ret_list.append(d_cam_to_world)
             ret_list.append(d_world_to_cam)
-        ret_list.append(d_ndc_to_cam)
-        ret_list.append(d_cam_to_ndc)
+        ret_list.append(d_intrinsic_mat_inv)
+        ret_list.append(d_intrinsic_mat)
         ret_list.append(None) # clip near
         ret_list.append(None) # resolution
         ret_list.append(None) # camera_type
