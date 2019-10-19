@@ -291,7 +291,7 @@ def parse_shape(node, material_dict, shape_id, shape_group_dict = None):
                 uvs = uvs.cuda(device=pyredner.get_device())
             if normals is not None:
                 normals = normals.cuda(device=pyredner.get_device())
-        return pyredner.Shape(vertices, indices, uvs, normals, mat_id), lgt
+        return pyredner.Shape(vertices, indices, uvs=uvs, normals=normals, material_id=mat_id), lgt
     elif node.attrib['type'] == 'rectangle':
         indices = torch.tensor([[0, 2, 1], [1, 2, 3]],
                                dtype = torch.int32)
@@ -342,7 +342,7 @@ def parse_shape(node, material_dict, shape_id, shape_group_dict = None):
                 uvs = uvs.cuda(device=pyredner.get_device())
             if normals is not None:
                 normals = normals.cuda(device=pyredner.get_device())
-        return pyredner.Shape(vertices, indices, uvs, normals, mat_id), lgt
+        return pyredner.Shape(vertices, indices, uvs=uvs, normals=normals, material_id=mat_id), lgt
     # Add instance support 
     # TODO (simply transform & create a new shape now)
     elif node.attrib['type'] == 'instance':
@@ -372,7 +372,7 @@ def parse_shape(node, material_dict, shape_id, shape_group_dict = None):
         # if light_intensity is not None:
         #     lgt = pyredner.AreaLight(shape_id, light_intensity)
 
-        return pyredner.Shape(vertices, shape.indices, shape.uvs, normals, shape.material_id), None
+        return pyredner.Shape(vertices, shape.indices, uvs=shape.uvs, normals=normals, material_ids=shape.material_id), None
     else:
         print('Shape type {} is not supported!'.format(node.attrib['type']))
         assert(False)
