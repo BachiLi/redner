@@ -19,9 +19,9 @@ def save_obj(shape,
         if normals is not None:
             for i in range(normals.shape[0]):
                 f.write('vn {} {} {}\n'.format(normals[i, 0], normals[i, 1], normals[i, 2]))
-        indices = shape.indices.cpu()
-        uv_indices = shape.uv_indices.cpu() if shape.uv_indices is not None else None
-        normal_indices = shape.normal_indices.cpu() if shape.normal_indices is not None else None
+        indices = shape.indices.cpu() + 1
+        uv_indices = shape.uv_indices.cpu() + 1 if shape.uv_indices is not None else None
+        normal_indices = shape.normal_indices.cpu() + 1 if shape.normal_indices is not None else None
         for i in range(indices.shape[0]):
             vi = (indices[i, 0], indices[i, 1], indices[i, 2])
             if uv_indices is not None:
