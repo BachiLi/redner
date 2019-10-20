@@ -97,8 +97,8 @@ class Shape:
         vertices and access the pool using integer index. Some times the
         two vertices can have the same 3D position but different texture
         coordinates, because UV mapping creates seams and need to duplicate
-        vertices. In this can we canta an additional "uv_indices" array
-        to access the uv pool.
+        vertices. In this can we can use an additional "uv_indices" array
+        to access the uv pool. 
 
         Args:
             vertices (float tensor with size N x 3): 3D position of vertices.
@@ -108,6 +108,7 @@ class Shape:
             normals (optional, float tensor with size N'' x 3): shading normal.
             uv_indices (optional, int tensor with size M x 3): overrides indices when accessing uv coordinates.
             normal_indices (optional, int tensor with size M x 3): overrides indices when accessing shading normals.
+            colors (optional, float tensor with size N x 3): optional vertex color.
     """
     def __init__(self,
                  vertices,
@@ -116,23 +117,27 @@ class Shape:
                  uvs = None,
                  normals = None,
                  uv_indices = None,
-                 normal_indices = None):
+                 normal_indices = None,
+                 colors = None):
         assert(vertices.dtype == torch.float32)
         assert(indices.dtype == torch.int32)
         assert(vertices.is_contiguous())
         assert(indices.is_contiguous())
-        if (uvs is not None):
+        if uvs is not None:
             assert(uvs.dtype == torch.float32)
             assert(uvs.is_contiguous())
-        if (normals is not None):
+        if normals is not None:
             assert(normals.dtype == torch.float32)
             assert(normals.is_contiguous())
-        if (uv_indices is not None):
+        if uv_indices is not None:
             assert(uv_indices.dtype == torch.int32)
             assert(uv_indices.is_contiguous())
-        if (normal_indices is not None):
+        if normal_indices is not None:
             assert(normal_indices.dtype == torch.int32)
             assert(normal_indices.is_contiguous())
+        if colors is not None:
+            assert(colors.dtype == torch.float32)
+            assert(colors.is_contiguous())
 
         if pyredner.get_use_gpu():
             assert(vertices.is_cuda)
@@ -141,6 +146,7 @@ class Shape:
             assert(normals is None or normals.is_cuda)
             assert(uv_indices is None or uv_indices.is_cuda)
             assert(normal_indices is None or normal_indices.is_cuda)
+            assert(colors is None or colors.is_cuda)
         else:
             assert(not vertices.is_cuda)
             assert(not indices.is_cuda)        
@@ -148,6 +154,7 @@ class Shape:
             assert(normals is None or not normals.is_cuda)
             assert(uv_indices is None or not uv_indices.is_cuda)
             assert(normal_indices is None or not normal_indices.is_cuda)
+            assert(colors is None or not colors.is_cuda)
 
         self.vertices = vertices
         self.indices = indices
@@ -156,6 +163,7 @@ class Shape:
         self.normals = normals
         self.uv_indices = uv_indices
         self.normal_indices = normal_indices
+        self.colors = colors
         self.light_id = -1
 
     def state_dict(self):
@@ -167,7 +175,8 @@ class Shape:
             'uvs': self.uvs,
             'normals': self.normals,
             'uv_indices': self.uv_indices,
-            'normal_indices': self.normal_indices
+            'normal_indices': self.normal_indices,
+            'colors': self.colors
         }
 
     @classmethod
@@ -179,6 +188,7 @@ class Shape:
             state_dict['uvs'],
             state_dict['normals'],
             state_dict['uv_indices'],
-            state_dict['normal_indices'])
+            state_dict['normal_indices'],
+            state_dict['colors'])
         out.light_id = state_dict['light_id']
         return out

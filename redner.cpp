@@ -78,6 +78,7 @@ PYBIND11_MODULE(redner, m) {
                       ptr<float>, // normals
                       ptr<int>, // uv_indices
                       ptr<int>, // normal_indices
+                      ptr<float>, // colors
                       int, // num_vertices
                       int, // num_uv_vertices
                       int, // num_normal_vertices
@@ -87,11 +88,14 @@ PYBIND11_MODULE(redner, m) {
                       >())
         .def_readonly("num_vertices", &Shape::num_vertices)
         .def_readonly("num_uv_vertices", &Shape::num_uv_vertices)
+        .def_readonly("num_normal_vertices", &Shape::num_normal_vertices)
         .def("has_uvs", &Shape::has_uvs)
-        .def("has_normals", &Shape::has_normals);
+        .def("has_normals", &Shape::has_normals)
+        .def("has_colors", &Shape::has_colors);
 
     py::class_<DShape>(m, "DShape")
         .def(py::init<ptr<float>,
+                      ptr<float>,
                       ptr<float>,
                       ptr<float>>());
 
@@ -114,7 +118,8 @@ PYBIND11_MODULE(redner, m) {
                       Texture3, // specular
                       Texture1, // roughness
                       Texture3, // normal_map
-                      bool>())
+                      bool, // two_sided
+                      bool>()) // use_vertex_color
         .def("get_diffuse_size", &Material::get_diffuse_size)
         .def("get_specular_size", &Material::get_specular_size)
         .def("get_roughness_size", &Material::get_roughness_size)

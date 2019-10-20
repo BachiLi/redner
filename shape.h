@@ -14,6 +14,7 @@ struct Shape {
           ptr<float> normals, // optional
           ptr<int> uv_indices, // optional, overrides uv index access
           ptr<int> normal_indices, // optional, overrides normal index access
+          ptr<float> colors, // optional, used when the material specifies so.
           int num_vertices,
           int num_uv_vertices,
           int num_normal_vertices,
@@ -26,6 +27,7 @@ struct Shape {
         normals(normals.get()),
         uv_indices(uv_indices.get()),
         normal_indices(normal_indices.get()),
+        colors(colors.get()),
         num_vertices(num_vertices),
         num_uv_vertices(num_uv_vertices),
         num_normal_vertices(num_normal_vertices),
@@ -41,12 +43,17 @@ struct Shape {
         return normals != nullptr;
     }
 
+    inline bool has_colors() const {
+        return colors != nullptr;
+    }
+
     float *vertices;
     int *indices;
     float *uvs;
     float *normals;
     int *uv_indices;
     int *normal_indices;
+    float *colors;
     int num_vertices;
     int num_uv_vertices;
     int num_normal_vertices;
@@ -59,14 +66,17 @@ struct DShape {
     DShape() {}
     DShape(ptr<float> vertices,
            ptr<float> uvs,
-           ptr<float> normals)
+           ptr<float> normals,
+           ptr<float> colors)
         : vertices(vertices.get()),
           uvs(uvs.get()),
-          normals(normals.get()) {}
+          normals(normals.get()),
+          colors(colors.get()) {}
 
     float *vertices;
     float *uvs;
     float *normals;
+    float *colors;
 };
 
 DEVICE
@@ -138,6 +148,18 @@ inline Vector3 get_normal(const Shape &shape, int tri_index) {
 }
 
 DEVICE
+inline bool has_colors(const Shape &shape) {
+    return shape.colors != nullptr;
+}
+
+DEVICE
+inline Vector3f get_color(const Shape &shape, int index) {
+    return Vector3f{shape.colors[3 * index + 0],
+                    shape.colors[3 * index + 1],
+                    shape.colors[3 * index + 2]};
+}
+
+DEVICE
 inline void accumulate_shading_normal(DShape &d_shape, int index, const Vector3 &d) {
     d_shape.normals[3 * index + 0] += d[0];
     d_shape.normals[3 * index + 1] += d[1];
@@ -192,7 +214,9 @@ inline SurfacePoint sample_shape(const Shape &shape, int index, const Vector2 &s
         Vector3{0, 0, 0}, // TODO: compute proper dpdu
         sample, // TODO: give true light source uv
         Vector2{0, 0}, // TODO: inherit derivatives from previous path vertex
-        Vector2{0, 0}}; 
+        Vector2{0, 0},
+        Vector3{0, 0, 0} // color
+    }; 
 }
 
 DEVICE
@@ -215,7 +239,8 @@ inline void d_sample_shape(const Shape &shape, int index, const Vector2 &sample,
     //     Frame(normalized_n),
     //     sample,
     //     Vector2{0, 0},
-    //     Vector2{0, 0}};
+    //     Vector2{0, 0},
+    //     Vector3{0, 0, 0}};
     // No need to propagate to b1 b2
     auto d_v0 = d_point.position;
     auto d_e1 = d_point.position * b1;
@@ -431,6 +456,16 @@ inline SurfacePoint intersect_shape(const Shape &shape,
     new_ray_differential.org_dy = dpdy;
     new_ray_differential.dir_dx = ray_differential.dir_dx;
     new_ray_differential.dir_dy = ray_differential.dir_dy;
+
+    // Interpolate color
+    auto cc = Vector3{0, 0, 0};
+    if (has_colors(shape)) {
+        auto c0 = get_shading_normal(shape, ind[0]);
+        auto c1 = get_shading_normal(shape, ind[1]);
+        auto c2 = get_shading_normal(shape, ind[2]);
+        cc = w * c0 + u * c1 + v * c2;
+    }
+
     return SurfacePoint{hit_pos,
                         geom_normal,
                         frame,
@@ -439,7 +474,8 @@ inline SurfacePoint intersect_shape(const Shape &shape,
                         du_dxy,
                         dv_dxy,
                         dn_dx,
-                        dn_dy};
+                        dn_dy,
+                        cc};
 }
 
 DEVICE
@@ -454,7 +490,8 @@ inline void d_intersect_shape(
         RayDifferential &d_ray_differential,
         Vector3 d_v_p[3],
         Vector3 d_v_n[3],
-        Vector2 d_v_uv[3]) {
+        Vector2 d_v_uv[3],
+        Vector3 d_v_c[3]) {
     auto ind = get_indices(shape, index);
     auto v0 = Vector3{get_vertex(shape, ind[0])};
     auto v1 = Vector3{get_vertex(shape, ind[1])};
@@ -553,6 +590,15 @@ inline void d_intersect_shape(
     }
     // auto frame = Frame(frame_x, frame_y, shading_normal);
 
+    // Interpolate color
+    auto cc = Vector3{0, 0, 0};
+    if (has_colors(shape)) {
+        auto c0 = get_shading_normal(shape, ind[0]);
+        auto c1 = get_shading_normal(shape, ind[1]);
+        auto c2 = get_shading_normal(shape, ind[2]);
+        cc = w * c0 + u * c1 + v * c2;
+    }
+
     // point = SurfacePoint{hit_pos,
     //                      geom_normal,
     //                      frame,
@@ -560,9 +606,24 @@ inline void d_intersect_shape(
     //                      du_dxy,
     //                      dv_dxy,
     //                      dn_dx,
-    //                      dn_dy}
+    //                      dn_dy,
+    //                      cc}
 
     // Backprop
+    auto d_u = Real(0), d_v = Real(0), d_w = Real(0);
+
+    if (has_colors(shape)) {
+        auto c0 = get_shading_normal(shape, ind[0]);
+        auto c1 = get_shading_normal(shape, ind[1]);
+        auto c2 = get_shading_normal(shape, ind[2]);
+        d_v_c[0] += d_point.color * w;
+        d_v_c[1] += d_point.color * u;
+        d_v_c[2] += d_point.color * v;
+        d_w += sum(d_point.color * c0);
+        d_u += sum(d_point.color * c1);
+        d_v += sum(d_point.color * c2);
+    }
+
     auto d_frame_x = d_point.shading_frame[0];
     auto d_frame_y = d_point.shading_frame[1];
     auto d_shading_normal = d_point.shading_frame[2];
@@ -590,7 +651,6 @@ inline void d_intersect_shape(
     auto d_dpdy = d_new_ray_differential.org_dy;
     d_ray_differential.dir_dx += d_new_ray_differential.dir_dx;
     d_ray_differential.dir_dy += d_new_ray_differential.dir_dy;
-    auto d_u = Real(0), d_v = Real(0), d_w = Real(0);
     auto d_u_dxy = Vector2{0, 0};
     auto d_v_dxy = Vector2{0, 0};
     auto d_v0 = Vector3{0, 0, 0};

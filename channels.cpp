@@ -81,6 +81,9 @@ int compute_num_channels(const std::vector<Channels> &channels) {
             case Channels::roughness: {
                 num_total_dimensions += 1;
             } break;
+            case Channels::vertex_color: {
+                num_total_dimensions += 3;
+            } break;
             case Channels::shape_id: {
                 num_total_dimensions += 1;
             } break;

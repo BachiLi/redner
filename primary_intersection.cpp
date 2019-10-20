@@ -24,6 +24,8 @@ struct d_primary_intersector {
                 Vector3{0, 0, 0}, Vector3{0, 0, 0}, Vector3{0, 0, 0}};
             Vector2 d_v_uv[3] = {
                 Vector2{0, 0}, Vector2{0, 0}, Vector2{0, 0}};
+            Vector3 d_v_c[3] = {
+                Vector3{0, 0, 0}, Vector3{0, 0, 0}, Vector3{0, 0, 0}};
             d_intersect_shape(shape,
                               tri_id,
                               rays[pixel_idx],
@@ -34,19 +36,33 @@ struct d_primary_intersector {
                               d_primary_ray_differential,
                               d_v_p,
                               d_v_n,
-                              d_v_uv);
+                              d_v_uv,
+                              d_v_c);
             atomic_add(&d_shapes[shape_id].vertices[3 * ind[0]], d_v_p[0]);
             atomic_add(&d_shapes[shape_id].vertices[3 * ind[1]], d_v_p[1]);
             atomic_add(&d_shapes[shape_id].vertices[3 * ind[2]], d_v_p[2]);
             if (has_uvs(shape)) {
-                atomic_add(&d_shapes[shape_id].uvs[2 * ind[0]], d_v_uv[0]);
-                atomic_add(&d_shapes[shape_id].uvs[2 * ind[1]], d_v_uv[1]);
-                atomic_add(&d_shapes[shape_id].uvs[2 * ind[2]], d_v_uv[2]);
+                auto uv_ind = ind;
+                if (shape.uv_indices != nullptr) {
+                    uv_ind = get_uv_indices(shape, tri_id);
+                }
+                atomic_add(&d_shapes[shape_id].uvs[2 * uv_ind[0]], d_v_uv[0]);
+                atomic_add(&d_shapes[shape_id].uvs[2 * uv_ind[1]], d_v_uv[1]);
+                atomic_add(&d_shapes[shape_id].uvs[2 * uv_ind[2]], d_v_uv[2]);
             }
             if (has_shading_normals(shape)) {
-                atomic_add(&d_shapes[shape_id].normals[3 * ind[0]], d_v_n[0]);
-                atomic_add(&d_shapes[shape_id].normals[3 * ind[1]], d_v_n[1]);
-                atomic_add(&d_shapes[shape_id].normals[3 * ind[2]], d_v_n[2]);
+                auto normal_ind = ind;
+                if (shape.normal_indices != nullptr) {
+                    normal_ind = get_normal_indices(shape, tri_id);
+                }
+                atomic_add(&d_shapes[shape_id].normals[3 * normal_ind[0]], d_v_n[0]);
+                atomic_add(&d_shapes[shape_id].normals[3 * normal_ind[1]], d_v_n[1]);
+                atomic_add(&d_shapes[shape_id].normals[3 * normal_ind[2]], d_v_n[2]);
+            }
+            if (has_colors(shape)) {
+                atomic_add(&d_shapes[shape_id].colors[3 * ind[0]], d_v_c[0]);
+                atomic_add(&d_shapes[shape_id].colors[3 * ind[1]], d_v_c[1]);
+                atomic_add(&d_shapes[shape_id].colors[3 * ind[2]], d_v_c[2]);
             }
         }
 

@@ -174,6 +174,21 @@ struct primary_contribs_accumulator {
                         }
                         d++;
                     } break;
+                    case Channels::vertex_color: {
+                        if (shading_isect.valid()) {
+                            const auto &shading_point = shading_points[pixel_id];
+                            auto refl = shading_point.color * weight;
+                            if (channel_multipliers != nullptr) {
+                                refl[0] *= channel_multipliers[nd * pixel_id + d];
+                                refl[1] *= channel_multipliers[nd * pixel_id + d + 1];
+                                refl[2] *= channel_multipliers[nd * pixel_id + d + 2];
+                            }
+                            rendered_image[nd * pixel_id + d    ] += refl[0];
+                            rendered_image[nd * pixel_id + d + 1] += refl[1];
+                            rendered_image[nd * pixel_id + d + 2] += refl[2];
+                        }
+                        d += 3;
+                    } break;
                     // when there are multiple samples per pixel,
                     // we use the last sample for determining shape id & material id
                     case Channels::shape_id: {
@@ -516,6 +531,21 @@ struct d_primary_contribs_accumulator {
                             d_shading_points[pixel_id]);
                     }
                     d += 1;
+                } break;
+                case Channels::vertex_color: {
+                    if (shading_isect.valid()) {
+                        auto d_refl = weight *
+                                Vector3{d_rendered_image[nd * pixel_id + d],
+                                        d_rendered_image[nd * pixel_id + d + 1],
+                                        d_rendered_image[nd * pixel_id + d + 2]};
+                        if (channel_multipliers != nullptr) {
+                            d_refl[0] *= channel_multipliers[nd * pixel_id + d];
+                            d_refl[1] *= channel_multipliers[nd * pixel_id + d + 1];
+                            d_refl[2] *= channel_multipliers[nd * pixel_id + d + 2];
+                        }
+                        d_shading_points[pixel_id].color += d_refl;
+                    }
+                    d += 3;
                 } break;
                 // shape_id & material_id are not differentiable
                 case Channels::shape_id: {

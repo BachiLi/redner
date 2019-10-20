@@ -12,7 +12,7 @@ void test_d_bsdf() {
     float r = 0.5;
     Texture1 roughness{&r, -1, -1, -1, &uv_scale[0]};
     Texture3 normal_map{nullptr, 0, 0, 0, nullptr};
-    Material m{diffuse, specular, roughness, normal_map, false};
+    Material m{diffuse, specular, roughness, normal_map, false, false};
     Vector3f d_d{0, 0, 0};
     Vector2f d_uv_scale{0, 0};
     Texture3 d_diffuse_tex{&d_d[0], -1, -1, -1, &d_uv_scale[0]};
@@ -26,7 +26,10 @@ void test_d_bsdf() {
                    Vector3{0, 1, 0},
                    Frame(Vector3{0, 1, 0}),
                    Vector3{1, 0, 0}, // dpdu
-                   Vector2{0.5, 0.5}};
+                   Vector2{0.5, 0.5}, // uv
+                   Vector2{0, 0}, Vector2{0, 0}, // du_dxy & dv_dxy
+                   Vector3{0, 0, 0}, Vector3{0, 0, 0}, // dn_dx, dn_dy
+                   Vector3{0, 0, 0}}; // color
     auto wi = normalize(Vector3{0.5, 1.0, 0.5});
     auto wo = normalize(Vector3{-0.5, 1.0, -0.5});
     auto min_roughness = Real(0);
@@ -145,7 +148,7 @@ void test_d_bsdf_sample() {
     float r = 0.5;
     Texture1 roughness{&r, -1, -1, -1, &uv_scale[0]};
     Texture3 normal_map{nullptr, 0, 0, 0, nullptr};
-    Material m{diffuse, specular, roughness, normal_map, false};
+    Material m{diffuse, specular, roughness, normal_map, false, false};
     Vector3f d_d{0, 0, 0};
     Vector2f d_uv_scale{0, 0};
     Texture3 d_diffuse_tex{&d_d[0], -1, -1, -1, &d_uv_scale[0]};
@@ -158,10 +161,11 @@ void test_d_bsdf_sample() {
     SurfacePoint p{Vector3{0, 0, 0},
                    Vector3{0, 1, 0},
                    Frame(Vector3{0, 1, 0}),
-                   Vector3{1, 0, 0},
-                   Vector2{0.5, 0.5},
-                   Vector2{1, 1}, Vector2{1, 1},
-                   Vector3{1, 1, 1}, Vector3{1, 1, 1}};
+                   Vector3{1, 0, 0}, // dpdu
+                   Vector2{0.5, 0.5}, // uv
+                   Vector2{1, 1}, Vector2{1, 1}, // du_dxy, dv_dxy
+                   Vector3{1, 1, 1}, Vector3{1, 1, 1}, // dn_dx, dn_dy
+                   Vector3{0, 0, 0}}; // color
     auto wi = normalize(Vector3{0.5, 1.0, 0.5});
     auto wi_differential = RayDifferential{
         Vector3{1, 1, 1}, Vector3{1, 1, 1},
@@ -350,7 +354,7 @@ void test_d_bsdf_pdf() {
     float r = 0.5;
     Texture1 roughness{&r, -1, -1, -1, &uv_scale[0]};
     Texture3 normal_map{nullptr, 0, 0, 0, nullptr};
-    Material m{diffuse, specular, roughness, normal_map, false};
+    Material m{diffuse, specular, roughness, normal_map, false, false};
     Vector3f d_d{0, 0, 0};
     Vector2f d_uv_scale{0, 0};
     Texture3 d_diffuse_tex{&d_d[0], -1, -1, -1, &d_uv_scale[0]};
@@ -363,8 +367,11 @@ void test_d_bsdf_pdf() {
     SurfacePoint p{Vector3{0, 0, 0},
                    Vector3{0, 1, 0},
                    Frame(Vector3{0, 1, 0}),
-                   Vector3{1, 0, 0},
-                   Vector2{0.5, 0.5}};
+                   Vector3{1, 0, 0}, // dpdu
+                   Vector2{0.5, 0.5}, // uv
+                   Vector2{0, 0}, Vector2{0, 0}, // du_dxy, dv_dxy
+                   Vector3{0, 0, 0}, Vector3{0, 0, 0}, // dn_dx, dn_dy
+                   Vector3{0, 0, 0}}; // color
     auto wi = normalize(Vector3{0.5, 1.0, 0.5});
     auto wo = normalize(Vector3{-0.5, 1.0, -0.5});
     auto d_p = SurfacePoint::zero();

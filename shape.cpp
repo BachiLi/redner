@@ -18,6 +18,7 @@ void test_d_intersect() {
                 nullptr, // normals
                 nullptr, // uv_indices
                 nullptr, // normal_indices
+                nullptr, // color
                 3, // num_vertices
                 0, // num_uv_vertices
                 0, // num_normal_vertices
@@ -35,6 +36,7 @@ void test_d_intersect() {
     d_point.dv_dxy = Vector2{1, 1};
     d_point.dn_dx = Vector3{1, 1, 1};
     d_point.dn_dy = Vector3{1, 1, 1};
+    d_point.color = Vector3{1, 1, 1};
     RayDifferential d_new_ray_diff{
         Vector3{1, 1, 1}, Vector3{1, 1, 1},
         Vector3{1, 1, 1}, Vector3{1, 1, 1}};
@@ -46,6 +48,7 @@ void test_d_intersect() {
     Vector3 d_v_p[3] = {Vector3{0, 0, 0}, Vector3{0, 0, 0}, Vector3{0, 0, 0}};
     Vector3 d_v_n[3] = {Vector3{0, 0, 0}, Vector3{0, 0, 0}, Vector3{0, 0, 0}};
     Vector2 d_v_uv[3] = {Vector2{0, 0}, Vector2{0, 0}, Vector2{0, 0}};
+    Vector3 d_v_c[3] = {Vector3{0, 0, 0}, Vector3{0, 0, 0}, Vector3{0, 0, 0}};
     d_intersect_shape(shape,
                       0,
                       ray,
@@ -56,7 +59,8 @@ void test_d_intersect() {
                       d_ray_diff,
                       d_v_p,
                       d_v_n,
-                      d_v_uv);
+                      d_v_uv,
+                      d_v_c);
     // Check ray derivatives
     auto finite_delta = Real(1e-4);
     for (int i = 0; i < 3; i++) {
@@ -278,6 +282,7 @@ void test_d_sample_shape() {
                 nullptr, // normals
                 nullptr, // uv_indices
                 nullptr, // normal_indices
+                nullptr, // color
                 3, // num_vertices
                 0, // num_uv_vertices
                 0, // num_normal_vertices
@@ -293,6 +298,11 @@ void test_d_sample_shape() {
               Vector3{1, 1, 1},
               Vector3{1, 1, 1}};
     d_point.uv = Vector2{1, 1};
+    d_point.du_dxy = Vector2{1, 1};
+    d_point.dv_dxy = Vector2{1, 1};
+    d_point.dn_dx = Vector3{1, 1, 1};
+    d_point.dn_dy = Vector3{1, 1, 1};
+    d_point.color = Vector3{1, 1, 1};
 
     Vector3 d_v[3] = {Vector3{0, 0, 0}, Vector3{0, 0, 0}, Vector3{0, 0, 0}};
     d_sample_shape(shape, 0, sample, d_point, d_v);

@@ -141,6 +141,10 @@ def serialize_scene(scene: pyredner.Scene,
             args.append(__EMPTY_TENSOR)
         else:
             args.append(shape.normal_indices)
+        if shape.colors is None:
+            args.append(__EMPTY_TENSOR)
+        else:
+            args.append(shape.colors)
         args.append(tf.constant(shape.material_id))
         args.append(tf.constant(shape.light_id))
     for material in scene.materials: 
@@ -157,6 +161,7 @@ def serialize_scene(scene: pyredner.Scene,
             args.append(__EMPTY_TENSOR)
             args.append(__EMPTY_TENSOR)
         args.append(tf.constant(material.two_sided))
+        args.append(tf.constant(material.use_vertex_color))
     for light in scene.area_lights:
         args.append(tf.constant(light.shape_id))
         args.append(light.intensity)
@@ -268,6 +273,8 @@ def forward(seed:int, *args):
             current_index += 1
             normal_indices = args[current_index]
             current_index += 1
+            colors = args[current_index]
+            current_index += 1
             material_id = int(args[current_index])
             current_index += 1
             light_id = int(args[current_index])
@@ -279,6 +286,7 @@ def forward(seed:int, *args):
                 redner.float_ptr(pyredner.data_ptr(normals) if normals is not None else 0),
                 redner.int_ptr(pyredner.data_ptr(uv_indices) if uv_indices is not None else 0),
                 redner.int_ptr(pyredner.data_ptr(normal_indices) if normal_indices is not None else 0),
+                redner.float_ptr(colors.data_ptr() if colors is not None else 0),
                 int(vertices.shape[0]),
                 int(uvs.shape[0]) if uvs is not None else 0,
                 int(normals.shape[0]) if normals is not None else 0,
@@ -306,6 +314,8 @@ def forward(seed:int, *args):
             normal_map_uv_scale = args[current_index]
             current_index += 1
             two_sided = bool(args[current_index])
+            current_index += 1
+            use_vertex_color = args[current_index]
             current_index += 1
         
             diffuse_reflectance_ptr = redner.float_ptr(pyredner.data_ptr(diffuse_reflectance))
@@ -361,7 +371,8 @@ def forward(seed:int, *args):
                 specular_reflectance,
                 roughness,
                 normal_map,
-                two_sided))
+                two_sided,
+                use_vertex_color))
 
     with tf.device('/device:cpu:' + str(pyredner.get_cpu_device_id())):
         area_lights = []
@@ -564,6 +575,7 @@ def render(*x):
         d_vertices_list = []
         d_uvs_list = []
         d_normals_list = []
+        d_colors_list = []
         d_shapes = []
         with tf.device(pyredner.get_device_name()):
             for i, shape in enumerate(ctx.shapes):
@@ -571,13 +583,16 @@ def render(*x):
                 d_vertices = tf.zeros([num_vertices, 3], dtype=tf.float32)
                 d_uvs = tf.zeros([num_vertices, 2], dtype=tf.float32) if shape.has_uvs() else None
                 d_normals = tf.zeros([num_vertices, 3], dtype=tf.float32) if shape.has_normals() else None
+                d_colors = tf.zeros([num_vertices, 3], dtype=tf.float32) if shape.has_colors() else None
                 d_vertices_list.append(d_vertices)
                 d_uvs_list.append(d_uvs)
                 d_normals_list.append(d_normals)
+                d_colors_list.append(d_colors)
                 d_shapes.append(redner.DShape(\
                     redner.float_ptr(pyredner.data_ptr(d_vertices)),
                     redner.float_ptr(pyredner.data_ptr(d_uvs) if d_uvs is not None else 0),
-                    redner.float_ptr(pyredner.data_ptr(d_normals) if d_normals is not None else 0)))
+                    redner.float_ptr(pyredner.data_ptr(d_normals) if d_normals is not None else 0),
+                    redner.float_ptr(pyredner.data_ptr(d_colors) if d_colors is not None else 0)))
 
         d_diffuse_list = []
         d_specular_list = []
@@ -619,7 +634,7 @@ def render(*x):
                 #       constants to avoid memory copy. If we pass scalar tensors
                 #       into the C++ code and modify them, we would corrupt the
                 #       cache, causing incorrect result in future scalar constant
-                #       creations. Thus we force tensorflow to copy by plusing a zero
+                #       creations. Thus we force tensorflow to copy by plusing a zero.
                 # (also see https://github.com/tensorflow/tensorflow/issues/11186
                 #  for more discussion regarding copying tensors)
                 if d_roughness.shape.num_elements() == 1:
@@ -768,6 +783,7 @@ def render(*x):
             ret_list.append(d_normals_list[i])
             ret_list.append(None) # uv_indices
             ret_list.append(None) # normal_indices
+            ret_list.append(d_colors_list[i])
             ret_list.append(None) # material id
             ret_list.append(None) # light id
 
@@ -782,6 +798,7 @@ def render(*x):
             ret_list.append(d_normal_map_list[i])
             ret_list.append(d_normal_map_uv_scale_list[i])
             ret_list.append(None) # two sided
+            ret_list.append(None) # use_vertex_color
 
         num_area_lights = len(ctx.area_lights)
         for i in range(num_area_lights):

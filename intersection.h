@@ -30,17 +30,20 @@ struct TSurfacePoint {
     TVector2<T> du_dxy, dv_dxy;
     TVector3<T> dn_dx, dn_dy;
 
+    TVector3<T> color; // vertex color information
+
     DEVICE static TSurfacePoint<T> zero() {
         return TSurfacePoint<T>{
-            TVector3<T>{0, 0, 0},
-            TVector3<T>{0, 0, 0},
+            TVector3<T>{0, 0, 0}, // position
+            TVector3<T>{0, 0, 0}, // geom_normal
             TFrame<T>{TVector3<T>{0, 0, 0},
                       TVector3<T>{0, 0, 0},
-                      TVector3<T>{0, 0, 0}},
-            TVector3<T>{0, 0, 0},
-            TVector2<T>{0, 0},
-            TVector2<T>{0, 0}, TVector2<T>{0, 0},
-            TVector3<T>{0, 0, 0}, TVector3<T>{0, 0, 0}
+                      TVector3<T>{0, 0, 0}}, // shading_frame
+            TVector3<T>{0, 0, 0}, // dpdu
+            TVector2<T>{0, 0}, // uv
+            TVector2<T>{0, 0}, TVector2<T>{0, 0}, // du_dxy, dv_dxy
+            TVector3<T>{0, 0, 0}, TVector3<T>{0, 0, 0}, // dn_dx, dn_dy
+            TVector3<T>{0, 0, 0} // color
         };
     }
 };
@@ -281,10 +284,4 @@ inline void d_intersect(const TVector3<T> &v0,
     // e1 = v1 - v0
     d_v1 += d_e1;
     d_v0 -= d_e1;
-}
-
-template <typename T>
-DEVICE
-inline TSurfacePoint<T> operator-(const TSurfacePoint<T> &p) {
-    return TSurfacePoint<T>{p.position, -p.geom_normal, -p.shading_frame, p.uv};
 }

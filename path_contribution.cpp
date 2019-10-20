@@ -356,6 +356,7 @@ struct d_path_contribs_accumulator {
                 Vector3 d_bsdf_v_p[3] = {Vector3{0, 0, 0}, Vector3{0, 0, 0}, Vector3{0, 0, 0}};
                 Vector3 d_bsdf_v_n[3] = {Vector3{0, 0, 0}, Vector3{0, 0, 0}, Vector3{0, 0, 0}};
                 Vector2 d_bsdf_v_uv[3] = {Vector2{0, 0}, Vector2{0, 0}};
+                Vector3 d_bsdf_v_c[3] = {Vector3{0, 0, 0}, Vector3{0, 0, 0}, Vector3{0, 0, 0}};
 
                 auto bsdf_val = bsdf(material, shading_point, wi, wo, min_rough);
                 auto scatter_bsdf = bsdf_val / pdf_bsdf;
@@ -440,7 +441,8 @@ struct d_path_contribs_accumulator {
                                   d_bsdf_ray_differential,
                                   d_bsdf_v_p,
                                   d_bsdf_v_n,
-                                  d_bsdf_v_uv);
+                                  d_bsdf_v_uv,
+                                  d_bsdf_v_c);
 
                 // XXX HACK: diffuse interreflection causes a lot of noise
                 // on position derivatives but has small impact on the final derivatives,
@@ -479,20 +481,36 @@ struct d_path_contribs_accumulator {
                 atomic_add(&d_shapes[bsdf_isect.shape_id].vertices[3 * bsdf_tri_index[2]],
                     d_bsdf_v_p[2]);
                 if (has_uvs(bsdf_shape)) {
-                    atomic_add(&d_shapes[bsdf_isect.shape_id].uvs[2 * bsdf_tri_index[0]],
+                    auto uv_tri_ind = bsdf_tri_index;
+                    if (bsdf_shape.uv_indices != nullptr) {
+                        uv_tri_ind = get_uv_indices(bsdf_shape, bsdf_isect.tri_id);
+                    }
+                    atomic_add(&d_shapes[bsdf_isect.shape_id].uvs[2 * uv_tri_ind[0]],
                         d_bsdf_v_uv[0]);
-                    atomic_add(&d_shapes[bsdf_isect.shape_id].uvs[2 * bsdf_tri_index[1]],
+                    atomic_add(&d_shapes[bsdf_isect.shape_id].uvs[2 * uv_tri_ind[1]],
                         d_bsdf_v_uv[1]);
-                    atomic_add(&d_shapes[bsdf_isect.shape_id].uvs[2 * bsdf_tri_index[2]],
+                    atomic_add(&d_shapes[bsdf_isect.shape_id].uvs[2 * uv_tri_ind[2]],
                         d_bsdf_v_uv[2]);
                 }
                 if (has_shading_normals(bsdf_shape)) {
-                    atomic_add(&d_shapes[bsdf_isect.shape_id].normals[3 * bsdf_tri_index[0]],
+                    auto normal_tri_ind = bsdf_tri_index;
+                    if (bsdf_shape.normal_indices != nullptr) {
+                        normal_tri_ind = get_uv_indices(bsdf_shape, bsdf_isect.tri_id);
+                    }
+                    atomic_add(&d_shapes[bsdf_isect.shape_id].normals[3 * normal_tri_ind[0]],
                         d_bsdf_v_n[0]);
-                    atomic_add(&d_shapes[bsdf_isect.shape_id].normals[3 * bsdf_tri_index[1]],
+                    atomic_add(&d_shapes[bsdf_isect.shape_id].normals[3 * normal_tri_ind[1]],
                         d_bsdf_v_n[1]);
-                    atomic_add(&d_shapes[bsdf_isect.shape_id].normals[3 * bsdf_tri_index[2]],
+                    atomic_add(&d_shapes[bsdf_isect.shape_id].normals[3 * normal_tri_ind[2]],
                         d_bsdf_v_n[2]);
+                }
+                if (has_colors(bsdf_shape)) {
+                    atomic_add(&d_shapes[bsdf_isect.shape_id].colors[3 * bsdf_tri_index[0]],
+                        d_bsdf_v_c[0]);
+                    atomic_add(&d_shapes[bsdf_isect.shape_id].colors[3 * bsdf_tri_index[1]],
+                        d_bsdf_v_c[1]);
+                    atomic_add(&d_shapes[bsdf_isect.shape_id].colors[3 * bsdf_tri_index[2]],
+                        d_bsdf_v_c[2]);
                 }
             }
         } else if (scene.envmap != nullptr) {

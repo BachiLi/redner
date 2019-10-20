@@ -2,12 +2,36 @@ import pyredner
 import torch
 
 class Material:
+    """
+        redner currently employs a two-layer diffuse-specular material model.
+        More specifically, it is a linear blend between a Lambertian and
+        a microfacet model with Phong distribution.
+        It takes either constant color or 2D textures for the reflectances
+        and roughness, and an optional normal map texture.
+        It can also use vertex color stored in the Shape. In this case
+        the model fallback to a diffuse model.
+
+        Args:
+            diffuse_reflectance (pyredner.Texture, optional if use_vertex_color is True)
+            specular_reflectance (pyredner.Texture, optional)
+            roughness (pyredner.Texture, 1 channel, optional)
+            normal_map (pyredner.Texture, 3 channels, optional)
+            two_sided (bool) -- By default, the material only reflect lights
+                                on the side the normal is pointing to.
+                                Set this to True to make the material reflects
+                                from both sides.
+            use_vertex_color (bool) -- Ignores the reflectances and use the vertex color as diffuse color.
+    """
     def __init__(self,
-                 diffuse_reflectance,
+                 diffuse_reflectance = None,
                  specular_reflectance = None,
                  roughness = None,
                  normal_map = None,
-                 two_sided = False):
+                 two_sided = False,
+                 use_vertex_color = False):
+        if diffuse_reflectance is None:
+            diffuse_reflectance = pyredner.Texture(\
+                torch.tensor([0.0,0.0,0.0], device = pyredner.get_device()))            
         if specular_reflectance is None:
             specular_reflectance = pyredner.Texture(\
                 torch.tensor([0.0,0.0,0.0], device = pyredner.get_device()))
@@ -30,6 +54,7 @@ class Material:
         self.roughness = roughness
         self.normal_map = normal_map
         self.two_sided = two_sided
+        self.use_vertex_color = use_vertex_color
 
     def state_dict(self):
         return {
@@ -38,6 +63,7 @@ class Material:
             'roughness': self.roughness.state_dict(),
             'normal_map': self.normal_map.state_dict() if self.normal_map is not None else None,
             'two_sided': self.two_sided,
+            'use_vertex_color': self.use_vertex_color
         }
 
     @classmethod
@@ -48,5 +74,6 @@ class Material:
             pyredner.Texture.load_state_dict(state_dict['specular_reflectance']),
             pyredner.Texture.load_state_dict(state_dict['roughness']),
             pyredner.Texture.load_state_dict(normal_map) if normal_map is not None else None,
-            state_dict['two_sided'])
+            state_dict['two_sided'],
+            state_dict['use_vertex_color'])
         return out
