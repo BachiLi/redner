@@ -43,7 +43,7 @@ See [here](https://github.com/BachiLi/redner/pull/11) for a build instruction on
 redner depends on a few libraries/systems:
 - [Python 3.6 or above](https://www.python.org) (required)
 - [pybind11](https://github.com/pybind/pybind11) (required)
-- [PyTorch 1.1](https://pytorch.org) (required)
+- [PyTorch 1.0 or above](https://pytorch.org) (required)
 - [Tensorflow 1.14](https://www.tensorflow.org/) (optional, required if PyTorch is not installed)
 - [OpenEXR](https://github.com/openexr/openexr) (required)
 - [Embree](https://embree.github.io) (required)
