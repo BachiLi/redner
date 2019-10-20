@@ -7,8 +7,11 @@ import pyredner_tensorflow as pyredner
 
 class Camera:
     """
-        redner supports a perspective camera and a fisheye camera.
-        Both of them employ a look at transform.
+        redner supports four types of cameras:
+            perspective, orthographic, fisheye, and panorama.
+        The camera takes a look at transform or a cam_to_world matrix to
+        transform from camera local space to world space. It also can optionally
+        take an intrinsic matrix that models field of view and camera skew.
 
         Note:
             The Camera constructor converts all variables into a CPU device,

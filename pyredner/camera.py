@@ -5,8 +5,11 @@ import redner
 
 class Camera:
     """
-        redner supports a perspective camera and a fisheye camera.
-        Both of them employ a look at transform.
+        redner supports four types of cameras:
+            perspective, orthographic, fisheye, and panorama.
+        The camera takes a look at transform or a cam_to_world matrix to
+        transform from camera local space to world space. It also can optionally
+        take an intrinsic matrix that models field of view and camera skew.
 
         Note:
             Currently we assume all the camera variables are stored in CPU,
@@ -17,7 +20,7 @@ class Camera:
             look_at (length 3 float tensor): the point camera is looking at
             up (length 3 float tensor): the up vector of the camera
             fov (length 1 float tensor): the field of view of the camera in angle, 
-                                         no effect if the camera is a fisheye camera
+                                         no effect if the camera is a fisheye or panorama camera.
             clip_near (float): the near clipping plane of the camera, need to > 0
             resolution (length 2 tuple): the size of the output image in (height, width)
             cam_to_world (4x4 matrix, optional): overrides position, look_at, up vectors.
@@ -29,6 +32,7 @@ class Camera:
                 The projection is then carried by the specific camera types.
                 Perspective camera normalizes the homogeneous coordinates, while
                 orthogonal camera drop the Z coordinate.
+                Ignored in fisheye or panorama cameras.
                 This matrix overrides fov.
             camera_type (render.camera_type): the type of the camera (perspective, orthographic, or fisheye)
             fisheye (bool): whether the camera is a fisheye camera (legacy parameter just to ensure compatibility).
