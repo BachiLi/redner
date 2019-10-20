@@ -13,6 +13,7 @@ class RednerChannels:
         redner.channels.diffuse_reflectance,
         redner.channels.specular_reflectance,
         redner.channels.roughness,
+        redner.channels.vertex_color,
         redner.channels.shape_id,
         redner.channels.material_id
     ]

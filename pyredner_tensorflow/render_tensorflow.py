@@ -286,7 +286,7 @@ def forward(seed:int, *args):
                 redner.float_ptr(pyredner.data_ptr(normals) if normals is not None else 0),
                 redner.int_ptr(pyredner.data_ptr(uv_indices) if uv_indices is not None else 0),
                 redner.int_ptr(pyredner.data_ptr(normal_indices) if normal_indices is not None else 0),
-                redner.float_ptr(colors.data_ptr() if colors is not None else 0),
+                redner.float_ptr(pyredner.data_ptr(colors) if colors is not None else 0),
                 int(vertices.shape[0]),
                 int(uvs.shape[0]) if uvs is not None else 0,
                 int(normals.shape[0]) if normals is not None else 0,
