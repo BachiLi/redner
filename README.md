@@ -2,6 +2,7 @@
 
 News
 
+10/19/2019 - Added vertex color support. See `test_vertex_color.py`.  
 10/08/2019 - Added automatic uv computation through the [xatlas](https://github.com/jpcy/xatlas) library. See the `compute_uvs` function in shape.py and test_compute_uvs.py.  
 10/08/2019 - Slightly changed the Shape class interface. The constructor order is different and it now takes extra 'uv_indices' and 'normal_indices' arguments for dealing with seams in UV mapping and obj loading. See pyredner/shape.py and tutorial 2.  
 09/22/2019 - We now handle inconsistencies between shading normals and geometry normals more gracefully (instead of just return zero in most cases). This helps with rendering models in the wild, say, models in ShapeNet.  
