@@ -460,9 +460,9 @@ inline SurfacePoint intersect_shape(const Shape &shape,
     // Interpolate color
     auto cc = Vector3{0, 0, 0};
     if (has_colors(shape)) {
-        auto c0 = get_shading_normal(shape, ind[0]);
-        auto c1 = get_shading_normal(shape, ind[1]);
-        auto c2 = get_shading_normal(shape, ind[2]);
+        auto c0 = get_color(shape, ind[0]);
+        auto c1 = get_color(shape, ind[1]);
+        auto c2 = get_color(shape, ind[2]);
         cc = w * c0 + u * c1 + v * c2;
     }
 
@@ -593,9 +593,9 @@ inline void d_intersect_shape(
     // Interpolate color
     auto cc = Vector3{0, 0, 0};
     if (has_colors(shape)) {
-        auto c0 = get_shading_normal(shape, ind[0]);
-        auto c1 = get_shading_normal(shape, ind[1]);
-        auto c2 = get_shading_normal(shape, ind[2]);
+        auto c0 = get_color(shape, ind[0]);
+        auto c1 = get_color(shape, ind[1]);
+        auto c2 = get_color(shape, ind[2]);
         cc = w * c0 + u * c1 + v * c2;
     }
 
@@ -613,9 +613,9 @@ inline void d_intersect_shape(
     auto d_u = Real(0), d_v = Real(0), d_w = Real(0);
 
     if (has_colors(shape)) {
-        auto c0 = get_shading_normal(shape, ind[0]);
-        auto c1 = get_shading_normal(shape, ind[1]);
-        auto c2 = get_shading_normal(shape, ind[2]);
+        auto c0 = get_color(shape, ind[0]);
+        auto c1 = get_color(shape, ind[1]);
+        auto c2 = get_color(shape, ind[2]);
         d_v_c[0] += d_point.color * w;
         d_v_c[1] += d_point.color * u;
         d_v_c[2] += d_point.color * v;
