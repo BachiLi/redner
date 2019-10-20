@@ -320,6 +320,17 @@ struct primary_contribs_accumulator {
                         }
                         d++;
                     } break;
+                    case Channels::vertex_color: {
+                        if (shading_isect.valid() && channel_multipliers != nullptr) {
+                            const auto &shading_point = shading_points[pixel_id];
+                            auto refl = shading_point.color * weight;
+                            refl[0] *= channel_multipliers[nd * pixel_id + d];
+                            refl[1] *= channel_multipliers[nd * pixel_id + d + 1];
+                            refl[2] *= channel_multipliers[nd * pixel_id + d + 2];
+                            edge_contribs[pixel_id] += sum(refl);
+                        }
+                        d += 3;
+                    } break;
                     // shape_id & material_id are not differentiable
                     case Channels::shape_id: {
                         d++;
