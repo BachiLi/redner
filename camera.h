@@ -153,7 +153,9 @@ Ray sample_primary(const Camera &camera,
             auto cos_phi = cos(phi);
             auto sin_theta = sin(theta);
             auto cos_theta = cos(theta);
-            auto dir = Vector3{-cos_phi * sin_theta, -sin_phi * sin_theta, cos_theta};
+            auto dir = Vector3{cos_phi * sin_theta,
+                               cos_theta,
+                               sin_phi * sin_theta};
             auto world_dir = xfm_vector(camera.cam_to_world, dir);
             auto n_world_dir = normalize(world_dir);
             return Ray{org, n_world_dir};
@@ -330,7 +332,9 @@ inline void d_sample_primary_ray(const Camera &camera,
             auto cos_phi = cos(phi);
             auto sin_theta = sin(theta);
             auto cos_theta = cos(theta);
-            auto dir = Vector3{-cos_phi * sin_theta, -sin_phi * sin_theta, cos_theta};
+            auto dir = Vector3{cos_phi * sin_theta,
+                               cos_theta,
+                               sin_phi * sin_theta};
             auto world_dir = xfm_vector(camera.cam_to_world, dir);
             // auto n_world_dir = normalize(world_dir);
 
@@ -412,8 +416,8 @@ TVector2<T> camera_to_screen(const Camera &camera,
         case CameraType::Panorama: {
             // Find x, y from local dir
             auto dir = normalize(pt);
-            auto cos_theta = dir[2];
-            auto phi = atan2(dir[1], dir[0]);
+            auto cos_theta = dir[1];
+            auto phi = atan2(dir[2], dir[0]);
             auto theta = acos(cos_theta);
             auto x = phi / Real(2 * M_PI);
             auto y = theta / Real(M_PI);
@@ -521,21 +525,21 @@ inline void d_camera_to_screen(const Camera &camera,
         case CameraType::Panorama: {
             // Find x, y from local dir
             auto dir = normalize(pt);
-            // auto cos_theta = dir[2];
-            // auto phi = atan2(dir[1], dir[0]);
+            // auto cos_theta = dir[1];
+            // auto phi = atan2(dir[2], dir[0]);
             // auto theta = acos(cos_theta);
             // auto x = phi / Real(2 * M_PI);
             // auto y = theta / Real(M_PI);
             auto d_phi = dx / Real(2 * M_PI);
             auto d_theta = dy / Real(M_PI);
             // theta = acos(cos_theta)
-            auto d_cos_theta = -d_theta / sqrt(1.f - dir[2] * dir[2]);
-            // phi = atan2(dir[1], dir[0])
-            auto atan2_tmp = dir[0] * dir[0] + dir[1] * dir[1];
-            auto ddir0 = -d_phi * dir[1] / atan2_tmp;
-            auto ddir1 =  d_phi * dir[0] / atan2_tmp;
-            // cos_theta = dir[2]
-            auto ddir2 = d_cos_theta;
+            auto d_cos_theta = -d_theta / sqrt(1.f - dir[1] * dir[1]);
+            // phi = atan2(dir[2], dir[0])
+            auto atan2_tmp = dir[0] * dir[0] + dir[2] * dir[2];
+            auto ddir0 = -d_phi * dir[2] / atan2_tmp;
+            auto ddir2 =  d_phi * dir[0] / atan2_tmp;
+            // cos_theta = dir[1]
+            auto ddir1 = d_cos_theta;
             // Backprop dir = normalize(pt);
             auto ddir = Vector3{ddir0, ddir1, ddir2};
             d_pt += d_normalize(pt, ddir);
@@ -727,8 +731,9 @@ inline TVector3<T> screen_to_camera(const Camera &camera,
             auto cos_phi = cos(phi);
             auto sin_theta = sin(theta);
             auto cos_theta = cos(theta);
-            auto dir = TVector3<T>{
-                -cos_phi * sin_theta, -sin_phi * sin_theta, cos_theta};
+            auto dir = TVector3<T>{cos_phi * sin_theta,
+                                   cos_theta,
+                                   sin_phi * sin_theta};
             return dir;
         }
         default: {
@@ -816,12 +821,12 @@ inline void d_screen_to_camera(const Camera &camera,
      
             // d dir d screen_pos:
             // auto dir = TVector3<T>{
-            //     -cos_phi * sin_theta, -sin_phi * sin_theta, cos_theta};
-            auto d_dir_x_d_phi = sin_phi * sin_theta;
-            auto d_dir_x_d_theta = -cos_phi * cos_theta;
-            auto d_dir_y_d_phi = -cos_phi * sin_theta;
-            auto d_dir_y_d_theta = -sin_phi * cos_theta;
-            auto d_dir_z_d_theta = -sin_theta;
+            //     cos_phi * sin_theta, cos_theta, sin_phi * sin_theta};
+            auto d_dir_x_d_phi = -sin_phi * sin_theta;
+            auto d_dir_x_d_theta = cos_phi * cos_theta;
+            auto d_dir_y_d_theta = -sin_theta;
+            auto d_dir_z_d_phi = cos_phi * sin_theta;
+            auto d_dir_z_d_theta = sin_phi * cos_theta;
             auto d_phi_d_x = Real(2 * M_PI);
             auto d_phi_d_y = Real(0);
             auto d_theta_d_x = Real(0);
@@ -829,12 +834,12 @@ inline void d_screen_to_camera(const Camera &camera,
 
             d_x = TVector3<T>{
                 d_dir_x_d_phi * d_phi_d_x + d_dir_x_d_theta * d_theta_d_x,
-                d_dir_y_d_phi * d_phi_d_x + d_dir_y_d_theta * d_theta_d_x,
-                d_dir_z_d_theta * d_theta_d_x};
+                d_dir_y_d_theta * d_theta_d_x,
+                d_dir_z_d_phi * d_phi_d_x + d_dir_z_d_theta * d_theta_d_x};
             d_y = TVector3<T>{
                 d_dir_x_d_phi * d_phi_d_y + d_dir_x_d_theta * d_theta_d_y,
-                d_dir_y_d_phi * d_phi_d_y + d_dir_y_d_theta * d_theta_d_y,
-                d_dir_z_d_theta * d_theta_d_y};
+                d_dir_z_d_theta * d_theta_d_y,
+                d_dir_z_d_phi * d_phi_d_y + d_dir_z_d_theta * d_theta_d_y};
         } break;
         default: {
             assert(false);
