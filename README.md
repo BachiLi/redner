@@ -48,7 +48,7 @@ redner depends on a few libraries/systems:
 - [OpenEXR](https://github.com/openexr/openexr) (required)
 - [Embree](https://embree.github.io) (required)
 - [CUDA 10](https://developer.nvidia.com/cuda-downloads) (optional, need GPU at Kepler class or newer)
-- [optix prime](https://developer.nvidia.com/optix) (optional, required when compiled with CUDA)
+- [optix prime V6.5 or older](https://developer.nvidia.com/optix) (optional, required when compiled with CUDA)
 - [miniconda](https://conda.io/miniconda.html) (optional, but recommended)
 - [OpenEXR Python](https://github.com/jamesbowman/openexrpython) (required, included in a submodule)
 - [Thrust](https://thrust.github.io) (required, included in a submodule)
