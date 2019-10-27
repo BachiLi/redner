@@ -22,14 +22,28 @@ cam = pyredner.Camera(position = torch.tensor([0.0, 30.0, 200.0]),
                       resolution = (256, 256),
                       fisheye = False)
 
-# Get a list of materials from material_map
-material_id_map = {}
-materials = []
-count = 0
-for key, value in material_map.items():
-    material_id_map[key] = count
-    count += 1
-    materials.append(value)
+
+Ns=30.0000
+Ks=(0.0, 0.0, 0.0)
+Kd = (1.0, 1.0, 1.0)
+tex_path='../tutorials/teapot.png'
+
+generic_texture = pyredner.imread(tex_path)
+if pyredner.get_use_gpu():
+    generic_texture = generic_texture.cuda(device = pyredner.get_device())
+diffuse_reflectance = torch.tensor(Kd,
+    dtype = torch.float32, device = pyredner.get_device())
+roughness = torch.tensor([2.0 / (Ns + 2.0)],
+    dtype = torch.float32, device = pyredner.get_device())
+specular_reflectance = torch.tensor(Ks,
+    dtype = torch.float32, device = pyredner.get_device())
+
+materials = [
+pyredner.Material(diffuse_reflectance, specular_reflectance, roughness, generic_texture)
+]
+
+
+
 
 # Get a list of shapes
 shapes = []
@@ -39,7 +53,7 @@ for mtl_name, mesh in mesh_list:
         indices = mesh.indices,
         uvs = mesh.uvs,
         normals = mesh.normals,
-        material_id = material_id_map[mtl_name]))
+        material_id = 0))
 
 # Construct the scene
 # Unlike previous tutorials, here we don't setup any light sources
@@ -58,7 +72,9 @@ scene_args = pyredner.RenderFunction.serialize_scene(\
     max_bounces = 0,
     channels = [redner.channels.position,
                 redner.channels.shading_normal,
-                redner.channels.diffuse_reflectance])
+                redner.channels.diffuse_reflectance,
+                redner.channels.generic_texture
+               ])
 render = pyredner.RenderFunction.apply
 g_buffer = render(0, *scene_args)
 # Now, since we specified the outputs to be position, normal, and albedo,
@@ -66,6 +82,7 @@ g_buffer = render(0, *scene_args)
 pos = g_buffer[:, :, :3]
 normal = g_buffer[:, :, 3:6]
 albedo = g_buffer[:, :, 6:9]
+generic_tex = g_buffer[:, :, 9:12]
 # Next, we render the g-buffer into a final image
 # For this we define a deferred_render function:
 def deferred_render(pos, normal, albedo):

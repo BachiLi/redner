@@ -14,6 +14,7 @@ enum class Channels {
     diffuse_reflectance,
     specular_reflectance,
     roughness,
+    generic_texture,
     vertex_color,
     shape_id,
     material_id
