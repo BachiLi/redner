@@ -117,18 +117,21 @@ PYBIND11_MODULE(redner, m) {
         .def(py::init<Texture3, // diffuse
                       Texture3, // specular
                       Texture1, // roughness
+                      Texture3, //generic_texture
                       Texture3, // normal_map
                       bool, // two_sided
                       bool>()) // use_vertex_color
         .def("get_diffuse_size", &Material::get_diffuse_size)
         .def("get_specular_size", &Material::get_specular_size)
         .def("get_roughness_size", &Material::get_roughness_size)
+        .def("get_generic_size", &Material::get_generic_size)
         .def("get_normal_map_size", &Material::get_normal_map_size);
 
     py::class_<DMaterial>(m, "DMaterial")
         .def(py::init<Texture3,
                       Texture3,
                       Texture1,
+                      Texture3,
                       Texture3>());
 
     py::class_<AreaLight>(m, "AreaLight")

@@ -58,6 +58,7 @@ class RenderFunction(torch.autograd.Function):
                             redner.channels.specular_reflectance,
                             redner.channels.vertex_color,
                             redner.channels.roughness,
+                            redner.channels.generic_texture,
                             redner.channels.shape_id,
                             redner.channels.material_id
                         All channels, except for shape id and material id, are differentiable.
@@ -124,12 +125,16 @@ class RenderFunction(torch.autograd.Function):
             assert(torch.isfinite(material.specular_reflectance.uv_scale).all())
             assert(torch.isfinite(material.roughness.mipmap).all())
             assert(torch.isfinite(material.roughness.uv_scale).all())
+            assert(torch.isfinite(material.generic_texture.mipmap).all())
+            assert(torch.isfinite(material.generic_texture.uv_scale).all())
             args.append(material.diffuse_reflectance.mipmap)
             args.append(material.diffuse_reflectance.uv_scale)
             args.append(material.specular_reflectance.mipmap)
             args.append(material.specular_reflectance.uv_scale)
             args.append(material.roughness.mipmap)
             args.append(material.roughness.uv_scale)
+            args.append(material.generic_texture.mipmap)
+            args.append(material.generic_texture.uv_scale)
             if material.normal_map is not None:
                 assert(torch.isfinite(material.normal_map.mipmap).all())
                 assert(torch.isfinite(material.normal_map.uv_scale).all())
@@ -293,6 +298,10 @@ class RenderFunction(torch.autograd.Function):
             current_index += 1
             roughness_uv_scale = args[current_index]
             current_index += 1
+            generic_texture = args[current_index]
+            current_index += 1
+            generic_uv_scale = args[current_index]
+            current_index += 1
             normal_map = args[current_index]
             current_index += 1
             normal_map_uv_scale = args[current_index]
@@ -339,6 +348,18 @@ class RenderFunction(torch.autograd.Function):
                     int(roughness.shape[1]), # height
                     int(roughness.shape[0]), # num levels
                     redner.float_ptr(roughness_uv_scale.data_ptr()))
+            assert(generic_texture.is_contiguous())
+            if generic_texture.dim() == 1:
+                generic_texture = redner.Texture3(\
+                    redner.float_ptr(generic_texture.data_ptr()), 0, 0, 0,
+                    redner.float_ptr(generic_uv_scale.data_ptr()))
+            else:
+                generic_texture = redner.Texture3(\
+                    redner.float_ptr(generic_texture.data_ptr()),
+                    int(generic_texture.shape[2]), # width
+                    int(generic_texture.shape[1]), # height
+                    int(generic_texture.shape[0]), # num levels
+                    redner.float_ptr(generic_uv_scale.data_ptr()))
             if normal_map is not None:
                 assert(normal_map.dim() == 4)
                 normal_map = redner.Texture3(\
@@ -354,6 +375,7 @@ class RenderFunction(torch.autograd.Function):
                 diffuse_reflectance,
                 specular_reflectance,
                 roughness,
+                generic_texture,
                 normal_map,
                 two_sided,
                 use_vertex_color))
@@ -544,6 +566,8 @@ class RenderFunction(torch.autograd.Function):
         d_specular_uv_scale_list = []
         d_roughness_list = []
         d_roughness_uv_scale_list = []
+        d_generic_list = []
+        d_generic_uv_scale_list = []
         d_normal_map_list = []
         d_normal_map_uv_scale_list = []
         d_materials = []
@@ -551,6 +575,7 @@ class RenderFunction(torch.autograd.Function):
             diffuse_size = material.get_diffuse_size()
             specular_size = material.get_specular_size()
             roughness_size = material.get_roughness_size()
+            generic_size = material.get_generic_size()
             normal_map_size = material.get_normal_map_size()
             if diffuse_size[0] == 0:
                 d_diffuse = torch.zeros(3, device = pyredner.get_device())
@@ -573,6 +598,13 @@ class RenderFunction(torch.autograd.Function):
                                           roughness_size[1],
                                           roughness_size[0],
                                           1, device = pyredner.get_device())
+            if generic_size[0] == 0:
+                d_generic = None
+            else:
+                d_generic = torch.zeros(generic_size[2],
+                                           generic_size[1],
+                                           generic_size[0],
+                                           3, device = pyredner.get_device())
             if normal_map_size[0] == 0:
                 d_normal_map = None
             else:
@@ -583,13 +615,19 @@ class RenderFunction(torch.autograd.Function):
             d_diffuse_list.append(d_diffuse)
             d_specular_list.append(d_specular)
             d_roughness_list.append(d_roughness)
+            d_generic_list.append(d_generic)
             d_normal_map_list.append(d_normal_map)
             d_diffuse_uv_scale = torch.zeros(2, device = pyredner.get_device())
             d_specular_uv_scale = torch.zeros(2, device = pyredner.get_device())
             d_roughness_uv_scale = torch.zeros(2, device = pyredner.get_device())
+            d_generic_uv_scale = torch.zeros(2, device = pyredner.get_device())
             d_diffuse_uv_scale_list.append(d_diffuse_uv_scale)
             d_specular_uv_scale_list.append(d_specular_uv_scale)
             d_roughness_uv_scale_list.append(d_roughness_uv_scale)
+            if d_generic is None:
+                d_generic_uv_scale = None
+            else:
+                d_generic_uv_scale = torch.zeros(2, device = pyredner.get_device())
             if d_normal_map is None:
                 d_normal_map_uv_scale = None
             else:
@@ -607,6 +645,14 @@ class RenderFunction(torch.autograd.Function):
                 redner.float_ptr(d_roughness.data_ptr()),
                 roughness_size[0], roughness_size[1], roughness_size[2],
                 redner.float_ptr(d_roughness_uv_scale.data_ptr()))
+            if d_generic_tex is None:
+                d_generic_tex = redner.Texture3(\
+                    redner.float_ptr(0), 0, 0, 0, redner.float_ptr(0))
+            else:
+                d_generic_tex = redner.Texture3(\
+                    redner.float_ptr(d_generic.data_ptr()),
+                    generic_size[0], generic_size[1], generic_size[2],
+                    redner.float_ptr(d_generic_uv_scale.data_ptr()))
             if d_normal_map is None:
                 d_normal_map = redner.Texture3(\
                     redner.float_ptr(0), 0, 0, 0, redner.float_ptr(0))
@@ -616,7 +662,7 @@ class RenderFunction(torch.autograd.Function):
                     normal_map_size[0], normal_map_size[1], normal_map_size[2],
                     redner.float_ptr(d_normal_map_uv_scale.data_ptr()))
             d_materials.append(redner.DMaterial(\
-                d_diffuse_tex, d_specular_tex, d_roughness_tex, d_normal_map))
+                d_diffuse_tex, d_specular_tex, d_roughness_tex, d_generic_tex, d_normal_map))
 
         d_intensity_list = []
         d_area_lights = []

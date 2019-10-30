@@ -31,8 +31,13 @@ tex_path='../tutorials/teapot.png'
 generic_texture = pyredner.imread(tex_path)
 if pyredner.get_use_gpu():
     generic_texture = generic_texture.cuda(device = pyredner.get_device())
-diffuse_reflectance = torch.tensor(Kd,
-    dtype = torch.float32, device = pyredner.get_device())
+
+diffuse_reflectance = pyredner.imread(tex_path)
+if pyredner.get_use_gpu():
+    diffuse_reflectance = diffuse_reflectance.cuda(device = pyredner.get_device())
+
+#diffuse_reflectance = torch.tensor(Kd,
+#    dtype = torch.float32, device = pyredner.get_device())
 roughness = torch.tensor([2.0 / (Ns + 2.0)],
     dtype = torch.float32, device = pyredner.get_device())
 specular_reflectance = torch.tensor(Ks,
@@ -85,7 +90,7 @@ albedo = g_buffer[:, :, 6:9]
 generic_tex = g_buffer[:, :, 9:12]
 # Next, we render the g-buffer into a final image
 # For this we define a deferred_render function:
-def deferred_render(pos, normal, albedo):
+def deferred_render(pos, normal, albedo, generic_tex):
     # We assume a point light at the camera origin (0, 30, 200)
     # The lighting consists of a geometry term cos/d^2, albedo, and the light intensity
     light_pos = torch.tensor([0.0, 30.0, 200.0], device = pyredner.get_device())
@@ -99,8 +104,8 @@ def deferred_render(pos, normal, albedo):
     # Normalize light direction
     light_dir = light_dir / light_dist
     dot_l_n = torch.sum(light_dir * normal, 2, keepdim = True)
-    return light_intensity * dot_l_n * (albedo / math.pi) / light_dist_sq 
-img = deferred_render(pos, normal, albedo)
+    return light_intensity * dot_l_n * (generic_tex / math.pi) / light_dist_sq 
+img = deferred_render(pos, normal, albedo, generic_tex)
 # Save the images
 pyredner.imwrite(img.cpu(), '../target.exr')
 pyredner.imwrite(img.cpu(), '../target.png')

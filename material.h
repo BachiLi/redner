@@ -15,12 +15,14 @@ struct Material {
     Material(Texture3 diffuse_reflectance,
              Texture3 specular_reflectance,
              Texture1 roughness,
+             Texture3 generic_texture,
              Texture3 normal_map,
              bool two_sided,
              bool use_vertex_color)
         : diffuse_reflectance(diffuse_reflectance),
           specular_reflectance(specular_reflectance),
           roughness(roughness),
+          generic_texture(generic_texture),
           normal_map(normal_map),
           two_sided(two_sided),
           use_vertex_color(use_vertex_color) {}
@@ -46,6 +48,13 @@ struct Material {
             roughness.num_levels);
     }
 
+    inline std::tuple<int, int, int> get_generic_size() const {
+        return std::make_tuple(
+            generic_texture.width,
+            generic_texture.height,
+            generic_texture.num_levels);
+    }
+
     inline std::tuple<int, int, int> get_normal_map_size() const {
         return std::make_tuple(
             normal_map.width,
@@ -56,6 +65,7 @@ struct Material {
     Texture3 diffuse_reflectance;
     Texture3 specular_reflectance;
     Texture1 roughness;
+    Texture3 generic_texture;
     Texture3 normal_map;
     bool two_sided;
     bool use_vertex_color;
@@ -65,6 +75,7 @@ struct DMaterial {
     Texture3 diffuse_reflectance;
     Texture3 specular_reflectance;
     Texture1 roughness;
+    Texture3 generic_texture;
     Texture3 normal_map;
 };
 
@@ -147,6 +158,31 @@ inline void d_get_roughness(const Material &material,
                         d_shading_point.du_dxy,
                         d_shading_point.dv_dxy);
 }
+
+DEVICE
+inline Vector3 get_generic_texture(const Material &material,
+                                       const SurfacePoint &shading_point) {
+    return get_texture_value(material.generic_texture,
+        shading_point.uv, shading_point.du_dxy, shading_point.dv_dxy);
+}
+
+DEVICE
+inline void d_get_generic_texture(const Material &material,
+                                      const SurfacePoint &shading_point,
+                                      const Vector3 &d_output,
+                                      Texture3 &d_texture,
+                                      SurfacePoint &d_shading_point) {
+    d_get_texture_value(material.generic_texture,
+                        shading_point.uv,
+                        shading_point.du_dxy,
+                        shading_point.dv_dxy,
+                        d_output,
+                        d_texture,
+                        d_shading_point.uv,
+                        d_shading_point.du_dxy,
+                        d_shading_point.dv_dxy);
+}
+
 
 DEVICE
 inline bool has_normal_map(const Material &material) {

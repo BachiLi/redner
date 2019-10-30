@@ -26,6 +26,7 @@ class Material:
                  diffuse_reflectance = None,
                  specular_reflectance = None,
                  roughness = None,
+                 generic_texture = None,
                  normal_map = None,
                  two_sided = False,
                  use_vertex_color = False):
@@ -39,6 +40,10 @@ class Material:
             roughness = pyredner.Texture(\
                 torch.tensor([1.0], device = pyredner.get_device()))
 
+        if generic_texture is None:
+            generic_texture = pyredner.Texture(\
+                torch.tensor([0.0,0.0,0.0], device = pyredner.get_device()))
+
         # Convert to constant texture if necessary
         if isinstance(diffuse_reflectance, torch.Tensor):
             diffuse_reflectance = pyredner.Texture(diffuse_reflectance)
@@ -46,12 +51,15 @@ class Material:
             specular_reflectance = pyredner.Texture(specular_reflectance)
         if isinstance(roughness, torch.Tensor):
             roughness = pyredner.Texture(roughness)
+        if isinstance(generic_texture, torch.Tensor):
+            generic_texture = pyredner.Texture(generic_texture)
         if normal_map is not None and isinstance(normal_map, torch.Tensor):
             normal_map = pyredner.Texture(normal_map)
 
         self.diffuse_reflectance = diffuse_reflectance
         self.specular_reflectance = specular_reflectance
         self.roughness = roughness
+        self.generic_texture = generic_texture
         self.normal_map = normal_map
         self.two_sided = two_sided
         self.use_vertex_color = use_vertex_color
@@ -61,6 +69,7 @@ class Material:
             'diffuse_reflectance': self.diffuse_reflectance.state_dict(),
             'specular_reflectance': self.specular_reflectance.state_dict(),
             'roughness': self.roughness.state_dict(),
+            'generic_texture': self.generic_texture.state_dict(),
             'normal_map': self.normal_map.state_dict() if self.normal_map is not None else None,
             'two_sided': self.two_sided,
             'use_vertex_color': self.use_vertex_color
@@ -73,6 +82,7 @@ class Material:
             pyredner.Texture.load_state_dict(state_dict['diffuse_reflectance']),
             pyredner.Texture.load_state_dict(state_dict['specular_reflectance']),
             pyredner.Texture.load_state_dict(state_dict['roughness']),
+            pyredner.Texture.load_state_dict(state_dict['generic_texture']),
             pyredner.Texture.load_state_dict(normal_map) if normal_map is not None else None,
             state_dict['two_sided'],
             state_dict['use_vertex_color'])
