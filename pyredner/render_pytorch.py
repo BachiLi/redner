@@ -348,18 +348,19 @@ class RenderFunction(torch.autograd.Function):
                     int(roughness.shape[1]), # height
                     int(roughness.shape[0]), # num levels
                     redner.float_ptr(roughness_uv_scale.data_ptr()))
-            assert(generic_texture.is_contiguous())
-            if generic_texture.dim() == 1:
-                generic_texture = redner.Texture3(\
-                    redner.float_ptr(generic_texture.data_ptr()), 0, 0, 0,
-                    redner.float_ptr(generic_uv_scale.data_ptr()))
-            else:
+
+            if generic_texture is not None:
+                assert(generic_texture.dim() == 4)
                 generic_texture = redner.Texture3(\
                     redner.float_ptr(generic_texture.data_ptr()),
                     int(generic_texture.shape[2]), # width
                     int(generic_texture.shape[1]), # height
                     int(generic_texture.shape[0]), # num levels
                     redner.float_ptr(generic_uv_scale.data_ptr()))
+            else:
+                generic_texture = redner.Texture3(\
+                    redner.float_ptr(0), 0, 0, 0, redner.float_ptr(0))
+
             if normal_map is not None:
                 assert(normal_map.dim() == 4)
                 normal_map = redner.Texture3(\
