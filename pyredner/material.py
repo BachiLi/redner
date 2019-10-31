@@ -32,7 +32,7 @@ class Material:
                  use_vertex_color = False):
         if diffuse_reflectance is None:
             diffuse_reflectance = pyredner.Texture(\
-                torch.tensor([0.0,0.0,0.0], device = pyredner.get_device()))            
+                torch.tensor([0.0,0.0,0.0], device = pyredner.get_device()))
         if specular_reflectance is None:
             specular_reflectance = pyredner.Texture(\
                 torch.tensor([0.0,0.0,0.0], device = pyredner.get_device()))
@@ -40,9 +40,8 @@ class Material:
             roughness = pyredner.Texture(\
                 torch.tensor([1.0], device = pyredner.get_device()))
 
-        if generic_texture is None:
-            generic_texture = pyredner.Texture(\
-                torch.tensor([0.0,0.0,0.0], device = pyredner.get_device()))
+        if generic_texture is not None and isinstance(generic_texture, torch.Tensor):
+            generic_texture = pyredner.Texture(generic_texture)
 
         # Convert to constant texture if necessary
         if isinstance(diffuse_reflectance, torch.Tensor):

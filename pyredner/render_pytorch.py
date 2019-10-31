@@ -179,7 +179,7 @@ class RenderFunction(torch.autograd.Function):
         args.append(use_secondary_edge_sampling)
 
         return args
-    
+
     @staticmethod
     def forward(ctx,
                 seed,
@@ -195,7 +195,7 @@ class RenderFunction(torch.autograd.Function):
         current_index += 1
         num_lights = args[current_index]
         current_index += 1
-        
+
         cam_position = args[current_index]
         current_index += 1
         cam_look_at = args[current_index]
@@ -502,7 +502,7 @@ class RenderFunction(torch.autograd.Function):
         scene = ctx.scene
         options = ctx.options
         camera = ctx.camera
-        
+
         if camera.use_look_at:
             d_cam_position = torch.zeros(3, device = pyredner.get_device())
             d_cam_look = torch.zeros(3, device = pyredner.get_device())
@@ -620,7 +620,6 @@ class RenderFunction(torch.autograd.Function):
             d_diffuse_uv_scale = torch.zeros(2, device = pyredner.get_device())
             d_specular_uv_scale = torch.zeros(2, device = pyredner.get_device())
             d_roughness_uv_scale = torch.zeros(2, device = pyredner.get_device())
-            d_generic_uv_scale = torch.zeros(2, device = pyredner.get_device())
             d_diffuse_uv_scale_list.append(d_diffuse_uv_scale)
             d_specular_uv_scale_list.append(d_specular_uv_scale)
             d_roughness_uv_scale_list.append(d_roughness_uv_scale)
@@ -815,7 +814,7 @@ class RenderFunction(torch.autograd.Function):
             ret_list.append(None)
             ret_list.append(None)
             ret_list.append(None)
-        
+
         ret_list.append(None) # num samples
         ret_list.append(None) # num bounces
         ret_list.append(None) # channels
