@@ -672,9 +672,9 @@ def render(*x):
                     d_generic_texture = None
                 else:
                     d_generic_texture = tf.zeros([generic_texture_size[2],
-                                             generic_texture_size[1],
-                                             generic_texture_size[0],
-                                             3], dtype=tf.float32)
+                                                  generic_texture_size[1],
+                                                  generic_texture_size[0],
+                                                  3], dtype=tf.float32)
                 if normal_map_size[0] == 0:
                     d_normal_map = None
                 else:

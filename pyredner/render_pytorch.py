@@ -603,9 +603,9 @@ class RenderFunction(torch.autograd.Function):
                 d_generic = None
             else:
                 d_generic = torch.zeros(generic_size[2],
-                                           generic_size[1],
-                                           generic_size[0],
-                                           3, device = pyredner.get_device())
+                                        generic_size[1],
+                                        generic_size[0],
+                                        3, device = pyredner.get_device())
             if normal_map_size[0] == 0:
                 d_normal_map = None
             else:

@@ -15,6 +15,7 @@ class Material:
             diffuse_reflectance (pyredner.Texture, optional if use_vertex_color is True)
             specular_reflectance (pyredner.Texture, optional)
             roughness (pyredner.Texture, 1 channel, optional)
+            generic_texture (pyredner.Texture or torch.tensor, optional)
             normal_map (pyredner.Texture, 3 channels, optional)
             two_sided (bool) -- By default, the material only reflect lights
                                 on the side the normal is pointing to.
@@ -37,8 +38,7 @@ class Material:
             specular_reflectance = pyredner.Texture(tf.zeros([3], dtype=tf.float32))
         if roughness is None:
             roughness = pyredner.Texture(tf.ones([1], dtype=tf.float32))
-        if generic_texture is None:
-            generic_texture = pyredner.Texture(tf.ones([1], dtype=tf.float32))
+
         # Convert to constant texture if necessary
         if tf.is_tensor(diffuse_reflectance):
             diffuse_reflectance = pyredner.Texture(diffuse_reflectance)

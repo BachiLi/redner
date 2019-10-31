@@ -12,9 +12,10 @@ class Material:
         the model fallback to a diffuse model.
 
         Args:
-            diffuse_reflectance (pyredner.Texture, optional if use_vertex_color is True)
-            specular_reflectance (pyredner.Texture, optional)
-            roughness (pyredner.Texture, 1 channel, optional)
+            diffuse_reflectance (pyredner.Texture or torch.tensor, optional if use_vertex_color is True)
+            specular_reflectance (pyredner.Texture or torch.tensor, optional)
+            roughness (pyredner.Texture or torch.tensor, 1 channel, optional)
+            generic_texture (pyredner.Texture or torch.tensor, optional)
             normal_map (pyredner.Texture, 3 channels, optional)
             two_sided (bool) -- By default, the material only reflect lights
                                 on the side the normal is pointing to.
@@ -40,9 +41,6 @@ class Material:
             roughness = pyredner.Texture(\
                 torch.tensor([1.0], device = pyredner.get_device()))
 
-        if generic_texture is not None and isinstance(generic_texture, torch.Tensor):
-            generic_texture = pyredner.Texture(generic_texture)
-
         # Convert to constant texture if necessary
         if isinstance(diffuse_reflectance, torch.Tensor):
             diffuse_reflectance = pyredner.Texture(diffuse_reflectance)
@@ -50,7 +48,7 @@ class Material:
             specular_reflectance = pyredner.Texture(specular_reflectance)
         if isinstance(roughness, torch.Tensor):
             roughness = pyredner.Texture(roughness)
-        if isinstance(generic_texture, torch.Tensor):
+        if generic_texture is not None and isinstance(generic_texture, torch.Tensor):
             generic_texture = pyredner.Texture(generic_texture)
         if normal_map is not None and isinstance(normal_map, torch.Tensor):
             normal_map = pyredner.Texture(normal_map)
