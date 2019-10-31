@@ -13,12 +13,13 @@ class RednerChannels:
         redner.channels.diffuse_reflectance,
         redner.channels.specular_reflectance,
         redner.channels.roughness,
+        redner.channels.generic_texture,
         redner.channels.vertex_color,
         redner.channels.shape_id,
         redner.channels.material_id
     ]
 
-    @staticmethod    
+    @staticmethod
     def asTensor(channel: redner.channels) -> tf.Tensor:
         assert isinstance(channel, redner.channels)
 
@@ -43,7 +44,7 @@ class RednerSamplerType:
         redner.SamplerType.sobol
     ]
 
-    @staticmethod    
+    @staticmethod
     def asTensor(samplertype: redner.SamplerType) -> tf.Tensor:
         assert isinstance(samplertype, redner.SamplerType)
 
@@ -70,7 +71,7 @@ class RednerCameraType:
         redner.CameraType.fisheye,
     ]
 
-    @staticmethod    
+    @staticmethod
     def asTensor(cameratype: redner.CameraType) -> tf.Tensor:
         assert isinstance(cameratype, redner.CameraType)
 

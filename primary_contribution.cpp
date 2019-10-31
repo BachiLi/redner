@@ -174,6 +174,24 @@ struct primary_contribs_accumulator {
                         }
                         d++;
                     } break;
+                    case Channels::generic_texture: {
+                        if (shading_isect.valid()) {
+                            const auto &shading_point = shading_points[pixel_id];
+                            const auto &shading_shape = scene.shapes[shading_isect.shape_id];
+                            const auto &material = scene.materials[shading_shape.material_id];
+                            auto gt =
+                                get_generic_texture(material, shading_point) * weight;
+                            if (channel_multipliers != nullptr) {
+                                gt[0] *= channel_multipliers[nd * pixel_id + d];
+                                gt[1] *= channel_multipliers[nd * pixel_id + d + 1];
+                                gt[2] *= channel_multipliers[nd * pixel_id + d + 2];
+                            }
+                            rendered_image[nd * pixel_id + d    ] += gt[0];
+                            rendered_image[nd * pixel_id + d + 1] += gt[1];
+                            rendered_image[nd * pixel_id + d + 2] += gt[2];
+                        }
+                        d += 3;
+                    } break;
                     case Channels::vertex_color: {
                         if (shading_isect.valid()) {
                             const auto &shading_point = shading_points[pixel_id];
@@ -319,6 +337,20 @@ struct primary_contribs_accumulator {
                             edge_contribs[pixel_id] += r;
                         }
                         d++;
+                    } break;
+                    case Channels::generic_texture: {
+                        if (shading_isect.valid() && channel_multipliers != nullptr) {
+                            const auto &shading_point = shading_points[pixel_id];
+                            const auto &shading_shape = scene.shapes[shading_isect.shape_id];
+                            const auto &material = scene.materials[shading_shape.material_id];
+                            auto gt =
+                                get_generic_texture(material, shading_point) * weight;
+                            gt[0] *= channel_multipliers[nd * pixel_id + d];
+                            gt[1] *= channel_multipliers[nd * pixel_id + d + 1];
+                            gt[2] *= channel_multipliers[nd * pixel_id + d + 2];
+                            edge_contribs[pixel_id] += sum(gt);
+                        }
+                        d += 3;
                     } break;
                     case Channels::vertex_color: {
                         if (shading_isect.valid() && channel_multipliers != nullptr) {
@@ -542,6 +574,26 @@ struct d_primary_contribs_accumulator {
                             d_shading_points[pixel_id]);
                     }
                     d += 1;
+                } break;
+                case Channels::generic_texture: {
+                    if (shading_isect.valid()) {
+                        const auto &shading_point = shading_points[pixel_id];
+                        const auto &shape = scene.shapes[shading_isect.shape_id];
+                        const auto &material = scene.materials[shape.material_id];
+                        auto d_gt = weight *
+                                Vector3{d_rendered_image[nd * pixel_id + d],
+                                        d_rendered_image[nd * pixel_id + d + 1],
+                                        d_rendered_image[nd * pixel_id + d + 2]};
+                        if (channel_multipliers != nullptr) {
+                            d_gt[0] *= channel_multipliers[nd * pixel_id + d];
+                            d_gt[1] *= channel_multipliers[nd * pixel_id + d + 1];
+                            d_gt[2] *= channel_multipliers[nd * pixel_id + d + 2];
+                        }
+                        d_get_generic_texture(material, shading_point, d_gt,
+                            d_materials[shape.material_id].generic_texture,
+                            d_shading_points[pixel_id]);
+                    }
+                    d += 3;
                 } break;
                 case Channels::vertex_color: {
                     if (shading_isect.valid()) {
