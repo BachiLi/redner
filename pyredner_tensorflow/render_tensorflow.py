@@ -668,13 +668,13 @@ def render(*x):
                 #  for more discussion regarding copying tensors)
                 if d_roughness.shape.num_elements() == 1:
                     d_roughness = d_roughness + 0
-                if generic_texture_size[0] == 0:
-                    d_generic_texture = None
+                if generic_size[0] == 0:
+                    d_generic = None
                 else:
-                    d_generic_texture = tf.zeros([generic_texture_size[2],
-                                                  generic_texture_size[1],
-                                                  generic_texture_size[0],
-                                                  3], dtype=tf.float32)
+                    d_generic = tf.zeros([generic_size[2],
+                                          generic_size[1],
+                                          generic_size[0],
+                                          3], dtype=tf.float32)
                 if normal_map_size[0] == 0:
                     d_normal_map = None
                 else:
@@ -686,18 +686,19 @@ def render(*x):
                 d_diffuse_list.append(d_diffuse)
                 d_specular_list.append(d_specular)
                 d_roughness_list.append(d_roughness)
+                d_generic_list.append(d_generic)
                 d_normal_map_list.append(d_normal_map)
                 d_diffuse = redner.float_ptr(pyredner.data_ptr(d_diffuse))
                 d_specular = redner.float_ptr(pyredner.data_ptr(d_specular))
                 d_roughness = redner.float_ptr(pyredner.data_ptr(d_roughness))
-                if generic_texture_size[0] > 0:
-                    d_generic_texture = redner.float_ptr(pyredner.data_ptr(d_generic_texture))
+                if generic_size[0] > 0:
+                    d_generic = redner.float_ptr(pyredner.data_ptr(d_generic))
                 if normal_map_size[0] > 0:
                     d_normal_map = redner.float_ptr(pyredner.data_ptr(d_normal_map))
                 d_diffuse_uv_scale = tf.zeros([2], dtype=tf.float32)
                 d_specular_uv_scale = tf.zeros([2], dtype=tf.float32)
                 d_roughness_uv_scale = tf.zeros([2], dtype=tf.float32)
-                if generic_texture_size[0] > 0:
+                if generic_size[0] > 0:
                     d_generic_uv_scale = tf.zeros([2], dtype=tf.float32)
                 else:
                     d_generic_uv_scale = None
@@ -713,7 +714,7 @@ def render(*x):
                 d_diffuse_uv_scale = redner.float_ptr(pyredner.data_ptr(d_diffuse_uv_scale))
                 d_specular_uv_scale = redner.float_ptr(pyredner.data_ptr(d_specular_uv_scale))
                 d_roughness_uv_scale = redner.float_ptr(pyredner.data_ptr(d_roughness_uv_scale))
-                if generic_texture_size[0] > 0:
+                if generic_size[0] > 0:
                     d_generic_uv_scale = redner.float_ptr(pyredner.data_ptr(d_generic_uv_scale))
                 if normal_map_size[0] > 0:
                     d_normal_map_uv_scale = redner.float_ptr(pyredner.data_ptr(d_normal_map_uv_scale))
@@ -723,9 +724,9 @@ def render(*x):
                     d_specular, specular_size[0], specular_size[1], specular_size[2], d_specular_uv_scale)
                 d_roughness_tex = redner.Texture1(\
                     d_roughness, roughness_size[0], roughness_size[1], roughness_size[2],  d_roughness_uv_scale)
-                if generic_texture_size[0] > 0:
+                if generic_size[0] > 0:
                     d_generic_tex = redner.Texture3(\
-                        d_generic_texture, generic_texture_size[0], generic_texture_size[1], generic_texture_size[2], d_generic_uv_scale)
+                        d_generic_texture, generic_size[0], generic_size[1], generic_size[2], d_generic_uv_scale)
                 else:
                     d_generic_tex = redner.Texture3(\
                         redner.float_ptr(0), 0, 0, 0, redner.float_ptr(0))
@@ -846,7 +847,7 @@ def render(*x):
             ret_list.append(d_specular_uv_scale_list[i])
             ret_list.append(d_roughness_list[i])
             ret_list.append(d_roughness_uv_scale_list[i])
-            ret_list.append(d_generic_texture_list[i])
+            ret_list.append(d_generic_list[i])
             ret_list.append(d_generic_uv_scale_list[i])
             ret_list.append(d_normal_map_list[i])
             ret_list.append(d_normal_map_uv_scale_list[i])
