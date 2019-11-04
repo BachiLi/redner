@@ -8,7 +8,9 @@ import math
 class Texture:
     def __init__(self,
                  texels,
-                 uv_scale = torch.tensor([1.0, 1.0], device = pyredner.get_device())):
+                 uv_scale = None):
+        if uv_scale is None:
+            uv_scale = torch.tensor([1.0, 1.0], device = pyredner.get_device())
         assert(texels.device.type == pyredner.get_device().type)
         assert(texels.dtype == torch.float32)
         assert(uv_scale.device.type == pyredner.get_device().type)
