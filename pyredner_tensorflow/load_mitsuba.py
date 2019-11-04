@@ -174,6 +174,7 @@ def parse_shape(node, material_dict, shape_id):
         mat_id = -1
         light_intensity = None
         filename = ''
+        max_smooth_angle = -1
         for child in node:
             if 'name' in child.attrib:
                 if child.attrib['name'] == 'filename':
@@ -182,6 +183,8 @@ def parse_shape(node, material_dict, shape_id):
                     to_world = parse_transform(child)
                 elif child.attrib['name'] == 'shapeIndex':
                     serialized_shape_id = int(child.attrib['value'])
+                elif child.attrib['name'] == 'maxSmoothAngle':
+                    max_smooth_angle = float(child.attrib['value'])
             if child.tag == 'ref':
                 mat_id = material_dict[child.attrib['id']]
             elif child.tag == 'emitter':
@@ -196,14 +199,19 @@ def parse_shape(node, material_dict, shape_id):
 
         if node.attrib['type'] == 'obj':
             _, mesh_list, _ = pyredner.load_obj(filename)
+            # Convert to CPU for rebuild_topology
             vertices = mesh_list[0][1].vertices.cpu()
             indices = mesh_list[0][1].indices.cpu()
             uvs = mesh_list[0][1].uvs
             normals = mesh_list[0][1].normals
+            uv_indices = mesh_list[0][1].uv_indices
+            normal_indices = mesh_list[0][1].normal_indices
             if uvs is not None:
                 uvs = uvs.cpu()
             if normals is not None:
                 normals = normals.cpu()
+            if uv_indices is not None:
+                uv_indices = uv_indices.cpu()
         else:
             assert(node.attrib['type'] == 'serialized')
             mitsuba_tri_mesh = redner.load_serialized(filename, serialized_shape_id)
@@ -217,7 +225,7 @@ def parse_shape(node, material_dict, shape_id):
                 normals = None
 
         # Transform the vertices and normals
-        vertices = tf.concat((vertices, tf.convert_to_tensor(np.ones([vertices.shape[0], 1]), dtype=tf.float32)), axis = 1)
+        vertices = tf.concat((vertices, tf.ones([vertices.shape[0], 1], dtype=tf.float32)), axis = 1)
         vertices = vertices @ tf.transpose(to_world, [0, 1])
         vertices = vertices / vertices[:, 3:4]
         vertices = vertices[:, 0:3]
@@ -225,6 +233,26 @@ def parse_shape(node, material_dict, shape_id):
             normals = normals @ (tf.linalg.inv(tf.transpose(to_world, [0, 1]))[:3, :3])
         assert(vertices is not None)
         assert(indices is not None)
+        if max_smooth_angle >= 0:
+            if normals is None:
+                normals = tf.zeros_like(vertices)
+            new_num_vertices = redner.rebuild_topology(\
+                redner.float_ptr(pyredner.data_ptr(vertices)),
+                redner.int_ptr(pyredner.data_ptr(indices)),
+                redner.float_ptr(pyredner.data_ptr(uvs) if uvs is not None else 0),
+                redner.float_ptr(pyredner.data_ptr(normals) if normals is not None else 0),
+                redner.int_ptr(pyredner.data_ptr(uv_indices) if uv_indices is not None else 0),
+                int(vertices.shape[0]),
+                int(indices.shape[0]),
+                max_smooth_angle)
+            print('Rebuilt topology, original vertices size: {}, new vertices size: {}'.format(\
+                int(vertices.shape[0]), new_num_vertices))
+            vertices.resize_(new_num_vertices, 3)
+            if uvs is not None:
+                uvs.resize_(new_num_vertices, 2)
+            if normals is not None:
+                normals.resize_(new_num_vertices, 3)
+
         lgt = None
         if light_intensity is not None:
             lgt = pyredner.AreaLight(shape_id, light_intensity)
