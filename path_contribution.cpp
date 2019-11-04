@@ -495,7 +495,7 @@ struct d_path_contribs_accumulator {
                 if (has_shading_normals(bsdf_shape)) {
                     auto normal_tri_ind = bsdf_tri_index;
                     if (bsdf_shape.normal_indices != nullptr) {
-                        normal_tri_ind = get_uv_indices(bsdf_shape, bsdf_isect.tri_id);
+                        normal_tri_ind = get_normal_indices(bsdf_shape, bsdf_isect.tri_id);
                     }
                     atomic_add(&d_shapes[bsdf_isect.shape_id].normals[3 * normal_tri_ind[0]],
                         d_bsdf_v_n[0]);
