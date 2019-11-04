@@ -2,7 +2,7 @@
 
 News
 
-11/04/2019 - Fixed several bugs in the OBJ/Mitsuba loaders introduced by the `uv_indices` and `normal_indices` change.
+11/04/2019 - Fixed several bugs in the OBJ/Mitsuba loaders introduced by the `uv_indices` and `normal_indices` change.  
 10/19/2019 - Added vertex color support. See `test_vertex_color.py`.  
 10/08/2019 - Added automatic uv computation through the [xatlas](https://github.com/jpcy/xatlas) library. See the `compute_uvs` function in shape.py and test_compute_uvs.py.  
 10/08/2019 - Slightly changed the Shape class interface. The constructor order is different and it now takes extra 'uv_indices' and 'normal_indices' arguments for dealing with seams in UV mapping and obj loading. See pyredner/shape.py and tutorial 2.  
