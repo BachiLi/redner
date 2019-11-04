@@ -649,7 +649,7 @@ class RenderFunction(torch.autograd.Function):
                 redner.float_ptr(d_roughness.data_ptr()),
                 roughness_size[0], roughness_size[1], roughness_size[2],
                 redner.float_ptr(d_roughness_uv_scale.data_ptr()))
-            if d_generic_tex is None:
+            if d_generic is None:
                 d_generic_tex = redner.Texture3(\
                     redner.float_ptr(0), 0, 0, 0, redner.float_ptr(0))
             else:
