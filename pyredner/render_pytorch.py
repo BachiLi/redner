@@ -636,6 +636,7 @@ class RenderFunction(torch.autograd.Function):
                 d_normal_map_uv_scale = None
             else:
                 d_normal_map_uv_scale = torch.zeros(2, device = pyredner.get_device())
+            d_generic_uv_scale_list.append(d_generic_uv_scale)
             d_normal_map_uv_scale_list.append(d_normal_map_uv_scale)
             d_diffuse_tex = redner.Texture3(\
                 redner.float_ptr(d_diffuse.data_ptr()),
@@ -792,6 +793,8 @@ class RenderFunction(torch.autograd.Function):
             ret_list.append(d_specular_uv_scale_list[i])
             ret_list.append(d_roughness_list[i])
             ret_list.append(d_roughness_uv_scale_list[i])
+            ret_list.append(d_generic_list[i])
+            ret_list.append(d_generic_uv_scale_list[i])
             ret_list.append(d_normal_map_list[i])
             ret_list.append(d_normal_map_uv_scale_list[i])
             ret_list.append(None) # two sided
