@@ -179,18 +179,19 @@ struct primary_contribs_accumulator {
                             const auto &shading_point = shading_points[pixel_id];
                             const auto &shading_shape = scene.shapes[shading_isect.shape_id];
                             const auto &material = scene.materials[shading_shape.material_id];
-                            auto gt =
-                                get_generic_texture(material, shading_point) * weight;
-                            if (channel_multipliers != nullptr) {
-                                gt[0] *= channel_multipliers[nd * pixel_id + d];
-                                gt[1] *= channel_multipliers[nd * pixel_id + d + 1];
-                                gt[2] *= channel_multipliers[nd * pixel_id + d + 2];
+                            Real *buffer = &generic_texture_buffer[
+                                scene.max_generic_texture_dimension * pixel_id];
+                            get_generic_texture(material, shading_point, buffer);
+                            for (int i = 0; i < material.generic_texture.channels; i++) {
+                                auto gt = buffer[i];
+                                gt *= weight;
+                                if (channel_multipliers != nullptr) {
+                                    gt *= channel_multipliers[nd * pixel_id + d + i];
+                                }
+                                rendered_image[nd * pixel_id + d + i] += gt;
                             }
-                            rendered_image[nd * pixel_id + d    ] += gt[0];
-                            rendered_image[nd * pixel_id + d + 1] += gt[1];
-                            rendered_image[nd * pixel_id + d + 2] += gt[2];
                         }
-                        d += 3;
+                        d += scene.max_generic_texture_dimension;
                     } break;
                     case Channels::vertex_color: {
                         if (shading_isect.valid()) {
@@ -343,14 +344,17 @@ struct primary_contribs_accumulator {
                             const auto &shading_point = shading_points[pixel_id];
                             const auto &shading_shape = scene.shapes[shading_isect.shape_id];
                             const auto &material = scene.materials[shading_shape.material_id];
-                            auto gt =
-                                get_generic_texture(material, shading_point) * weight;
-                            gt[0] *= channel_multipliers[nd * pixel_id + d];
-                            gt[1] *= channel_multipliers[nd * pixel_id + d + 1];
-                            gt[2] *= channel_multipliers[nd * pixel_id + d + 2];
-                            edge_contribs[pixel_id] += sum(gt);
+                            Real *buffer = &generic_texture_buffer[
+                                scene.max_generic_texture_dimension * pixel_id];
+                            get_generic_texture(material, shading_point, buffer);
+                            for (int i = 0; i < material.generic_texture.channels; i++) {
+                                auto gt = buffer[i];
+                                gt *= weight;
+                                gt *= channel_multipliers[nd * pixel_id + d + i];
+                                edge_contribs[pixel_id] += gt;
+                            }
                         }
-                        d += 3;
+                        d += scene.max_generic_texture_dimension;
                     } break;
                     case Channels::vertex_color: {
                         if (shading_isect.valid() && channel_multipliers != nullptr) {
@@ -390,6 +394,7 @@ struct primary_contribs_accumulator {
     const ChannelInfo channel_info;
     float *rendered_image;
     Real *edge_contribs;
+    Real *generic_texture_buffer;
 };
 
 struct d_primary_contribs_accumulator {
@@ -580,20 +585,21 @@ struct d_primary_contribs_accumulator {
                         const auto &shading_point = shading_points[pixel_id];
                         const auto &shape = scene.shapes[shading_isect.shape_id];
                         const auto &material = scene.materials[shape.material_id];
-                        auto d_gt = weight *
-                                Vector3{d_rendered_image[nd * pixel_id + d],
-                                        d_rendered_image[nd * pixel_id + d + 1],
-                                        d_rendered_image[nd * pixel_id + d + 2]};
-                        if (channel_multipliers != nullptr) {
-                            d_gt[0] *= channel_multipliers[nd * pixel_id + d];
-                            d_gt[1] *= channel_multipliers[nd * pixel_id + d + 1];
-                            d_gt[2] *= channel_multipliers[nd * pixel_id + d + 2];
+                        Real *buffer = &generic_texture_buffer[
+                            scene.max_generic_texture_dimension * pixel_id];
+                        for (int i = 0; i < material.generic_texture.channels; i++) {
+                            buffer[i] = weight * d_rendered_image[nd * pixel_id + d + i];
+                            if (channel_multipliers != nullptr) {
+                                buffer[i] *= channel_multipliers[nd * pixel_id + d + i];
+                            }
                         }
-                        d_get_generic_texture(material, shading_point, d_gt,
-                            d_materials[shape.material_id].generic_texture,
-                            d_shading_points[pixel_id]);
+                        d_get_generic_texture(material,
+                                              shading_point,
+                                              buffer,
+                                              d_materials[shape.material_id].generic_texture,
+                                              d_shading_points[pixel_id]);
                     }
-                    d += 3;
+                    d += scene.max_generic_texture_dimension;
                 } break;
                 case Channels::vertex_color: {
                     if (shading_isect.valid()) {
@@ -635,6 +641,7 @@ struct d_primary_contribs_accumulator {
     const Real weight;
     const ChannelInfo channel_info;
     const float *d_rendered_image;
+    Real *generic_texture_buffer;
     DAreaLight *d_area_lights;
     DEnvironmentMap *d_envmap;
     DMaterial *d_materials;
@@ -655,7 +662,8 @@ void accumulate_primary_contribs(
         const Real weight,
         const ChannelInfo &channel_info,
         float *rendered_image,
-        BufferView<Real> edge_contribs) {
+        BufferView<Real> edge_contribs,
+        BufferView<Real> generic_texture_buffer) {
     parallel_for(primary_contribs_accumulator{
         get_flatten_scene(scene),
         active_pixels.begin(),
@@ -668,7 +676,8 @@ void accumulate_primary_contribs(
         weight,
         channel_info,
         rendered_image,
-        edge_contribs.begin()
+        edge_contribs.begin(),
+        generic_texture_buffer.begin()
     }, active_pixels.size(), scene.use_gpu);
 }
 
@@ -684,6 +693,7 @@ void d_accumulate_primary_contribs(
         const Real weight,
         const ChannelInfo &channel_info,
         const float *d_rendered_image,
+        BufferView<Real> generic_texture_buffer,
         DScene *d_scene,
         BufferView<DRay> d_incoming_rays,
         BufferView<RayDifferential> d_incoming_ray_differentials,
@@ -700,6 +710,7 @@ void d_accumulate_primary_contribs(
         weight,
         channel_info,
         d_rendered_image,
+        generic_texture_buffer.begin(),
         d_scene->area_lights.data,
         d_scene->envmap,
         d_scene->materials.data,

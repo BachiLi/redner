@@ -60,7 +60,9 @@ PYBIND11_MODULE(redner, m) {
                       bool,
                       int,
                       bool,
-                      bool>());
+                      bool>())
+        .def_readonly("max_generic_texture_dimension",
+            &Scene::max_generic_texture_dimension);
 
     py::class_<DScene, std::shared_ptr<DScene>>(m, "DScene")
         .def(py::init<const DCamera &,
@@ -101,23 +103,33 @@ PYBIND11_MODULE(redner, m) {
 
     py::class_<Texture1>(m, "Texture1")
         .def(py::init<ptr<float>,
-                      int,
-                      int,
-                      int,
+                      int, // width
+                      int, // height
+                      int, // channels
+                      int, // num_levels
                       ptr<float>>());
 
     py::class_<Texture3>(m, "Texture3")
         .def(py::init<ptr<float>,
-                      int,
-                      int,
-                      int,
+                      int, // width
+                      int, // height
+                      int, // channels
+                      int, // num_levels
+                      ptr<float>>());
+
+    py::class_<TextureN>(m, "TextureN")
+        .def(py::init<ptr<float>,
+                      int, // width
+                      int, // height
+                      int, // channels
+                      int, // num_levels
                       ptr<float>>());
 
     py::class_<Material>(m, "Material")
         .def(py::init<Texture3, // diffuse
                       Texture3, // specular
                       Texture1, // roughness
-                      Texture3, //generic_texture
+                      TextureN, // generic_texture
                       Texture3, // normal_map
                       bool, // two_sided
                       bool>()) // use_vertex_color
@@ -128,11 +140,11 @@ PYBIND11_MODULE(redner, m) {
         .def("get_normal_map_size", &Material::get_normal_map_size);
 
     py::class_<DMaterial>(m, "DMaterial")
-        .def(py::init<Texture3,
-                      Texture3,
-                      Texture1,
-                      Texture3,
-                      Texture3>());
+        .def(py::init<Texture3, // diffuse
+                      Texture3, // specular
+                      Texture1, // roughness
+                      TextureN, // generic_texture
+                      Texture3>()); // normal_map
 
     py::class_<AreaLight>(m, "AreaLight")
         .def(py::init<int,

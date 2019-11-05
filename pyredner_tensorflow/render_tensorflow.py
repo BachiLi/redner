@@ -344,53 +344,58 @@ def forward(seed:int, *args):
             if normal_map.shape[0] > 0:
                 normal_map_uv_scale_ptr = redner.float_ptr(pyredner.data_ptr(normal_map_uv_scale))
             if get_tensor_dimension(diffuse_reflectance) == 1:
-                diffuse_reflectance = redner.Texture3(diffuse_reflectance_ptr, 0, 0, 0, diffuse_uv_scale_ptr)
+                diffuse_reflectance = redner.Texture3(diffuse_reflectance_ptr, 0, 0, 0, 0, diffuse_uv_scale_ptr)
             else:
                 diffuse_reflectance = redner.Texture3(\
                     diffuse_reflectance_ptr,
                     int(diffuse_reflectance.shape[2]), # width
                     int(diffuse_reflectance.shape[1]), # height
+                    int(diffuse_reflectance.shape[3]), # channels
                     int(diffuse_reflectance.shape[0]), # num levels
                     diffuse_uv_scale_ptr)
             if get_tensor_dimension(specular_reflectance) == 1:
-                specular_reflectance = redner.Texture3(specular_reflectance_ptr, 0, 0, 0, specular_uv_scale_ptr)
+                specular_reflectance = redner.Texture3(specular_reflectance_ptr, 0, 0, 0, 0, specular_uv_scale_ptr)
             else:
                 specular_reflectance = redner.Texture3(\
                     specular_reflectance_ptr,
                     int(specular_reflectance.shape[2]), # width
                     int(specular_reflectance.shape[1]), # height
+                    int(specular_reflectance.shape[3]), # channels
                     int(specular_reflectance.shape[0]), # num levels
                     specular_uv_scale_ptr)
             if get_tensor_dimension(roughness) == 1:
-                roughness = redner.Texture1(roughness_ptr, 0, 0, 0, roughness_uv_scale_ptr)
+                roughness = redner.Texture1(roughness_ptr, 0, 0, 0, 0, roughness_uv_scale_ptr)
             else:
                 assert(get_tensor_dimension(roughness) == 4)
                 roughness = redner.Texture1(\
                     roughness_ptr,
                     int(roughness.shape[2]), # width
                     int(roughness.shape[1]), # height
+                    int(roughness.shape[3]), # channels
                     int(roughness.shape[0]), # num levels
                     roughness_uv_scale_ptr)
             if generic_texture.shape[0] > 0:
-                generic_texture = redner.Texture3(\
+                generic_texture = redner.TextureN(\
                     generic_texture_ptr,
                     int(generic_texture.shape[2]),
                     int(generic_texture.shape[1]),
+                    int(generic_texture.shape[3]),
                     int(generic_texture.shape[0]),
                     generic_uv_scale_ptr)
             else:
-                generic_texture = redner.Texture3(\
-                    redner.float_ptr(0), 0, 0, 0, redner.float_ptr(0))
+                generic_texture = redner.TextureN(\
+                    redner.float_ptr(0), 0, 0, 0, 0, redner.float_ptr(0))
             if normal_map.shape[0] > 0:
                 normal_map = redner.Texture3(\
                     normal_map_ptr,
                     int(normal_map.shape[2]),
                     int(normal_map.shape[1]),
+                    int(normal_map.shape[3]),
                     int(normal_map.shape[0]),
                     normal_map_uv_scale_ptr)
             else:
                 normal_map = redner.Texture3(\
-                    redner.float_ptr(0), 0, 0, 0, redner.float_ptr(0))
+                    redner.float_ptr(0), 0, 0, 0, 0, redner.float_ptr(0))
             materials.append(redner.Material(\
                 diffuse_reflectance,
                 specular_reflectance,
@@ -445,6 +450,7 @@ def forward(seed:int, *args):
             values_ptr,
             int(values.shape[2]), # width
             int(values.shape[1]), # height
+            int(values.shape[3]), # channels
             int(values.shape[0]), # num levels
             envmap_uv_scale)
         envmap = redner.EnvironmentMap(\
@@ -497,11 +503,12 @@ def forward(seed:int, *args):
         num_samples = (num_samples, num_samples)
 
     options = redner.RenderOptions(seed,
-                                    num_samples[0],
-                                    max_bounces,
-                                    channels,
-                                    sampler_type)
-    num_channels = redner.compute_num_channels(channels)
+                                   num_samples[0],
+                                   max_bounces,
+                                   channels,
+                                   sampler_type)
+    num_channels = redner.compute_num_channels(channels,
+                                               scene.max_generic_texture_dimension)
 
     with tf.device(pyredner.get_device_name()):
         rendered_image = tf.zeros(
@@ -719,23 +726,28 @@ def render(*x):
                 if normal_map_size[0] > 0:
                     d_normal_map_uv_scale = redner.float_ptr(pyredner.data_ptr(d_normal_map_uv_scale))
                 d_diffuse_tex = redner.Texture3(\
-                    d_diffuse, diffuse_size[0], diffuse_size[1], diffuse_size[2], d_diffuse_uv_scale)
+                    d_diffuse, diffuse_size[0], diffuse_size[1], 3, diffuse_size[2], d_diffuse_uv_scale)
                 d_specular_tex = redner.Texture3(\
-                    d_specular, specular_size[0], specular_size[1], specular_size[2], d_specular_uv_scale)
+                    d_specular, specular_size[0], specular_size[1], 3, specular_size[2], d_specular_uv_scale)
                 d_roughness_tex = redner.Texture1(\
-                    d_roughness, roughness_size[0], roughness_size[1], roughness_size[2],  d_roughness_uv_scale)
+                    d_roughness, roughness_size[0], roughness_size[1], 1, roughness_size[2],  d_roughness_uv_scale)
                 if generic_size[0] > 0:
-                    d_generic_tex = redner.Texture3(\
-                        d_generic_texture, generic_size[0], generic_size[1], generic_size[2], d_generic_uv_scale)
+                    d_generic_tex = redner.TextureN(\
+                        d_generic_texture,
+                        generic_size[1], # width
+                        generic_size[2], # height
+                        generic_size[0], # channels
+                        generic_size[3], # num_levels
+                        d_generic_uv_scale)
                 else:
-                    d_generic_tex = redner.Texture3(\
-                        redner.float_ptr(0), 0, 0, 0, redner.float_ptr(0))
+                    d_generic_tex = redner.TextureN(\
+                        redner.float_ptr(0), 0, 0, 0, 0, redner.float_ptr(0))
                 if normal_map_size[0] > 0:
                     d_normal_map_tex = redner.Texture3(\
-                        d_normal_map, normal_map_size[0], normal_map_size[1], normal_map_size[2], d_normal_map_uv_scale)
+                        d_normal_map, normal_map_size[0], normal_map_size[1], 3, normal_map_size[2], d_normal_map_uv_scale)
                 else:
                     d_normal_map_tex = redner.Texture3(\
-                        redner.float_ptr(0), 0, 0, 0, redner.float_ptr(0))
+                        redner.float_ptr(0), 0, 0, 0, 0, redner.float_ptr(0))
                 d_materials.append(redner.DMaterial(d_diffuse_tex, d_specular_tex, d_roughness_tex, d_generic_tex, d_normal_map_tex))
 
         d_intensity_list = []
@@ -759,7 +771,7 @@ def render(*x):
                 d_world_to_env = tf.zeros([4, 4], dtype=tf.float32)
                 d_world_to_env_ptr = redner.float_ptr(pyredner.data_ptr(d_world_to_env))
             d_envmap_tex = redner.Texture3(\
-                d_envmap_values_ptr, size[0], size[1], size[2], d_envmap_uv_scale_ptr)
+                d_envmap_values_ptr, size[0], size[1], 3, size[2], d_envmap_uv_scale_ptr)
             d_envmap = redner.DEnvironmentMap(d_envmap_tex, d_world_to_env_ptr)
 
         d_scene = redner.DScene(d_camera,

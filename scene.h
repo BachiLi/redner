@@ -44,6 +44,9 @@ struct Scene {
     bool use_primary_edge_sampling;
     bool use_secondary_edge_sampling;
 
+    // For G-buffer rendering with textures of arbitrary number of channels.
+    int max_generic_texture_dimension;
+
 #ifdef COMPILE_WITH_CUDA
     // Optix handles
     optix::prime::Context optix_context;
@@ -78,6 +81,8 @@ struct FlattenScene {
     Real *light_areas;
     Real **area_cdfs;
     EnvironmentMap *envmap;
+    // For G-buffer rendering with textures of arbitrary number of channels.
+    int max_generic_texture_dimension;
 };
 
 // XXX: Again, some unnecessary copy from Python

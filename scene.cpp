@@ -280,6 +280,15 @@ Scene::Scene(const Camera &camera,
         this->envmap = nullptr;
     }
 
+    max_generic_texture_dimension = 0;
+    for (int material_id = 0; material_id < (int)materials.size(); material_id++) {
+        if (materials[material_id]->generic_texture.texels != nullptr) {
+            max_generic_texture_dimension =
+                std::max(max_generic_texture_dimension,
+                         materials[material_id]->generic_texture.channels);
+        }
+    }
+
     edge_sampler = EdgeSampler(shapes, *this);
 
 #ifdef __NVCC__
@@ -401,7 +410,8 @@ FlattenScene get_flatten_scene(const Scene &scene) {
                         scene.light_cdf.data,
                         scene.light_areas.data,
                         scene.area_cdfs.data,
-                        scene.envmap};
+                        scene.envmap,
+                        scene.max_generic_texture_dimension};
 }
 
 #ifdef __NVCC__
