@@ -31,8 +31,8 @@ using TextureN = Texture<-1>;
 using Texture3 = Texture<3>;
 using Texture1 = Texture<1>;
 
-DEVICE
 template <int N>
+DEVICE
 inline void trilinear_interp(const Texture<N> &tex,
                              int xfi, int yfi,
                              int xci, int yci,
@@ -81,8 +81,8 @@ inline void trilinear_interp(const Texture<N> &tex,
     }
 }
 
-DEVICE
 template <int N>
+DEVICE
 inline void d_trilinear_interp(const Texture<N> &tex,
                                int xfi, int yfi,
                                int xci, int yci,
@@ -200,8 +200,8 @@ inline void d_trilinear_interp(const Texture<N> &tex,
     }
 }
 
-DEVICE
 template <int N>
+DEVICE
 inline void get_texture_value_constant(const Texture<N> &tex,
                                        Real *output) {
     auto channels = N == -1 ? tex.channels : N;
@@ -327,3 +327,4 @@ inline void d_get_texture_value(const Texture<N> &tex,
             d_uv * uv_ + Vector2{sum(d_du_dxy * du_dxy_), sum(d_dv_dxy * dv_dxy_)});
     }
 }
+
