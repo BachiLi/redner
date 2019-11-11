@@ -2,10 +2,13 @@
 #include "cuda_utils.h"
 #include <iostream>
 
-ChannelInfo::ChannelInfo(const std::vector<Channels> &channels, bool use_gpu) : use_gpu(use_gpu) {
+ChannelInfo::ChannelInfo(const std::vector<Channels> &channels,
+                         bool use_gpu,
+                         int max_generic_texture_dimension) : use_gpu(use_gpu) {
     num_channels = (int)channels.size();
     radiance_dimension = -1;
-    num_total_dimensions = compute_num_channels(channels);
+    num_total_dimensions = compute_num_channels(channels, max_generic_texture_dimension);
+    this->max_generic_texture_dimension = max_generic_texture_dimension;
     if (use_gpu) {
 #ifdef __CUDACC__
         checkCuda(cudaMallocManaged(&this->channels, channels.size() * sizeof(Channels)));
@@ -47,7 +50,8 @@ void ChannelInfo::free() {
     }
 }
 
-int compute_num_channels(const std::vector<Channels> &channels) {
+int compute_num_channels(const std::vector<Channels> &channels,
+                         int max_generic_texture_dimension) {
     int num_total_dimensions = 0;
     for (int i = 0; i < (int)channels.size(); i++) {
         switch(channels[i]) {
@@ -82,7 +86,7 @@ int compute_num_channels(const std::vector<Channels> &channels) {
                 num_total_dimensions += 1;
             } break;
             case Channels::generic_texture: {
-                num_total_dimensions += 3;
+                num_total_dimensions += max_generic_texture_dimension;
             } break;
             case Channels::vertex_color: {
                 num_total_dimensions += 3;

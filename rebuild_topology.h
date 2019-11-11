@@ -14,6 +14,8 @@ int rebuild_topology(
     ptr<int> indices,
     ptr<float> uvs,
     ptr<float> normals,
+    ptr<int> uv_indices,
     int num_vertices,
     int num_triangles,
     float max_smooth_angle);
+

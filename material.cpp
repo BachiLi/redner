@@ -6,23 +6,29 @@
 void test_d_bsdf() {
     Vector3f d{0.5, 0.4, 0.3};
     Vector2f uv_scale{1, 1};
-    Texture3 diffuse{&d[0], -1, -1, -1, &uv_scale[0]};
+    Texture3 diffuse{&d[0], -1, -1, -1, -1, &uv_scale[0]};
     Vector3f s{0.2, 0.3, 0.4};
-    Texture3 specular{&s[0], -1, -1, -1, &uv_scale[0]};
+    Texture3 specular{&s[0], -1, -1, -1, -1, &uv_scale[0]};
     float r = 0.5;
-    Texture1 roughness{&r, -1, -1, -1, &uv_scale[0]};
-    Texture3 generic{&d[0], -1, -1, -1, &uv_scale[0]};
-    Texture3 normal_map{nullptr, 0, 0, 0, nullptr};
-    Material m{diffuse, specular, roughness, generic, normal_map, false, false};
+    Texture1 roughness{&r, -1, -1, -1, -1, &uv_scale[0]};
+    TextureN generic{&d[0], -1, -1, 3 /* channels */, -1, &uv_scale[0]};
+    Texture3 normal_map{nullptr, 0, 0, 0, 0, nullptr};
+    Material m{diffuse,
+               specular,
+               roughness,
+               generic,
+               normal_map,
+               false,
+               false};
     Vector3f d_d{0, 0, 0};
     Vector2f d_uv_scale{0, 0};
-    Texture3 d_diffuse_tex{&d_d[0], -1, -1, -1, &d_uv_scale[0]};
+    Texture3 d_diffuse_tex{&d_d[0], -1, -1, -1, -1, &d_uv_scale[0]};
     Vector3f d_s{0, 0, 0};
-    Texture3 d_specular_tex{&d_s[0], -1, -1, -1, &d_uv_scale[0]};
+    Texture3 d_specular_tex{&d_s[0], -1, -1, -1, -1, &d_uv_scale[0]};
     float d_r = 0.f;
-    Texture1 d_roughness_tex{&d_r, -1, -1, -1, &d_uv_scale[0]};
-    Texture3 d_generic_tex{&d_d[0], -1, -1, -1, &d_uv_scale[0]};
-    Texture3 d_normal_map{nullptr, 0, 0, 0, nullptr};
+    Texture1 d_roughness_tex{&d_r, -1, -1, -1, -1, &d_uv_scale[0]};
+    TextureN d_generic_tex{&d_d[0], -1, -1, 3 /* channels */, -1, &d_uv_scale[0]};
+    Texture3 d_normal_map{nullptr, 0, 0, 0, 0, nullptr};
     DMaterial d_material{d_diffuse_tex, d_specular_tex, d_roughness_tex, d_generic_tex, d_normal_map};
     SurfacePoint p{Vector3{0, 0, 0},
                    Vector3{0, 1, 0},
@@ -144,23 +150,23 @@ void test_d_bsdf() {
 void test_d_bsdf_sample() {
     Vector2f uv_scale = Vector2f{1, 1};
     Vector3f d{0.5, 0.4, 0.3};
-    Texture3 diffuse{&d[0], -1, -1, -1, &uv_scale[0]};
+    Texture3 diffuse{&d[0], -1, -1, -1, -1, &uv_scale[0]};
     Vector3f s{0.2, 0.3, 0.4};
-    Texture3 specular{&s[0], -1, -1, -1, &uv_scale[0]};
+    Texture3 specular{&s[0], -1, -1, -1, -1, &uv_scale[0]};
     float r = 0.5;
-    Texture1 roughness{&r, -1, -1, -1, &uv_scale[0]};
-    Texture3 generic{&d[0], -1, -1, -1, &uv_scale[0]};
-    Texture3 normal_map{nullptr, 0, 0, 0, nullptr};
+    Texture1 roughness{&r, -1, -1, -1, -1, &uv_scale[0]};
+    TextureN generic{&d[0], -1, -1, 3 /* channels*/, -1, &uv_scale[0]};
+    Texture3 normal_map{nullptr, 0, 0, 0, 0, nullptr};
     Material m{diffuse, specular, roughness, generic, normal_map, false, false};
     Vector3f d_d{0, 0, 0};
     Vector2f d_uv_scale{0, 0};
-    Texture3 d_diffuse_tex{&d_d[0], -1, -1, -1, &d_uv_scale[0]};
+    Texture3 d_diffuse_tex{&d_d[0], -1, -1, -1, -1, &d_uv_scale[0]};
     Vector3f d_s{0, 0, 0};
-    Texture3 d_specular_tex{&d_s[0], -1, -1, -1, &d_uv_scale[0]};
+    Texture3 d_specular_tex{&d_s[0], -1, -1, -1, -1, &d_uv_scale[0]};
     float d_r = 0.f;
-    Texture1 d_roughness_tex{&d_r, -1, -1, -1, &d_uv_scale[0]};
-    Texture3 d_generic_tex{&d_d[0], -1, -1, -1, &d_uv_scale[0]};
-    Texture3 d_normal_map{nullptr, 0, 0, 0, nullptr};
+    Texture1 d_roughness_tex{&d_r, -1, -1, -1, -1, &d_uv_scale[0]};
+    TextureN d_generic_tex{&d_d[0], -1, -1, 3 /* channels */, -1, &d_uv_scale[0]};
+    Texture3 d_normal_map{nullptr, 0, 0, 0, 0, nullptr};
     DMaterial d_material{d_diffuse_tex, d_specular_tex, d_roughness_tex, d_generic_tex, d_normal_map};
     SurfacePoint p{Vector3{0, 0, 0},
                    Vector3{0, 1, 0},
@@ -352,23 +358,23 @@ void test_d_bsdf_sample() {
 void test_d_bsdf_pdf() {
     Vector2f uv_scale = Vector2f{1, 1};
     Vector3f d{0.5, 0.4, 0.3};
-    Texture3 diffuse{&d[0], -1, -1, -1, &uv_scale[0]};
+    Texture3 diffuse{&d[0], -1, -1, -1, -1, &uv_scale[0]};
     Vector3f s{0.2, 0.3, 0.4};
-    Texture3 specular{&s[0], -1, -1, -1, &uv_scale[0]};
+    Texture3 specular{&s[0], -1, -1, -1, -1, &uv_scale[0]};
     float r = 0.5;
-    Texture1 roughness{&r, -1, -1, -1, &uv_scale[0]};
-    Texture3 generic{&d[0], -1, -1, -1, &uv_scale[0]};
-    Texture3 normal_map{nullptr, 0, 0, 0, nullptr};
+    Texture1 roughness{&r, -1, -1, -1, -1, &uv_scale[0]};
+    TextureN generic{&d[0], -1, -1, 3 /* channels*/, -1, &uv_scale[0]};
+    Texture3 normal_map{nullptr, 0, 0, 0, 0, nullptr};
     Material m{diffuse, specular, roughness, generic, normal_map, false, false};
     Vector3f d_d{0, 0, 0};
     Vector2f d_uv_scale{0, 0};
-    Texture3 d_diffuse_tex{&d_d[0], -1, -1, -1, &d_uv_scale[0]};
+    Texture3 d_diffuse_tex{&d_d[0], -1, -1, -1, -1, &d_uv_scale[0]};
     Vector3f d_s{0, 0, 0};
-    Texture3 d_specular_tex{&d_s[0], -1, -1, -1, &d_uv_scale[0]};
+    Texture3 d_specular_tex{&d_s[0], -1, -1, -1, -1, &d_uv_scale[0]};
     float d_r = 0.f;
-    Texture1 d_roughness_tex{&d_r, -1, -1, -1, &d_uv_scale[0]};
-    Texture3 d_generic_tex{&d_d[0], -1, -1, -1, &d_uv_scale[0]};
-    Texture3 d_normal_map{nullptr, 0, 0, 0, nullptr};
+    Texture1 d_roughness_tex{&d_r, -1, -1, -1, -1, &d_uv_scale[0]};
+    TextureN d_generic_tex{&d_d[0], -1, -1, 3 /* channels*/, -1, &d_uv_scale[0]};
+    Texture3 d_normal_map{nullptr, 0, 0, 0, 0, nullptr};
     DMaterial d_material{d_diffuse_tex, d_specular_tex, d_roughness_tex, d_generic_tex, d_normal_map};
     SurfacePoint p{Vector3{0, 0, 0},
                    Vector3{0, 1, 0},

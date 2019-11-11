@@ -21,14 +21,18 @@ enum class Channels {
 };
 
 struct ChannelInfo {
-    ChannelInfo(const std::vector<Channels> &channels, bool use_gpu);
+    ChannelInfo(const std::vector<Channels> &channels,
+                bool use_gpu,
+                int max_generic_texture_dimension);
     void free();
 
     Channels *channels;
     int num_channels;
     int num_total_dimensions;
     int radiance_dimension;
+    int max_generic_texture_dimension;
     bool use_gpu;
 };
 
-int compute_num_channels(const std::vector<Channels> &channels);
+int compute_num_channels(const std::vector<Channels> &channels,
+                         int max_generic_texture_dimension);

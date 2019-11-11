@@ -32,7 +32,7 @@ struct path_contribs_accumulator {
                 auto dir = light_point.position - p;
                 auto dist_sq = length_squared(dir);
                 auto wo = dir / sqrt(dist_sq);
-                if (light_shape.light_id >= 0) {
+                if (dist_sq > 1e-20f && light_shape.light_id >= 0) {
                     const auto &light = scene.area_lights[light_shape.light_id];
                     if (light.two_sided || dot(-wo, light_point.shading_frame.n) > 0) {
                         auto bsdf_val = bsdf(material, shading_point, wi, wo, min_rough);
@@ -76,7 +76,7 @@ struct path_contribs_accumulator {
             auto dist_sq = length_squared(dir);
             auto wo = dir / sqrt(dist_sq);
             auto pdf_bsdf = bsdf_pdf(material, shading_point, wi, wo, min_rough);
-            if (pdf_bsdf > 1e-20f) {
+            if (dist_sq > 1e-20f && pdf_bsdf > 1e-20f) {
                 auto bsdf_val = bsdf(material, shading_point, wi, wo, min_rough);
                 if (bsdf_shape.light_id >= 0) {
                     const auto &light = scene.area_lights[bsdf_shape.light_id];
@@ -495,7 +495,7 @@ struct d_path_contribs_accumulator {
                 if (has_shading_normals(bsdf_shape)) {
                     auto normal_tri_ind = bsdf_tri_index;
                     if (bsdf_shape.normal_indices != nullptr) {
-                        normal_tri_ind = get_uv_indices(bsdf_shape, bsdf_isect.tri_id);
+                        normal_tri_ind = get_normal_indices(bsdf_shape, bsdf_isect.tri_id);
                     }
                     atomic_add(&d_shapes[bsdf_isect.shape_id].normals[3 * normal_tri_ind[0]],
                         d_bsdf_v_n[0]);
