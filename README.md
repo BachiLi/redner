@@ -31,7 +31,7 @@ take a look at the paper:
 "Differentiable Monte Carlo Ray Tracing through Edge Sampling", Tzu-Mao Li, Miika Aittala, Fredo Durand, Jaakko Lehtinen
 [https://people.csail.mit.edu/tzumao/diffrt/].  
 Since the submission we have improved the renderer a bit. In particular we implemented a CUDA backend and accelerated
-the continuous derivatives significantly by replacing automatic differentiation with hand derivatives. See Tzu-Mao Li's [thesis](https://people.csail.mit.edu/tzumao/phdthesis/phdthesis.pdf) for even more details.
+the continuous derivatives significantly by replacing automatic differentiation with manually-derived derivatives. See Tzu-Mao Li's [thesis](https://people.csail.mit.edu/tzumao/phdthesis/phdthesis.pdf) for even more details.
 
 redner is expected to be used with [PyTorch](https://pytorch.org/), and can be used seamlessly with PyTorch operators. A good starting point to learn how to use redner is to look at the [wiki](https://github.com/BachiLi/redner/wiki).
 While the documentation is work in progress, you can take a look at the [tests directory](tests) to have some ideas.
