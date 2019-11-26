@@ -14,13 +14,3 @@ include_directories(SYSTEM ${TensorFlow_INCLUDE_DIR})
 add_library(redner_tf_data_ptr MODULE data_ptr.cc)
 target_link_libraries(redner_tf_data_ptr
     ${TensorFlow_LIBRARY})
-
-execute_process(
-    COMMAND "python" -c "if True:
-        from distutils import sysconfig as sc
-        print(sc.get_python_lib())"
-    OUTPUT_VARIABLE PYTHON_SITE
-    OUTPUT_STRIP_TRAILING_WHITESPACE)
-install(
-    TARGETS redner_tf_data_ptr
-    DESTINATION ${PYTHON_SITE})

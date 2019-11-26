@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.13)
 
-project(redner VERSION 0.0.1 DESCRIPTION "Differentiable Path Tracer")
+project(redner VERSION 0.0.2 DESCRIPTION "Differentiable Ray Tracer")
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/")
 
@@ -40,10 +40,9 @@ else()
     include_directories(${THRUST_INCLUDE_DIR})
 endif()
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -g -O3 -fvisibility=hidden")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14 -Wall -g -O3 -fvisibility=hidden")
+add_compile_options(-Wall -g -O3 -fvisibility=hidden)
 if(NOT CUDA_FOUND)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DTHRUST_DEVICE_SYSTEM=THRUST_DEVICE_SYSTEM_CPP")
+    add_compile_options("-DTHRUST_DEVICE_SYSTEM=THRUST_DEVICE_SYSTEM_CPP")
 endif()
 
 set(SRCS aabb.h
@@ -197,18 +196,17 @@ endif()
 
 endif()
 
+set_property(TARGET redner PROPERTY CXX_STANDARD 14)
 set_target_properties(redner PROPERTIES PREFIX "")
-
-execute_process(
-    COMMAND "python" -c "if True:
-        from distutils import sysconfig as sc
-        print(sc.get_python_lib())"
-    OUTPUT_VARIABLE PYTHON_SITE
-    OUTPUT_STRIP_TRAILING_WHITESPACE)
-
-install(
-    TARGETS redner
-    DESTINATION ${PYTHON_SITE})
+# Still enable assertion in release mode
+string( REPLACE "/DNDEBUG" "" CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE}")
+string( REPLACE "-DNDEBUG" "" CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE}")
+string( REPLACE "/DNDEBUG" "" CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
+string( REPLACE "-DNDEBUG" "" CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
+string( REPLACE "/DNDEBUG" "" CMAKE_C_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE}")
+string( REPLACE "-DNDEBUG" "" CMAKE_C_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE}")
+string( REPLACE "/DNDEBUG" "" CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
+string( REPLACE "-DNDEBUG" "" CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
 
 # OpenEXR
 find_package(OpenEXR REQUIRED)
@@ -219,10 +217,6 @@ if(APPLE)
 endif()
 install(CODE "execute_process(COMMAND python ${CMAKE_CURRENT_SOURCE_DIR}/openexrpython/setup.py install
                               WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/openexrpython)")
-
-# Install pyredner & pyredner_tensorflow
-install(CODE "execute_process(COMMAND python ${CMAKE_CURRENT_SOURCE_DIR}/setup.py install
-                              WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})")
 
 find_package(TensorFlow)
 if(TensorFlow_FOUND)
