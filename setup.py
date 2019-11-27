@@ -110,6 +110,6 @@ setup(name = 'redner',
                         library_dirs=['/usr/local/lib', '/opt/local/lib'],
                         libraries=['Iex', 'Half', 'Imath', 'IlmImf', 'z'],
                         extra_compile_args=openexr_python_compiler_args)],
-      cmdclass = dict(build_ext=CMakeBuild, install=RemoveOldRednerAfterInstall),
+      cmdclass = dict(build_ext=CMakeBuild, install=RemoveOldRednerBeforeInstall),
       zip_safe = False)
 
