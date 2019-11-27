@@ -8,6 +8,47 @@ import importlib
 
 from setuptools import setup, Extension
 from setuptools.command.build_ext import build_ext
+from setuptools.command.install import install
+
+class RemoveOldRednerAfterInstall(install):
+    def run(self):
+        # Remove old redner packages installed by distutils
+        from distutils import sysconfig as sc
+        site_packages_dir = sc.get_python_lib()
+        import shutil
+        import glob
+        egg_info_path = glob.glob(os.path.join(site_packages_dir, 'redner-0.0.1-*.egg-info'))
+        for p in egg_info_path:
+            try:
+                os.remove(p)
+            except:
+                print('Warning: detect old redner installation file {} and could not remove it. You may want to remove the file manually.'.format(p))
+        lib_path = os.path.join(site_packages_dir, 'redner.so')
+        if os.path.exists(lib_path):
+            try:
+                os.remove(lib_path)
+            except:
+                print('Warning: detect old redner installation file {} and could not remove it. You may want to remove the file manually.'.format(lib_path))
+        data_ptr_lib_path = os.path.join(site_packages_dir, 'libredner_tf_data_ptr.so')
+        if os.path.exists(data_ptr_lib_path):
+            try:
+                os.remove(data_ptr_lib_path)
+            except:
+                print('Warning: detect old redner installation file {} and could not remove it. You may want to remove the file manually.'.format(data_ptr_lib_path))
+        pyredner_path = os.path.join(site_packages_dir, 'pyredner')
+        if os.path.exists(pyredner_path):
+            try:
+                shutil.rmtree(os.path.join(site_packages_dir, 'pyredner'))
+            except:
+                print('Warning: detect old redner installation file {} and could not remove it. You may want to remove the file manually.'.format(pyredner_path))
+        pyredner_tensorflow_path = os.path.join(site_packages_dir, 'pyredner_tensorflow')
+        if os.path.exists(pyredner_tensorflow_path):
+            try:
+                shutil.rmtree(os.path.join(site_packages_dir, 'pyredner_tensorflow'))
+            except:
+                print('Warning: detect old redner installation file {} and could not remove it. You may want to remove the file manually.'.format(pyredner_tensorflow_path))
+        
+        install.run(self)
 
 class CMakeExtension(Extension):
     def __init__(self, name, sourcedir=''):
@@ -67,6 +108,7 @@ setup(name = 'redner',
       author = 'Tzu-Mao Li',
       license = 'MIT',
       packages = packages,
-      ext_modules=[CMakeExtension('cmake_example')],
-      cmdclass=dict(build_ext=CMakeBuild),
-      zip_safe=False)
+      ext_modules = [CMakeExtension('cmake_example')],
+      cmdclass = dict(build_ext=CMakeBuild, install=RemoveOldRednerAfterInstall),
+      zip_safe = False)
+
