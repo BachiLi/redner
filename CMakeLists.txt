@@ -18,21 +18,18 @@ endif()
 
 find_package(Embree)
 if(NOT EMBREE_FOUND)
-    message("Embree not found in the system. Building from scratch.")
-    add_subdirectory(embree)
-    set(EMBREE_INCLUDE_PATH "${PROJECT_SOURCE_DIR}/embree/include")
-    if(NOT DEFINED EMBREE_INSTALL_PREFIX)
-        set(EMBREE_INSTALL_PREFIX "${CMAKE_INSTALL_PREFIX}" CACHE PATH "Where to install Embree?")
+    set(EMBREE_INCLUDE_PATH "${PROJECT_SOURCE_DIR}/redner-dependencies/embree/include")
+    if(APPLE)
+        set(EMBREE_LIBRARY "${PROJECT_SOURCE_DIR}/redner-dependencies/embree/lib-macos/libembree3.dylib")
+    else()
+        set(EMBREE_LIBRARY "${PROJECT_SOURCE_DIR}/redner-dependencies/embree/lib-linux/libembree3.so")
     endif()
-    install(TARGETS embree
-        RUNTIME DESTINATION "${EMBREE_INSTALL_PREFIX}/embree"
-        LIBRARY DESTINATION "${EMBREE_INSTALL_PREFIX}/embree")
 endif()
 
 include_directories(${PYTHON_INCLUDE_PATH})
 include_directories(${EMBREE_INCLUDE_PATH})
 if(CUDA_FOUND)
-    include_directories(${CMAKE_SOURCE_DIR}/optix/include)
+    include_directories(${CMAKE_SOURCE_DIR}/redner-dependencies/optix/include)
     link_directories(${CUDA_LIBRARIES})
 else()
     include_directories(${THRUST_INCLUDE_DIR})
@@ -148,17 +145,10 @@ if(CUDA_FOUND)
     set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -std=c++14")
 
     cuda_add_library(redner MODULE ${SRCS})
-    if(NOT EMBREE_FOUND)
-        target_link_libraries(redner
-            embree
-            ${CMAKE_SOURCE_DIR}/optix/lib64/liboptix_prime.so.6.5.0
-            ${DYNAMIC_LOOKUP})
-    else()
-        target_link_libraries(redner
-            ${EMBREE_LIBRARY}
-            ${CMAKE_SOURCE_DIR}/optix/lib64/liboptix_prime.so.6.5.0
-            ${DYNAMIC_LOOKUP})
-    endif()
+    target_link_libraries(redner
+        ${EMBREE_LIBRARY}
+        ${CMAKE_SOURCE_DIR}/redner-dependencies/optix/lib64/liboptix_prime.so.6.5.0
+        ${DYNAMIC_LOOKUP})
 else()
     # No CUDA
     if (NOT WIN32)
@@ -172,25 +162,13 @@ else()
         # https://github.com/pybind/pybind11/blob/master/tools/pybind11Tools.cmake
         # is to not link against Python library at all and resolve the symbols
         # at compile time.
-        if(NOT EMBREE_FOUND)
-            target_link_libraries(redner
-                embree
-                ${DYNAMIC_LOOKUP})
-        else()
-            target_link_libraries(redner
-                ${EMBREE_LIBRARY}
-                ${DYNAMIC_LOOKUP})
-        endif()
+        target_link_libraries(redner
+            ${EMBREE_LIBRARY}
+            ${DYNAMIC_LOOKUP})
     else()
-        if(NOT EMBREE_FOUND)
-            target_link_libraries(redner
-                PRIVATE
-                embree)
-        else()
-            target_link_libraries(redner
-                PRIVATE
-                ${EMBREE_LIBRARY})
-        endif()
+        target_link_libraries(redner
+            PRIVATE
+            ${EMBREE_LIBRARY})
     endif()
 
 endif()
