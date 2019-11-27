@@ -210,13 +210,6 @@ string( REPLACE "-DNDEBUG" "" CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RE
 # OpenEXR
 find_package(OpenEXR REQUIRED)
 
-# Install openexrpython
-if(APPLE)
-    set(ENV{MACOSX_DEPLOYMENT_TARGET} 10.9)
-endif()
-install(CODE "execute_process(COMMAND python ${CMAKE_CURRENT_SOURCE_DIR}/openexrpython/setup.py install
-                              WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/openexrpython)")
-
 find_package(TensorFlow)
 if(TensorFlow_FOUND)
     add_subdirectory(pyredner_tensorflow/custom_ops)
