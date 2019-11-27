@@ -12,9 +12,7 @@ else()
 endif()
 
 find_package(CUDA 10)
-if(CUDA_FOUND)
-    find_package(OptiX REQUIRED)
-else()
+if(NOT CUDA_FOUND)
     find_package(Thrust REQUIRED)
 endif()
 
@@ -34,7 +32,7 @@ endif()
 include_directories(${Python_INCLUDE_DIRS})
 include_directories(${EMBREE_INCLUDE_PATH})
 if(CUDA_FOUND)
-    include_directories(${OptiX_INCLUDE})
+    include_directories(${CMAKE_SOURCE_DIR}/optix/include)
     link_directories(${CUDA_LIBRARIES})
 else()
     include_directories(${THRUST_INCLUDE_DIR})
@@ -153,46 +151,47 @@ if(CUDA_FOUND)
     if(NOT EMBREE_FOUND)
         target_link_libraries(redner
             embree
-            ${optix_prime_LIBRARY}
+            ${CMAKE_SOURCE_DIR}/optix/lib64/liboptix_prime.so.6.5.0
             ${DYNAMIC_LOOKUP})
     else()
         target_link_libraries(redner
             ${EMBREE_LIBRARY}
-            ${optix_prime_LIBRARY}
+            ${CMAKE_SOURCE_DIR}/optix/lib64/liboptix_prime.so.6.5.0
             ${DYNAMIC_LOOKUP})
     endif()
 else()
-if (NOT WIN32)
-    add_library(redner MODULE ${SRCS})
-
-    # The "-undefined dynamic_lookup" is a hack for systems with
-    # multiple Python installed. If we link a particular Python version
-    # here, and we import it with a different Python version later.
-    # likely a segmentation fault.
-    # The solution for Linux/Mac OS machines, as mentioned in 
-    # https://github.com/pybind/pybind11/blob/master/tools/pybind11Tools.cmake
-    # is to not link against Python library at all and resolve the symbols
-    # at compile time.
-    if(NOT EMBREE_FOUND)
-        target_link_libraries(redner
-            embree
-            ${DYNAMIC_LOOKUP})
+    # No CUDA
+    if (NOT WIN32)
+        add_library(redner MODULE ${SRCS})
+    
+        # The "-undefined dynamic_lookup" is a hack for systems with
+        # multiple Python installed. If we link a particular Python version
+        # here, and we import it with a different Python version later.
+        # likely a segmentation fault.
+        # The solution for Linux/Mac OS machines, as mentioned in 
+        # https://github.com/pybind/pybind11/blob/master/tools/pybind11Tools.cmake
+        # is to not link against Python library at all and resolve the symbols
+        # at compile time.
+        if(NOT EMBREE_FOUND)
+            target_link_libraries(redner
+                embree
+                ${DYNAMIC_LOOKUP})
+        else()
+            target_link_libraries(redner
+                ${EMBREE_LIBRARY}
+                ${DYNAMIC_LOOKUP})
+        endif()
     else()
-        target_link_libraries(redner
-            ${EMBREE_LIBRARY}
-            ${DYNAMIC_LOOKUP})
+        if(NOT EMBREE_FOUND)
+            target_link_libraries(redner
+                PRIVATE
+                embree)
+        else()
+            target_link_libraries(redner
+                PRIVATE
+                ${EMBREE_LIBRARY})
+        endif()
     endif()
-else()
-    if(NOT EMBREE_FOUND)
-        target_link_libraries(redner
-            PRIVATE
-            embree)
-    else()
-        target_link_libraries(redner
-            PRIVATE
-            ${EMBREE_LIBRARY})
-    endif()
-endif()
 
 endif()
 
@@ -222,3 +221,4 @@ find_package(TensorFlow)
 if(TensorFlow_FOUND)
     add_subdirectory(pyredner_tensorflow/custom_ops)
 endif()
+
