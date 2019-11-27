@@ -103,7 +103,7 @@ if len(packages) == 0:
     exit()
 
 setup(name = 'redner',
-      version = '0.0.1',
+      version = '0.0.2',
       description = 'A differentiable Monte Carlo ray tracer.',
       author = 'Tzu-Mao Li',
       license = 'MIT',
