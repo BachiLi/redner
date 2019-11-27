@@ -97,6 +97,16 @@ if sys.platform == 'darwin':
         if python_target < '10.9' and current_system >= '10.9':
             os.environ['MACOSX_DEPLOYMENT_TARGET'] = '10.9'
 
+package_data = {}
+# Make Embree and OptiX part of the package
+if sys.platform == 'darwin':
+    package_data['redner-dependencies'] = ['embree/lib-macos/*.dylib']
+elif sys.platform == 'linux':
+    package_data['redner-dependencies'] = ['embree/lib-linux/*.so',
+                                           'embree/lib-linux/*.so.*',
+                                           'optix/lib64/liboptix_prime.so.6.5.0']
+packages.append('redner-dependencies')
+
 setup(name = 'redner',
       version = '0.0.2',
       description = 'A differentiable Monte Carlo ray tracer.',
@@ -111,5 +121,6 @@ setup(name = 'redner',
                         libraries=['Iex', 'Half', 'Imath', 'IlmImf', 'z'],
                         extra_compile_args=openexr_python_compiler_args)],
       cmdclass = dict(build_ext=CMakeBuild, install=RemoveOldRednerBeforeInstall),
+      package_data = package_data,
       zip_safe = False)
 
