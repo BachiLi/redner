@@ -13,7 +13,7 @@ from setuptools.command.install import install
 from distutils.sysconfig import get_config_var
 from distutils.version import LooseVersion
 
-class RemoveOldRednerAfterInstall(install):
+class RemoveOldRednerBeforeInstall(install):
     def run(self):
         # Remove old redner packages installed by distutils
         from distutils import sysconfig as sc
@@ -26,31 +26,7 @@ class RemoveOldRednerAfterInstall(install):
                 os.remove(p)
             except:
                 print('Warning: detect old redner installation file {} and could not remove it. You may want to remove the file manually.'.format(p))
-        lib_path = os.path.join(site_packages_dir, 'redner.so')
-        if os.path.exists(lib_path):
-            try:
-                os.remove(lib_path)
-            except:
-                print('Warning: detect old redner installation file {} and could not remove it. You may want to remove the file manually.'.format(lib_path))
-        data_ptr_lib_path = os.path.join(site_packages_dir, 'libredner_tf_data_ptr.so')
-        if os.path.exists(data_ptr_lib_path):
-            try:
-                os.remove(data_ptr_lib_path)
-            except:
-                print('Warning: detect old redner installation file {} and could not remove it. You may want to remove the file manually.'.format(data_ptr_lib_path))
-        pyredner_path = os.path.join(site_packages_dir, 'pyredner')
-        if os.path.exists(pyredner_path):
-            try:
-                shutil.rmtree(os.path.join(site_packages_dir, 'pyredner'))
-            except:
-                print('Warning: detect old redner installation file {} and could not remove it. You may want to remove the file manually.'.format(pyredner_path))
-        pyredner_tensorflow_path = os.path.join(site_packages_dir, 'pyredner_tensorflow')
-        if os.path.exists(pyredner_tensorflow_path):
-            try:
-                shutil.rmtree(os.path.join(site_packages_dir, 'pyredner_tensorflow'))
-            except:
-                print('Warning: detect old redner installation file {} and could not remove it. You may want to remove the file manually.'.format(pyredner_tensorflow_path))
-        
+
         install.run(self)
 
 class CMakeExtension(Extension):
