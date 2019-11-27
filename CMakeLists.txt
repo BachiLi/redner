@@ -29,7 +29,7 @@ if(NOT EMBREE_FOUND)
         LIBRARY DESTINATION "${EMBREE_INSTALL_PREFIX}/embree")
 endif()
 
-include_directories(${Python_INCLUDE_DIRS})
+include_directories(${PYTHON_INCLUDE_PATH})
 include_directories(${EMBREE_INCLUDE_PATH})
 if(CUDA_FOUND)
     include_directories(${CMAKE_SOURCE_DIR}/optix/include)

@@ -5,6 +5,7 @@ import sys
 import platform
 import subprocess
 import importlib
+from sysconfig import get_paths
 
 from setuptools import setup, Extension
 from setuptools.command.build_ext import build_ext
@@ -70,8 +71,10 @@ class CMakeBuild(build_ext):
     def build_extension(self, ext):
         if isinstance(ext, CMakeExtension):
             extdir = os.path.abspath(os.path.dirname(self.get_ext_fullpath(ext.name)))
+            info = get_paths()
+            include_path = info['include']
             cmake_args = ['-DCMAKE_LIBRARY_OUTPUT_DIRECTORY=' + extdir,
-                          '-DPYTHON_EXECUTABLE=' + sys.executable]
+                          '-DPYTHON_INCLUDE_PATH=' + include_path]
 
             cfg = 'Debug' if self.debug else 'Release'
             build_args = ['--config', cfg]
