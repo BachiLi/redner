@@ -136,7 +136,8 @@ setup(name = 'redner',
                         library_dirs=['/usr/local/lib', '/opt/local/lib'],
                         libraries=['Iex', 'Half', 'Imath', 'IlmImf', 'z'],
                         extra_compile_args=openexr_python_compiler_args),
-                     CopyExtension('redner-dependencies', dynamic_libraries)],
+                     CopyExtension('redner-dependencies', dynamic_libraries),
+                     CopyExtension('openexrpython', ['openexrpython/Imath.py'])],
       cmdclass = dict(build_ext=Build, install=RemoveOldRednerBeforeInstall),
       zip_safe = False)
 

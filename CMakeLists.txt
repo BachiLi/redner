@@ -167,7 +167,14 @@ else()
             PRIVATE
             ${EMBREE_LIBRARY})
     endif()
+endif()
 
+set_target_properties(redner PROPERTIES SKIP_BUILD_RPATH FALSE)
+set_target_properties(redner PROPERTIES BUILD_WITH_INSTALL_RPATH TRUE)
+if(UNIX AND NOT APPLE)
+    set_target_properties(redner PROPERTIES INSTALL_RPATH "$ORIGIN")
+elseif(APPLE)
+    set_target_properties(redner PROPERTIES INSTALL_RPATH "@loader_path")
 endif()
 
 set_property(TARGET redner PROPERTY CXX_STANDARD 14)
