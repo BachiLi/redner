@@ -34,7 +34,12 @@ class CMakeExtension(Extension):
         Extension.__init__(self, name, sources=[])
         self.sourcedir = os.path.abspath(sourcedir)
 
-class CMakeBuild(build_ext):
+class CopyExtension(Extension):
+    def __init__(self, name, filename_list):
+        Extension.__init__(self, name, sources=[])
+        self.filename_list = filename_list
+
+class Build(build_ext):
     def run(self):
         try:
             out = subprocess.check_output(['cmake', '--version'])
@@ -71,6 +76,13 @@ class CMakeBuild(build_ext):
                 os.makedirs(self.build_temp)
             subprocess.check_call(['cmake', ext.sourcedir] + cmake_args, cwd=self.build_temp, env=env)
             subprocess.check_call(['cmake', '--build', '.'] + build_args, cwd=self.build_temp)
+        elif isinstance(ext, CopyExtension):
+            extdir = os.path.abspath(os.path.dirname(self.get_ext_fullpath(ext.name)))
+            # Copy the files to extdir
+            from shutil import copy
+            for f in ext.filename_list:
+                print('Copying {} to {}'.format(f, extdir))
+                copy(f, extdir)
         else:
             super().build_extension(ext)
 
@@ -97,15 +109,19 @@ if sys.platform == 'darwin':
         if python_target < '10.9' and current_system >= '10.9':
             os.environ['MACOSX_DEPLOYMENT_TARGET'] = '10.9'
 
-package_data = {}
+dynamic_libraries = []
 # Make Embree and OptiX part of the package
 if sys.platform == 'darwin':
-    package_data['redner-dependencies'] = ['embree/lib-macos/*.dylib']
+    dynamic_libraries.append('redner-dependencies/embree/lib-macos/libembree3.3.dylib')
+    dynamic_libraries.append('redner-dependencies/embree/lib-macos/libembree3.dylib')
+    dynamic_libraries.append('redner-dependencies/embree/lib-macos/libtbb.dylib')
+    dynamic_libraries.append('redner-dependencies/embree/lib-macos/libtbbmalloc.dylib')
 elif sys.platform == 'linux':
-    package_data['redner-dependencies'] = ['embree/lib-linux/*.so',
-                                           'embree/lib-linux/*.so.*',
-                                           'optix/lib64/liboptix_prime.so.6.5.0']
-packages.append('redner-dependencies')
+    dynamic_libraries.append('redner-dependencies/embree/lib-linux/libembree3.so')
+    dynamic_libraries.append('redner-dependencies/embree/lib-linux/libembree3.so.3')
+    dynamic_libraries.append('redner-dependencies/embree/lib-linux/libtbb.so.2')
+    dynamic_libraries.append('redner-dependencies/embree/lib-linux/libtbbmalloc.so.2')
+    dynamic_libraries.append('redner-dependencies/optix/lib64/liboptix_prime.so.6.5.0')
 
 setup(name = 'redner',
       version = '0.0.2',
@@ -119,8 +135,8 @@ setup(name = 'redner',
                         include_dirs=['/usr/include/OpenEXR', '/usr/local/include/OpenEXR', '/opt/local/include/OpenEXR'],
                         library_dirs=['/usr/local/lib', '/opt/local/lib'],
                         libraries=['Iex', 'Half', 'Imath', 'IlmImf', 'z'],
-                        extra_compile_args=openexr_python_compiler_args)],
-      cmdclass = dict(build_ext=CMakeBuild, install=RemoveOldRednerBeforeInstall),
-      package_data = package_data,
+                        extra_compile_args=openexr_python_compiler_args),
+                     CopyExtension('redner-dependencies', dynamic_libraries)],
+      cmdclass = dict(build_ext=Build, install=RemoveOldRednerBeforeInstall),
       zip_safe = False)
 
