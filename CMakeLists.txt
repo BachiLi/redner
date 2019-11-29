@@ -189,9 +189,6 @@ string( REPLACE "-DNDEBUG" "" CMAKE_C_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE}"
 string( REPLACE "/DNDEBUG" "" CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
 string( REPLACE "-DNDEBUG" "" CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
 
-# OpenEXR
-find_package(OpenEXR REQUIRED)
-
 find_package(TensorFlow)
 if(TensorFlow_FOUND)
     add_subdirectory(pyredner_tensorflow/custom_ops)

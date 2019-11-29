@@ -108,17 +108,51 @@ if sys.platform == 'darwin':
             get_config_var('MACOSX_DEPLOYMENT_TARGET'))
         if python_target < '10.9' and current_system >= '10.9':
             os.environ['MACOSX_DEPLOYMENT_TARGET'] = '10.9'
+# Search for OpenEXR
+openexr_include_dirs = ['/usr/include/OpenEXR', '/usr/local/include/OpenEXR', '/opt/local/include/OpenEXR']
+if 'OPENEXR_INCLUDE' in os.environ:
+    openexr_include_dirs = os.environ['OPENEXR_INCLUDE'] + openexr_include_dirs
+openexr_lib_dirs = ['/usr/local/lib', '/opt/local/lib']
+if 'OPENEXR_LIB_DIR' in os.environ:
+    openexr_lib_dirs = os.environ['OPENEXR_LIB_DIR'] + openexr_lib_dirs
+openexr_include_dir = None
+for d in openexr_include_dirs:
+    # Search for OpenEXRConfig.h
+    if os.path.exists(os.path.join(d, 'OpenEXRConfig.h')):
+        openexr_include_dir = d
+        break
+if openexr_include_dir is None:
+    raise Exception('Could not find the OpenEXR include files. Consider setting the environment variable OPENEXR_INCLUDE to the directory containing OpenEXRConfig.h.')
+openexr_lib_dir = None
+for d in openexr_lib_dirs:
+    # Search for libIlmImf.a
+    if os.path.exists(os.path.join(d, 'libIlmImf.a')):
+        openexr_lib_dir = d
+        break
+if openexr_lib_dir is None:
+    raise Exception('Could not find the OpenEXR static libraries. Consider setting the environment variable OPENEXR_LIB_DIR to the directory containing libIlmImf.a.')
+openexr_link_args = [os.path.join(openexr_lib_dir, 'libIex.a'),
+                     os.path.join(openexr_lib_dir, 'libHalf.a'),
+                     os.path.join(openexr_lib_dir, 'libImath.a'),
+                     os.path.join(openexr_lib_dir, 'libIlmImf.a')]
+openexr_libraries = []
+if sys.platform == 'darwin':
+    # OS X has zlib by default, link to it.
+    openexr_libraries = ['z']
+    # Supress warning by setting to the host's OS X version
+    osx_ver = platform.mac_ver()[0]
+    osx_ver = '.'.join(osx_ver.split('.')[:2])
+    openexr_python_compiler_args.append('-mmacosx-version-min=' + osx_ver)
+    openexr_link_args.append('-mmacosx-version-min=' + osx_ver)
 
 dynamic_libraries = []
 # Make Embree and OptiX part of the package
 if sys.platform == 'darwin':
-    dynamic_libraries.append('redner-dependencies/embree/lib-macos/libembree3.3.dylib')
     dynamic_libraries.append('redner-dependencies/embree/lib-macos/libembree3.dylib')
     dynamic_libraries.append('redner-dependencies/embree/lib-macos/libtbb.dylib')
     dynamic_libraries.append('redner-dependencies/embree/lib-macos/libtbbmalloc.dylib')
 elif sys.platform == 'linux':
     dynamic_libraries.append('redner-dependencies/embree/lib-linux/libembree3.so')
-    dynamic_libraries.append('redner-dependencies/embree/lib-linux/libembree3.so.3')
     dynamic_libraries.append('redner-dependencies/embree/lib-linux/libtbb.so.2')
     dynamic_libraries.append('redner-dependencies/embree/lib-linux/libtbbmalloc.so.2')
     dynamic_libraries.append('redner-dependencies/optix/lib64/liboptix_prime.so.6.5.0')
@@ -132,12 +166,12 @@ setup(name = 'redner',
       ext_modules = [CMakeExtension('cmake_example'),
                      Extension('OpenEXR',
                         ['openexrpython/OpenEXR.cpp'],
-                        include_dirs=['/usr/include/OpenEXR', '/usr/local/include/OpenEXR', '/opt/local/include/OpenEXR'],
-                        library_dirs=['/usr/local/lib', '/opt/local/lib'],
-                        libraries=['Iex', 'Half', 'Imath', 'IlmImf', 'z'],
-                        extra_compile_args=openexr_python_compiler_args),
+                        include_dirs=[openexr_include_dir],
+                        library_dirs=[openexr_lib_dir, '/usr/lib', '/usr/local/lib', '/opt/local/lib'],
+                        libraries=openexr_libraries,
+                        extra_compile_args=openexr_python_compiler_args,
+                        extra_link_args=openexr_link_args),
                      CopyExtension('redner-dependencies', dynamic_libraries),
                      CopyExtension('openexrpython', ['openexrpython/Imath.py'])],
       cmdclass = dict(build_ext=Build, install=RemoveOldRednerBeforeInstall),
       zip_safe = False)
-
