@@ -155,7 +155,10 @@ elif sys.platform == 'linux':
     dynamic_libraries.append('redner-dependencies/embree/lib-linux/libtbbmalloc.so.2')
     dynamic_libraries.append('redner-dependencies/optix/lib64/liboptix_prime.so.6.5.0')
 
-setup(name = 'redner',
+project_name = 'redner'
+if 'PROJECT_NAME' in os.environ:
+    project_name = os.environ['PROJECT_NAME']
+setup(name = project_name,
       version = '0.0.2',
       description = 'A differentiable Monte Carlo ray tracer.',
       author = 'Tzu-Mao Li',
@@ -172,6 +175,6 @@ setup(name = 'redner',
                      CopyExtension('redner-dependencies', dynamic_libraries),
                      CopyExtension('openexrpython', ['openexrpython/Imath.py'])],
       cmdclass = dict(build_ext=Build, install=RemoveOldRednerBeforeInstall),
-      install_requires = ['scikit-image'],
+      install_requires = ['scikit-image', 'pybind11'],
       zip_safe = False)
 
