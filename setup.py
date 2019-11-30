@@ -135,7 +135,7 @@ if sys.platform == 'darwin':
     dynamic_libraries.append('redner-dependencies/embree/lib-macos/libtbb.dylib')
     dynamic_libraries.append('redner-dependencies/embree/lib-macos/libtbbmalloc.dylib')
 elif sys.platform == 'linux':
-    dynamic_libraries.append('redner-dependencies/embree/lib-linux/libembree3.so')
+    dynamic_libraries.append('redner-dependencies/embree/lib-linux/libembree3.so.3')
     dynamic_libraries.append('redner-dependencies/embree/lib-linux/libtbb.so.2')
     dynamic_libraries.append('redner-dependencies/embree/lib-linux/libtbbmalloc.so.2')
     dynamic_libraries.append('redner-dependencies/optix/lib64/liboptix_prime.so.6.5.0')
@@ -157,4 +157,6 @@ setup(name = 'redner',
                      CopyExtension('redner-dependencies', dynamic_libraries),
                      CopyExtension('openexrpython', ['openexrpython/Imath.py'])],
       cmdclass = dict(build_ext=Build, install=RemoveOldRednerBeforeInstall),
+      install_requires = ['scikit-image'],
       zip_safe = False)
+
