@@ -11,8 +11,13 @@ else()
     find_package(Python 3.6 COMPONENTS Development REQUIRED)
 endif()
 
-find_package(CUDA 10)
-if(NOT CUDA_FOUND)
+option(REDNER_CUDA "Build redner with GPU code path?" OFF)
+
+if(REDNER_CUDA)
+    message(STATUS "Build with CUDA support")
+    find_package(CUDA 10 REQUIRED)
+else()
+    message(STATUS "Build without CUDA support")
     find_package(Thrust REQUIRED)
 endif()
 
@@ -25,7 +30,7 @@ endif()
 
 include_directories(${PYTHON_INCLUDE_PATH})
 include_directories(${EMBREE_INCLUDE_PATH})
-if(CUDA_FOUND)
+if(REDNER_CUDA)
     include_directories(${CMAKE_SOURCE_DIR}/redner-dependencies/optix/include)
     link_directories(${CUDA_LIBRARIES})
 else()
@@ -33,7 +38,7 @@ else()
 endif()
 
 add_compile_options(-Wall -g -O3 -fvisibility=hidden)
-if(NOT CUDA_FOUND)
+if(NOT REDNER_CUDA)
     add_compile_options("-DTHRUST_DEVICE_SYSTEM=THRUST_DEVICE_SYSTEM_CPP")
 endif()
 
@@ -117,7 +122,7 @@ if (WIN32)
     pybind11_add_module(redner SHARED ${SRCS})
 endif()
 
-if(CUDA_FOUND)
+if(REDNER_CUDA)
     add_compile_definitions(COMPILE_WITH_CUDA)
     set_source_files_properties(
         aabb.cpp
