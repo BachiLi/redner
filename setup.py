@@ -30,9 +30,10 @@ class RemoveOldRednerBeforeInstall(install):
         install.run(self)
 
 class CMakeExtension(Extension):
-    def __init__(self, name, sourcedir=''):
+    def __init__(self, name, sourcedir, build_with_cuda):
         Extension.__init__(self, name, sources=[])
         self.sourcedir = os.path.abspath(sourcedir)
+        self.build_with_cuda = build_with_cuda
 
 class CopyExtension(Extension):
     def __init__(self, name, filename_list):
@@ -69,6 +70,9 @@ class Build(build_ext):
                 cmake_args += ['-DCMAKE_BUILD_TYPE=' + cfg]
                 build_args += ['--', '-j8']
 
+            if ext.build_with_cuda:
+                cmake_args += ['-DREDNER_CUDA=1']
+
             env = os.environ.copy()
             env['CXXFLAGS'] = '{} -DVERSION_INFO=\\"{}\\"'.format(env.get('CXXFLAGS', ''),
                                                                   self.distribution.get_version())
@@ -89,13 +93,24 @@ class Build(build_ext):
 torch_spec = importlib.util.find_spec("torch")
 tf_spec = importlib.util.find_spec("tensorflow")
 packages = []
+build_with_cuda = False
 if torch_spec is not None:
     packages.append('pyredner')
+    import torch
+    if torch.cuda.is_available():
+        build_with_cuda = True
 if tf_spec is not None:
     packages.append('pyredner_tensorflow')
+    if not build_with_cuda:
+        import tensorflow as tf
+        if tf.test.is_gpu_available(cuda_only=True, min_cuda_compute_capability=None):
+            build_with_cuda = True
 if len(packages) == 0:
     print('Error: PyTorch or Tensorflow must be installed.')
     exit()
+# Override build_with_cuda with environment variable
+if 'REDNER_CUDA' in os.environ:
+    build_with_cuda = os.environ['REDNER_CUDA'] == '1'
 
 # OpenEXR Python installation
 openexr_python_version = "1.3.2"
@@ -135,7 +150,7 @@ if sys.platform == 'darwin':
     dynamic_libraries.append('redner-dependencies/embree/lib-macos/libtbb.dylib')
     dynamic_libraries.append('redner-dependencies/embree/lib-macos/libtbbmalloc.dylib')
 elif sys.platform == 'linux':
-    dynamic_libraries.append('redner-dependencies/embree/lib-linux/libembree3.so')
+    dynamic_libraries.append('redner-dependencies/embree/lib-linux/libembree3.so.3')
     dynamic_libraries.append('redner-dependencies/embree/lib-linux/libtbb.so.2')
     dynamic_libraries.append('redner-dependencies/embree/lib-linux/libtbbmalloc.so.2')
     dynamic_libraries.append('redner-dependencies/optix/lib64/liboptix_prime.so.6.5.0')
@@ -146,7 +161,7 @@ setup(name = 'redner',
       author = 'Tzu-Mao Li',
       license = 'MIT',
       packages = packages,
-      ext_modules = [CMakeExtension('cmake_example'),
+      ext_modules = [CMakeExtension('redner', '', build_with_cuda),
                      Extension('OpenEXR',
                         ['openexrpython/OpenEXR.cpp'],
                         include_dirs=[openexr_include_dir],
