@@ -7,8 +7,8 @@ scene parameters, that is, you can backpropagate from the image to your 3D scene
 
 For more details on the renderer, what it can do, and the techniques it use for computing the derivatives, please
 take a look at the paper:
-[Differentiable Monte Carlo Ray Tracing through Edge Sampling](https://people.csail.mit.edu/tzumao/diffrt/), Tzu-Mao Li, Miika Aittala, Fredo Durand, Jaakko Lehtinen
-Since the submission we have improved the renderer a bit. In particular we implemented a CUDA backend and accelerated
+[Differentiable Monte Carlo Ray Tracing through Edge Sampling](https://people.csail.mit.edu/tzumao/diffrt/), Tzu-Mao Li, Miika Aittala, Fredo Durand, Jaakko Lehtinen.
+Since the submission we have improved the renderer quite a bit. In particular we implemented a CUDA backend and accelerated
 the continuous derivatives significantly by replacing automatic differentiation with manually-derived derivatives. See Tzu-Mao Li's [thesis](https://people.csail.mit.edu/tzumao/phdthesis/phdthesis.pdf) for even more details.
 
 ## Installation
