@@ -4,9 +4,9 @@
 [submodule "openexrpython"]
 	path = openexrpython
 	url = https://github.com/jamesbowman/openexrpython.git
-[submodule "embree"]
-	path = embree
-	url = https://github.com/embree/embree.git
 [submodule "xatlas"]
 	path = xatlas
 	url = https://github.com/jpcy/xatlas.git
+[submodule "redner-dependencies"]
+	path = redner-dependencies
+	url = https://github.com/BachiLi/redner-dependencies

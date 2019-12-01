@@ -13,3 +13,5 @@ fit_ltc/results
 playground
 dockerfiles/dependencies/
 .vscode
+redner.egg-info
+dist

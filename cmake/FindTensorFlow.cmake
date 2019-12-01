@@ -14,6 +14,7 @@ if("${retcode}" STREQUAL "0")
     list(GET TF_INFORMATION_LIST 3 TF_DETECTED_LIBRARY_DIR)
     # For some reason my tensorflow doesn't have a .so file
     list(APPEND CMAKE_FIND_LIBRARY_SUFFIXES .so.1)
+    list(APPEND CMAKE_FIND_LIBRARY_SUFFIXES .so.2)
     find_library(TF_DETECTED_LIBRARY NAMES tensorflow_framework PATHS 
         ${TF_DETECTED_LIBRARY_DIR})
     set(TensorFlow_VERSION ${TF_DETECTED_VERSION})
