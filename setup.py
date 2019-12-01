@@ -152,7 +152,8 @@ elif sys.platform == 'linux':
     dynamic_libraries.append('redner-dependencies/embree/lib-linux/libembree3.so.3')
     dynamic_libraries.append('redner-dependencies/embree/lib-linux/libtbb.so.2')
     dynamic_libraries.append('redner-dependencies/embree/lib-linux/libtbbmalloc.so.2')
-    dynamic_libraries.append('redner-dependencies/optix/lib64/liboptix_prime.so.6.5.0')
+    if build_with_cuda:
+        dynamic_libraries.append('redner-dependencies/optix/lib64/liboptix_prime.so.6.5.0')
 
 project_name = 'redner'
 if 'PROJECT_NAME' in os.environ:
@@ -174,6 +175,6 @@ setup(name = project_name,
                      CopyExtension('redner-dependencies', dynamic_libraries),
                      CopyExtension('openexrpython', ['openexrpython/Imath.py'])],
       cmdclass = dict(build_ext=Build, install=RemoveOldRednerBeforeInstall),
-      install_requires = ['scikit-image', 'pybind11'],
+      install_requires = ['scikit-image'],
       zip_safe = False)
 
