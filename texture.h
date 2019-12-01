@@ -108,16 +108,16 @@ inline void d_trilinear_interp(const Texture<N> &tex,
             //             value_cf *        u  * (1.f - v) +
             //             value_cc *        u  *        v;
             // d_value_ff
-            atomic_add(&d_texels[channels * (yfi * tex.width + xfi)],
+            atomic_add(&d_texels[channels * (yfi * tex.width + xfi) + i],
                        d_output[i] * (1.f - u) * (1.f - v));
             // d_value_fc
-            atomic_add(&d_texels[channels * (yfi * tex.width + xci)],
+            atomic_add(&d_texels[channels * (yfi * tex.width + xci) + i],
                        d_output[i] *        u  * (1.f - v));
             // d_value_cf
-            atomic_add(&d_texels[channels * (yci * tex.width + xfi)],
+            atomic_add(&d_texels[channels * (yci * tex.width + xfi) + i],
                        d_output[i] * (1.f - u) *        v );
             // d_value_cc
-            atomic_add(&d_texels[channels * (yci * tex.width + xci)],
+            atomic_add(&d_texels[channels * (yci * tex.width + xci) + i],
                        d_output[i] *        u  *        v );
             d_u += sum(d_output[i] * (-value_ff * (1.f - v) +
                                        value_cf * (1.f - v) +
@@ -157,28 +157,28 @@ inline void d_trilinear_interp(const Texture<N> &tex,
             auto d_v1 = d_output[i] *      ld;
             d_level += d_output[i] * (v1 - v0);
             // d_value_ff0
-            atomic_add(&d_texels0[channels * (yfi * tex.width + xfi)],
+            atomic_add(&d_texels0[channels * (yfi * tex.width + xfi) + i],
                        d_v0 * (1.f - u) * (1.f - v));
             // d_value_fc0
-            atomic_add(&d_texels0[channels * (yfi * tex.width + xci)],
+            atomic_add(&d_texels0[channels * (yfi * tex.width + xci) + i],
                        d_v0 *        u  * (1.f - v));
             // d_value_cf0
-            atomic_add(&d_texels0[channels * (yci * tex.width + xfi)],
+            atomic_add(&d_texels0[channels * (yci * tex.width + xfi) + i],
                        d_v0 * (1.f - u) *        v );
             // d_value_cc0
-            atomic_add(&d_texels0[channels * (yci * tex.width + xci)],
+            atomic_add(&d_texels0[channels * (yci * tex.width + xci) + i],
                        d_v0 *        u  *        v );
             // d_value_ff1
-            atomic_add(&d_texels1[channels * (yfi * tex.width + xfi)],
+            atomic_add(&d_texels1[channels * (yfi * tex.width + xfi) + i],
                        d_v1 * (1.f - u) * (1.f - v));
             // d_value_fc1
-            atomic_add(&d_texels1[channels * (yfi * tex.width + xci)],
+            atomic_add(&d_texels1[channels * (yfi * tex.width + xci) + i],
                        d_v1 *        u  * (1.f - v));
             // d_value_cf1
-            atomic_add(&d_texels1[channels * (yci * tex.width + xfi)],
+            atomic_add(&d_texels1[channels * (yci * tex.width + xfi) + i],
                        d_v1 * (1.f - u) *        v );
             // d_value_cc1
-            atomic_add(&d_texels1[channels * (yci * tex.width + xci)],
+            atomic_add(&d_texels1[channels * (yci * tex.width + xci) + i],
                        d_v1 *        u  *        v );
             d_u += d_v0 * (-value_ff0 * (1.f - v) +
                             value_cf0 * (1.f - v) +
