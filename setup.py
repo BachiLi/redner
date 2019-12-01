@@ -128,19 +128,24 @@ if sys.platform == 'darwin':
     openexr_lib_dir = 'redner-dependencies/openexr/lib-macos'
 elif sys.platform == 'linux':
     openexr_lib_dir = 'redner-dependencies/openexr/lib-linux'
-openexr_link_args = ['-Wl,--whole-archive',
-                     os.path.join(openexr_lib_dir, 'libHalf-2_3_s.a'),
+openexr_link_args = []
+if sys.platform == 'linux':
+    openexr_link_args += ['-Wl,--whole-archive']
+else:
+    openexr_link_args += ['-Wl,-all_load']
+openexr_link_args = [os.path.join(openexr_lib_dir, 'libHalf-2_3_s.a'),
                      os.path.join(openexr_lib_dir, 'libIex-2_3_s.a'),
                      os.path.join(openexr_lib_dir, 'libIexMath-2_3_s.a'),
                      os.path.join(openexr_lib_dir, 'libImath-2_3_s.a'),
                      os.path.join(openexr_lib_dir, 'libIlmImf-2_3_s.a'),
                      os.path.join(openexr_lib_dir, 'libIlmImfUtil-2_3_s.a'),
-                     os.path.join(openexr_lib_dir, 'libIlmThread-2_3_s.a'),
-                     '-Wl,--no-whole-archive']
+                     os.path.join(openexr_lib_dir, 'libIlmThread-2_3_s.a')]
 if sys.platform == 'linux':
-    openexr_link_args += ['-Wl,--whole-archive',
-                          os.path.join(openexr_lib_dir, 'libz.a'),
-                          '-Wl,--no-whole-archive']
+    openexr_link_args += [os.path.join(openexr_lib_dir, 'libz.a')]
+    openexr_link_args += ['-Wl,--no-whole-archive']
+else:
+    openexr_link_args += ['-Wl,-noall_load']
+
 openexr_libraries = []
 if sys.platform == 'darwin':
     # OS X has zlib by default, link to it.
@@ -186,4 +191,3 @@ setup(name = project_name,
       cmdclass = dict(build_ext=Build, install=RemoveOldRednerBeforeInstall),
       install_requires = ['scikit-image'],
       zip_safe = False)
-
