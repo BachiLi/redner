@@ -86,7 +86,6 @@ The current development plan is to enhance the renderer. Following features will
 - Spectral rendering
 - Backface culling
 - Gradient visualization
-- Install script
 - Spherical light sources
 - Documentation
 
