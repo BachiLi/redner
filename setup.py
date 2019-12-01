@@ -128,13 +128,19 @@ if sys.platform == 'darwin':
     openexr_lib_dir = 'redner-dependencies/openexr/lib-macos'
 elif sys.platform == 'linux':
     openexr_lib_dir = 'redner-dependencies/openexr/lib-linux'
-openexr_link_args = [os.path.join(openexr_lib_dir, 'libIex-2_3_s.a'),
-                     os.path.join(openexr_lib_dir, 'libIexMath-2_3_s.a'),
+openexr_link_args = ['-Wl,--whole-archive',
                      os.path.join(openexr_lib_dir, 'libHalf-2_3_s.a'),
+                     os.path.join(openexr_lib_dir, 'libIex-2_3_s.a'),
+                     os.path.join(openexr_lib_dir, 'libIexMath-2_3_s.a'),
                      os.path.join(openexr_lib_dir, 'libImath-2_3_s.a'),
                      os.path.join(openexr_lib_dir, 'libIlmImf-2_3_s.a'),
                      os.path.join(openexr_lib_dir, 'libIlmImfUtil-2_3_s.a'),
-                     os.path.join(openexr_lib_dir, 'libIlmThread-2_3_s.a')]
+                     os.path.join(openexr_lib_dir, 'libIlmThread-2_3_s.a'),
+                     '-Wl,--no-whole-archive']
+if sys.platform == 'linux':
+    openexr_link_args += ['-Wl,--whole-archive',
+                          os.path.join(openexr_lib_dir, 'libz.a'),
+                          '-Wl,--no-whole-archive']
 openexr_libraries = []
 if sys.platform == 'darwin':
     # OS X has zlib by default, link to it.
