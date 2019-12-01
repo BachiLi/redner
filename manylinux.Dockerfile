@@ -62,5 +62,5 @@ RUN for f in /dist/redner*-linux_*.whl; \
 
 #-----------------------------------------------------
 # Install twine for uploading the wheel
-RUN pip install twine
+RUN python -m pip install twine
 

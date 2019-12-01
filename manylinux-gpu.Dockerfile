@@ -35,7 +35,7 @@ RUN chmod -R a+w /app
 WORKDIR /app
 RUN if [ -d "build" ]; then rm -rf build; fi \
     && PROJECT_NAME=redner-gpu python -m pip wheel -w /dist --verbose . \
-    && python -m pip install /dist/redner*.whl
+    && conda run python -m pip install /dist/redner*.whl
 
 #-----------------------------------------------------
 # Create a Python 3.6 environment
@@ -60,5 +60,5 @@ RUN for f in /dist/redner*-linux_*.whl; \
       auditwheel repair "$f" -w /dist; \
     done
 
-RUN pip install twine
+RUN conda run python -m pip install twine
 
