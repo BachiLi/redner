@@ -51,7 +51,7 @@ inline TFrame<T> operator-(const TFrame<T> &frame) {
 template <typename T0, typename T1>
 DEVICE
 inline auto to_local(const TFrame<T0> &frame,
-                     const TVector3<T1> &v) {
+                     const TVector3<T1> &v) -> TVector3<decltype(dot(v, frame[0]))> {
     return TVector3<decltype(dot(v, frame[0]))>{
         dot(v, frame[0]),
         dot(v, frame[1]),
@@ -61,7 +61,7 @@ inline auto to_local(const TFrame<T0> &frame,
 template <typename T0, typename T1>
 DEVICE
 inline auto to_world(const TFrame<T0> &frame,
-                     const TVector3<T1> &v) {
+                     const TVector3<T1> &v) -> decltype(frame[0] * v[0]) {
     return frame[0] * v[0] +
            frame[1] * v[1] +
            frame[2] * v[2];
