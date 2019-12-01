@@ -155,7 +155,8 @@ using Matrix4x4f = TMatrix4x4<float>;
 
 template <typename T0, typename T1>
 DEVICE
-inline auto operator+(const TMatrix3x3<T0> &m0, const TMatrix3x3<T1> &m1) {
+inline auto operator+(const TMatrix3x3<T0> &m0, const TMatrix3x3<T1> &m1)
+        -> TMatrix3x3<decltype(T0(0) * T1(0))> {
     TMatrix3x3<decltype(m0(0, 0) + m1(0, 0))> m;
     for (int i = 0; i < 3; i++) {
         for (int j = 0; j < 3; j++) {
@@ -167,7 +168,8 @@ inline auto operator+(const TMatrix3x3<T0> &m0, const TMatrix3x3<T1> &m1) {
 
 template <typename T0, typename T1>
 DEVICE
-inline auto operator-(const TMatrix3x3<T0> &m0, const TMatrix3x3<T1> &m1) {
+inline auto operator-(const TMatrix3x3<T0> &m0, const TMatrix3x3<T1> &m1) 
+        -> TMatrix3x3<decltype(T0(0) - T1(0))>{
     TMatrix3x3<decltype(m0(0, 0) - m1(0, 0))> m;
     for (int i = 0; i < 3; i++) {
         for (int j = 0; j < 3; j++) {
@@ -179,7 +181,7 @@ inline auto operator-(const TMatrix3x3<T0> &m0, const TMatrix3x3<T1> &m1) {
 
 template <typename T>
 DEVICE
-inline auto operator*(const TMatrix3x3<T> &m0, const TMatrix3x3<T> &m1) {
+inline TMatrix3x3<T> operator*(const TMatrix3x3<T> &m0, const TMatrix3x3<T> &m1) {
     TMatrix3x3<T> ret;
     for (int i = 0; i < 3; i++) {
         for (int j = 0; j < 3; j++) {
@@ -194,7 +196,7 @@ inline auto operator*(const TMatrix3x3<T> &m0, const TMatrix3x3<T> &m1) {
 
 template <typename T>
 DEVICE
-inline auto operator*(const TVector3<T> &v, const TMatrix3x3<T> &m) {
+inline TVector3<T> operator*(const TVector3<T> &v, const TMatrix3x3<T> &m) {
     TVector3<T> ret;
     for (int i = 0; i < 3; i++) {
         ret[i] = T(0);
@@ -207,7 +209,7 @@ inline auto operator*(const TVector3<T> &v, const TMatrix3x3<T> &m) {
 
 template <typename T>
 DEVICE
-inline auto operator*(const TMatrix3x3<T> &m, const TVector3<T> &v) {
+inline TVector3<T> operator*(const TMatrix3x3<T> &m, const TVector3<T> &v) {
     TVector3<T> ret;
     for (int i = 0; i < 3; i++) {
         ret[i] = 0.f;
@@ -220,7 +222,7 @@ inline auto operator*(const TMatrix3x3<T> &m, const TVector3<T> &v) {
 
 template <typename T>
 DEVICE
-inline auto inverse(const TMatrix3x3<T> &m) {
+inline TMatrix3x3<T> inverse(const TMatrix3x3<T> &m) {
     // computes the inverse of a matrix m
     auto det = m(0, 0) * (m(1, 1) * m(2, 2) - m(2, 1) * m(1, 2)) -
                m(0, 1) * (m(1, 0) * m(2, 2) - m(1, 2) * m(2, 0)) +
@@ -243,7 +245,8 @@ inline auto inverse(const TMatrix3x3<T> &m) {
 
 template <typename T0, typename T1>
 DEVICE
-inline auto operator+(const TMatrix4x4<T0> &m0, const TMatrix4x4<T1> &m1) {
+inline auto operator+(const TMatrix4x4<T0> &m0, const TMatrix4x4<T1> &m1)
+        -> TMatrix4x4<decltype(m0(0, 0) + m1(0, 0))> {
     TMatrix4x4<decltype(m0(0, 0) + m1(0, 0))> m;
     for (int i = 0; i < 4; i++) {
         for (int j = 0; j < 4; j++) {

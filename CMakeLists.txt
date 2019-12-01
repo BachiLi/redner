@@ -182,7 +182,7 @@ elseif(APPLE)
     set_target_properties(redner PROPERTIES INSTALL_RPATH "@loader_path")
 endif()
 
-set_property(TARGET redner PROPERTY CXX_STANDARD 14)
+set_property(TARGET redner PROPERTY CXX_STANDARD 11)
 set_target_properties(redner PROPERTIES PREFIX "")
 # Still enable assertion in release mode
 string( REPLACE "/DNDEBUG" "" CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE}")

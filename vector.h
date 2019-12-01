@@ -89,7 +89,7 @@ using Vector4 = TVector4<Real>;
 template <typename T0, typename T1>
 DEVICE
 inline auto operator+(const TVector2<T0> &v0,
-                      const TVector2<T1> &v1) {
+                      const TVector2<T1> &v1) -> TVector2<decltype(v0[0]+v1[0])> {
     return TVector2<decltype(v0[0]+v1[0])>{
         v0[0] + v1[0], v0[1] + v1[1]};
 }
@@ -97,7 +97,7 @@ inline auto operator+(const TVector2<T0> &v0,
 template <typename T0, typename T1>
 DEVICE
 inline auto operator+(const T0 &v0,
-                      const TVector3<T1> &v1) {
+                      const TVector3<T1> &v1) -> TVector3<decltype(v0 + v1[0])> {
     return TVector3<decltype(v0 + v1[0])>{
         v0 + v1[0], v0 + v1[1], v0 + v1[2]};
 }
@@ -105,7 +105,7 @@ inline auto operator+(const T0 &v0,
 template <typename T0, typename T1>
 DEVICE
 inline auto operator+(const TVector3<T0> &v0,
-                      const T1 &v1) {
+                      const T1 &v1) -> TVector3<decltype(v0[0] + v1)> {
     return TVector3<decltype(v0[0] + v1)>{
         v0[0] + v1, v0[1] + v1, v0[2] + v1};
 }
@@ -113,15 +113,15 @@ inline auto operator+(const TVector3<T0> &v0,
 template <typename T0, typename T1>
 DEVICE
 inline auto operator+(const TVector3<T0> &v0,
-                      const TVector3<T1> &v1) {
+                      const TVector3<T1> &v1) -> TVector3<decltype(v0[0] + v1[0])> {
     return TVector3<decltype(v0[0] + v1[0])>{
         v0[0] + v1[0], v0[1] + v1[1], v0[2] + v1[2]};
 }
 
 template <typename T0, typename T1>
 DEVICE
-inline auto& operator+=(TVector2<T0> &v0,
-                        const TVector2<T1> &v1) {
+inline auto operator+=(TVector2<T0> &v0,
+                       const TVector2<T1> &v1) -> TVector2<T0>& {
     v0[0] += v1[0];
     v0[1] += v1[1];
     return v0;
@@ -129,8 +129,8 @@ inline auto& operator+=(TVector2<T0> &v0,
 
 template <typename T0, typename T1>
 DEVICE
-inline auto& operator+=(TVector3<T0> &v0,
-                        const TVector3<T1> &v1) {
+inline auto operator+=(TVector3<T0> &v0,
+                       const TVector3<T1> &v1) -> TVector3<T0>& {
     v0[0] += v1[0];
     v0[1] += v1[1];
     v0[2] += v1[2];
@@ -139,8 +139,8 @@ inline auto& operator+=(TVector3<T0> &v0,
 
 template <typename T0, typename T1>
 DEVICE
-inline auto& operator+=(TVector3<T0> &v0,
-                        const T1 &v1) {
+inline auto operator+=(TVector3<T0> &v0,
+                       const T1 &v1) -> TVector3<T0>& {
     v0[0] += v1;
     v0[1] += v1;
     v0[2] += v1;
@@ -150,56 +150,56 @@ inline auto& operator+=(TVector3<T0> &v0,
 template <typename T0, typename T1>
 DEVICE
 inline auto operator-(const T0 &v0,
-                      const TVector2<T1> &v1) {
+                      const TVector2<T1> &v1) -> TVector2<decltype(v0 - v1[0])> {
     return TVector2<decltype(v0 - v1[0])>{v0 - v1[0], v0 - v1[1]};
 }
 
 template <typename T0, typename T1>
 DEVICE
 inline auto operator-(const T0 &v0,
-                      const TVector3<T1> &v1) {
+                      const TVector3<T1> &v1) -> TVector3<decltype(v0 - v1[0])> {
     return TVector3<decltype(v0 - v1[0])>{v0 - v1[0], v0 - v1[1], v0 - v1[2]};
 }
 
 template <typename T0, typename T1>
 DEVICE
 inline auto operator-(const TVector3<T0> &v0,
-                      const T1 &v1) {
+                      const T1 &v1) -> TVector3<decltype(v0[0] - v1)> {
     return TVector3<decltype(v0[0] - v1)>{v0[0] - v1, v0[1] - v1, v0[2] - v1};
 }
 
 template <typename T0, typename T1>
 DEVICE
 inline auto operator-(const TVector2<T0> &v0,
-                      const TVector2<T1> &v1) {
+                      const TVector2<T1> &v1) -> TVector2<decltype(v0[0] - v1[0])> {
     return TVector2<decltype(v0[0] - v1[0])>{
         v0[0] - v1[0], v0[1] - v1[1]};
 }
 
 template <typename T>
 DEVICE
-inline auto operator-(const TVector2<T> &v) {
+inline auto operator-(const TVector2<T> &v) -> TVector2<T> {
     return TVector2<T>{-v[0], -v[1]};
 }
 
 template <typename T>
 DEVICE
-inline auto operator-(const TVector3<T> &v) {
+inline auto operator-(const TVector3<T> &v) -> TVector3<T> {
     return TVector3<T>{-v[0], -v[1], -v[2]};
 }
 
 template <typename T0, typename T1>
 DEVICE
 inline auto operator-(const TVector3<T0> &v0,
-                      const TVector3<T1> &v1) {
+                      const TVector3<T1> &v1) -> TVector3<decltype(v0[0] - v1[0])> {
     return TVector3<decltype(v0[0] - v1[0])>{
         v0[0] - v1[0], v0[1] - v1[1], v0[2] - v1[2]};
 }
 
 template <typename T0, typename T1>
 DEVICE
-inline auto& operator-=(TVector2<T0> &v0,
-                        const TVector2<T1> &v1) {
+inline auto operator-=(TVector2<T0> &v0,
+                       const TVector2<T1> &v1) -> TVector2<T0>& {
     v0[0] -= v1[0];
     v0[1] -= v1[1];
     return v0;
@@ -207,8 +207,8 @@ inline auto& operator-=(TVector2<T0> &v0,
 
 template <typename T0, typename T1>
 DEVICE
-inline auto& operator-=(TVector3<T0> &v0,
-                        const TVector3<T1> &v1) {
+inline auto operator-=(TVector3<T0> &v0,
+                       const TVector3<T1> &v1) -> TVector3<T0>& {
     v0[0] -= v1[0];
     v0[1] -= v1[1];
     v0[2] -= v1[2];
@@ -218,7 +218,7 @@ inline auto& operator-=(TVector3<T0> &v0,
 template <typename T0, typename T1>
 DEVICE
 inline auto operator*(const TVector2<T0> &v0,
-                      const T1 &s) {
+                      const T1 &s) -> TVector2<decltype(v0[0] * s)> {
     return TVector2<decltype(v0[0] * s)>{
         v0[0] * s, v0[1] * s};
 }
@@ -226,15 +226,15 @@ inline auto operator*(const TVector2<T0> &v0,
 template <typename T0, typename T1>
 DEVICE
 inline auto operator*(const T0 &s,
-                      const TVector2<T1> &v0) {
+                      const TVector2<T1> &v0) -> TVector2<decltype(s * v0[0])> {
     return TVector2<decltype(s * v0[0])>{
         s * v0[0], s * v0[1]};
 }
 
 template <typename T0, typename T1>
 DEVICE
-inline TVector2<T0> operator*=(TVector2<T0> &v0,
-                               const T1 &s) {
+inline auto operator*=(TVector2<T0> &v0,
+                       const T1 &s) -> TVector2<T0>& {
     v0[0] *= s;
     v0[1] *= s;
     return v0;
@@ -243,7 +243,7 @@ inline TVector2<T0> operator*=(TVector2<T0> &v0,
 template <typename T0, typename T1>
 DEVICE
 inline auto operator*(const TVector2<T0> &v0,
-                      const TVector2<T1> &v1) {
+                      const TVector2<T1> &v1) -> TVector2<decltype(v0[0] * v1[0])> {
     return TVector2<decltype(v0[0] * v1[0])>{
         v0[0] * v1[0], v0[1] * v1[1]};
 }
@@ -251,7 +251,7 @@ inline auto operator*(const TVector2<T0> &v0,
 template <typename T0, typename T1>
 DEVICE
 inline auto operator*(const TVector3<T0> &v0,
-                      const T1 &s) {
+                      const T1 &s) -> TVector3<decltype(v0[0] * s)> {
     return TVector3<decltype(v0[0] * s)>{
         v0[0] * s, v0[1] * s, v0[2] * s};
 }
@@ -259,15 +259,15 @@ inline auto operator*(const TVector3<T0> &v0,
 template <typename T0, typename T1>
 DEVICE
 inline auto operator*(const T0 &s,
-                      const TVector3<T1> &v0) {
+                      const TVector3<T1> &v0) -> TVector3<decltype(s * v0[0])> {
     return TVector3<decltype(s * v0[0])>{
         s * v0[0], s * v0[1], s * v0[2]};
 }
 
 template <typename T0, typename T1>
 DEVICE
-inline TVector3<T0> operator*=(TVector3<T0> &v0,
-                               const T1 &s) {
+inline auto operator*=(TVector3<T0> &v0,
+                       const T1 &s) -> TVector3<T0>& {
     v0[0] *= s;
     v0[1] *= s;
     v0[2] *= s;
@@ -277,7 +277,7 @@ inline TVector3<T0> operator*=(TVector3<T0> &v0,
 template <typename T0, typename T1>
 DEVICE
 inline auto operator*(const TVector3<T0> &v0,
-                      const TVector3<T1> &v1) {
+                      const TVector3<T1> &v1) -> TVector3<decltype(v0[0] * v1[0])> {
     return TVector3<decltype(v0[0] * v1[0])>{
         v0[0] * v1[0], v0[1] * v1[1], v0[2] * v1[2]};
 }
@@ -285,7 +285,7 @@ inline auto operator*(const TVector3<T0> &v0,
 template <typename T0, typename T1>
 DEVICE
 inline auto operator/(const TVector2<T0> &v0,
-                      const T1 &s) {
+                      const T1 &s) -> decltype(v0 * (1.f / s)) {
     auto inv_s = 1.f / s;
     return v0 * inv_s;
 }
@@ -293,7 +293,7 @@ inline auto operator/(const TVector2<T0> &v0,
 template <typename T0, typename T1>
 DEVICE
 inline auto operator/(const TVector3<T0> &v0,
-                      const T1 &s) {
+                      const T1 &s) -> decltype(v0 * (1.f / s)) {
     auto inv_s = 1.f / s;
     return v0 * inv_s;
 }
@@ -301,7 +301,7 @@ inline auto operator/(const TVector3<T0> &v0,
 template <typename T0, typename T1>
 DEVICE
 inline auto operator/(const T0 &s,
-                      const TVector3<T1> &v1) {
+                      const TVector3<T1> &v1) -> TVector3<decltype(s / v1[0])> {
     return TVector3<decltype(s / v1[0])>{
         s / v1[0], s / v1[2], s / v1[2]};
 }
@@ -309,15 +309,15 @@ inline auto operator/(const T0 &s,
 template <typename T0, typename T1>
 DEVICE
 inline auto operator/(const TVector3<T0> &v0,
-                      const TVector3<T1> &v1) {
+                      const TVector3<T1> &v1) -> TVector3<decltype(v0[0] / v1[0])> {
     return TVector3<decltype(v0[0] / v1[0])>{
         v0[0] / v1[0], v0[1] / v1[1], v0[2] / v1[2]};
 }
 
 template <typename T0, typename T1>
 DEVICE
-inline TVector3<T0> operator/=(TVector3<T0> &v0,
-                               const T1 &s) {
+inline auto operator/=(TVector3<T0> &v0,
+                       const T1 &s) -> TVector3<T0>& {
     auto inv_s = 1 / s;
     v0[0] *= inv_s;
     v0[1] *= inv_s;
@@ -404,14 +404,14 @@ inline TVector3<T> d_length(const TVector3<T> &v0, const T &d_l) {
 template <typename T0, typename T1>
 DEVICE
 inline auto distance_squared(const TVector3<T0> &v0,
-                             const TVector3<T1> &v1) {
+                             const TVector3<T1> &v1) -> decltype(length_squared(v1 - v0)) {
     return length_squared(v1 - v0);
 }
 
 template <typename T0, typename T1>
 DEVICE
 inline auto distance(const TVector3<T0> &v0,
-                     const TVector3<T1> &v1) {
+                     const TVector3<T1> &v1) -> decltype(length(v1 - v0)) {
     return length(v1 - v0);
 }
 
@@ -430,7 +430,7 @@ inline void d_distance(const TVector3<T> &v0,
 template <typename T0, typename T1>
 DEVICE
 inline auto distance(const TVector2<T0> &v0,
-                     const TVector2<T1> &v1) {
+                     const TVector2<T1> &v1) -> decltype(length(v1 - v0)) {
     return length(v1 - v0);
 }
 
@@ -460,14 +460,16 @@ inline TVector3<T> d_normalize(const TVector3<T> &v0, const TVector3<T> &d_n) {
 
 template <typename T0, typename T1>
 DEVICE
-inline auto dot(const TVector2<T0> &v0, const TVector2<T1> &v1) {
+inline auto dot(const TVector2<T0> &v0, const TVector2<T1> &v1)
+        -> decltype(v0[0] * v1[0]) {
     return v0[0] * v1[0] +
            v0[1] * v1[1];
 }
 
 template <typename T0, typename T1>
 DEVICE
-inline auto dot(const TVector3<T0> &v0, const TVector3<T1> &v1) {
+inline auto dot(const TVector3<T0> &v0, const TVector3<T1> &v1)
+        -> decltype(v0[0] * v1[0]) {
     return v0[0] * v1[0] +
            v0[1] * v1[1] +
            v0[2] * v1[2];
@@ -475,7 +477,8 @@ inline auto dot(const TVector3<T0> &v0, const TVector3<T1> &v1) {
 
 template <typename T0, typename T1>
 DEVICE
-inline auto cross(const TVector3<T0> &v0, const TVector3<T1> &v1) {
+inline auto cross(const TVector3<T0> &v0, const TVector3<T1> &v1)
+        -> TVector3<decltype(v0[1] * v1[2] - v0[2] * v1[1])> {
     return TVector3<decltype(v0[1] * v1[2] - v0[2] * v1[1])>{
         v0[1] * v1[2] - v0[2] * v1[1],
         v0[2] * v1[0] - v0[0] * v1[2],
@@ -492,7 +495,7 @@ inline void d_cross(const TVector3<T> &v0, const TVector3<T> &v1, const TVector3
 
 template <typename T>
 DEVICE
-inline auto luminance(const TVector3<T> &v) {
+inline T luminance(const TVector3<T> &v) {
     return 0.212671f * v[0] +
            0.715160f * v[1] +
            0.072169f * v[2];

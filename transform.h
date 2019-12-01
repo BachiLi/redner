@@ -85,8 +85,8 @@ inline TVector3<T> xfm_point(const TMatrix4x4<T> &xform,
 
 template <typename T>
 DEVICE
-inline auto xfm_vector(const TMatrix4x4<T> &xform,
-                       const TVector3<T> &vec) {
+inline TVector3<T> xfm_vector(const TMatrix4x4<T> &xform,
+                              const TVector3<T> &vec) {
     return TVector3<T>{
         xform(0, 0) * vec[0] + xform(0, 1) * vec[1] + xform(0, 2) * vec[2],
         xform(1, 0) * vec[0] + xform(1, 1) * vec[1] + xform(1, 2) * vec[2],

@@ -114,9 +114,8 @@ if 'REDNER_CUDA' in os.environ:
 
 # OpenEXR Python installation
 openexr_python_version = "1.3.2"
-openexr_python_compiler_args = ['-g', '-DVERSION="%s"' % openexr_python_version]
+openexr_python_compiler_args = ['-g', '-DVERSION="%s"' % openexr_python_version, '-std=c++11']
 if sys.platform == 'darwin':
-    openexr_python_compiler_args.append('-std=c++14')
     if 'MACOSX_DEPLOYMENT_TARGET' not in os.environ:
         current_system = LooseVersion(platform.mac_ver()[0])
         python_target = LooseVersion(
