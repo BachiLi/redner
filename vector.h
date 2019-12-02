@@ -565,15 +565,15 @@ void d_coordinate_system(const TVector3<T> &n, const TVector3<T> &d_x, const TVe
 
 DEVICE
 inline bool isfinite(const Vector2 &v) {
-    return std::isfinite(v.x) &&
-           std::isfinite(v.y);
+    return isfinite(v.x) &&
+           isfinite(v.y);
 }
 
 DEVICE
 inline bool isfinite(const Vector3 &v) {
-    return std::isfinite(v.x) &&
-           std::isfinite(v.y) &&
-           std::isfinite(v.z);
+    return isfinite(v.x) &&
+           isfinite(v.y) &&
+           isfinite(v.z);
 }
 
 DEVICE
