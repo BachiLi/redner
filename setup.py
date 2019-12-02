@@ -167,13 +167,13 @@ elif sys.platform == 'linux':
     dynamic_libraries.append('redner-dependencies/embree/lib-linux/libtbb.so.2')
     dynamic_libraries.append('redner-dependencies/embree/lib-linux/libtbbmalloc.so.2')
     if build_with_cuda:
-        dynamic_libraries.append('redner-dependencies/optix/lib64/liboptix_prime.so.6.5.0')
+        dynamic_libraries.append('redner-dependencies/optix/lib64/liboptix_prime.so.1')
 
 project_name = 'redner'
 if 'PROJECT_NAME' in os.environ:
     project_name = os.environ['PROJECT_NAME']
 setup(name = project_name,
-      version = '0.0.4',
+      version = '0.0.5',
       description = 'A differentiable Monte Carlo ray tracer.',
       author = 'Tzu-Mao Li',
       license = 'MIT',

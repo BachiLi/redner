@@ -62,7 +62,8 @@ def load_mtl(filename):
 def load_obj(filename,
              obj_group = True,
              flip_tex_coords = True,
-             use_common_indices = False):
+             use_common_indices = False,
+             return_objects = False):
     """
         Load from a Wavefront obj file as PyTorch tensors.
         XXX: this is slow, maybe move to C++?
@@ -72,6 +73,8 @@ def load_obj(filename,
               use_common_indices -- use the same indices for position, uvs, normals.
                                     Not recommended since texture seams in the objects sharing
                                     the same positions would cause the optimization to "tear" the object.
+              return_objects -- output list of Object instead. If there is no corresponding material for a shape,
+                                assign a grey material.
     """
     vertices_pool = []
     uvs_pool = []
@@ -277,4 +280,28 @@ def load_obj(filename,
     if d != '':
         os.chdir(cwd)
 
-    return material_map, mesh_list, light_map
+    if return_objects:
+        objects = []
+        for mtl_name, mesh in mesh_list:
+            if mtl_name in material_map:
+                m = material_map[mtl_name]
+            else:
+                m = pyredner.Material(diffuse_reflectance = \
+                        tf.constant((0.5, 0.5, 0.5)))
+            if mtl_name in light_map:
+                l = light_map[mtl_name]
+            else:
+                l = None
+            objects.append(pyredner.Object(\
+                vertices = mesh.vertices,
+                indices = mesh.indices,
+                material = m,
+                light_intensity = l,
+                uvs = mesh.uvs,
+                normals = mesh.normals,
+                uv_indices = mesh.uv_indices,
+                normal_indices = mesh.normal_indices))
+        return objects
+    else:
+        return material_map, mesh_list, light_map
+

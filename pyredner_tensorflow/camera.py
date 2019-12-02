@@ -4,6 +4,7 @@ import tensorflow as tf
 import pyredner_tensorflow.transform as transform
 import redner
 import pyredner_tensorflow as pyredner
+import math
 
 class Camera:
     """
@@ -150,3 +151,31 @@ class Camera:
         out.resolution = state_dict['resolution']
         out.camera_type = state_dict['camera_type']
         return out
+
+def automatic_camera_placement(shapes):
+    """
+        Given a list of shapes, generates camera parameters automatically
+        using the bounding boxes of the shapes. Place the camera at
+        some distances from the shapes, so that it can see all of them.
+        Inspired by https://github.com/mitsuba-renderer/mitsuba/blob/master/src/librender/scene.cpp#L286
+    """
+    assert(tf.executing_eagerly())
+    aabb_min = tf.constant((float('inf'), float('inf'), float('inf')))
+    aabb_max = -tf.constant((float('inf'), float('inf'), float('inf')))
+    for shape in shapes:
+        v = shape.vertices
+        v_min = tf.reduce_min(v, 0).cpu()
+        v_max = tf.reduce_max(v, 0).cpu()
+        aabb_min = tf.minimum(aabb_min, v_min)
+        aabb_max = tf.maximum(aabb_max, v_max)
+    assert(tf.reduce_all(tf.is_finite(aabb_min)) and tf.reduce_all(tf.is_finite(aabb_max)))
+    center = (aabb_max + aabb_min) * 0.5
+    extents = aabb_max - aabb_min
+    max_extents_xy = tf.maximum(extents[0], extents[1])
+    distance = max_extents_xy / (2 * math.tan(45 * 0.5 * math.pi / 180.0))
+    max_extents_xyz = tf.maximum(extents[2], max_extents_xy)    
+    return Camera(position = tf.stack((center[0], center[1], aabb_min[2] - distance)),
+                  look_at = center,
+                  up = tf.constant((0.0, 1.0, 0.0)),
+                  fov = tf.constant([45.0]),
+                  clip_near = 0.001 * float(distance))

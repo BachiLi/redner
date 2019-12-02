@@ -42,7 +42,7 @@ __ctx = Context()
 print_timing = True
 
 def serialize_scene(scene: pyredner.Scene,
-                    num_samples: int,
+                    num_samples,
                     max_bounces: int,
                     channels = [redner.channels.radiance],
                     sampler_type = redner.SamplerType.independent,
@@ -464,8 +464,13 @@ def forward(seed:int, *args):
         current_index += 7
 
     # Options
-    num_samples = int(args[current_index])
+    num_samples = args[current_index]
     current_index += 1
+    if num_samples.shape[0] == 1:
+        num_samples = int(num_samples)
+    else:
+        assert(num_samples.shape[0] == 2)
+        num_samples = (int(num_samples[0]), int(num_samples[1]))
     max_bounces = int(args[current_index])
     current_index += 1
 
@@ -488,6 +493,7 @@ def forward(seed:int, *args):
     use_secondary_edge_sampling = args[current_index]
     current_index += 1
 
+    start = time.time()
     scene = redner.Scene(camera,
                          shapes,
                          materials,
@@ -497,6 +503,9 @@ def forward(seed:int, *args):
                          pyredner.get_gpu_device_id(),
                          use_primary_edge_sampling,
                          use_secondary_edge_sampling)
+    time_elapsed = time.time() - start
+    if print_timing:
+        print('Scene construction, time: %.5f s' % time_elapsed)
 
     # check that num_samples is a tuple
     if isinstance(num_samples, int):
@@ -516,8 +525,6 @@ def forward(seed:int, *args):
             dtype=tf.float32)
 
         start = time.time()
-
-        # pdb.set_trace()
         redner.render(scene,
                       options,
                       redner.float_ptr(pyredner.data_ptr(rendered_image)),
@@ -527,19 +534,6 @@ def forward(seed:int, *args):
         time_elapsed = time.time() - start
         if print_timing:
             print('Forward pass, time: %.5f s' % time_elapsed)
-
-        # # For debugging
-        # debug_img = tf.zeros((256, 256, 3), dtype=tf.float32)
-        # redner.render(scene,
-        #               options,
-        #               redner.float_ptr(pyredner.data_ptr(rendered_image)),
-        #               redner.float_ptr(0),
-        #               None,
-        #               redner.float_ptr(pyredner.data_ptr(debug_img)))
-        # pyredner.imwrite(debug_img, 'debug.png')
-        # exit()
-
-        # import pdb; pdb.set_trace()
 
     ctx.camera = camera
     ctx.shapes = shapes
