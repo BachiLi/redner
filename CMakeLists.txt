@@ -149,7 +149,7 @@ if(REDNER_CUDA)
     cuda_add_library(redner MODULE ${SRCS})
     target_link_libraries(redner
         ${EMBREE_LIBRARY}
-        ${CMAKE_SOURCE_DIR}/redner-dependencies/optix/lib64/liboptix_prime.so.6.5.0
+        ${CMAKE_SOURCE_DIR}/redner-dependencies/optix/lib64/liboptix_prime.so.1
         ${DYNAMIC_LOOKUP})
 else()
     # No CUDA
