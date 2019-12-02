@@ -86,7 +86,7 @@ class Build(build_ext):
             from shutil import copy
             for f in ext.filename_list:
                 print('Copying {} to {}'.format(f, extdir))
-                copy(f, extdir)
+                copy(f, extdir, follow_symlinks=False)
         else:
             super().build_extension(ext)
 
