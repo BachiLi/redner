@@ -14,10 +14,10 @@ pyredner.set_use_gpu(tf.test.is_gpu_available(cuda_only=True, min_cuda_compute_c
 
 # Set up the scene
 with tf.device('/device:cpu:' + str(pyredner.get_cpu_device_id())):
-    position = tf.Variable([0.0, 0.0, -5.0], dtype=tf.float32, use_resource=True)
-    look_at = tf.Variable([0.0, 0.0, 0.0], dtype=tf.float32, use_resource=True)
-    up = tf.Variable([0.0, 1.0, 0.0], dtype=tf.float32, use_resource=True)
-    fov = tf.Variable([45.0], dtype=tf.float32, use_resource=True) # in degree
+    position = tf.Variable([0.0, 0.0, -5.0], dtype=tf.float32)
+    look_at = tf.Variable([0.0, 0.0, 0.0], dtype=tf.float32)
+    up = tf.Variable([0.0, 1.0, 0.0], dtype=tf.float32)
+    fov = tf.Variable([45.0], dtype=tf.float32) # in degree
     clip_near = 1e-2 # needs to > 0
     resolution = (256, 256)
 
@@ -30,14 +30,14 @@ with tf.device('/device:cpu:' + str(pyredner.get_cpu_device_id())):
 
 with tf.device(pyredner.get_device_name()):
     mat_grey = pyredner.Material(
-        diffuse_reflectance = tf.Variable([0.5, 0.5, 0.5], dtype=tf.float32, use_resource=True))
+        diffuse_reflectance = tf.Variable([0.5, 0.5, 0.5], dtype=tf.float32))
     materials = [mat_grey]
     vertices = tf.Variable([[-1.7,1.0,0.0], [1.0,1.0,0.0], [-0.5,-1.0,0.0]],
-        dtype=tf.float32, use_resource=True)
+        dtype=tf.float32)
     indices = tf.constant([[0, 1, 2]], dtype=tf.int32)
     shape_triangle = pyredner.Shape(vertices, indices, 0)
     light_vertices = tf.Variable([[-1.0,-1.0,-9.0],[1.0,-1.0,-9.0],[-1.0,1.0,-9.0],[1.0,1.0,-9.0]],
-        dtype=tf.float32, use_resource=True)
+        dtype=tf.float32)
     light_indices = tf.constant([[0,1,2],[1,3,2]], dtype=tf.int32)
     shape_light = pyredner.Shape(light_vertices, light_indices, 0)
     shapes = [shape_triangle, shape_light]
@@ -62,8 +62,8 @@ target = pyredner.imread('results/test_single_triangle_camera/target.exr')
 
 # Perturb the scene, this is our initial guess
 with tf.device('/device:cpu:' + str(pyredner.get_cpu_device_id())):
-    position = tf.Variable([0.0,  0.0, -3.0], dtype=tf.float32, trainable=True, use_resource=True)
-    look_at = tf.Variable([-0.5, -0.5,  0.0], dtype=tf.float32, trainable=True, use_resource=True)
+    position = tf.Variable([0.0,  0.0, -3.0], dtype=tf.float32, trainable=True)
+    look_at = tf.Variable([-0.5, -0.5,  0.0], dtype=tf.float32, trainable=True)
 scene.camera = pyredner.Camera(position = position,
                                look_at = look_at,
                                up = up,

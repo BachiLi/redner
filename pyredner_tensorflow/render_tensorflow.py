@@ -782,10 +782,7 @@ def render(*x):
 
         options.num_samples = ctx.num_samples[1]
         with tf.device(pyredner.get_device_name()):
-            if pyredner.get_use_gpu():
-                grad_img = grad_img.gpu(pyredner.get_gpu_device_id())
-            else:
-                grad_img = grad_img.cpu()
+            grad_img = tf.identity(grad_img)
             redner.render(scene,
                           options,
                           redner.float_ptr(0),    # rendered_image
@@ -863,14 +860,16 @@ def render(*x):
         num_area_lights = len(ctx.area_lights)
         for i in range(num_area_lights):
             ret_list.append(None) # shape id
-            ret_list.append(d_intensity_list[i].cpu())
+            with tf.device('/device:cpu:' + str(pyredner.get_cpu_device_id())):
+                ret_list.append(tf.identity(d_intensity_list[i]))
             ret_list.append(None) # two sided
 
         if ctx.envmap is not None:
             ret_list.append(d_envmap_values)
             ret_list.append(d_envmap_uv_scale)
             ret_list.append(None) # env_to_world
-            ret_list.append(d_world_to_env.cpu())
+            with tf.device('/device:cpu:' + str(pyredner.get_cpu_device_id())):
+                ret_list.append(tf.identity(d_world_to_env))
             ret_list.append(None) # sample_cdf_ys
             ret_list.append(None) # sample_cdf_xs
             ret_list.append(None) # pdf_norm

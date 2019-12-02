@@ -65,10 +65,10 @@ pyredner.set_use_gpu(tf.test.is_gpu_available(cuda_only=True, min_cuda_compute_c
 
 # Set up the scene using Pytorch tensor
 with tf.device('/device:cpu:' + str(pyredner.get_cpu_device_id())):
-    position = tf.Variable([0.0, 0.0, -5.0], dtype=tf.float32, use_resource=True)
-    look_at = tf.Variable([0.0, 0.0, 0.0], dtype=tf.float32, use_resource=True)
-    up = tf.Variable([0.0, 1.0, 0.0], dtype=tf.float32, use_resource=True)
-    fov = tf.Variable([45.0], dtype=tf.float32, use_resource=True)
+    position = tf.Variable([0.0, 0.0, -5.0], dtype=tf.float32)
+    look_at = tf.Variable([0.0, 0.0, 0.0], dtype=tf.float32)
+    up = tf.Variable([0.0, 1.0, 0.0], dtype=tf.float32)
+    fov = tf.Variable([45.0], dtype=tf.float32)
     clip_near = 1e-2
     resolution = (256, 256)
     cam = pyredner.Camera(position = position,
@@ -84,21 +84,21 @@ mat_perlin = pyredner.Material(
     roughness = roughness)
 with tf.device(pyredner.get_device_name()):
     mat_black = pyredner.Material(
-        diffuse_reflectance = tf.Variable([0.0, 0.0, 0.0], dtype=tf.float32, use_resource=True))
+        diffuse_reflectance = tf.Variable([0.0, 0.0, 0.0], dtype=tf.float32))
     materials = [mat_perlin, mat_black]
     vertices = tf.Variable([[-1.5,-1.5,0.0], [-1.5,1.5,0.0], [1.5,-1.5,0.0], [1.5,1.5,0.0]],
-        dtype=tf.float32, use_resource=True)
+        dtype=tf.float32)
     indices = tf.constant([[0, 1, 2], [1, 3, 2]], dtype=tf.int32)
     uvs = tf.Variable([[0.05, 0.05], [0.05, 0.95], [0.95, 0.05], [0.95, 0.95]],
-        dtype=tf.float32, use_resource=True)
+        dtype=tf.float32)
     shape_plane = pyredner.Shape(vertices, indices, 0, uvs)
     light_vertices = tf.Variable([[-1.0,-1.0,-7.0],[1.0,-1.0,-7.0],[-1.0,1.0,-7.0],[1.0,1.0,-7.0]],
-        dtype=tf.float32, use_resource=True)
+        dtype=tf.float32)
     light_indices = tf.constant([[0,1,2],[1,3,2]], dtype=tf.int32)
     shape_light = pyredner.Shape(light_vertices, light_indices, 1)
 shapes = [shape_plane, shape_light]
 with tf.device('/device:cpu:' + str(pyredner.get_cpu_device_id())):
-    light_intensity = tf.Variable([20.0, 20.0, 20.0], dtype=tf.float32, use_resource=True)
+    light_intensity = tf.Variable([20.0, 20.0, 20.0], dtype=tf.float32)
 # The first argument is the shape id of the light
 light = pyredner.AreaLight(1, light_intensity)
 area_lights = [light]
@@ -118,16 +118,13 @@ target = pyredner.imread('results/test_svbrdf/target.exr')
 with tf.device(pyredner.get_device_name()):
     diffuse_tex = tf.Variable(
         tf.ones((256, 256, 3), dtype=np.float32) * 0.5,
-        trainable=True,
-        use_resource=True)
+        trainable=True)
     specular_tex = tf.Variable(
         tf.ones((256, 256, 3), dtype=np.float32) * 0.5,
-        trainable=True,
-        use_resource=True)
+        trainable=True)
     roughness_tex = tf.Variable(
         tf.ones((256, 256, 1), dtype=np.float32) * 0.5,
-        trainable=True,
-        use_resource=True)
+        trainable=True)
 mat_perlin.diffuse_reflectance = pyredner.Texture(diffuse_tex)
 mat_perlin.specular_reflectance = pyredner.Texture(specular_tex)
 mat_perlin.roughness = pyredner.Texture(roughness_tex)

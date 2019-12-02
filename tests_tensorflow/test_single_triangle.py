@@ -21,10 +21,10 @@ pyredner.set_use_gpu(tf.test.is_gpu_available(cuda_only=True, min_cuda_compute_c
 # You can allocate the tensors in CPU in the first place, or pyredner automatically converts them
 # in Camera's constructor.
 with tf.device('/device:cpu:' + str(pyredner.get_cpu_device_id())):
-    cam = pyredner.Camera(position = tf.Variable([0.0, 0.0, -5.0], dtype=tf.float32, use_resource=True),
-                          look_at = tf.Variable([0.0, 0.0, 0.0], dtype=tf.float32, use_resource=True),
-                          up = tf.Variable([0.0, 1.0, 0.0], dtype=tf.float32, use_resource=True),
-                          fov = tf.Variable([45.0], dtype=tf.float32, use_resource=True), # in degree
+    cam = pyredner.Camera(position = tf.Variable([0.0, 0.0, -5.0], dtype=tf.float32),
+                          look_at = tf.Variable([0.0, 0.0, 0.0], dtype=tf.float32),
+                          up = tf.Variable([0.0, 1.0, 0.0], dtype=tf.float32),
+                          fov = tf.Variable([45.0], dtype=tf.float32), # in degree
                           clip_near = 1e-2, # needs to > 0
                           resolution = (256, 256),
                           fisheye = False)
@@ -37,7 +37,7 @@ with tf.device('/device:cpu:' + str(pyredner.get_cpu_device_id())):
 # in pyredner's constructor.
 with tf.device(pyredner.get_device_name()):
     mat_grey = pyredner.Material(
-        diffuse_reflectance = tf.Variable([0.5, 0.5, 0.5], dtype=tf.float32, use_resource=True))
+        diffuse_reflectance = tf.Variable([0.5, 0.5, 0.5], dtype=tf.float32))
 # The material list of the scene
 materials = [mat_grey]
 
@@ -58,7 +58,7 @@ with tf.device(pyredner.get_device_name()):
     # but pyredner.Shape constructor automatically converts the memory to device if necessary.
     shape_triangle = pyredner.Shape(
         vertices = tf.Variable([[-1.7, 1.0, 0.0], [1.0, 1.0, 0.0], [-0.5, -1.0, 0.0]],
-            dtype=tf.float32, use_resource=True),
+            dtype=tf.float32),
         indices = tf.constant([[0, 1, 2]], dtype=tf.int32),
         uvs = None,
         normals = None,
@@ -70,7 +70,7 @@ with tf.device(pyredner.get_device_name()):
         vertices = tf.Variable([[-1.0, -1.0, -7.0],
                                 [ 1.0, -1.0, -7.0],
                                 [-1.0,  1.0, -7.0],
-                                [ 1.0,  1.0, -7.0]], dtype=tf.float32, use_resource=True),
+                                [ 1.0,  1.0, -7.0]], dtype=tf.float32),
         indices = tf.constant([[0, 1, 2],[1, 3, 2]], dtype=tf.int32),
         uvs = None,
         normals = None,
@@ -84,7 +84,7 @@ shapes = [shape_triangle, shape_light]
 # assign the intensity of the light, which is a length 3 float tensor in CPU. 
 with tf.device('/device:cpu:' + str(pyredner.get_cpu_device_id())):
     light = pyredner.AreaLight(shape_id = 1, 
-                               intensity = tf.Variable([20.0,20.0,20.0], dtype=tf.float32, use_resource=True))
+                               intensity = tf.Variable([20.0,20.0,20.0], dtype=tf.float32))
 area_lights = [light]
 
 # Finally we construct our scene using all the variables we setup previously.
@@ -119,7 +119,6 @@ with tf.device(pyredner.get_device_name()):
     shape_triangle.vertices = tf.Variable(
         [[-2.0,1.5,0.3], [0.9,1.2,-0.3], [-0.4,-1.4,0.2]],
         dtype=tf.float32,
-        use_resource=True,
         trainable=True) # Set trainable to True since we want to optimize this
 # We need to serialize the scene again to get the new arguments.
 scene_args = pyredner.serialize_scene(

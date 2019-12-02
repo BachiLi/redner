@@ -24,19 +24,19 @@ class EnvironmentMap:
 
             y_weight = tf.sin(
                 math.pi * (tf.cast(
-                    tf.range(luminance.shape[0].value),
-                    tf.float32) + 0.5) / float(luminance.shape[0].value))
+                    tf.range(luminance.shape[0]),
+                    tf.float32) + 0.5) / float(luminance.shape[0]))
 
             # Compute CDF for x
             sample_cdf_ys_ = tf.cumsum(sample_cdf_xs_[:, -1] * y_weight, axis=0)
-            pdf_norm = (luminance.shape[0].value * luminance.shape[1].value) / \
+            pdf_norm = (luminance.shape[0] * luminance.shape[1]) / \
             	    (sample_cdf_ys_[-1] * (2 * math.pi * math.pi))
             # Normalize to [0, 1)
             sample_cdf_xs = (sample_cdf_xs_ - sample_cdf_xs_[:, 0:1]) / \
                 tf.math.maximum(
                     sample_cdf_xs_[
                         :, 
-                        (luminance.shape[1].value - 1):luminance.shape[1].value],
+                        (luminance.shape[1] - 1):luminance.shape[1]],
                         1e-8 * tf.convert_to_tensor(np.ones((sample_cdf_xs_.shape[0], 1)), dtype=tf.float32)
                     )
             sample_cdf_ys = (sample_cdf_ys_ - sample_cdf_ys_[0]) / \
@@ -46,8 +46,8 @@ class EnvironmentMap:
             self.sample_cdf_ys = sample_cdf_ys
             self.sample_cdf_xs = sample_cdf_xs
         with tf.device('/device:cpu:' + str(pyredner.get_cpu_device_id())):
-            self.pdf_norm = pdf_norm.cpu()
-            env_to_world = tf.identity(env_to_world).cpu()
+            self.pdf_norm = tf.identity(pdf_norm)
+            env_to_world = tf.identity(env_to_world)
             self.env_to_world = env_to_world
             self.world_to_env = tf.linalg.inv(env_to_world)
 

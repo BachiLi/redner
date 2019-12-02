@@ -21,10 +21,10 @@ with tf.device(pyredner.get_device_name()):
 
 # Setup camera
 with tf.device('/device:cpu:' + str(pyredner.get_cpu_device_id())):
-    cam = pyredner.Camera(position = tf.Variable([0.0, 30.0, 200.0], dtype=tf.float32, use_resource=True),
-                          look_at = tf.Variable([0.0, 30.0, 0.0], dtype=tf.float32, use_resource=True),
-                          up = tf.Variable([0.0, 1.0, 0.0], dtype=tf.float32, use_resource=True),
-                          fov = tf.Variable([45.0], dtype=tf.float32, use_resource=True), # in degree
+    cam = pyredner.Camera(position = tf.Variable([0.0, 30.0, 200.0], dtype=tf.float32),
+                          look_at = tf.Variable([0.0, 30.0, 0.0], dtype=tf.float32),
+                          up = tf.Variable([0.0, 1.0, 0.0], dtype=tf.float32),
+                          fov = tf.Variable([45.0], dtype=tf.float32), # in degree
                           clip_near = 1e-2, # needs to > 0
                           resolution = (256, 256),
                           fisheye = False)

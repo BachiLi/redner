@@ -65,10 +65,10 @@ class Camera:
             assert(cam_to_world is  not None)
 
         with tf.device('/device:cpu:' + str(pyredner.get_cpu_device_id())):
-            self.position = tf.identity(position).cpu()
-            self.look_at = tf.identity(look_at).cpu()
-            self.up = tf.identity(up).cpu()
-            self.fov = tf.identity(fov).cpu()
+            self.position = tf.identity(position)
+            self.look_at = tf.identity(look_at)
+            self.up = tf.identity(up)
+            self.fov = tf.identity(fov)
             self._cam_to_world = cam_to_world
             if cam_to_world is not None:
                 self.world_to_cam = tf.linalg.inv(self.cam_to_world)
@@ -98,7 +98,7 @@ class Camera:
     @fov.setter
     def fov(self, value):
         with tf.device('/device:cpu:' + str(pyredner.get_cpu_device_id())):
-            self._fov = tf.identity(value).cpu()
+            self._fov = tf.identity(value)
             fov_factor = 1.0 / tf.tan(transform.radians(0.5 * self._fov))
             o = tf.convert_to_tensor(np.ones([1], dtype=np.float32), dtype=tf.float32)
             diag = tf.concat([fov_factor, fov_factor, o], 0)

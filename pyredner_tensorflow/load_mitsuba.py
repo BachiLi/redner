@@ -257,7 +257,11 @@ def parse_shape(node, material_dict, shape_id):
         if light_intensity is not None:
             lgt = pyredner.AreaLight(shape_id, light_intensity)
 
-        return pyredner.Shape(vertices, indices, uvs, normals, mat_id), lgt
+        return pyredner.Shape(vertices=vertices,
+                              indices=indices,
+                              uvs=uvs,
+                              normals=normals,
+                              material_id=mat_id), lgt
     elif node.attrib['type'] == 'rectangle':
         indices = tf.constant([[0, 2, 1], [1, 2, 3]],
                                dtype = tf.int32)
@@ -299,7 +303,11 @@ def parse_shape(node, material_dict, shape_id):
             lgt = pyrender.Light(shape_id, light_intensity)
 
         
-        return shape.Shape(vertices, indices, uvs, normals, mat_id), lgt
+        return pyredner.Shape(vertices=vertices,
+                              indices=indices,
+                              uvs=uvs,
+                              normals=normals,
+                              material_id=mat_id), lgt
     else:
         assert(False)
 

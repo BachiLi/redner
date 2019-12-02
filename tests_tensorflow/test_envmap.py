@@ -11,19 +11,19 @@ import pyredner_tensorflow as pyredner
 pyredner.set_use_gpu(tf.test.is_gpu_available(cuda_only=True, min_cuda_compute_capability=None))
 
 with tf.device('/device:cpu:' + str(pyredner.get_cpu_device_id())):
-    cam = pyredner.Camera(position = tf.Variable([0.0, 0.0, -5.0], dtype=tf.float32, use_resource=True),
-                          look_at = tf.Variable([0.0, 0.0, 0.0], dtype=tf.float32, use_resource=True),
-                          up = tf.Variable([0.0, 1.0, 0.0], dtype=tf.float32, use_resource=True),
-                          fov = tf.Variable([45.0], dtype=tf.float32, use_resource=True), # in degree
+    cam = pyredner.Camera(position = tf.Variable([0.0, 0.0, -5.0], dtype=tf.float32),
+                          look_at = tf.Variable([0.0, 0.0, 0.0], dtype=tf.float32),
+                          up = tf.Variable([0.0, 1.0, 0.0], dtype=tf.float32),
+                          fov = tf.Variable([45.0], dtype=tf.float32), # in degree
                           clip_near = 1e-2, # needs to > 0
                           resolution = (256, 256),
                           fisheye = False)
 
 with tf.device(pyredner.get_device_name()):
     mat_grey = pyredner.Material(
-        diffuse_reflectance = tf.Variable([0.4, 0.4, 0.4], dtype=tf.float32, use_resource=True),
-        specular_reflectance = tf.Variable([0.5, 0.5, 0.5], dtype=tf.float32, use_resource=True),
-        roughness = tf.Variable([0.05], dtype=tf.float32, use_resource=True))
+        diffuse_reflectance = tf.Variable([0.4, 0.4, 0.4], dtype=tf.float32),
+        specular_reflectance = tf.Variable([0.5, 0.5, 0.5], dtype=tf.float32),
+        roughness = tf.Variable([0.05], dtype=tf.float32))
 
 materials = [mat_grey]
 
@@ -40,7 +40,11 @@ shapes = [shape_sphere]
 with tf.device(pyredner.get_device_name()):
     envmap = pyredner.imread('sunsky.exr')
     envmap = pyredner.EnvironmentMap(envmap)
-scene = pyredner.Scene(cam, shapes, materials, [], envmap)
+scene = pyredner.Scene(camera=cam,
+                       shapes=shapes,
+                       materials=materials,
+                       area_lights=[],
+                       envmap=envmap)
 scene_args = pyredner.serialize_scene(
     scene = scene,
     num_samples = 256,
@@ -53,9 +57,13 @@ target = pyredner.imread('results/test_envmap/target.exr')
 
 with tf.device(pyredner.get_device_name()):
     envmap_texels = tf.Variable(0.5 * tf.ones([32, 64, 3], dtype=tf.float32),
-        use_resource=True, trainable=True)
+                                trainable=True)
     envmap = pyredner.EnvironmentMap(tf.abs(envmap_texels))
-scene = pyredner.Scene(cam, shapes, materials, [], envmap)
+scene = pyredner.Scene(camera=cam,
+                       shapes=shapes,
+                       materials=materials,
+                       area_lights=[],
+                       envmap=envmap)
 scene_args = pyredner.serialize_scene(
     scene = scene,
     num_samples = 256,
@@ -70,7 +78,11 @@ for t in range(600):
     print('iteration:', t)
     with tf.GradientTape() as tape:
         envmap = pyredner.EnvironmentMap(tf.abs(envmap_texels))
-        scene = pyredner.Scene(cam, shapes, materials, [], envmap)
+        scene = pyredner.Scene(camera=cam,
+                               shapes=shapes,
+                               materials=materials,
+                               area_lights=[],
+                               envmap=envmap)
         scene_args = pyredner.serialize_scene(
             scene = scene,
             num_samples = 4,

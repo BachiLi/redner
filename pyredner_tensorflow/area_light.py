@@ -1,10 +1,12 @@
 import tensorflow as tf
+import pyredner_tensorflow as pyredner
 
 class AreaLight:
     def __init__(self, shape_id, intensity, two_sided = False):
         assert(tf.executing_eagerly())
         self.shape_id = shape_id
-        self.intensity = tf.identity(intensity).cpu()
+        with tf.device(pyredner.get_device_name()):
+            self.intensity = tf.identity(intensity)
         self.two_sided = two_sided
 
     def state_dict(self):

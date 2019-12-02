@@ -18,11 +18,11 @@ scene = pyredner.load_mitsuba('scenes/teapot_specular.xml')
 # The last material is the teapot material, set it to a specular material
 with tf.device(pyredner.get_device_name()):
     scene.materials[-1].diffuse_reflectance = \
-        pyredner.Texture(tf.Variable([0.15, 0.2, 0.15], dtype=tf.float32, use_resource=True))
+        pyredner.Texture(tf.Variable([0.15, 0.2, 0.15], dtype=tf.float32))
     scene.materials[-1].specular_reflectance = \
-        pyredner.Texture(tf.Variable([0.8, 0.8, 0.8], dtype=tf.float32, use_resource=True))
+        pyredner.Texture(tf.Variable([0.8, 0.8, 0.8], dtype=tf.float32))
     scene.materials[-1].roughness = \
-        pyredner.Texture(tf.Variable([0.0001], dtype=tf.float32, use_resource=True))
+        pyredner.Texture(tf.Variable([0.0001], dtype=tf.float32))
 
 scene_args=pyredner.serialize_scene(
     scene = scene,
@@ -39,7 +39,7 @@ target = pyredner.imread('results/test_teapot_specular/target.exr')
 # We perturb the last shape, which is the SIGGRAPH logo
 ref_pos = scene.shapes[-1].vertices
 with tf.device(pyredner.get_device_name()):
-    translation = tf.Variable([20.0, 0.0, 2.0], trainable=True, use_resource=True)
+    translation = tf.Variable([20.0, 0.0, 2.0], trainable=True)
     scene.shapes[-1].vertices = ref_pos + translation
 scene_args = pyredner.serialize_scene(
     scene = scene,

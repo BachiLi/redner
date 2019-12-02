@@ -136,35 +136,20 @@ class Shape:
         if colors is not None:
             assert(colors.dtype == tf.float32)
 
-        if pyredner.get_use_gpu():
-            # Automatically copy all tensors to GPU
-            # tf.Variable doesn't support .gpu(), so we'll wrap it with an identity().
-            vertices = tf.identity(vertices).gpu(pyredner.get_gpu_device_id())
-            indices = tf.identity(indices).gpu(pyredner.get_gpu_device_id())
+        with tf.device(pyredner.get_device_name()):
+            # Automatically copy all tensors to the current device
+            vertices = tf.identity(vertices)
+            indices = tf.identity(indices)
             if uvs is not None:
-                uvs = tf.identity(uvs).gpu(pyredner.get_gpu_device_id())
+                uvs = tf.identity(uvs)
             if normals is not None:
-                normals = tf.identity(normals).gpu(pyredner.get_gpu_device_id())
+                normals = tf.identity(normals)
             if uv_indices is not None:
-                uv_indices = tf.identity(uv_indices).gpu(pyredner.get_gpu_device_id())
+                uv_indices = tf.identity(uv_indices)
             if normal_indices is not None:
-                normal_indices = tf.identity(normal_indices).gpu(pyredner.get_gpu_device_id())
+                normal_indices = tf.identity(normal_indices)
             if colors is not None:
-                colors = tf.identity(colors).gpu(pyredner.get_gpu_device_id())
-        else:
-            # Automatically copy to CPU
-            vertices = tf.identity(vertices).cpu()
-            indices = tf.identity(indices).cpu()
-            if uvs is not None:
-                uvs = tf.identity(uvs).cpu()
-            if normals is not None:
-                normals = tf.identity(normals).cpu()
-            if uv_indices is not None:
-                uv_indices = tf.identity(uv_indices).cpu()
-            if normal_indices is not None:
-                normal_indices = tf.identity(uv_indices).cpu()
-            if colors is not None:
-                colors = tf.identity(colors).cpu()
+                colors = tf.identity(colors)
 
         self.vertices = vertices
         self.indices = indices

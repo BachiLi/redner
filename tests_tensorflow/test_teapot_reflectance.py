@@ -20,11 +20,11 @@ scene = pyredner.load_mitsuba('scenes/teapot.xml')
 # The last material is the teapot material, set it to the target
 with tf.device(pyredner.get_device_name()):
     scene.materials[-1].diffuse_reflectance = \
-        pyredner.Texture(tf.Variable([0.3, 0.2, 0.2], dtype=tf.float32, use_resource=True))
+        pyredner.Texture(tf.Variable([0.3, 0.2, 0.2], dtype=tf.float32))
     scene.materials[-1].specular_reflectance = \
-        pyredner.Texture(tf.Variable([0.6, 0.6, 0.6], dtype=tf.float32, use_resource=True))
+        pyredner.Texture(tf.Variable([0.6, 0.6, 0.6], dtype=tf.float32))
     scene.materials[-1].roughness = \
-        pyredner.Texture(tf.Variable([0.05], dtype=tf.float32, use_resource=True))
+        pyredner.Texture(tf.Variable([0.05], dtype=tf.float32))
 
 scene_args = pyredner.serialize_scene(
     scene = scene,
@@ -41,11 +41,11 @@ target = pyredner.imread('results/test_teapot_reflectance/target.exr')
 cam = scene.camera
 cam_position = cam.position
 with tf.device('/device:cpu:' + str(pyredner.get_cpu_device_id())):
-    cam_translation = tf.Variable([-0.2, 0.2, -0.2], dtype=tf.float32, trainable=True, use_resource=True)
+    cam_translation = tf.Variable([-0.2, 0.2, -0.2], dtype=tf.float32, trainable=True)
 with tf.device(pyredner.get_device_name()):
-    diffuse_reflectance = tf.Variable([0.3, 0.3, 0.3], dtype=tf.float32, trainable=True, use_resource=True)
-    specular_reflectance = tf.Variable([0.5, 0.5, 0.5], dtype=tf.float32, trainable=True, use_resource=True)
-    roughness = tf.Variable([0.2], dtype=tf.float32, trainable=True, use_resource=True)
+    diffuse_reflectance = tf.Variable([0.3, 0.3, 0.3], dtype=tf.float32, trainable=True)
+    specular_reflectance = tf.Variable([0.5, 0.5, 0.5], dtype=tf.float32, trainable=True)
+    roughness = tf.Variable([0.2], dtype=tf.float32, trainable=True)
 scene.materials[-1].diffuse_reflectance = pyredner.Texture(diffuse_reflectance)
 scene.materials[-1].specular_reflectance = pyredner.Texture(specular_reflectance)
 scene.materials[-1].roughness = pyredner.Texture(roughness)
@@ -117,7 +117,7 @@ for t in range(num_iteration):
                     [3,3],
                     [0,0]
                 ]
-                y = tf.nn.conv2d(x, f, padding=padding)
+                y = tf.nn.conv2d(x, f, strides=1, padding=padding)
                 y = tf.nn.avg_pool2d(y, ksize=2, strides=2, padding='VALID')
                 return y
     

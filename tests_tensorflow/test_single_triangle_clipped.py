@@ -15,10 +15,10 @@ pyredner.set_use_gpu(tf.test.is_gpu_available(cuda_only=True, min_cuda_compute_c
 
 # Set up the scene
 with tf.device('/device:cpu:' + str(pyredner.get_cpu_device_id())):
-    position = tf.Variable([0.0, 0.0, -5.0], dtype=tf.float32, use_resource=True)
-    look_at = tf.Variable([0.0, 0.0, 0.0], dtype=tf.float32, use_resource=True)
-    up = tf.Variable([0.0, 1.0, 0.0], dtype=tf.float32, use_resource=True)
-    fov = tf.Variable([45.0], dtype=tf.float32, use_resource=True)
+    position = tf.Variable([0.0, 0.0, -5.0], dtype=tf.float32)
+    look_at = tf.Variable([0.0, 0.0, 0.0], dtype=tf.float32)
+    up = tf.Variable([0.0, 1.0, 0.0], dtype=tf.float32)
+    fov = tf.Variable([45.0], dtype=tf.float32)
     clip_near = 1e-2
     resolution = (256, 256)
     cam = pyredner.Camera(position = position,
@@ -30,16 +30,16 @@ with tf.device('/device:cpu:' + str(pyredner.get_cpu_device_id())):
 
 with tf.device(pyredner.get_device_name()):
     mat_grey = pyredner.Material(
-        diffuse_reflectance = tf.Variable([0.5, 0.5, 0.5], dtype=tf.float32, use_resource=True))
+        diffuse_reflectance = tf.Variable([0.5, 0.5, 0.5], dtype=tf.float32))
     materials = [mat_grey]
     vertices = tf.Variable([[-1.3,1.0,0.0], [1.0,1.0,0.0], [-0.5,-2.0,-7.0]],
-        dtype=tf.float32, use_resource=True)
+        dtype=tf.float32)
     indices = tf.constant([[0, 1, 2]], dtype=tf.int32)
 
     shape_triangle = pyredner.Shape(vertices, indices, 0)
     light_vertices = tf.Variable(
         [[-1.0,-1.0,-7.0],[1.0,-1.0,-7.0],[-1.0,1.0,-7.0],[1.0,1.0,-7.0]], 
-        dtype=tf.float32, use_resource=True)
+        dtype=tf.float32)
     light_indices = tf.constant([[0,1,2],[1,3,2]], dtype=tf.int32)
     shape_light = pyredner.Shape(light_vertices, light_indices, 0)
     shapes = [shape_triangle, shape_light]
@@ -65,7 +65,6 @@ with tf.device(pyredner.get_device_name()):
     shape_triangle.vertices = tf.Variable(
         [[-1.0,1.5,0.3], [0.9,1.2,-0.3], [0.0,-3.0,-6.5]],
         dtype=tf.float32,
-        use_resource=True,
         trainable=True)
 scene_args = pyredner.serialize_scene(
     scene = scene,
@@ -83,7 +82,7 @@ def loss(output, target):
     return tf.reduce_sum(tf.square(error))
 
 # Optimize for triangle vertices
-optimizer = tf.train.AdamOptimizer(2e-2)
+optimizer = tf.compat.v1.train.AdamOptimizer(2e-2)
 for t in range(200):
     print('iteration:', t)
 
