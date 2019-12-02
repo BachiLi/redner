@@ -167,7 +167,7 @@ elif sys.platform == 'linux':
     dynamic_libraries.append('redner-dependencies/embree/lib-linux/libtbb.so.2')
     dynamic_libraries.append('redner-dependencies/embree/lib-linux/libtbbmalloc.so.2')
     if build_with_cuda:
-        dynamic_libraries.append('redner-dependencies/optix/lib64/liboptix_prime.so.6.5.0')
+        dynamic_libraries.append('redner-dependencies/optix/lib64/liboptix_prime.so.5.1.1')
 
 project_name = 'redner'
 if 'PROJECT_NAME' in os.environ:
