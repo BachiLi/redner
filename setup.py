@@ -173,8 +173,8 @@ project_name = 'redner'
 if 'PROJECT_NAME' in os.environ:
     project_name = os.environ['PROJECT_NAME']
 setup(name = project_name,
-      version = '0.0.6',
-      description = 'A differentiable Monte Carlo ray tracer.',
+      version = '0.0.8',
+      description = 'Differentiable rendering without approximation.',
       author = 'Tzu-Mao Li',
       license = 'MIT',
       packages = packages,
