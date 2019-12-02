@@ -6,6 +6,7 @@ from .shape import *
 from .material import *
 from .texture import *
 from .area_light import *
+from .object import *
 from .envmap import *
 from .scene import *
 from .render_tensorflow import *
@@ -15,6 +16,7 @@ from .load_mitsuba import load_mitsuba
 from .transform import gen_rotate_matrix
 from .utils import *
 from .channels import *
+from .render_utils import *
 
 import os.path
 import redner
