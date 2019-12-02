@@ -14,5 +14,6 @@ def render_albedo(scene,
         scene = scene,
         num_samples = num_samples,
         max_bounces = 0,
+        sampler_type = redner.SamplerType.sobol,
         channels = [redner.channels.diffuse_reflectance])
     return pyredner.render(seed, *scene_args)

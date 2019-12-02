@@ -6,6 +6,7 @@ pydelta/__pycache__
 tests/results
 tests_tensorflow/results
 tutorials/results
+tutorials/teapot
 examples/results
 debug.exr
 fit_ltc/fitLTC

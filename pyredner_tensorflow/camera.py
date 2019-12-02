@@ -152,7 +152,7 @@ class Camera:
         out.camera_type = state_dict['camera_type']
         return out
 
-def automatic_camera_placement(shapes):
+def automatic_camera_placement(shapes, resolution):
     """
         Given a list of shapes, generates camera parameters automatically
         using the bounding boxes of the shapes. Place the camera at
@@ -168,7 +168,7 @@ def automatic_camera_placement(shapes):
         v_max = tf.reduce_max(v, 0).cpu()
         aabb_min = tf.minimum(aabb_min, v_min)
         aabb_max = tf.maximum(aabb_max, v_max)
-    assert(tf.reduce_all(tf.is_finite(aabb_min)) and tf.reduce_all(tf.is_finite(aabb_max)))
+    assert(tf.reduce_all(tf.math.is_finite(aabb_min)) and tf.reduce_all(tf.math.is_finite(aabb_max)))
     center = (aabb_max + aabb_min) * 0.5
     extents = aabb_max - aabb_min
     max_extents_xy = tf.maximum(extents[0], extents[1])
@@ -178,4 +178,5 @@ def automatic_camera_placement(shapes):
                   look_at = center,
                   up = tf.constant((0.0, 1.0, 0.0)),
                   fov = tf.constant([45.0]),
-                  clip_near = 0.001 * float(distance))
+                  clip_near = 0.001 * float(distance),
+                  resolution = resolution)

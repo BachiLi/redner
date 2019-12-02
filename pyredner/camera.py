@@ -152,7 +152,7 @@ class Camera:
         out.camera_type = state_dict['camera_type']
         return out
 
-def automatic_camera_placement(shapes):
+def automatic_camera_placement(shapes, resolution):
     """
         Given a list of shapes, generates camera parameters automatically
         using the bounding boxes of the shapes. Place the camera at
@@ -177,4 +177,5 @@ def automatic_camera_placement(shapes):
                   look_at = center,
                   up = torch.tensor((0.0, 1.0, 0.0)),
                   fov = torch.tensor([45.0]),
-                  clip_near = 0.001 * float(distance))
+                  clip_near = 0.001 * float(distance),
+                  resolution = resolution)

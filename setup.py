@@ -173,7 +173,7 @@ project_name = 'redner'
 if 'PROJECT_NAME' in os.environ:
     project_name = os.environ['PROJECT_NAME']
 setup(name = project_name,
-      version = '0.0.8',
+      version = '0.0.9',
       description = 'Differentiable rendering without approximation.',
       author = 'Tzu-Mao Li',
       license = 'MIT',
