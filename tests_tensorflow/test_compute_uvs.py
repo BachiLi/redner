@@ -62,6 +62,6 @@ scene_args = pyredner.serialize_scene(
     num_samples = 512,
     max_bounces = 1)
 img = pyredner.render(0, *scene_args)
-pyredner.imwrite(img.cpu(), 'results/test_compute_uvs/target.exr')
-pyredner.imwrite(img.cpu(), 'results/test_compute_uvs/target.png')
+pyredner.imwrite(img, 'results/test_compute_uvs/target.exr')
+pyredner.imwrite(img, 'results/test_compute_uvs/target.png')
 target = pyredner.imread('results/test_compute_uvs/target.exr')
