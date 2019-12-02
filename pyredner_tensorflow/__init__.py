@@ -22,7 +22,11 @@ import os.path
 import redner
 from tensorflow.python.framework import ops
 
-__data_ptr_module = tf.load_op_library(os.path.join(os.path.dirname(redner.__file__), 'libredner_tf_data_ptr.so'))
+if tf.__cxx11_abi_flag__ == 0:
+    __data_ptr_module = tf.load_op_library(os.path.join(os.path.dirname(redner.__file__), 'libredner_tf_data_ptr_no_cxx11_abi.so'))
+else:
+    assert(tf.__cxx11_abi_flag__ == 1)
+    __data_ptr_module = tf.load_op_library(os.path.join(os.path.dirname(redner.__file__), 'libredner_tf_data_ptr_cxx11_abi.so'))
 
 DEBUG = False
 IS_UNIT_TEST = False

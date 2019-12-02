@@ -466,7 +466,7 @@ def forward(seed:int, *args):
     # Options
     num_samples = args[current_index]
     current_index += 1
-    if num_samples.shape[0] == 1:
+    if len(num_samples.shape) == 0 or num_samples.shape[0] == 1:
         num_samples = int(num_samples)
     else:
         assert(num_samples.shape[0] == 2)
