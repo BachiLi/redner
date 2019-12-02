@@ -9,7 +9,7 @@ For more details on the renderer, what it can do, and the techniques it use for 
 take a look at the paper:
 [Differentiable Monte Carlo Ray Tracing through Edge Sampling](https://people.csail.mit.edu/tzumao/diffrt/), Tzu-Mao Li, Miika Aittala, Fredo Durand, Jaakko Lehtinen.
 Since the submission we have improved the renderer quite a bit. In particular we implemented a CUDA backend and accelerated
-the continuous derivatives significantly by replacing automatic differentiation with manually-derived derivatives. See Tzu-Mao Li's [thesis](https://people.csail.mit.edu/tzumao/phdthesis/phdthesis.pdf) for even more details. Also see the "News" section below for changelog.
+the continuous derivatives significantly by replacing automatic differentiation with manually-derived derivatives. See Tzu-Mao Li's [thesis](https://people.csail.mit.edu/tzumao/phdthesis/phdthesis.pdf) for even more details. Also see the "News" section below for the changelog.
 
 ## Installation
 
