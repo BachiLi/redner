@@ -48,17 +48,13 @@ RUN conda create -n py36 python=3.6 \
     && conda clean -ya
 
 #-----------------------------------------------------
-# Build wheels
+# Build wheels and convert
 WORKDIR /app
 RUN if [ -d "build" ]; then rm -rf build; fi \
-    && PROJECT_NAME=redner-gpu conda run -n py36 python -m pip wheel -w /dist --verbose .
-
-#-----------------------------------------------------
-# Convert the wheels to manylinux formats
-RUN for f in /dist/redner*-linux_*.whl; \
+    && PROJECT_NAME=redner-gpu conda run -n py36 python -m pip wheel -w /dist --verbose . \
+    && for f in /dist/redner*-linux_*.whl; \
     do \
       auditwheel repair "$f" -w /dist; \
     done
 
-RUN conda run python -m pip install twine
 
