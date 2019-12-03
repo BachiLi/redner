@@ -46,6 +46,7 @@ set(SRCS aabb.h
          active_pixels.h
          area_light.h
          atomic.h
+         atomic_msvc.h
          automatic_uv_map.h
          bsdf_sample.h
          buffer.h

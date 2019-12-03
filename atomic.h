@@ -7,22 +7,18 @@
 // Portable atomic operations that works on both CPU and GPU
 // Partly inspired by https://github.com/mbitsnbites/atomic
 
-#if defined(__GNUC__) || defined(__clang__) || defined(__xlc__)
-#define ATOMIC_USE_GCC
-#elif defined(_MSC_VER)
-#define ATOMIC_USE_MSVC
-#include <intrin.h>
-#pragma intrinsic (_InterlockedIncrement)
+#if defined(USE_MSVC_INTRINSICS)
+#include "atomic_msvc.h"
 #endif
 
 DEVICE inline int atomic_increment(int *addr) {
 #ifdef __CUDA_ARCH__
 	return atomicAdd(addr, 1) + 1;
 #else
-	#if defined(ATOMIC_USE_GCC)
+	#if defined(USE_GCC_INTRINSICS)
 		return __atomic_add_fetch(addr, 1, __ATOMIC_SEQ_CST);
-	#elif defined(ATOMIC_USE_MSVC)
-		return _InterlockedIncrement(addr);
+	#elif defined(USE_MSVC_INTRINSICS)
+		return atomic::msvc::interlocked<int>::increment(addr);
 	#else
 		assert(false);
 		return 0;
@@ -37,15 +33,21 @@ inline T0 atomic_add(T0 &target, T1 source) {
 #ifdef __CUDA_ARCH__
     return atomicAdd(&target, (T0)source);
 #else
-    // TODO: windows
     T0 old_val;
     T0 new_val;
     do {
         old_val = target;
         new_val = old_val + source;
+  #if defined(USE_GCC_INTRINSICS)
     } while (!__atomic_compare_exchange(&target, &old_val, &new_val, true,
         std::memory_order::memory_order_seq_cst,
         std::memory_order::memory_order_seq_cst));
+  #elif defined(USE_MSVC_INTRINSICS)
+    } while(old_val != atomic::msvc::interlocked<T0>::compare_exchange(&target, new_val, old_val));
+  #else
+        assert(false);
+    } while(false);
+  #endif
     return old_val;
 #endif
 }
