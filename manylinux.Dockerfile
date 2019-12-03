@@ -20,7 +20,7 @@ RUN conda install -y \
         python=3.7 \
         pytorch-cpu \
         pybind11 \
-        tensorflow=1.14.0 \
+        tensorflow \
         scikit-image \
     && conda clean -ya
 
@@ -43,7 +43,7 @@ RUN conda create -n py36 python=3.6 \
     && conda run -n py36 conda install -y \
         pytorch-cpu \
         pybind11 \
-        tensorflow=1.14.0 \
+        tensorflow \
         scikit-image \
     && conda clean -ya
 

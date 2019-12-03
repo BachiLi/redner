@@ -13,7 +13,7 @@ the continuous derivatives significantly by replacing automatic differentiation 
 
 ## Installation
 
-With either [PyTorch](https://pytorch.org/) (any version >= 1.0) or [TensorFlow](https://www.tensorflow.org/) (version 1.14.0) installed in your current Python environment. For GPU accelerated version (Linux only, CUDA 10.0 required):
+With either [PyTorch](https://pytorch.org/) (any version >= 1.0) or [TensorFlow](https://www.tensorflow.org/) (version >= 2.0) installed in your current Python environment. For GPU accelerated version (Linux only, CUDA 10.0 required):
 ```
 pip install redner-gpu
 ```
