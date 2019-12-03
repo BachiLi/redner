@@ -62,7 +62,8 @@ class Build(build_ext):
             build_args = ['--config', cfg]
 
             if platform.system() == "Windows":
-                cmake_args += ['-DCMAKE_LIBRARY_OUTPUT_DIRECTORY_{}={}'.format(cfg.upper(), extdir)]
+                cmake_args += ['-DCMAKE_LIBRARY_OUTPUT_DIRECTORY_{}={}'.format(cfg.upper(), extdir),
+                               '-DCMAKE_RUNTIME_OUTPUT_DIRECTORY_{}={}'.format(cfg.upper(), extdir)]
                 if sys.maxsize > 2**32:
                     cmake_args += ['-A', 'x64']
                 build_args += ['--', '/m']
@@ -115,6 +116,14 @@ if 'REDNER_CUDA' in os.environ:
 # OpenEXR Python installation
 openexr_python_version = "1.3.2"
 openexr_python_compiler_args = ['-g', '-DVERSION="%s"' % openexr_python_version, '-std=c++11']
+if sys.platform == 'win32':
+    # On windows (specifically MSVC we need different compiler arguments)
+    # See https://stackoverflow.com/a/1305470/6104263 for the /DVersion syntax
+    # We need the /Zc:__cplusplus command as MSVC reports some C++99 version by default 
+    # and IlmBaseConfig.h needs this constant to report at least C++11.
+    # See https://docs.microsoft.com/en-us/cpp/build/reference/zc-cplusplus
+    openexr_python_compiler_args = ['/DVERSION=\\"{:s}\\"'.format(openexr_python_version), '/Zc:__cplusplus']
+
 if sys.platform == 'darwin':
     if 'MACOSX_DEPLOYMENT_TARGET' not in os.environ:
         current_system = LooseVersion(platform.mac_ver()[0])
@@ -128,18 +137,34 @@ if sys.platform == 'darwin':
     openexr_lib_dir = 'redner-dependencies/openexr/lib-macos'
 elif sys.platform == 'linux':
     openexr_lib_dir = 'redner-dependencies/openexr/lib-linux'
+elif sys.platform == 'win32':
+    openexr_lib_dir = 'redner-dependencies/openexr/lib-win32'
 openexr_link_args = []
 if sys.platform == 'darwin':
     openexr_link_args += ['-Wl,-all_load']
 elif sys.platform == 'linux':
     openexr_link_args += ['-Wl,--whole-archive']
-openexr_link_args += [os.path.join(openexr_lib_dir, 'libHalf-2_3_s.a'),
+elif sys.platform == 'win32':
+    openexr_link_args += ['/WHOLEARCHIVE']
+
+if sys.platform == 'darwin' or sys.platform == 'linux':
+    openexr_link_args += [os.path.join(openexr_lib_dir, 'libHalf-2_3_s.a'),
                       os.path.join(openexr_lib_dir, 'libIex-2_3_s.a'),
                       os.path.join(openexr_lib_dir, 'libIexMath-2_3_s.a'),
                       os.path.join(openexr_lib_dir, 'libImath-2_3_s.a'),
                       os.path.join(openexr_lib_dir, 'libIlmImf-2_3_s.a'),
                       os.path.join(openexr_lib_dir, 'libIlmImfUtil-2_3_s.a'),
                       os.path.join(openexr_lib_dir, 'libIlmThread-2_3_s.a')]
+elif sys.platform == 'win32':
+    openexr_link_args += [os.path.join(openexr_lib_dir, 'zlibstatic.lib'),
+                      os.path.join(openexr_lib_dir, 'Half-2_3_s.lib'),
+                      os.path.join(openexr_lib_dir, 'Iex-2_3_s.lib'),
+                      os.path.join(openexr_lib_dir, 'IexMath-2_3_s.lib'),
+                      os.path.join(openexr_lib_dir, 'Imath-2_3_s.lib'),
+                      os.path.join(openexr_lib_dir, 'IlmImf-2_3_s.lib'),
+                      os.path.join(openexr_lib_dir, 'IlmImfUtil-2_3_s.lib'),
+                      os.path.join(openexr_lib_dir, 'IlmThread-2_3_s.lib')]
+
 if sys.platform == 'darwin':
     openexr_link_args += ['-Wl,-noall_load']
 elif sys.platform == 'linux':
@@ -168,6 +193,12 @@ elif sys.platform == 'linux':
     dynamic_libraries.append('redner-dependencies/embree/lib-linux/libtbbmalloc.so.2')
     if build_with_cuda:
         dynamic_libraries.append('redner-dependencies/optix/lib64/liboptix_prime.so.1')
+elif sys.platform == 'win32':
+    dynamic_libraries.append('redner-dependencies/embree/bin/embree3.dll')
+    dynamic_libraries.append('redner-dependencies/embree/bin/tbb.dll')
+    dynamic_libraries.append('redner-dependencies/embree/bin/tbbmalloc.dll')
+    if build_with_cuda:
+        dynamic_libraries.append('redner-dependencies/optix/bin64/optix_prime.1.dll')
 
 project_name = 'redner'
 if 'PROJECT_NAME' in os.environ:

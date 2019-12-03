@@ -13,31 +13,41 @@ endif()
 
 option(REDNER_CUDA "Build redner with GPU code path?" OFF)
 
+# TODO: CUDA does currently not work with Win32 as
+#       pybind11_add_module creates the redner target but the
+#       call to cuda_add_library tries to create it again.
+if(WIN32 AND REDNER_CUDA)
+  set(REDNER_CUDA OFF)
+  message(WARNING "GPU build currently not supported for Win32.")
+endif()
+
 if(REDNER_CUDA)
     message(STATUS "Build with CUDA support")
     find_package(CUDA 10 REQUIRED)
+    # We don't set REQUIRED here as the main OptiX lib will not be found
+    # (only OptiX Prime is required)
+    find_package(OptiX)
 else()
     message(STATUS "Build without CUDA support")
     find_package(Thrust REQUIRED)
 endif()
 
-set(EMBREE_INCLUDE_PATH "${PROJECT_SOURCE_DIR}/redner-dependencies/embree/include")
-if(APPLE)
-    set(EMBREE_LIBRARY "${PROJECT_SOURCE_DIR}/redner-dependencies/embree/lib-macos/libembree3.dylib")
-else()
-    set(EMBREE_LIBRARY "${PROJECT_SOURCE_DIR}/redner-dependencies/embree/lib-linux/libembree3.so")
-endif()
+find_package(Embree REQUIRED)
 
 include_directories(${PYTHON_INCLUDE_PATH})
 include_directories(${EMBREE_INCLUDE_PATH})
 if(REDNER_CUDA)
-    include_directories(${CMAKE_SOURCE_DIR}/redner-dependencies/optix/include)
+    include_directories(${OptiX_INCLUDE})
     link_directories(${CUDA_LIBRARIES})
 else()
     include_directories(${THRUST_INCLUDE_DIR})
 endif()
 
-add_compile_options(-Wall -g -O3 -fvisibility=hidden)
+if(NOT MSVC)
+  # These compile definitions are not meaningful for MSVC
+  add_compile_options(-Wall -g -O3 -fvisibility=hidden)
+endif()
+
 if(NOT REDNER_CUDA)
     add_compile_options("-DTHRUST_DEVICE_SYSTEM=THRUST_DEVICE_SYSTEM_CPP")
 endif()
@@ -150,7 +160,7 @@ if(REDNER_CUDA)
     cuda_add_library(redner MODULE ${SRCS})
     target_link_libraries(redner
         ${EMBREE_LIBRARY}
-        ${CMAKE_SOURCE_DIR}/redner-dependencies/optix/lib64/liboptix_prime.so.1
+        ${optix_prime_LIBRARY}
         ${DYNAMIC_LOOKUP})
 else()
     # No CUDA
@@ -195,8 +205,12 @@ string( REPLACE "-DNDEBUG" "" CMAKE_C_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE}"
 string( REPLACE "/DNDEBUG" "" CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
 string( REPLACE "-DNDEBUG" "" CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
 
-find_package(TensorFlow)
-if(TensorFlow_FOUND)
-    add_subdirectory(pyredner_tensorflow/custom_ops)
+# TODO: The tensorflow find script is currently broken for WIN32 (only?).
+#       If tensorflow is installed but not the developer libs, the script still reports
+#       that tensorflow SDK has been found.
+if(NOT WIN32)
+  find_package(TensorFlow)
+  if(TensorFlow_FOUND)
+      add_subdirectory(pyredner_tensorflow/custom_ops)
+  endif()
 endif()
-
