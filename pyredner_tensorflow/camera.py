@@ -163,9 +163,12 @@ def automatic_camera_placement(shapes, resolution):
     aabb_min = tf.constant((float('inf'), float('inf'), float('inf')))
     aabb_max = -tf.constant((float('inf'), float('inf'), float('inf')))
     for shape in shapes:
-        v = shape.vertices
-        v_min = tf.reduce_min(v, 0).cpu()
-        v_max = tf.reduce_max(v, 0).cpu()
+        v = shape.vertices    
+        v_min = tf.reduce_min(v, 0)
+        v_max = tf.reduce_max(v, 0)
+        with tf.device('/device:cpu:' + str(pyredner.get_cpu_device_id())):
+            v_min = tf.identity(v_min)
+            v_max = tf.identity(v_max)
         aabb_min = tf.minimum(aabb_min, v_min)
         aabb_max = tf.maximum(aabb_max, v_max)
     assert(tf.reduce_all(tf.math.is_finite(aabb_min)) and tf.reduce_all(tf.math.is_finite(aabb_max)))
