@@ -192,7 +192,7 @@ setup(name = project_name,
                             renderers out there.
                          """,
       url = 'https://github.com/BachiLi/redner',
-      classifiers=[
+      classifiers = [
         'Development Status :: 4 - Beta',
         'License :: OSI Approved :: MIT License',
         'Programming Language :: C++',
