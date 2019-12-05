@@ -175,6 +175,35 @@ if 'PROJECT_NAME' in os.environ:
 setup(name = project_name,
       version = '0.1.0',
       description = 'Differentiable rendering without approximation.',
+      long_description = """redner is a differentiable renderer that can take the
+                            derivatives of rendering output with respect to arbitrary
+                            scene parameters, that is, you can backpropagate from the
+                            image to your 3D scene. One of the major usages of redner
+                            is inverse rendering (hence the name redner) through gradient
+                            descent. What sets redner apart are: 1) it computes correct
+                            rendering gradients stochastically without any approximation
+                            and 2) it has a physically-based mode -- which means it can
+                            simulate photons and produce realistic lighting phenomena,
+                            such as shadow and global illumination, and it handles the
+                            derivatives of these features correctly. You can also use
+                            redner in a fast deferred rendering mode for local shading:
+                            in this mode it still has correct gradient estimation and
+                            more elaborate material models compared to most differentiable
+                            renderers out there.
+                         """,
+      url = 'https://github.com/BachiLi/redner',
+      classifiers=[
+        'Development Status :: 4 - Beta',
+        'License :: OSI Approved :: MIT License',
+        'Programming Language :: C++',
+        'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.7',
+        'Operating System :: MacOS',
+        'Operating System :: POSIX :: Linux',
+        'Topic :: Multimedia :: Graphics :: 3D Rendering',
+        'Topic :: Scientific/Engineering :: Artificial Intelligence',
+        'Topic :: Scientific/Engineering :: Image Recognition'
+      ],
       author = 'Tzu-Mao Li',
       license = 'MIT',
       packages = packages,
@@ -190,4 +219,11 @@ setup(name = project_name,
                      CopyExtension('openexrpython', ['openexrpython/Imath.py'])],
       cmdclass = dict(build_ext=Build, install=RemoveOldRednerBeforeInstall),
       install_requires = ['scikit-image'],
+      keywords = ['rendering',
+                  'Monte Carlo ray tracing',
+                  'computer vision',
+                  'computer graphics',
+                  'differentiable rendering',
+                  'PyTorch',
+                  'TensorFlow'],
       zip_safe = False)
