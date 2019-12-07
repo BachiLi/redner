@@ -1,6 +1,7 @@
 #!/bin/bash
 
 rm -R ./dist
+rm -R ./build
 conda remove -y --name redner-py36 --all
 conda remove -y --name redner-py37 --all
 

@@ -9,6 +9,7 @@ tutorials/results
 tutorials/teapot
 tutorials/teapot.zip
 tutorials/.ipynb_checkpoints
+tutorials/None0000000.png
 examples/results
 debug.exr
 fit_ltc/fitLTC
@@ -18,3 +19,4 @@ dockerfiles/dependencies/
 .vscode
 redner.egg-info
 dist
+log.txt
