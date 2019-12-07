@@ -7,6 +7,8 @@ tests/results
 tests_tensorflow/results
 tutorials/results
 tutorials/teapot
+tutorials/teapot.zip
+tutorials/.ipynb_checkpoints
 examples/results
 debug.exr
 fit_ltc/fitLTC
