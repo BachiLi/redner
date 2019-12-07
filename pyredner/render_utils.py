@@ -6,27 +6,33 @@ import math
 from typing import Union, Tuple, Optional, List
 
 def render_albedo(scene: pyredner.Scene,
+                  alpha: bool = False,
                   num_samples: Union[int, Tuple[int, int]] = (16, 4),
                   seed: Optional[int] = None):
     """
         Render the diffuse albedo color of the scene.
 
         Args:
-            scene: pyredner Scene containing camera, geometry and material
+            scene: pyredner Scene containing camera, geometry and material.
+            alpha (bool): If set to False, generates a 3-channel image,
+                          otherwise generates a 4-channel image where the
+                          fourth channel is alpha.
             num_samples (int or Tuple[int, int]):
                 Number of samples for forward and backward passes,
             seed (int or None):
-                Random seed used for sampling. Randomly assigned
-                if set to None.
+                Random seed used for sampling. Randomly assigned if set to None.
     """
     if seed==None:
         seed = random.randint(0, 16777216)
+    channels = [redner.channels.diffuse_reflectance]
+    if alpha:
+        channels.append(redner.channels.alpha)
     scene_args = pyredner.RenderFunction.serialize_scene(\
         scene = scene,
         num_samples = num_samples,
         max_bounces = 0,
         sampler_type = redner.SamplerType.sobol,
-        channels = [redner.channels.diffuse_reflectance],
+        channels = channels,
         use_secondary_edge_sampling = False)
     return pyredner.RenderFunction.apply(seed, *scene_args)
 
@@ -126,6 +132,7 @@ class SpotLight(DeferredLight):
 
 def render_deferred(scene: pyredner.Scene,
                     lights: List[DeferredLight],
+                    alpha: bool = False,
                     aa_samples: int = 2,
                     seed: Optional[int] = None):
     """
@@ -137,13 +144,15 @@ def render_deferred(scene: pyredner.Scene,
         compute shadow.
 
         Args:
-            scene: pyredner Scene containing camera, geometry and material
+            scene: pyredner Scene containing camera, geometry and material.
             lights (List of DeferredLight): a list of lights.
+            alpha (bool): If set to False, generates a 3-channel image,
+                          otherwise generates a 4-channel image where the
+                          fourth channel is alpha.
             aa_samples (int): number of samples used for anti-aliasing
                               at x, y dimensions.
             seed (int or None):
-                Random seed used for sampling. Randomly assigned
-                if set to None.
+                Random seed used for sampling. Randomly assigned if set to None.
     """
     if seed==None:
         seed = random.randint(0, 16777216)
@@ -151,14 +160,17 @@ def render_deferred(scene: pyredner.Scene,
     org_res = scene.camera.resolution
     scene.camera.resolution = (org_res[0] * aa_samples,
                                org_res[1] * aa_samples)
+    channels = [redner.channels.position,
+                redner.channels.shading_normal,
+                redner.channels.diffuse_reflectance]
+    if alpha:
+        channels.append(redner.channels.alpha)
     scene_args = pyredner.RenderFunction.serialize_scene(\
         scene = scene,
         num_samples = (1, 1),
         max_bounces = 0,
         sampler_type = redner.SamplerType.sobol,
-        channels = [redner.channels.position,
-                    redner.channels.shading_normal,
-                    redner.channels.diffuse_reflectance],
+        channels = channels,
         use_secondary_edge_sampling = False)
     scene.camera.resolution = org_res
     g_buffer = pyredner.RenderFunction.apply(seed, *scene_args)
@@ -174,6 +186,8 @@ def render_deferred(scene: pyredner.Scene,
         img = torch.nn.functional.interpolate(img, size = org_res, mode = 'area')
         img = img.squeeze(dim = 0) # NCHW -> CHW
         img = img.permute(1, 2, 0)
+    if alpha:
+        img = torch.cat((img, g_buffer[:, :, 9:10]), dim = 2)
     return img
 
 def render_g_buffer(scene: pyredner.Scene,
