@@ -1,2 +1,3 @@
 ltc.inc linguist-generated=true
 tutorials/*.ipynb linguist-detectable=false
+miniz.* linguist-vendored
