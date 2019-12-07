@@ -158,6 +158,10 @@ def automatic_camera_placement(shapes, resolution):
         using the bounding boxes of the shapes. Place the camera at
         some distances from the shapes, so that it can see all of them.
         Inspired by https://github.com/mitsuba-renderer/mitsuba/blob/master/src/librender/scene.cpp#L286
+
+        Args:
+            shapes: a list of redner Shape or Object
+            resolution: the size of the output image in (height, width)
     """
     aabb_min = torch.tensor((float('inf'), float('inf'), float('inf')))
     aabb_max = -torch.tensor((float('inf'), float('inf'), float('inf')))

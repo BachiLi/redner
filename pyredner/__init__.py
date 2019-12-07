@@ -15,3 +15,4 @@ from .load_mitsuba import load_mitsuba
 from .transform import gen_rotate_matrix
 from .utils import *
 from .render_utils import *
+from .channels import *
