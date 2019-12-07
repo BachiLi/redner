@@ -88,7 +88,7 @@ class DirectionalLight(DeferredLight):
         # Normalize light direction
         light_dir = -self.direction / torch.norm(self.direction)
         light_dir = light_dir.view(1, 1, 3)
-        dot_l_n = torch.sum(light_dir * normal, 2, keepdim = True)
+        dot_l_n = torch.sum(light_dir * normal, dim = 2, keepdim = True)
         dot_l_n = torch.max(dot_l_n, torch.zeros_like(dot_l_n))
         return self.intensity * dot_l_n * (albedo / math.pi)
 
@@ -117,10 +117,9 @@ class SpotLight(DeferredLight):
         light_dir = light_dir / torch.norm(light_dir, dim = 2, keepdim = True)
         # Normalize spot direction
         spot_direction = -self.spot_direction / torch.norm(self.spot_direction)
-        spot_cosine = torch.sum(light_dir * spot_direction, dim = 2)
+        spot_cosine = torch.sum(light_dir * spot_direction, dim = 2, keepdim = True)
         spot_cosine = torch.max(spot_cosine, torch.zeros_like(spot_cosine))
         spot_factor = torch.pow(spot_cosine, self.spot_exponent)
-        spot_factor = torch.unsqueeze(spot_factor, dim = 2)
         dot_l_n = torch.sum(light_dir * normal, dim = 2, keepdim = True)
         dot_l_n = torch.max(dot_l_n, torch.zeros_like(dot_l_n))
         return self.intensity * spot_factor * dot_l_n * (albedo / math.pi)
@@ -166,7 +165,7 @@ def render_deferred(scene: pyredner.Scene,
     pos = g_buffer[:, :, :3]
     normal = g_buffer[:, :, 3:6]
     albedo = g_buffer[:, :, 6:9]
-    img = torch.zeros(g_buffer.shape[0], g_buffer.shape[1], 3)
+    img = torch.zeros(g_buffer.shape[0], g_buffer.shape[1], 3, device = pyredner.get_device())
     for light in lights:
         img = img + light.render(pos, normal, albedo)
     if aa_samples > 1:
