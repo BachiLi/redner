@@ -38,7 +38,6 @@ def is_empty_tensor(tensor):
 
 class Context: pass
 
-__ctx = Context()
 print_timing = True
 
 def serialize_scene(scene: pyredner.Scene,
@@ -86,11 +85,6 @@ def serialize_scene(scene: pyredner.Scene,
         tf.custom_gradient in Tensorflow can take only tf.Tensor objects as arguments.
         Hense, map `None` to False boolean tensors
     """
-    global __ctx
-    ctx = __ctx
-
-    ctx.pyredner_scene = scene
-
     cam = scene.camera
     num_shapes = len(scene.shapes)
     num_materials = len(scene.materials)
@@ -212,8 +206,7 @@ def forward(seed:int, *args):
     """
         Forward rendering pass: given a scene and output an image.
     """
-    global __ctx
-    ctx = __ctx
+    ctx = Context()
 
     # Unpack arguments
     current_index = 0
@@ -552,7 +545,7 @@ def forward(seed:int, *args):
     ctx.num_samples = num_samples
     ctx.num_channels = __num_channels
     ctx.args = args # important to avoid GC on tf tensors
-    return rendered_image
+    return rendered_image, ctx
 
 @tf.custom_gradient
 def render(*x):
@@ -566,11 +559,9 @@ def render(*x):
         print('*************************************************')
 
     seed, args = int(x[0]), x[1:]
-    img = forward(seed, *args)
+    img, ctx = forward(seed, *args)
 
     def backward(grad_img):
-        global __ctx
-        ctx = __ctx
         camera = ctx.camera
         scene = ctx.scene
         options = ctx.options
