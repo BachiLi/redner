@@ -4,10 +4,13 @@ __pycache__
 pydelta/__pycache__
 .cache
 tests/results
+tests/scenes/living-room-3
 tests_tensorflow/results
 tutorials/results
 tutorials/teapot
 tutorials/teapot.zip
+tutorials/mori_knob
+tutorials/mori_knob.zip
 tutorials/.ipynb_checkpoints
 tutorials/None0000000.png
 examples/results

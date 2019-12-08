@@ -14,5 +14,6 @@ from .save_obj import save_obj
 from .load_mitsuba import load_mitsuba
 from .transform import gen_rotate_matrix
 from .utils import *
+from .channels import channels
+from .sampler_type import sampler_type
 from .render_utils import *
-from .channels import *

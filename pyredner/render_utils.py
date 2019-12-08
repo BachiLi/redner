@@ -191,7 +191,7 @@ def render_deferred(scene: pyredner.Scene,
     return img
 
 def render_g_buffer(scene: pyredner.Scene,
-                    channels: List[redner.channels],
+                    channels: List,
                     num_samples: Union[int, Tuple[int, int]] = (1, 1),
                     seed: Optional[int] = None):
     """
@@ -228,4 +228,39 @@ def render_g_buffer(scene: pyredner.Scene,
         sampler_type = redner.SamplerType.sobol,
         channels = channels,
         use_secondary_edge_sampling = False)
+    return pyredner.RenderFunction.apply(seed, *scene_args)
+
+def render_pathtracing(scene: pyredner.Scene,
+                       alpha: bool = False,
+                       max_bounces: int = 1,
+                       sampler_type: redner.SamplerType = pyredner.sampler_type.sobol,
+                       num_samples: Union[int, Tuple[int, int]] = (4, 4),
+                       seed: Optional[int] = None):
+    """
+        Render a pyredner scene using pathtracing.
+
+        Args:
+        scene -- A pyredner.Scene
+        max_bounces -- Number of bounces for global illumination, 1 means direct lighting only.
+        num_samples -- Number of samples per pixel for forward and backward passes,
+                       can be an integer or a tuple of 2 integers.
+        sampler_type -- Which sampling pattern to use.
+                        See Chapter 7 of the PBRT book for an explanation of the difference between
+                        different samplers.
+                        http://www.pbr-book.org/3ed-2018/Sampling_and_Reconstruction.html
+                        Following samplers are supported:
+                            redner.SamplerType.independent
+                            redner.SamplerType.sobol
+    """
+    if seed==None:
+        seed = random.randint(0, 16777216)
+    channels = [redner.channels.radiance]
+    if alpha:
+        channels.append(redner.channels.alpha)
+    scene_args = pyredner.RenderFunction.serialize_scene(\
+        scene = scene,
+        num_samples = num_samples,
+        max_bounces = max_bounces,
+        sampler_type = sampler_type,
+        channels = channels)
     return pyredner.RenderFunction.apply(seed, *scene_args)
