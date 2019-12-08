@@ -296,14 +296,14 @@ def forward(seed:int, *args):
             shapes.append(redner.Shape(\
                 redner.float_ptr(pyredner.data_ptr(vertices)),
                 redner.int_ptr(pyredner.data_ptr(indices)),
-                redner.float_ptr(pyredner.data_ptr(uvs) if uvs is not None else 0),
-                redner.float_ptr(pyredner.data_ptr(normals) if normals is not None else 0),
-                redner.int_ptr(pyredner.data_ptr(uv_indices) if uv_indices is not None else 0),
-                redner.int_ptr(pyredner.data_ptr(normal_indices) if normal_indices is not None else 0),
-                redner.float_ptr(pyredner.data_ptr(colors) if colors is not None else 0),
+                redner.float_ptr(pyredner.data_ptr(uvs) if not is_empty_tensor(uvs) else 0),
+                redner.float_ptr(pyredner.data_ptr(normals) if not is_empty_tensor(normals) else 0),
+                redner.int_ptr(pyredner.data_ptr(uv_indices) if not is_empty_tensor(uv_indices) else 0),
+                redner.int_ptr(pyredner.data_ptr(normal_indices) if not is_empty_tensor(normal_indices) else 0),
+                redner.float_ptr(pyredner.data_ptr(colors) if not is_empty_tensor(colors) else 0),
                 int(vertices.shape[0]),
-                int(uvs.shape[0]) if uvs is not None else 0,
-                int(normals.shape[0]) if normals is not None else 0,
+                int(uvs.shape[0]) if not is_empty_tensor(uvs) else 0,
+                int(normals.shape[0]) if not is_empty_tensor(normals) else 0,
                 int(indices.shape[0]),
                 material_id,
                 light_id))
@@ -551,6 +551,7 @@ def forward(seed:int, *args):
     ctx.options = options
     ctx.num_samples = num_samples
     ctx.num_channels = __num_channels
+    ctx.args = args # important to avoid GC on tf tensors
     return rendered_image
 
 @tf.custom_gradient
