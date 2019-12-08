@@ -47,7 +47,7 @@ class EnvironmentMap:
     def values(self):
         return self._values
 
-    @texels.setter
+    @values.setter
     def values(self, value):
         self._values = value
         self.generate_envmap_pdf()
