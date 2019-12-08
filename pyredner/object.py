@@ -1,3 +1,7 @@
+import pyredner
+import torch
+from typing import Optional
+
 class Object:
     """
         Object combines geometry, material, and lighting information
@@ -16,16 +20,16 @@ class Object:
             colors (optional, float tensor with size N x 3): optional vertex color.
     """
     def __init__(self,
-                 vertices,
-                 indices,
-                 material,
-                 light_intensity = None,
-                 light_two_sided = False,
-                 uvs = None,
-                 normals = None,
-                 uv_indices = None,
-                 normal_indices = None,
-                 colors = None):
+                 vertices: torch.Tensor,
+                 indices: torch.Tensor,
+                 material: pyredner.Material,
+                 light_intensity: Optional[torch.Tensor] = None,
+                 light_two_sided: bool = False,
+                 uvs: Optional[torch.Tensor] = None,
+                 normals: Optional[torch.Tensor] = None,
+                 uv_indices: Optional[torch.Tensor] = None,
+                 normal_indices: Optional[torch.Tensor] = None,
+                 colors: Optional[torch.Tensor] = None):
         self.vertices = vertices
         self.indices = indices
         self.uvs = uvs

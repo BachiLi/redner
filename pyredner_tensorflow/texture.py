@@ -7,12 +7,8 @@ class Texture:
                  texels,
                  uv_scale = tf.constant([1.0, 1.0])):
         assert(tf.executing_eagerly())
-        with tf.device(pyredner.get_device_name()):
-            texels = tf.identity(texels)
-            uv_scale = tf.identity(uv_scale)
-        self._texels = texels
+        self.texels = texels
         self.uv_scale = uv_scale
-        self.generate_mipmap()
 
     def generate_mipmap(self):
         texels = self._texels
@@ -82,8 +78,7 @@ class Texture:
 
     @texels.setter
     def texels(self, value):
-        with tf.device(pyredner.get_device_name()):
-            self._texels = tf.identity(value)
+        self._texels = value
         self.generate_mipmap()
 
     def state_dict(self):
@@ -92,6 +87,7 @@ class Texture:
             'mipmap': self.mipmap,
             'uv_scale': self.uv_scale
         }
+
     @classmethod
     def load_state_dict(cls, state_dict):
         out = cls.__new__(Texture)

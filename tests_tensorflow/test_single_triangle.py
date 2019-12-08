@@ -153,10 +153,6 @@ def optimize(scene_args, grads, lr=5e-2):
 
     return updates
 
-scene_args = pyredner.serialize_scene(
-    scene = scene,
-    num_samples = 4, # We use less samples in the Adam loop.
-    max_bounces = 1)
 # Run 200 Adam iterations.
 for t in range(1, 201):
     print('iteration:', t)
@@ -166,6 +162,10 @@ for t in range(1, 201):
         
         # Important to use a different seed every iteration, otherwise the result
         # would be biased.
+        scene_args = pyredner.serialize_scene(
+            scene = scene,
+            num_samples = 4, # We use less samples in the Adam loop.
+            max_bounces = 1)
         img = pyredner.render(t, *scene_args)
         loss_value = loss(img, target)
 
@@ -173,6 +173,7 @@ for t in range(1, 201):
     pyredner.imwrite(img, 'results/test_single_triangle/iter_{}.png'.format(t))
 
     grads = tape.gradient(loss_value, [shape_triangle.vertices])
+    print(grads)
     optimizer.apply_gradients(zip(grads, [shape_triangle.vertices]))
 
     print('grad:', grads[0])

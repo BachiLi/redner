@@ -1,5 +1,6 @@
 import pyredner_tensorflow as pyredner
 import tensorflow as tf
+from typing import Union, Optional
 
 class Material:
     """
@@ -24,14 +25,13 @@ class Material:
             use_vertex_color (bool) -- Ignores the reflectances and use the vertex color as diffuse color.
     """
     def __init__(self,
-                 diffuse_reflectance = None,
-                 specular_reflectance = None,
-                 roughness = None,
-                 generic_texture = None,
-                 normal_map = None,
-                 two_sided = False,
-                 use_vertex_color = False):
-        assert(tf.executing_eagerly())
+                 diffuse_reflectance: Optional[Union[tf.Tensor, pyredner.Texture]] = None,
+                 specular_reflectance: Optional[Union[tf.Tensor, pyredner.Texture]] = None,
+                 roughness: Optional[Union[tf.Tensor, pyredner.Texture]] = None,
+                 generic_texture: Optional[Union[tf.Tensor, pyredner.Texture]] = None,
+                 normal_map: Optional[Union[tf.Tensor, pyredner.Texture]] = None,
+                 two_sided: bool = False,
+                 use_vertex_color: bool = False):
         if diffuse_reflectance is None:
             diffuse_reflectance = pyredner.Texture(tf.zeros([3], dtype=tf.float32))
         if specular_reflectance is None:

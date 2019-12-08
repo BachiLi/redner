@@ -2,6 +2,7 @@ import pyredner
 import torch
 import math
 import redner
+from typing import Optional
 
 def compute_vertex_normal(vertices, indices):
     def dot(v1, v2):
@@ -111,14 +112,14 @@ class Shape:
             colors (optional, float tensor with size N x 3): optional vertex color.
     """
     def __init__(self,
-                 vertices,
-                 indices,
-                 material_id,
-                 uvs = None,
-                 normals = None,
-                 uv_indices = None,
-                 normal_indices = None,
-                 colors = None):
+                 vertices: torch.Tensor,
+                 indices: torch.Tensor,
+                 material_id: int,
+                 uvs: Optional[torch.Tensor] = None,
+                 normals: Optional[torch.Tensor] = None,
+                 uv_indices: Optional[torch.Tensor] = None,
+                 normal_indices: Optional[torch.Tensor] = None,
+                 colors: Optional[torch.Tensor] = None):
         assert(vertices.dtype == torch.float32)
         assert(indices.dtype == torch.int32)
         assert(vertices.is_contiguous())
@@ -138,23 +139,6 @@ class Shape:
         if colors is not None:
             assert(colors.dtype == torch.float32)
             assert(colors.is_contiguous())
-
-        if pyredner.get_use_gpu():
-            assert(vertices.is_cuda)
-            assert(indices.is_cuda)
-            assert(uvs is None or uvs.is_cuda)
-            assert(normals is None or normals.is_cuda)
-            assert(uv_indices is None or uv_indices.is_cuda)
-            assert(normal_indices is None or normal_indices.is_cuda)
-            assert(colors is None or colors.is_cuda)
-        else:
-            assert(not vertices.is_cuda)
-            assert(not indices.is_cuda)        
-            assert(uvs is None or not uvs.is_cuda)
-            assert(normals is None or not normals.is_cuda)
-            assert(uv_indices is None or not uv_indices.is_cuda)
-            assert(normal_indices is None or not normal_indices.is_cuda)
-            assert(colors is None or not colors.is_cuda)
 
         self.vertices = vertices
         self.indices = indices

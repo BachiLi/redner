@@ -1,4 +1,6 @@
 import pyredner
+import torch
+from typing import Optional, List
 
 class Scene:
     """
@@ -8,12 +10,12 @@ class Scene:
         a list of Object.
     """
     def __init__(self,
-                 camera,
-                 shapes = [],
-                 materials = [],
-                 area_lights = [],
-                 objects = None,
-                 envmap = None):
+                 camera: pyredner.Camera,
+                 shapes: List[pyredner.Shape] = [],
+                 materials: List[pyredner.Material] = [],
+                 area_lights: List[pyredner.AreaLight] = [],
+                 objects: Optional[List[pyredner.Object]] = None,
+                 envmap: Optional[pyredner.EnvironmentMap] = None):
         self.camera = camera
         self.envmap = envmap
         if objects is None:

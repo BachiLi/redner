@@ -2,6 +2,7 @@ import torch
 import pyredner.transform as transform
 import redner
 import math
+from typing import Tuple, Optional
 
 class Camera:
     """
@@ -38,35 +39,31 @@ class Camera:
             fisheye (bool): whether the camera is a fisheye camera (legacy parameter just to ensure compatibility).
     """
     def __init__(self,
-                 position = None,
-                 look_at = None,
-                 up = None,
-                 fov = None,
-                 clip_near = 1e-4,
-                 resolution = (256, 256),
-                 cam_to_world = None,
-                 intrinsic_mat = None,
+                 position: Optional[torch.Tensor] = None,
+                 look_at: Optional[torch.Tensor] = None,
+                 up: Optional[torch.Tensor] = None,
+                 fov: Optional[torch.Tensor] = None,
+                 clip_near: float = 1e-4,
+                 resolution: Tuple[int, int] = (256, 256),
+                 cam_to_world: Optional[torch.Tensor] = None,
+                 intrinsic_mat: Optional[torch.Tensor] = None,
                  camera_type = redner.CameraType.perspective,
-                 fisheye = False):
+                 fisheye: bool = False):
         if position is not None:
             assert(position.dtype == torch.float32)
             assert(len(position.shape) == 1 and position.shape[0] == 3)
-            assert(position.device.type == 'cpu')
         if look_at is not None:
             assert(look_at.dtype == torch.float32)
             assert(len(look_at.shape) == 1 and look_at.shape[0] == 3)
-            assert(look_at.device.type == 'cpu')
         if up is not None:
             assert(up.dtype == torch.float32)
             assert(len(up.shape) == 1 and up.shape[0] == 3)
-            assert(up.device.type == 'cpu')
         if fov is not None:
             assert(fov.dtype == torch.float32)
             assert(len(fov.shape) == 1 and fov.shape[0] == 1)
-            assert(fov.device.type == 'cpu')
         assert(isinstance(clip_near, float))
         if position is None and look_at is None and up is None:
-            assert(cam_to_world is  not None)
+            assert(cam_to_world is not None)
 
         self.position = position
         self.look_at = look_at

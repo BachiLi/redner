@@ -1,3 +1,7 @@
+import pyredner_tensorflow as pyredner
+import tensorflow as tf
+from typing import Optional
+
 class Object:
     """
         Object combines geometry, material, and lighting information
@@ -16,16 +20,29 @@ class Object:
             colors (optional, float tensor with size N x 3): optional vertex color.
     """
     def __init__(self,
-                 vertices,
-                 indices,
-                 material,
-                 light_intensity = None,
-                 light_two_sided = False,
-                 uvs = None,
-                 normals = None,
-                 uv_indices = None,
-                 normal_indices = None,
-                 colors = None):
+                 vertices: tf.Tensor,
+                 indices: tf.Tensor,
+                 material: pyredner.Material,
+                 light_intensity: Optional[tf.Tensor] = None,
+                 light_two_sided: bool = False,
+                 uvs: Optional[tf.Tensor] = None,
+                 normals: Optional[tf.Tensor] = None,
+                 uv_indices: Optional[tf.Tensor] = None,
+                 normal_indices: Optional[tf.Tensor] = None,
+                 colors: Optional[tf.Tensor] = None):
+        assert(vertices.dtype == tf.float32)
+        assert(indices.dtype == tf.int32)
+        if uvs is not None:
+            assert(uvs.dtype == tf.float32)
+        if normals is not None:
+            assert(normals.dtype == tf.float32)
+        if uv_indices is not None:
+            assert(uv_indices.dtype == tf.int32)
+        if normal_indices is not None:
+            assert(normal_indices.dtype == tf.int32)
+        if colors is not None:
+            assert(colors.dtype == tf.float32)
+
         self.vertices = vertices
         self.indices = indices
         self.uvs = uvs

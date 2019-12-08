@@ -104,82 +104,89 @@ def serialize_scene(scene: pyredner.Scene,
     args.append(tf.constant(num_shapes))
     args.append(tf.constant(num_materials))
     args.append(tf.constant(num_lights))
-    if cam.position is None:
-        args.append(__EMPTY_TENSOR)
-        args.append(__EMPTY_TENSOR)
-        args.append(__EMPTY_TENSOR)
-    else:
-        args.append(cam.position)
-        args.append(cam.look_at)
-        args.append(cam.up)
-    if cam.cam_to_world is None:
-        args.append(__EMPTY_TENSOR)
-        args.append(__EMPTY_TENSOR)
-    else:
-        args.append(cam.cam_to_world)
-        args.append(cam.world_to_cam)
-    args.append(cam.intrinsic_mat_inv)
-    args.append(cam.intrinsic_mat)
+    with tf.device('/device:cpu:' + str(pyredner.get_cpu_device_id())):
+        if cam.position is None:
+            args.append(__EMPTY_TENSOR)
+            args.append(__EMPTY_TENSOR)
+            args.append(__EMPTY_TENSOR)
+        else:
+            args.append(tf.identity(cam.position))
+            args.append(tf.identity(cam.look_at))
+            args.append(tf.identity(cam.up))
+        if cam.cam_to_world is None:
+            args.append(__EMPTY_TENSOR)
+            args.append(__EMPTY_TENSOR)
+        else:
+            args.append(tf.identity(cam.cam_to_world))
+            args.append(tf.identity(cam.world_to_cam))
+        args.append(tf.identity(cam.intrinsic_mat_inv))
+        args.append(tf.identity(cam.intrinsic_mat))
     args.append(tf.constant(cam.clip_near))
     args.append(tf.constant(cam.resolution))
     args.append(pyredner.RednerCameraType.asTensor(cam.camera_type))
     for shape in scene.shapes:
-        args.append(shape.vertices)
-        args.append(shape.indices)
-        if shape.uvs is None:
-            args.append(__EMPTY_TENSOR)
-        else:
-            args.append(shape.uvs)
-        if shape.normals is None:
-            args.append(__EMPTY_TENSOR)
-        else:
-            args.append(shape.normals)
-        if shape.uv_indices is None:
-            args.append(__EMPTY_TENSOR)
-        else:
-            args.append(shape.uv_indices)
-        if shape.normal_indices is None:
-            args.append(__EMPTY_TENSOR)
-        else:
-            args.append(shape.normal_indices)
-        if shape.colors is None:
-            args.append(__EMPTY_TENSOR)
-        else:
-            args.append(shape.colors)
+        with tf.device(pyredner.get_device_name()):
+            args.append(tf.identity(shape.vertices))
+            args.append(tf.identity(shape.indices))
+            if shape.uvs is None:
+                args.append(__EMPTY_TENSOR)
+            else:
+                args.append(tf.identity(shape.uvs))
+            if shape.normals is None:
+                args.append(__EMPTY_TENSOR)
+            else:
+                args.append(tf.identity(shape.normals))
+            if shape.uv_indices is None:
+                args.append(__EMPTY_TENSOR)
+            else:
+                args.append(tf.identity(shape.uv_indices))
+            if shape.normal_indices is None:
+                args.append(__EMPTY_TENSOR)
+            else:
+                args.append(tf.identity(shape.normal_indices))
+            if shape.colors is None:
+                args.append(__EMPTY_TENSOR)
+            else:
+                args.append(tf.identity(shape.colors))
         args.append(tf.constant(shape.material_id))
         args.append(tf.constant(shape.light_id))
     for material in scene.materials:
-        args.append(material.diffuse_reflectance.mipmap)
-        args.append(material.diffuse_reflectance.uv_scale)
-        args.append(material.specular_reflectance.mipmap)
-        args.append(material.specular_reflectance.uv_scale)
-        args.append(material.roughness.mipmap)
-        args.append(material.roughness.uv_scale)
-        if material.generic_texture is not None:
-            args.append(material.generic_texture.mipmap)
-            args.append(material.generic_texture.uv_scale)
-        else:
-            args.append(__EMPTY_TENSOR)
-            args.append(__EMPTY_TENSOR)
-        if material.normal_map is not None:
-            args.append(material.normal_map.mipmap)
-            args.append(material.normal_map.uv_scale)
-        else:
-            args.append(__EMPTY_TENSOR)
-            args.append(__EMPTY_TENSOR)
+        with tf.device(pyredner.get_device_name()):
+            args.append(tf.identity(material.diffuse_reflectance.mipmap))
+            args.append(tf.identity(material.diffuse_reflectance.uv_scale))
+            args.append(tf.identity(material.specular_reflectance.mipmap))
+            args.append(tf.identity(material.specular_reflectance.uv_scale))
+            args.append(tf.identity(material.roughness.mipmap))
+            args.append(tf.identity(material.roughness.uv_scale))
+            if material.generic_texture is not None:
+                args.append(tf.identity(material.generic_texture.mipmap))
+                args.append(tf.identity(material.generic_texture.uv_scale))
+            else:
+                args.append(__EMPTY_TENSOR)
+                args.append(__EMPTY_TENSOR)
+            if material.normal_map is not None:
+                args.append(tf.identity(material.normal_map.mipmap))
+                args.append(tf.identity(material.normal_map.uv_scale))
+            else:
+                args.append(__EMPTY_TENSOR)
+                args.append(__EMPTY_TENSOR)
         args.append(tf.constant(material.two_sided))
         args.append(tf.constant(material.use_vertex_color))
-    for light in scene.area_lights:
-        args.append(tf.constant(light.shape_id))
-        args.append(light.intensity)
-        args.append(tf.constant(light.two_sided))
+    with tf.device('/device:cpu:' + str(pyredner.get_cpu_device_id())):
+        for light in scene.area_lights:
+            args.append(tf.constant(light.shape_id))
+            args.append(tf.identity(light.intensity))
+            args.append(tf.constant(light.two_sided))
     if scene.envmap is not None:
-        args.append(scene.envmap.values.mipmap)
-        args.append(scene.envmap.values.uv_scale)
-        args.append(scene.envmap.env_to_world)
-        args.append(scene.envmap.world_to_env)
-        args.append(scene.envmap.sample_cdf_ys)
-        args.append(scene.envmap.sample_cdf_xs)
+        with tf.device(pyredner.get_device_name()):
+            args.append(tf.identity(scene.envmap.values.mipmap))
+            args.append(tf.identity(scene.envmap.values.uv_scale))
+        with tf.device('/device:cpu:' + str(pyredner.get_cpu_device_id())):
+            args.append(tf.identity(scene.envmap.env_to_world))
+            args.append(tf.identity(scene.envmap.world_to_env))
+        with tf.device(pyredner.get_device_name()):
+            args.append(tf.identity(scene.envmap.sample_cdf_ys))
+            args.append(tf.identity(scene.envmap.sample_cdf_xs))
         args.append(scene.envmap.pdf_norm)
     else:
         args.append(__EMPTY_TENSOR)

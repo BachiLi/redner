@@ -10,10 +10,8 @@ def imwrite(img, filename, normalize = False):
     directory = os.path.dirname(filename)
     if directory != '' and not os.path.exists(directory):
         os.makedirs(directory)
-    if tf.executing_eagerly():
-        img = img.numpy()
-    else:
-        img = img.data.numpy()
+    assert(tf.executing_eagerly())
+    img = img.numpy()
     if normalize:
         img_rng = np.max(img) - np.min(img)
         if img_rng > 0:

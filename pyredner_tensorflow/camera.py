@@ -1,10 +1,10 @@
-from typing import Tuple
 import numpy as np
 import tensorflow as tf
 import pyredner_tensorflow.transform as transform
 import redner
 import pyredner_tensorflow as pyredner
 import math
+from typing import Optional, Tuple
 
 class Camera:
     """
@@ -40,56 +40,58 @@ class Camera:
             fisheye (bool): whether the camera is a fisheye camera (legacy parameter just to ensure compatibility).
     """
     def __init__(self,
-                 position: tf.Tensor = None,
-                 look_at: tf.Tensor = None,
-                 up: tf.Tensor = None,
-                 fov: tf.Tensor = None,
+                 position: Optional[tf.Tensor] = None,
+                 look_at: Optional[tf.Tensor] = None,
+                 up: Optional[tf.Tensor] = None,
+                 fov: Optional[tf.Tensor] = None,
                  clip_near: float = 1e-4,
                  resolution: Tuple[int] = (256, 256),
-                 cam_to_world: tf.Tensor = None,
-                 intrinsic_mat: tf.Tensor = None,
+                 cam_to_world: Optional[tf.Tensor] = None,
+                 intrinsic_mat: Optional[tf.Tensor] = None,
                  camera_type = redner.CameraType.perspective,
                  fisheye: bool = False):
         assert(tf.executing_eagerly())
-        assert(position.dtype == tf.float32)
-        assert(len(position.shape) == 1 and position.shape[0] == 3)
-        assert(look_at.dtype == tf.float32)
-        assert(len(look_at.shape) == 1 and look_at.shape[0] == 3)
-        assert(up.dtype == tf.float32)
-        assert(len(up.shape) == 1 and up.shape[0] == 3)
+        if position is not None:
+            assert(position.dtype == tf.float32)
+            assert(len(position.shape) == 1 and position.shape[0] == 3)
+        if look_at is not None:
+            assert(look_at.dtype == tf.float32)
+            assert(len(look_at.shape) == 1 and look_at.shape[0] == 3)
+        if up is not None:
+            assert(up.dtype == tf.float32)
+            assert(len(up.shape) == 1 and up.shape[0] == 3)
         if fov is not None:
             assert(fov.dtype == tf.float32)
             assert(len(fov.shape) == 1 and fov.shape[0] == 1)
         assert(isinstance(clip_near, float))
         if position is None and look_at is None and up is None:
             assert(cam_to_world is  not None)
-
+        
+        self.position = position
+        self.look_at = look_at
+        self.up = up
+        self.fov = fov
         with tf.device('/device:cpu:' + str(pyredner.get_cpu_device_id())):
-            self.position = tf.identity(position)
-            self.look_at = tf.identity(look_at)
-            self.up = tf.identity(up)
-            self.fov = tf.identity(fov)
-            self._cam_to_world = cam_to_world
             if cam_to_world is not None:
-                self.world_to_cam = tf.linalg.inv(self.cam_to_world)
+                self.cam_to_world = cam_to_world
             else:
-                self.world_to_cam = None
+                self.cam_to_world = None
             if intrinsic_mat is None:
                 if camera_type == redner.CameraType.perspective:
                     fov_factor = 1.0 / tf.tan(transform.radians(0.5 * fov))
-                    o = tf.convert_to_tensor(np.ones([1], dtype=np.float32), dtype=tf.float32)
+                    o = tf.ones([1], dtype=tf.float32)
                     diag = tf.concat([fov_factor, fov_factor, o], 0)
                     self._intrinsic_mat = tf.linalg.tensor_diag(diag)
                 else:
                     self._intrinsic_mat = tf.eye(3, dtype=tf.float32)   
             else:
-                self._intrinsic_mat = tf.identity(intrinsic_mat).cpu()
+                self._intrinsic_mat = intrinsic_mat
             self.intrinsic_mat_inv = tf.linalg.inv(self._intrinsic_mat)
-            self.clip_near = clip_near
-            self.resolution = resolution
-            self.camera_type = camera_type
-            if fisheye:
-                self.camera_type = redner.CameraType.fisheye
+        self.clip_near = clip_near
+        self.resolution = resolution
+        self.camera_type = camera_type
+        if fisheye:
+            self.camera_type = redner.CameraType.fisheye
 
     @property
     def fov(self):
@@ -97,13 +99,16 @@ class Camera:
 
     @fov.setter
     def fov(self, value):
-        with tf.device('/device:cpu:' + str(pyredner.get_cpu_device_id())):
-            self._fov = tf.identity(value)
-            fov_factor = 1.0 / tf.tan(transform.radians(0.5 * self._fov))
-            o = tf.convert_to_tensor(np.ones([1], dtype=np.float32), dtype=tf.float32)
-            diag = tf.concat([fov_factor, fov_factor, o], 0)
-            self._intrinsic_mat = tf.linalg.tensor_diag(diag)
-            self.intrinsic_mat_inv = tf.linalg.inv(self._intrinsic_mat)
+        if value is not None:
+            self._fov = value
+            with tf.device('/device:cpu:' + str(pyredner.get_cpu_device_id())):
+                fov_factor = 1.0 / tf.tan(transform.radians(0.5 * self._fov))
+                o = tf.ones([1], dtype=tf.float32)
+                diag = tf.concat([fov_factor, fov_factor, o], 0)
+                self._intrinsic_mat = tf.linalg.tensor_diag(diag)
+                self.intrinsic_mat_inv = tf.linalg.inv(self._intrinsic_mat)
+        else:
+            self._fov = None
 
     @property
     def intrinsic_mat(self):
@@ -111,8 +116,8 @@ class Camera:
 
     @intrinsic_mat.setter
     def intrinsic_mat(self, value):
+        self._intrinsic_mat = value
         with tf.device('/device:cpu:' + str(pyredner.get_cpu_device_id())):
-            self._intrinsic_mat = tf.identity(value).cpu()
             self.intrinsic_mat_inv = tf.linalg.inv(self._intrinsic_mat)
 
     @property
@@ -121,8 +126,13 @@ class Camera:
 
     @cam_to_world.setter
     def cam_to_world(self, value):
-        self._cam_to_world = value
-        self.world_to_cam = tf.linalg.inv(self.cam_to_world)
+        if value is not None:
+            self._cam_to_world = value
+            with tf.device('/device:cpu:' + str(pyredner.get_cpu_device_id())):
+                self.world_to_cam = tf.linalg.inv(self.cam_to_world)
+        else:
+            self._cam_to_world = None
+            self.world_to_cam = None
 
     def state_dict(self):
         return {

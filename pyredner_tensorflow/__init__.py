@@ -3,8 +3,8 @@ import tensorflow as tf
 from .device import *
 from .camera import *
 from .shape import *
-from .material import *
 from .texture import *
+from .material import *
 from .area_light import *
 from .object import *
 from .envmap import *

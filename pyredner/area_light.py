@@ -1,6 +1,10 @@
+import torch
+
 class AreaLight:
-    def __init__(self, shape_id, intensity, two_sided = False):
-        assert(intensity.device.type == 'cpu')
+    def __init__(self,
+                 shape_id: int,
+                 intensity: torch.Tensor,
+                 two_sided: bool = False):
         self.shape_id = shape_id
         self.intensity = intensity
         self.two_sided = two_sided

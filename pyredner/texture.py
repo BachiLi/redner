@@ -4,16 +4,15 @@ import pyredner
 import torch
 import enum
 import math
+from typing import Optional
 
 class Texture:
     def __init__(self,
-                 texels,
-                 uv_scale = None):
+                 texels: torch.Tensor,
+                 uv_scale: Optional[torch.Tensor] = None):
         if uv_scale is None:
             uv_scale = torch.tensor([1.0, 1.0], device = pyredner.get_device())
-        assert(texels.device.type == pyredner.get_device().type)
         assert(texels.dtype == torch.float32)
-        assert(uv_scale.device.type == pyredner.get_device().type)
         assert(uv_scale.dtype == torch.float32)
         assert(uv_scale.is_contiguous())
         self._texels = texels

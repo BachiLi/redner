@@ -65,10 +65,9 @@ def compute_uvs(vertices, indices, print_progress = True):
               indices -- M x 3 int tensor
         Return: uvs & uvs_indices
     """
-    vertices = tf.identity(vertices).cpu()
-    indices = tf.identity(indices).cpu()
-
     with tf.device('/device:cpu:' + str(pyredner.get_cpu_device_id())):
+        vertices = tf.identity(vertices)
+        indices = tf.identity(indices)
         uv_trimesh = redner.UVTriMesh(redner.float_ptr(pyredner.data_ptr(vertices)),
                                       redner.int_ptr(pyredner.data_ptr(indices)),
                                       redner.float_ptr(0),
@@ -88,11 +87,11 @@ def compute_uvs(vertices, indices, print_progress = True):
 
         redner.copy_texture_atlas(atlas, [uv_trimesh])
 
-    if pyredner.get_use_gpu():
-        vertices = tf.identity(vertices).gpu(pyredner.get_gpu_device_id())
-        indices = tf.identity(indices).gpu(pyredner.get_gpu_device_id())
-        uvs = tf.identity(uvs).cuda(device = pyredner.get_device())
-        uv_indices = tf.identity(uv_indices).cuda(device = pyredner.get_device())
+    with tf.device(pyredner.get_device_name()):
+        vertices = tf.identity(vertices)
+        indices = tf.identity(indices)
+        uvs = tf.identity(uvs)
+        uv_indices = tf.identity(uv_indices)
     return uvs, uv_indices
 
 class Shape:
@@ -122,7 +121,6 @@ class Shape:
                  uv_indices: Optional[tf.Tensor] = None,
                  normal_indices: Optional[tf.Tensor] = None,
                  colors: Optional[tf.Tensor] = None):
-        assert(tf.executing_eagerly())
         assert(vertices.dtype == tf.float32)
         assert(indices.dtype == tf.int32)
         if uvs is not None:
@@ -136,29 +134,14 @@ class Shape:
         if colors is not None:
             assert(colors.dtype == tf.float32)
 
-        with tf.device(pyredner.get_device_name()):
-            # Automatically copy all tensors to the current device
-            vertices = tf.identity(vertices)
-            indices = tf.identity(indices)
-            if uvs is not None:
-                uvs = tf.identity(uvs)
-            if normals is not None:
-                normals = tf.identity(normals)
-            if uv_indices is not None:
-                uv_indices = tf.identity(uv_indices)
-            if normal_indices is not None:
-                normal_indices = tf.identity(normal_indices)
-            if colors is not None:
-                colors = tf.identity(colors)
-
         self.vertices = vertices
         self.indices = indices
-        self.material_id = material_id
         self.uvs = uvs
         self.normals = normals
         self.uv_indices = uv_indices
         self.normal_indices = normal_indices
         self.colors = colors
+        self.material_id = material_id
         self.light_id = -1
 
     def state_dict(self):

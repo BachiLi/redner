@@ -5,15 +5,21 @@ import math
 import pdb
 
 class EnvironmentMap:
-    def __init__(self, values, env_to_world = tf.eye(4, 4)):
-        assert(tf.executing_eagerly())
+    def __init__(self,
+                 values: tf.Tensor,
+                 env_to_world: tf.Tensor = tf.eye(4, 4)):
         # Convert to constant texture if necessary
         if tf.is_tensor(values):
             values = pyredner.Texture(values)
 
-        # assert(values.texels.is_contiguous())
         assert(values.texels.dtype == tf.float32)
-        
+
+        self.values = values
+        self.env_to_world = env_to_world
+
+    def generate_envmap_pdf():
+        assert(tf.executing_eagerly())
+        values = self.values
         with tf.device(pyredner.get_device_name()):
             # Build sampling table
             luminance = 0.212671 * values.texels[:, :, 0] + \
@@ -30,7 +36,7 @@ class EnvironmentMap:
             # Compute CDF for x
             sample_cdf_ys_ = tf.cumsum(sample_cdf_xs_[:, -1] * y_weight, axis=0)
             pdf_norm = (luminance.shape[0] * luminance.shape[1]) / \
-            	    (sample_cdf_ys_[-1] * (2 * math.pi * math.pi))
+                    (sample_cdf_ys_[-1] * (2 * math.pi * math.pi))
             # Normalize to [0, 1)
             sample_cdf_xs = (sample_cdf_xs_ - sample_cdf_xs_[:, 0:1]) / \
                 tf.math.maximum(
@@ -42,14 +48,28 @@ class EnvironmentMap:
             sample_cdf_ys = (sample_cdf_ys_ - sample_cdf_ys_[0]) / \
                 tf.math.maximum(sample_cdf_ys_[-1], tf.constant([1e-8]))
 
-            self.values = values
             self.sample_cdf_ys = sample_cdf_ys
             self.sample_cdf_xs = sample_cdf_xs
+            self.pdf_norm = pdf_norm
+
+    @property
+    def values(self):
+        return self._values
+
+    @values.setter
+    def values(self, value):
+        self._values = value
+        self.generate_envmap_pdf()
+
+    @property
+    def env_to_world(self):
+        return self._env_to_world
+
+    @env_to_world.setter
+    def env_to_world(self, value):
+        self._env_to_world = value
         with tf.device('/device:cpu:' + str(pyredner.get_cpu_device_id())):
-            self.pdf_norm = tf.identity(pdf_norm)
-            env_to_world = tf.identity(env_to_world)
-            self.env_to_world = env_to_world
-            self.world_to_env = tf.linalg.inv(env_to_world)
+            self.world_to_env = tf.linalg.inv(self._env_to_world)
 
     def state_dict(self):
         return {
@@ -70,5 +90,4 @@ class EnvironmentMap:
         out.sample_cdf_ys = state_dict['sample_cdf_ys']
         out.sample_cdf_xs = state_dict['sample_cdf_xs']
         out.pdf_norm = state_dict['pdf_norm']
-
         return out
