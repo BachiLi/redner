@@ -164,6 +164,7 @@ def serialize_scene(scene: pyredner.Scene,
             else:
                 args.append(__EMPTY_TENSOR)
                 args.append(__EMPTY_TENSOR)
+        args.append(tf.constant(material.compute_specular_lighting))
         args.append(tf.constant(material.two_sided))
         args.append(tf.constant(material.use_vertex_color))
     with tf.device('/device:cpu:' + str(pyredner.get_cpu_device_id())):
@@ -324,9 +325,11 @@ def forward(seed:int, *args):
             current_index += 1
             normal_map_uv_scale = args[current_index]
             current_index += 1
+            compute_specular_lighting = bool(args[current_index])
+            current_index += 1
             two_sided = bool(args[current_index])
             current_index += 1
-            use_vertex_color = args[current_index]
+            use_vertex_color = bool(args[current_index])
             current_index += 1
 
             diffuse_reflectance_ptr = redner.float_ptr(pyredner.data_ptr(diffuse_reflectance))
@@ -402,6 +405,7 @@ def forward(seed:int, *args):
                 roughness,
                 generic_texture,
                 normal_map,
+                compute_specular_lighting,
                 two_sided,
                 use_vertex_color))
 
@@ -853,6 +857,7 @@ def render(*x):
             ret_list.append(d_generic_uv_scale_list[i])
             ret_list.append(d_normal_map_list[i])
             ret_list.append(d_normal_map_uv_scale_list[i])
+            ret_list.append(None) # compute_specular_lighting
             ret_list.append(None) # two sided
             ret_list.append(None) # use_vertex_color
 

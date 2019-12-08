@@ -131,6 +131,7 @@ PYBIND11_MODULE(redner, m) {
                       Texture1, // roughness
                       TextureN, // generic_texture
                       Texture3, // normal_map
+                      bool, // compute_specular_lighting
                       bool, // two_sided
                       bool>()) // use_vertex_color
         .def("get_diffuse_size", &Material::get_diffuse_size)

@@ -582,6 +582,30 @@ inline bool is_zero(const Vector3 &v) {
 }
 
 template <typename T>
+DEVICE
+inline TVector3<T> max(const TVector3<T> &v, const T &s) {
+    return TVector3<T>{max(v.x, s), max(v.y, s), max(v.z, s)};
+}
+
+template <typename T>
+DEVICE
+inline TVector3<T> min(const TVector3<T> &v, const T &s) {
+    return TVector3<T>{min(v.x, s), min(v.y, s), min(v.z, s)};
+}
+
+template <typename T>
+DEVICE
+inline TVector3<T> max(const TVector3<T> &v0, const TVector3<T> &v1) {
+    return TVector3<T>{max(v0.x, v1.x), max(v0.y, v1.y), max(v0.z, v1.z)};
+}
+
+template <typename T>
+DEVICE
+inline TVector3<T> min(const TVector3<T> &v0, const TVector3<T> &v1) {
+    return TVector3<T>{min(v0.x, v1.x), min(v0.y, v1.y), min(v0.z, v1.z)};
+}
+
+template <typename T>
 inline std::ostream& operator<<(std::ostream &os, const TVector2<T> &v) {
     return os << "(" << v[0] << ", " << v[1] << ")";
 }

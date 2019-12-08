@@ -34,10 +34,13 @@ class Material:
                  use_vertex_color: bool = False):
         if diffuse_reflectance is None:
             diffuse_reflectance = pyredner.Texture(\
-                torch.tensor([0.0,0.0,0.0], device = pyredner.get_device()))
+                torch.zeros(3, device = pyredner.get_device()))
         if specular_reflectance is None:
             specular_reflectance = pyredner.Texture(\
-                torch.tensor([0.0,0.0,0.0], device = pyredner.get_device()))
+                torch.zeros(3, device = pyredner.get_device()))
+            compute_specular_lighting = False
+        else:
+            compute_specular_lighting = True
         if roughness is None:
             roughness = pyredner.Texture(\
                 torch.tensor([1.0], device = pyredner.get_device()))
@@ -55,12 +58,27 @@ class Material:
             normal_map = pyredner.Texture(normal_map)
 
         self.diffuse_reflectance = diffuse_reflectance
-        self.specular_reflectance = specular_reflectance
+        self._specular_reflectance = specular_reflectance
+        self.compute_specular_lighting = compute_specular_lighting
         self.roughness = roughness
         self.generic_texture = generic_texture
         self.normal_map = normal_map
         self.two_sided = two_sided
         self.use_vertex_color = use_vertex_color
+
+    @property
+    def specular_reflectance(self):
+        return self._specular_reflectance
+
+    @specular_reflectance.setter
+    def specular_reflectance(self, value):
+        self._specular_reflectance = value
+        if value is not None:
+            self.compute_specular_lighting = True
+        else:
+            self._specular_reflectance = pyredner.Texture(\
+                torch.zeros(3, device = pyredner.get_device()))
+            self.compute_specular_lighting = False
 
     def state_dict(self):
         return {

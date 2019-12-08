@@ -17,6 +17,7 @@ struct Material {
              Texture1 roughness,
              TextureN generic_texture,
              Texture3 normal_map,
+             bool compute_specular_lighting,
              bool two_sided,
              bool use_vertex_color)
         : diffuse_reflectance(diffuse_reflectance),
@@ -24,6 +25,7 @@ struct Material {
           roughness(roughness),
           generic_texture(generic_texture),
           normal_map(normal_map),
+          compute_specular_lighting(compute_specular_lighting),
           two_sided(two_sided),
           use_vertex_color(use_vertex_color) {}
 
@@ -68,6 +70,7 @@ struct Material {
     Texture1 roughness;
     TextureN generic_texture;
     Texture3 normal_map;
+    bool compute_specular_lighting;
     bool two_sided;
     bool use_vertex_color;
 };
@@ -373,14 +376,16 @@ Vector3 bsdf(const Material &material,
         return Vector3{0, 0, 0};
     }
 
-    auto diffuse_reflectance = material.use_vertex_color ?
+    auto diffuse_reflectance_ = material.use_vertex_color ?
         shading_point.color : get_diffuse_reflectance(material, shading_point);
-    auto specular_reflectance = material.use_vertex_color ?
+    auto specular_reflectance_ = material.use_vertex_color ?
         Vector3{0, 0, 0} : get_specular_reflectance(material, shading_point);
+    auto diffuse_reflectance = max(diffuse_reflectance_, Vector3{0, 0, 0});
+    auto specular_reflectance = max(specular_reflectance_, Vector3{0, 0, 0});
     auto roughness = max(get_roughness(material, shading_point), min_roughness);
     auto diffuse_contrib = diffuse_reflectance * shading_wo / Real(M_PI);
     auto specular_contrib = Vector3{0, 0, 0};
-    if (sum(specular_reflectance) > 0.f) {
+    if (material.compute_specular_lighting && !material.use_vertex_color) {
         // blinn-phong BRDF
         // half-vector
         auto m = normalize(wi + wo);
@@ -471,10 +476,20 @@ void d_bsdf(const Material &material,
         return;
     }
 
-    auto diffuse_reflectance = material.use_vertex_color ?
+    auto diffuse_reflectance_ = material.use_vertex_color ?
         shading_point.color : get_diffuse_reflectance(material, shading_point);
+    auto diffuse_reflectance = max(diffuse_reflectance_, Vector3{0, 0, 0});
     // diffuse_contrib = diffuse_reflectance * shading_wo / Real(M_PI)
     auto d_diffuse_reflectance = d_output * (shading_wo / Real(M_PI));
+    // diffuse_reflectance = max(diffuse_reflectance_, Vector3{0, 0, 0})
+    // HACK: the "correct gradient" is the following, but it makes negative
+    //       reflectance never going to come back.
+    // auto d_diffuse_reflectance_ = Vector3{
+    //     diffuse_reflectance_.x >= 0 ? d_diffuse_reflectance.x : Real(0),
+    //     diffuse_reflectance_.y >= 0 ? d_diffuse_reflectance.y : Real(0),
+    //     diffuse_reflectance_.z >= 0 ? d_diffuse_reflectance.z : Real(0)
+    // };
+    // HACK (continued): instead we just use the gradients before the max.
     if (material.use_vertex_color) {
         d_shading_point.color += d_diffuse_reflectance;
     } else {
@@ -489,11 +504,12 @@ void d_bsdf(const Material &material,
     d_wo += shading_frame.n * d_shading_wo;
     d_n += wo * d_shading_wo;
 
-    auto specular_reflectance = material.use_vertex_color ?
+    auto specular_reflectance_ = material.use_vertex_color ?
         Vector3{0, 0, 0} : get_specular_reflectance(material, shading_point);
+    auto specular_reflectance = max(specular_reflectance_, Vector3{0, 0, 0});
     auto roughness = max(get_roughness(material, shading_point), min_roughness);
     assert(roughness > 0.f);
-    if (sum(specular_reflectance) > 0.f) {
+    if (material.compute_specular_lighting && !material.use_vertex_color) {
         // blinn-phong BRDF
         // half-vector
         auto m = normalize(wi + wo);
@@ -621,6 +637,14 @@ void d_bsdf(const Material &material,
             auto d_wi_wo = d_normalize(wi + wo, d_m);
             d_wi += d_wi_wo;
             d_wo += d_wi_wo;
+            // HACK: the "correct gradient" is the following, but it makes negative
+            //       reflectance never going to come back.
+            // auto d_specular_reflectance_ = Vector3{
+            //     specular_reflectance_.x >= 0 ? d_specular_reflectance_.x : Real(0),
+            //     specular_reflectance_.y >= 0 ? d_specular_reflectance_.y : Real(0),
+            //     specular_reflectance_.z >= 0 ? d_specular_reflectance_.z : Real(0)
+            // };
+            // HACK (continued): instead we just use the gradients before the max.
             // specular_reflectance = get_specular_reflectance(material, shading_point)
             d_get_specular_reflectance(
                 material, shading_point, d_specular_reflectance,
@@ -687,10 +711,12 @@ Vector3 bsdf_sample(const Material &material,
         }
     }
 
-    auto diffuse_reflectance = material.use_vertex_color ?
+    auto diffuse_reflectance_ = material.use_vertex_color ?
         shading_point.color : get_diffuse_reflectance(material, shading_point);
-    auto specular_reflectance = material.use_vertex_color ?
+    auto specular_reflectance_ = material.use_vertex_color ?
         Vector3{0, 0, 0} : get_specular_reflectance(material, shading_point);
+    auto diffuse_reflectance = max(diffuse_reflectance_, Vector3{0, 0, 0});
+    auto specular_reflectance = max(specular_reflectance_, Vector3{0, 0, 0});
     auto diffuse_weight = luminance(diffuse_reflectance);
     auto specular_weight = luminance(specular_reflectance);
     auto weight_sum = diffuse_weight + specular_weight;
@@ -796,11 +822,12 @@ void d_bsdf_sample(const Material &material,
         }
     }
 
-    auto diffuse_reflectance = material.use_vertex_color ?
+    auto diffuse_reflectance_ = material.use_vertex_color ?
         shading_point.color : get_diffuse_reflectance(material, shading_point);
-    auto specular_reflectance = material.use_vertex_color ?
+    auto specular_reflectance_ = material.use_vertex_color ?
         Vector3{0, 0, 0} : get_specular_reflectance(material, shading_point);
-    // TODO: this is wrong for black materials
+    auto diffuse_reflectance = max(diffuse_reflectance_, Vector3{0, 0, 0});
+    auto specular_reflectance = max(specular_reflectance_, Vector3{0, 0, 0});
     auto diffuse_weight = luminance(diffuse_reflectance);
     auto specular_weight = luminance(specular_reflectance);
     auto weight_sum = diffuse_weight + specular_weight;
@@ -1004,10 +1031,12 @@ inline Real bsdf_pdf(const Material &material,
         }
     }
 
-    auto diffuse_reflectance = material.use_vertex_color ?
+    auto diffuse_reflectance_ = material.use_vertex_color ?
         shading_point.color : get_diffuse_reflectance(material, shading_point);
-    auto specular_reflectance = material.use_vertex_color ?
+    auto specular_reflectance_ = material.use_vertex_color ?
         Vector3{0, 0, 0} : get_specular_reflectance(material, shading_point);
+    auto diffuse_reflectance = max(diffuse_reflectance_, Vector3{0, 0, 0});
+    auto specular_reflectance = max(specular_reflectance_, Vector3{0, 0, 0});
     auto diffuse_weight = luminance(diffuse_reflectance);
     auto specular_weight = luminance(specular_reflectance);
     auto weight_sum = diffuse_weight + specular_weight;
@@ -1078,10 +1107,12 @@ inline void d_bsdf_pdf(const Material &material,
         }
     }
 
-    auto diffuse_reflectance = material.use_vertex_color ?
+    auto diffuse_reflectance_ = material.use_vertex_color ?
         shading_point.color : get_diffuse_reflectance(material, shading_point);
-    auto specular_reflectance = material.use_vertex_color ?
+    auto specular_reflectance_ = material.use_vertex_color ?
         Vector3{0, 0, 0} : get_specular_reflectance(material, shading_point);
+    auto diffuse_reflectance = max(diffuse_reflectance_, Vector3{0, 0, 0});
+    auto specular_reflectance = max(specular_reflectance_, Vector3{0, 0, 0});
     auto diffuse_weight = luminance(diffuse_reflectance);
     auto specular_weight = luminance(specular_reflectance);
     auto weight_sum = diffuse_weight + specular_weight;

@@ -36,6 +36,9 @@ class Material:
             diffuse_reflectance = pyredner.Texture(tf.zeros([3], dtype=tf.float32))
         if specular_reflectance is None:
             specular_reflectance = pyredner.Texture(tf.zeros([3], dtype=tf.float32))
+            compute_specular_lighting = False
+        else:
+            compute_specular_lighting = True
         if roughness is None:
             roughness = pyredner.Texture(tf.ones([1], dtype=tf.float32))
 
@@ -52,12 +55,27 @@ class Material:
             normal_map = pyredner.Texture(normal_map)
 
         self.diffuse_reflectance = diffuse_reflectance
-        self.specular_reflectance = specular_reflectance
+        self._specular_reflectance = specular_reflectance
+        self.compute_specular_lighting = compute_specular_lighting
         self.roughness = roughness
         self.generic_texture = generic_texture
         self.normal_map = normal_map
         self.two_sided = two_sided
         self.use_vertex_color = use_vertex_color
+
+    @property
+    def specular_reflectance(self):
+        return self._specular_reflectance
+
+    @specular_reflectance.setter
+    def specular_reflectance(self, value):
+        self._specular_reflectance = value
+        if value is not None:
+            self.compute_specular_lighting = True
+        else:
+            self._specular_reflectance = pyredner.Texture(\
+                tf.zeros([3], dtype=tf.float32))
+            self.compute_specular_lighting = False
 
     def state_dict(self):
         return {

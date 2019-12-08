@@ -18,8 +18,9 @@ void test_d_bsdf() {
                roughness,
                generic,
                normal_map,
-               false,
-               false};
+               true, // compute_specular_lighting
+               false, // two_sided
+               false}; // use_vertex_color
     Vector3f d_d{0, 0, 0};
     Vector2f d_uv_scale{0, 0};
     Texture3 d_diffuse_tex{&d_d[0], -1, -1, -1, -1, &d_uv_scale[0]};
@@ -157,7 +158,14 @@ void test_d_bsdf_sample() {
     Texture1 roughness{&r, -1, -1, -1, -1, &uv_scale[0]};
     TextureN generic{&d[0], -1, -1, 3 /* channels*/, -1, &uv_scale[0]};
     Texture3 normal_map{nullptr, 0, 0, 0, 0, nullptr};
-    Material m{diffuse, specular, roughness, generic, normal_map, false, false};
+    Material m{diffuse,
+               specular,
+               roughness,
+               generic,
+               normal_map,
+               true, // compute_specular_lighting
+               false, // two_sided
+               false}; // use_vertex_color
     Vector3f d_d{0, 0, 0};
     Vector2f d_uv_scale{0, 0};
     Texture3 d_diffuse_tex{&d_d[0], -1, -1, -1, -1, &d_uv_scale[0]};
@@ -365,7 +373,14 @@ void test_d_bsdf_pdf() {
     Texture1 roughness{&r, -1, -1, -1, -1, &uv_scale[0]};
     TextureN generic{&d[0], -1, -1, 3 /* channels*/, -1, &uv_scale[0]};
     Texture3 normal_map{nullptr, 0, 0, 0, 0, nullptr};
-    Material m{diffuse, specular, roughness, generic, normal_map, false, false};
+    Material m{diffuse,
+               specular,
+               roughness,
+               generic,
+               normal_map,
+               true, // compute_specular_lighting
+               false, // two_sided
+               false}; // use_vertex_color
     Vector3f d_d{0, 0, 0};
     Vector2f d_uv_scale{0, 0};
     Texture3 d_diffuse_tex{&d_d[0], -1, -1, -1, -1, &d_uv_scale[0]};

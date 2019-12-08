@@ -147,6 +147,7 @@ class RenderFunction(torch.autograd.Function):
             else:
                 args.append(None)
                 args.append(None)
+            args.append(material.compute_specular_lighting)
             args.append(material.two_sided)
             args.append(material.use_vertex_color)
         for light in scene.area_lights:
@@ -310,6 +311,8 @@ class RenderFunction(torch.autograd.Function):
             current_index += 1
             normal_map_uv_scale = args[current_index]
             current_index += 1
+            compute_specular_lighting = args[current_index]
+            current_index += 1
             two_sided = args[current_index]
             current_index += 1
             use_vertex_color = args[current_index]
@@ -387,6 +390,7 @@ class RenderFunction(torch.autograd.Function):
                 roughness,
                 generic_texture,
                 normal_map,
+                compute_specular_lighting,
                 two_sided,
                 use_vertex_color))
 
@@ -805,6 +809,7 @@ class RenderFunction(torch.autograd.Function):
             ret_list.append(d_generic_uv_scale_list[i])
             ret_list.append(d_normal_map_list[i])
             ret_list.append(d_normal_map_uv_scale_list[i])
+            ret_list.append(None) # compute_specular_lighting
             ret_list.append(None) # two sided
             ret_list.append(None) # use_vertex_color
 
