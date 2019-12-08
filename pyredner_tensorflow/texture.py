@@ -82,7 +82,8 @@ class Texture:
 
     @texels.setter
     def texels(self, value):
-        self._texels = value
+        with tf.device(pyredner.get_device_name()):
+            self._texels = tf.identity(value)
         self.generate_mipmap()
 
     def state_dict(self):
