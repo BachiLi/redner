@@ -508,7 +508,7 @@ void d_bsdf(const Material &material,
         Vector3{0, 0, 0} : get_specular_reflectance(material, shading_point);
     auto specular_reflectance = max(specular_reflectance_, Vector3{0, 0, 0});
     auto roughness = max(get_roughness(material, shading_point), min_roughness);
-    assert(roughness > 0.f);
+    roughness = max(roughness, Real(1e-6));
     if (material.compute_specular_lighting && !material.use_vertex_color) {
         // blinn-phong BRDF
         // half-vector
@@ -748,6 +748,7 @@ Vector3 bsdf_sample(const Material &material,
     } else {
         // Blinn-phong
         auto roughness = max(get_roughness(material, shading_point), min_roughness);
+        roughness = max(roughness, Real(1e-6));
         if (next_min_roughness != nullptr) {
             *next_min_roughness = max(roughness, min_roughness);
         }
@@ -873,6 +874,7 @@ void d_bsdf_sample(const Material &material,
         }
         // Blinn-phong
         auto roughness = max(get_roughness(material, shading_point), min_roughness);
+        roughness = max(roughness, Real(1e-6));
         auto phong_exponent = roughness_to_phong(roughness);
         // Sample phi
         auto phi = 2.f * Real(M_PI) * bsdf_sample.uv[1];
@@ -1061,6 +1063,7 @@ inline Real bsdf_pdf(const Material &material,
         }
         if (m_local[2] > 0.f && fabs(dot(m, wo)) > 0) {
             auto roughness = max(get_roughness(material, shading_point), min_roughness);
+            roughness = max(roughness, Real(1e-6));
             auto phong_exponent = roughness_to_phong(roughness);
             auto D = pow(m_local[2], phong_exponent) * (phong_exponent + 2.f) / Real(2 * M_PI);
             specular_pdf = specular_pmf * D * m_local[2] / (4.f * fabs(dot(m, wo)));
@@ -1148,6 +1151,7 @@ inline void d_bsdf_pdf(const Material &material,
         }
         if (m_local[2] > 0.f && fabs(dot(wo, m)) > 0) {
             auto roughness = max(get_roughness(material, shading_point), min_roughness);
+            roughness = max(roughness, Real(1e-6));
             auto phong_exponent = roughness_to_phong(roughness);
             auto D = pow(m_local[2], phong_exponent) * (phong_exponent + 2.f) / Real(2 * M_PI);
             // specular_pdf = specular_pmf * D * m_local[2] / (4.f * fabs(dot(m, wo)));
