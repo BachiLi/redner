@@ -205,12 +205,7 @@ def load_obj(filename: str,
                     return int(re.split('/', x)[i])
                 def parse_face_index(x, i):
                     f = get_index(x, i)
-                    if f < 0:
-                        if (i == 0):
-                            f += len(vertices)
-                        if (i == 1):
-                            f += len(uvs)
-                    else:
+                    if f > 0:
                         f -= 1
                     return f
                 assert(len(splitted) <= 5)
