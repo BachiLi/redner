@@ -286,7 +286,7 @@ void render(const Scene &scene,
         update_active_pixels(primary_active_pixels, shading_isects, active_pixels, scene.use_gpu);
         std::fill(num_active_pixels.begin(), num_active_pixels.end(), 0);
         num_active_pixels[0] = active_pixels.size();
-        for (int depth = 0; depth < max_bounces && num_active_pixels[depth] > 0; depth++) {
+        for (int depth = 0; depth < max_bounces && num_active_pixels[depth] > 0 && has_lights(scene); depth++) {
             // Buffer views for this path vertex
             const auto active_pixels =
                 path_buffer.active_pixels.view(depth * num_pixels, num_active_pixels[depth]);
@@ -391,7 +391,7 @@ void render(const Scene &scene,
 
             // Traverse the path backward for the derivatives
             bool first = true;
-            for (int depth = max_bounces - 1; depth >= 0; depth--) {
+            for (int depth = max_bounces - 1; depth >= 0 && has_lights(scene); depth--) {
                 // Buffer views for this path vertex
                 auto num_actives = num_active_pixels[depth];
                 if (num_actives <= 0) {
@@ -809,7 +809,7 @@ void render(const Scene &scene,
                 // Stream compaction: remove invalid intersections
                 update_active_pixels(active_pixels, shading_isects, active_pixels, scene.use_gpu);
                 auto active_pixels_size = active_pixels.size();
-                for (int depth = 0; depth < max_bounces && active_pixels_size > 0; depth++) {
+                for (int depth = 0; depth < max_bounces && active_pixels_size > 0 && has_lights(scene); depth++) {
                     // Buffer views for this path vertex
                     auto main_buffer_beg = (depth % 2) * (2 * num_pixels);
                     auto next_buffer_beg = ((depth + 1) % 2) * (2 * num_pixels);

@@ -71,6 +71,11 @@ struct Scene {
     EdgeSampler edge_sampler;
 };
 
+inline
+bool has_lights(const Scene &scene) {
+    return scene.area_lights.size() > 0 || scene.envmap != nullptr;
+}
+
 struct FlattenScene {
     Shape *shapes;
     Material *materials;
