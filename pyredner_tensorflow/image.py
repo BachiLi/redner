@@ -6,7 +6,7 @@ import skimage.io
 import tensorflow as tf
 import os
 
-def imwrite(img, filename, normalize = False):
+def imwrite(img, filename, gamma = 2.2, normalize = False):
     directory = os.path.dirname(filename)
     if directory != '' and not os.path.exists(directory):
         os.makedirs(directory)
@@ -19,7 +19,6 @@ def imwrite(img, filename, normalize = False):
     if filename[-4:] == '.exr':
         if len(img.shape) == 2:
             img = img.reshape((img.shape[0], img.shape[1], 1))
-        # import pdb; pdb.set_trace()
         if img.shape[2] == 1:
             img = np.tile(img, (1, 1, 3))
         img_r = img[:, :, 0]
@@ -35,9 +34,9 @@ def imwrite(img, filename, normalize = False):
         exr.writePixels({'R': pixels_r, 'G': pixels_g, 'B': pixels_b})
         exr.close()
     else:
-        skimage.io.imsave(filename, (np.power(np.clip(img, 0.0, 1.0), 1.0/2.2) * 255).astype(np.uint8))
+        skimage.io.imsave(filename, (np.power(np.clip(img, 0.0, 1.0), 1.0/gamma) * 255).astype(np.uint8))
 
-def imread(filename):
+def imread(filename, gamma = 2.2):
     if (filename[-4:] == '.exr'):
         file = OpenEXR.InputFile(filename)
         dw = file.header()['dataWindow']
@@ -63,6 +62,6 @@ def imread(filename):
         elif im.shape[2] == 4:
             im = im[:, :, :3]
         return tf.convert_to_tensor(
-                np.power(skimage.img_as_float(im).astype(np.float32), 2.2), 
+                np.power(skimage.img_as_float(im).astype(np.float32), gamma), 
                 dtype=tf.float32
             )

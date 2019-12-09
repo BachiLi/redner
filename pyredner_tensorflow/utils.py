@@ -118,7 +118,7 @@ def generate_quad_light(position: tf.Tensor,
             intensity: 1-d tensor of size 3
     """
     d = look_at - position
-    d = d / torch.norm(d)
+    d = d / tf.norm(d)
     # ONB -- generate two axes that are orthogonal to d
     a = 1 / (1 + d[2])
     b = -d[0] * d[1] * a
@@ -134,7 +134,7 @@ def generate_quad_light(position: tf.Tensor,
     v3 = position + x * size[0] * 0.5 + y * size[1] * 0.5
 
     with tf.device(pyredner.get_device_name()):
-        vertices = tf.stack((v0, v1, v2, v3), dim = 0)
+        vertices = tf.stack((v0, v1, v2, v3), axis = 0)
         indices = tf.constant([[0, 1, 2],[1, 3, 2]], dtype = tf.int32)
         m = pyredner.Material(diffuse_reflectance = tf.constant([0.0, 0.0, 0.0]))
     return pyredner.Object(vertices = vertices,

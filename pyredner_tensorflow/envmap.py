@@ -17,7 +17,7 @@ class EnvironmentMap:
         self.values = values
         self.env_to_world = env_to_world
 
-    def generate_envmap_pdf():
+    def generate_envmap_pdf(self):
         assert(tf.executing_eagerly())
         values = self.values
         with tf.device(pyredner.get_device_name()):
