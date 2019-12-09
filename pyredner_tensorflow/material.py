@@ -5,24 +5,33 @@ from typing import Union, Optional
 class Material:
     """
         redner currently employs a two-layer diffuse-specular material model.
-        More specifically, it is a linear blend between a Lambertian and
-        a microfacet model with Phong distribution.
+        More specifically, it is a linear blend between a Lambertian model and
+        a microfacet model with Phong distribution, with Schilick's Fresnel approximation.
         It takes either constant color or 2D textures for the reflectances
         and roughness, and an optional normal map texture.
         It can also use vertex color stored in the Shape. In this case
         the model fallback to a diffuse model.
 
-        Args:
-            diffuse_reflectance (pyredner.Texture, optional if use_vertex_color is True)
-            specular_reflectance (pyredner.Texture, optional)
-            roughness (pyredner.Texture, 1 channel, optional)
-            generic_texture (pyredner.Texture or torch.tensor, optional)
-            normal_map (pyredner.Texture, 3 channels, optional)
-            two_sided (bool) -- By default, the material only reflect lights
-                                on the side the normal is pointing to.
-                                Set this to True to make the material reflects
-                                from both sides.
-            use_vertex_color (bool) -- Ignores the reflectances and use the vertex color as diffuse color.
+        Args
+        ====
+        diffuse_reflectance: Optional[Union[tf.Tensor, pyredner.Texture]]
+            a float32 tensor with size 3 or [height, width, 3] or a Texture
+            optional if use_vertex_color is True
+        specular_reflectance: Optional[Union[tf.Tensor, pyredner.Texture]]
+            a float32 tensor with size 3 or [height, width, 3] or a Texture
+        roughness: Optional[Union[tf.Tensor, pyredner.Texture]]
+            a float32 tensor with size 1 or [height, width, 1] or a Texture
+        generic_texture: Optional[Union[tf.Tensor, pyredner.Texture]]
+            a float32 tensor with dimension 1 or 3, arbitrary number of channels
+            use render_g_buffer to visualize this texture
+        normal_map: Optional[Union[tf.Tensor, pyredner.Texture]]
+            a float32 tensor with size 3 or [height, width, 3] or a Texture
+        two_sided: bool
+            By default, the material only reflect lights on the side the
+            normal is pointing to.
+            Set this to True to make the material reflects from both sides.
+        use_vertex_color: bool
+            ignores the reflectances and use the vertex color as diffuse color
     """
     def __init__(self,
                  diffuse_reflectance: Optional[Union[tf.Tensor, pyredner.Texture]] = None,

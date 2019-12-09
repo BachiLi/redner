@@ -12,15 +12,20 @@ def render_albedo(scene: pyredner.Scene,
     """
         Render the diffuse albedo color of the scene.
 
-        Args:
-            scene: pyredner Scene containing camera, geometry and material.
-            alpha (bool): If set to False, generates a 3-channel image,
-                          otherwise generates a 4-channel image where the
-                          fourth channel is alpha.
-            num_samples (int or Tuple[int, int]):
-                Number of samples for forward and backward passes,
-            seed (int or None):
-                Random seed used for sampling. Randomly assigned if set to None.
+        Args
+        ====
+        scene: pyredner.Scene
+            pyredner Scene containing camera, geometry and material.
+        alpha: bool
+            If set to False, generates a 3-channel image,
+            otherwise generates a 4-channel image where the
+            fourth channel is alpha.
+        num_samples: Union[int, Tuple[int, int]]:
+            number of samples for forward and backward passes, respectively
+            if a single integer is provided, use the same number of samples
+            for both
+        seed: Optional[int]:
+            Random seed used for sampling. Randomly assigned if set to None.
     """
     if seed==None:
         seed = random.randint(0, 16777216)
@@ -140,19 +145,24 @@ def render_deferred(scene: pyredner.Scene,
         (https://en.wikipedia.org/wiki/Deferred_shading)
         We generate a G-buffer image containing world-space position,
         normal, and albedo using redner, then shade the G-buffer
-        using TensorFlow code. Assuming Lambertian shading and does not
+        using PyTorch code. Assuming Lambertian shading and does not
         compute shadow.
 
-        Args:
-            scene: pyredner Scene containing camera, geometry and material
-            lights (List of DeferredLight): a list of lights.
-            alpha (bool): If set to False, generates a 3-channel image,
-                          otherwise generates a 4-channel image where the
-                          fourth channel is alpha.
-            aa_samples (int): number of samples used for anti-aliasing
-                              at x, y dimensions.
-            seed (int or None):
-                Random seed used for sampling. Randomly assigned if set to None.
+        Args
+        ====
+        scene: pyredner.Scene
+            pyredner Scene containing camera, geometry and material.
+        lights: List[DeferredLight]
+
+        alpha: bool
+            If set to False, generates a 3-channel image,
+            otherwise generates a 4-channel image where the
+            fourth channel is alpha.
+        aa_samples: int
+            number of samples used for anti-aliasing at both x, y dimensions
+            (e.g. if aa_samples=2, 4 samples are used)
+        seed: Optional[int]:
+            Random seed used for sampling. Randomly assigned if set to None.
     """
     if seed==None:
         seed = random.randint(0, 16777216)
@@ -195,9 +205,12 @@ def render_g_buffer(scene: pyredner.Scene,
     """
         Render a G buffer from the scene.
 
-        Args:
-            scene: pyredner Scene containing camera, geometry, material, and lighting
-            channels: a list of the following channels --
+        Args
+        ====
+        scene: pyredner.Scene
+            pyredner Scene containing camera, geometry, material, and lighting
+        channels: List[pyredner.channels]
+            a list of the following channels --
                 pyredner.channels.alpha
                 pyredner.channels.depth
                 pyredner.channels.position
@@ -211,10 +224,12 @@ def render_g_buffer(scene: pyredner.Scene,
                 pyredner.channels.vertex_color
                 pyredner.channels.shape_id
                 pyredner.channels.material_id
-            num_samples (int or Tuple[int, int]):
-                Number of samples for forward and backward passes,
-            seed (int or None):
-                Random seed used for sampling. Randomly assigned if set to None.
+        num_samples: Union[int, Tuple[int, int]]
+            number of samples for forward and backward passes, respectively
+            if a single integer is provided, use the same number of samples
+            for both
+        seed: Optional[int]
+            Random seed used for sampling. Randomly assigned if set to None.
     """
     if seed==None:
         seed = random.randint(0, 16777216)
@@ -236,18 +251,24 @@ def render_pathtracing(scene: pyredner.Scene,
     """
         Render a pyredner scene using pathtracing.
 
-        Args:
-        scene -- A pyredner.Scene
-        max_bounces -- Number of bounces for global illumination, 1 means direct lighting only.
-        num_samples -- Number of samples per pixel for forward and backward passes,
-                       can be an integer or a tuple of 2 integers.
-        sampler_type -- Which sampling pattern to use.
-                        See Chapter 7 of the PBRT book for an explanation of the difference between
-                        different samplers.
-                        http://www.pbr-book.org/3ed-2018/Sampling_and_Reconstruction.html
-                        Following samplers are supported:
-                            redner.SamplerType.independent
-                            redner.SamplerType.sobol
+        Args
+        ====
+        scene: pyredner.Scene
+            pyredner Scene containing camera, geometry, material, and lighting
+        max_bounces: int
+            number of bounces for global illumination
+            1 means direct lighting only
+        num_samples: int
+            number of samples per pixel for forward and backward passes
+            can be an integer or a tuple of 2 integers
+        sampler_type: pyredner.sampler_type
+            which sampling pattern to use?
+            see Chapter 7 of the PBRT book for an explanation of the
+            difference between different samplers.
+            http://www.pbr-book.org/3ed-2018/Sampling_and_Reconstruction.html
+            Following samplers are supported:
+                pyredner.sampler_type.independent
+                pyredner.sampler_type.sobol
     """
     if seed==None:
         seed = random.randint(0, 16777216)

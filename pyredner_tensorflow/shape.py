@@ -5,6 +5,24 @@ import math
 import numpy as np
 
 def compute_vertex_normal(vertices, indices):
+    """
+        Compute vertex normal by weighted average of nearby face normals using Nelson Max's algorithm
+        See Nelson Max, "Weights for Computing Vertex Normals from Facet Vectors", 1999
+
+        Args
+        ====
+        vertices: torch.Tensor
+            3D position of vertices
+            float32 tensor with size num_vertices x 3
+        indices: torch.Tensor
+            vertex indices of triangle faces.
+            int32 tensor with size num_triangles x 3
+
+        Returns
+        =======
+        float32 Tensor with size num_vertices x 3
+    """
+
     def dot(v1, v2):
         return tf.math.reduce_sum(v1 * v2, axis=1)
     def squared_length(v):
@@ -61,9 +79,23 @@ def compute_vertex_normal(vertices, indices):
 
 def compute_uvs(vertices, indices, print_progress = True):
     """
-        Args: vertices -- N x 3 float tensor
-              indices -- M x 3 int tensor
-        Return: uvs & uvs_indices
+        Compute UV coordinates of a given mesh using a charting algorithm
+        with least square conformal mapping. This calls the xatlas library
+        https://github.com/jpcy/xatlas
+
+        Args
+        ====
+        vertices: torch.Tensor
+            3D position of vertices
+            float32 tensor with size num_vertices x 3
+        indices: torch.Tensor
+            vertex indices of triangle faces.
+            int32 tensor with size num_triangles x 3
+
+        Returns
+        =======
+        float32 Tensor with size num_uv_vertices x 3
+        int32 Tensor with size num_triangles x 3
     """
     with tf.device('/device:cpu:' + str(pyredner.get_cpu_device_id())):
         vertices = tf.identity(vertices)
@@ -101,16 +133,30 @@ class Shape:
         two vertices can have the same 3D position but different texture
         coordinates, because UV mapping creates seams and need to duplicate
         vertices. In this can we can use an additional "uv_indices" array
-        to access the uv pool. 
+        to access the uv pool.
 
-        Args:
-            vertices (float tensor with size N x 3): 3D position of vertices.
-            indices (int tensor with size M x 3): vertex indices of triangle faces.
-            material_id (integer): index of the assigned material.
-            uvs (optional, float tensor with size N' x 2): optional texture coordinates.
-            normals (optional, float tensor with size N'' x 3): shading normal.
-            uv_indices (optional, int tensor with size M x 3): overrides indices when accessing uv coordinates.
-            normal_indices (optional, int tensor with size M x 3): overrides indices when accessing shading normals.
+        Args
+        ====
+        vertices: tf.Tensor
+            3D position of vertices
+            float32 tensor with size num_vertices x 3
+        indices: tf.Tensor
+            vertex indices of triangle faces.
+            int32 tensor with size num_triangles x 3
+        uvs: Optional[tf.Tensor]:
+            optional texture coordinates.
+            float32 tensor with size num_uvs x 2
+            doesn't need to be the same size with vertices if uv_indices is None
+        normals: Optional[tf.Tensor]
+            shading normal
+            float32 tensor with size num_normals x 3
+            doesn't need to be the same size with vertices if normal_indices is None
+        uv_indices: Optional[tf.Tensor]
+            overrides indices when accessing uv coordinates
+            int32 tensor with size num_uvs x 2
+        normal_indices: Optional[tf.Tensor]
+            overrides indices when accessing shading normals
+            int32 tensor with size num_normals x 2
     """
     def __init__(self,
                  vertices: tf.Tensor,

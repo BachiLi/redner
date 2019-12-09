@@ -41,7 +41,20 @@ def gen_perspective_matrix(fov, clip_near, clip_far):
                         torch.cat([  z,   z, 1 / clip_dist, - clip_near / clip_dist], 0),
                         torch.cat([  z,   z,             o,                       z], 0)])
 
-def gen_rotate_matrix(angles):
+def gen_rotate_matrix(angles: torch.Tensor):
+    """
+        Given a 3D Euler angle vector, outputs a rotation matrix.
+
+        Args
+        ====
+            angles: torch.Tensor
+                3D Euler angle
+
+        Returns
+        =======
+            3x3 torch.Tensor
+    """
+
     theta = angles[0]
     phi = angles[1]
     psi = angles[2]

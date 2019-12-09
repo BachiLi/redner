@@ -2,6 +2,19 @@ import pyredner_tensorflow as pyredner
 import tensorflow as tf
 
 class AreaLight:
+    """
+        A mesh-based area light that points to a shape and assigns intensity.
+
+        Args
+        ----------
+        shape_id: int
+
+        intensity: tf.Tensor
+            1-d tensor with size 3 and type float32
+        two_sided: bool
+            is the light emitting light from the two sides of the faces?
+    """
+
     def __init__(self,
                  shape_id: int,
                  intensity: tf.Tensor,

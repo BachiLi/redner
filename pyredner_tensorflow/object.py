@@ -7,17 +7,46 @@ class Object:
         Object combines geometry, material, and lighting information
         and aggregate them in a single class. This is a convinent class
         for constructing redner scenes.
-        Args:
-            vertices (float tensor with size N x 3): 3D position of vertices.
-            indices (int tensor with size M x 3): vertex indices of triangle faces.
-            material (Material): the material
-            light_intensity (optional, float tensor with size 3): make this object an area light
-            light_two_sided (boolean): does the light emit from two sides of the shape
-            uvs (optional, float tensor with size N' x 2): optional texture coordinates.
-            normals (optional, float tensor with size N'' x 3): shading normal.
-            uv_indices (optional, int tensor with size M x 3): overrides indices when accessing uv coordinates.
-            normal_indices (optional, int tensor with size M x 3): overrides indices when accessing shading normals.
-            colors (optional, float tensor with size N x 3): optional vertex color.
+
+        redner supports only triangle meshes for now. It stores a pool of
+        vertices and access the pool using integer index. Some times the
+        two vertices can have the same 3D position but different texture
+        coordinates, because UV mapping creates seams and need to duplicate
+        vertices. In this can we can use an additional "uv_indices" array
+        to access the uv pool.
+
+        Args
+        ====
+        vertices: tf.Tensor
+            3D position of vertices
+            float32 tensor with size num_vertices x 3
+        indices: tf.Tensor
+            vertex indices of triangle faces.
+            int32 tensor with size num_triangles x 3
+        material: pyredner.Material
+
+        light_intensity: Optional[tf.Tensor]
+            make this object an area light
+            float32 tensor with size 3
+        light_two_sided: boolean
+            Does the light emit from two sides of the shape?
+        uvs: Optional[tf.Tensor]:
+            optional texture coordinates.
+            float32 tensor with size num_uvs x 2
+            doesn't need to be the same size with vertices if uv_indices is None
+        normals: Optional[tf.Tensor]
+            shading normal
+            float32 tensor with size num_normals x 3
+            doesn't need to be the same size with vertices if normal_indices is None
+        uv_indices: Optional[tf.Tensor]
+            overrides indices when accessing uv coordinates
+            int32 tensor with size num_uvs x 2
+        normal_indices: Optional[tf.Tensor]
+            overrides indices when accessing shading normals
+            int32 tensor with size num_normals x 2
+        colors: Optional[tf.Tensor]
+            optional per-vertex color
+            float32 tensor with size num_vertices x 3
     """
     def __init__(self,
                  vertices: tf.Tensor,

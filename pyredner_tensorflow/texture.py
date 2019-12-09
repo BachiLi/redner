@@ -3,6 +3,18 @@ import pyredner_tensorflow as pyredner
 import math
 
 class Texture:
+    """
+        Representing a texture and its mipmap.
+
+        Args
+        ====
+        texels: torch.Tensor
+            a float32 tensor with size C or [height, width, C]
+        uv_scale: Optional[torch.Tensor]
+            scale the uv coordinates when mapping the texture
+            a float32 tensor with size 2
+    """
+
     def __init__(self,
                  texels,
                  uv_scale = tf.constant([1.0, 1.0])):

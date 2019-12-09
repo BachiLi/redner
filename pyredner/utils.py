@@ -60,7 +60,23 @@ def SH_reconstruct(coeffs, res):
     return result
 #######################################################################################
 
-def generate_sphere(theta_steps, phi_steps):
+def generate_sphere(theta_steps: int,
+                    phi_steps: int):
+    """
+        Generate a triangle mesh representing a sphere, center at (0, 0, 0) with radius 1.
+
+        Args
+        ====
+        theta_steps: int
+            azimuth subdivision
+        phi_steps: int
+            zenith subdivision
+
+        Returns
+        =======
+        (vertices, indices, uvs, normals)
+    """
+
     d_theta = math.pi / (theta_steps - 1)
     d_phi = (2 * math.pi) / (phi_steps - 1)
 
@@ -108,11 +124,16 @@ def generate_quad_light(position: torch.Tensor,
     """
         Generate a redner Object that is a quad light source.
 
-        Args:
-            position: 1-d tensor of size 3
-            look_at: 1-d tensor of size 3
-            size: 1-d tensor of size 2
-            intensity: 1-d tensor of size 3
+        Args
+        ====
+        position: torch.Tensor
+            1-d tensor of size 3
+        look_at: torch.Tensor
+            1-d tensor of size 3
+        size: torch.Tensor
+            1-d tensor of size 2
+        intensity: torch.Tensor
+            1-d tensor of size 3
     """
     d = look_at - position
     d = d / torch.norm(d)

@@ -6,7 +6,25 @@ import skimage.io
 import torch
 import os
 
-def imwrite(img, filename, gamma = 2.2, normalize = False):
+def imwrite(img: torch.Tensor,
+            filename: str,
+            gamma: float = 2.2,
+            normalize: bool = False):
+    """
+        write img to filename
+
+        Args
+        ====
+        img: torch.Tensor
+        
+        filename: str
+
+        gamma: float
+            if the image is not an OpenEXR file, apply gamma correction
+        normalize:
+            normalize img to the range [0, 1] before writing
+    """
+
     directory = os.path.dirname(filename)
     if directory != '' and not os.path.exists(directory):
         os.makedirs(directory)
@@ -37,7 +55,24 @@ def imwrite(img, filename, gamma = 2.2, normalize = False):
         skimage.io.imsave(filename,
             (np.power(np.clip(img, 0.0, 1.0), 1.0/gamma) * 255).astype(np.uint8))
 
-def imread(filename, gamma = 2.2):
+def imread(filename: str,
+           gamma: float = 2.2):
+    """
+        read img from filename
+
+        Args
+        ====
+        filename: str
+
+        gamma: float
+            if the image is not an OpenEXR file, apply gamma correction
+
+        Returns
+        =======
+        torch.Tensor
+            a float32 tensor with size [height, width, channel]
+    """
+
     if (filename[-4:] == '.exr'):
         file = OpenEXR.InputFile(filename)
         dw = file.header()['dataWindow']

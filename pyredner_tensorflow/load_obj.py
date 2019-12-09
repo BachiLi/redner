@@ -59,22 +59,35 @@ def load_mtl(filename):
         mtllib[current_mtl.name] = current_mtl
     return mtllib
 
-def load_obj(filename,
-             obj_group = True,
-             flip_tex_coords = True,
-             use_common_indices = False,
-             return_objects = False):
+def load_obj(filename: str,
+             obj_group: bool = True,
+             flip_tex_coords: bool = True,
+             use_common_indices: bool = False,
+             return_objects: bool = False):
     """
         Load from a Wavefront obj file as PyTorch tensors.
-        XXX: this is slow, maybe move to C++?
 
-        Args: obj_group -- split the meshes based on materials
-              flip_tex_coords -- flip the v coordinate of uv by applying v' = 1 - v
-              use_common_indices -- use the same indices for position, uvs, normals.
-                                    Not recommended since texture seams in the objects sharing
-                                    the same positions would cause the optimization to "tear" the object.
-              return_objects -- output list of Object instead. If there is no corresponding material for a shape,
-                                assign a grey material.
+        Args
+        ====
+        obj_group: bool
+            split the meshes based on materials
+        flip_tex_coords: bool
+            flip the v coordinate of uv by applying v' = 1 - v
+        use_common_indices: bool
+            Use the same indices for position, uvs, normals.
+            Not recommended since texture seams in the objects sharing
+            the same positions would cause the optimization to "tear" the object
+        return_objects: bool
+            Output list of Object instead.
+            If there is no corresponding material for a shape, assign a grey material.
+
+        Returns
+        =======
+        if return_objects == True, return a list of Object
+        if return_objects == False, return (material_map, mesh_list, light_map),
+        material_map -> Map[mtl_name, WavefrontMaterial]
+        mesh_list -> List[TriangleMesh]
+        light_map -> Map[mtl_name, torch.Tensor]
     """
     vertices_pool = []
     uvs_pool = []

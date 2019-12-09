@@ -13,27 +13,15 @@ def normalize(v):
     return v / tf.norm(v)
 
 def gen_look_at_matrix(pos, look, up):
-    """
-    NOTE: torch version returned the contiguous tensor. Which is basically a hard
-    copy of the transposed tensor. Without contiguous it's pointing to the same 
-    tensor as the argument. In Tensorflow, it returns a copy
-
-    About torch.contiguous(): https://stackoverflow.com/a/52229694
-    About torch.transpose(): https://pytorch.org/docs/stable/torch.html?highlight=transpose#torch.transpose
-
-    The PyTorch docs says, "The resulting out tensor shares it’s underlying 
-    storage with the input tensor, so changing the content of one would change 
-    the content of the other."
-    """
     d = normalize(look - pos)
     right = normalize(tf.linalg.cross(d, normalize(up)))
     new_up = normalize(tf.linalg.cross(right, d))
     z = tf.constant(np.zeros([1]), dtype=tf.float32)
     o = tf.convert_to_tensor(np.ones([1], dtype=np.float32), dtype=tf.float32)
     return tf.transpose(tf.stack([tf.concat([right , z], 0),
-                                        tf.concat([new_up, z], 0),
-                                        tf.concat([d     , z], 0),
-                                        tf.concat([pos   , o], 0)]))
+                                  tf.concat([new_up, z], 0),
+                                  tf.concat([d     , z], 0),
+                                  tf.concat([pos   , o], 0)]))
 
 def gen_scale_matrix(scale):
     o = tf.convert_to_tensor(np.ones([1], dtype=np.float32), dtype=tf.float32)
@@ -58,11 +46,18 @@ def gen_perspective_matrix(fov, clip_near, clip_far):
                      tf.concat([  z,   z,             o,                       z], 0)])
 
 def gen_rotate_matrix(angles:tf.Tensor) -> tf.Tensor:
-    '''
-    Args:
-        angles: vector of length 3
-         
-    '''
+    """
+        Given a 3D Euler angle vector, outputs a rotation matrix.
+
+        Args
+        ====
+            angles: torch.Tensor
+                3D Euler angle
+
+        Returns
+        =======
+            3x3 torch.Tensor
+    """
     theta = angles[0]
     phi = angles[1]
     psi = angles[2]

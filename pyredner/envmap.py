@@ -1,10 +1,22 @@
 import pyredner
 import torch
 import math
+from typing import Union
 
 class EnvironmentMap:
+    """
+        A class representing light sources infinitely far away using an image.
+
+        Args
+        ----------
+        values: Union[torch.Tensor, pyredner.Texture]
+            a float32 tensor with size 3 or [height, width, 3] or a Texture
+        env_to_world: torch.Tensor
+            a float32 4x4 matrix that transforms the environment map
+    """
+
     def __init__(self,
-                 values: torch.Tensor,
+                 values: Union[torch.Tensor, pyredner.Texture],
                  env_to_world: torch.Tensor = torch.eye(4, 4)):
         # Convert to constant texture if necessary
         if isinstance(values, torch.Tensor):

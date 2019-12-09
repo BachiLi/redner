@@ -7,7 +7,16 @@ class Scene:
         A scene is a collection of camera, geometry, materials, and light.
         Currently there are two ways to construct a scene: one is through
         lists of Shape, Material, and AreaLight. The other one is through
-        a list of Object.
+        a list of Object. It is more recommended to use the Object construction.
+        The Shape/Material/AreaLight options are here for legacy issue.
+
+        Args
+        ====
+            shapes: List[pyredner.Shape] = [],
+            materials: List[pyredner.Material] = [],
+            area_lights: List[pyredner.AreaLight] = [],
+            objects: Optional[List[pyredner.Object]] = None,
+            envmap: Optional[pyredner.EnvironmentMap] = None
     """
     def __init__(self,
                  camera: pyredner.Camera,

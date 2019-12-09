@@ -26,3 +26,4 @@ dockerfiles/dependencies/
 redner.egg-info
 dist
 log.txt
+docs/build

@@ -1,9 +1,22 @@
 import torch
 import pyredner
+from typing import Union
 
-def save_obj(shape,
-             filename,
+def save_obj(shape: Union[pyredner.Object, pyredner.Shape],
+             filename: str,
              flip_tex_coords = True):
+    """
+        Save to a Wavefront obj file from an Object or a Shape.
+
+        Args
+        ====
+        shape: Union[pyredner.Object, pyredner.Shape]
+
+        filename: str
+
+        flip_tex_coords: bool
+            flip the v coordinate of uv by applying v' = 1 - v
+    """
     with open(filename, 'w') as f:
         vertices = shape.vertices.cpu()
         uvs = shape.uvs.cpu() if shape.uvs is not None else None
