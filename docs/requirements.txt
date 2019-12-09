@@ -1,4 +1,3 @@
---find-links http://example.com/private-packages/
-scikit-image
-torch==1.3.1+cpu
-redner
+sphinx
+sphinx-autoapi
+sphinx-rtd-theme
