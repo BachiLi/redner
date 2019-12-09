@@ -1,112 +1,19 @@
-redner pytorch module documentation
-==========================================
+redner: Differentiable rendering without approximation.
+=======================================================
 
-For tutorials see https://github.com/BachiLi/redner/wiki
+redner is a differentiable renderer that can take the derivatives of rendering output with respect to arbitrary scene parameters, that is, you can backpropagate from the image to your 3D scene. One of the major usages of redner is inverse rendering (hence the name redner) through gradient descent. What sets redner apart are: 1) it computes correct rendering gradients stochastically without any approximation and 2) it has a physically-based mode -- which means it can simulate photons and produce realistic lighting phenomena, such as shadow and global illumination, and it handles the derivatives of these features correctly. You can also use redner in a fast deferred rendering mode for local shading: in this mode it still has correct gradient estimation and more elaborate material models compared to most differentiable renderers out there.
 
-Camera
-==========================================
-.. autoclass:: pyredner.Camera
-    :members:
+| For tutorials see https://github.com/BachiLi/redner/wiki
+| For the theory of redner see https://people.csail.mit.edu/tzumao/diffrt/
+  and Tzu-Mao Li's `PhD thesis <https://people.csail.mit.edu/tzumao/phdthesis/phdthesis.pdf>`_.
 
-Material
-==========================================
-.. autoclass:: pyredner.Material
-    :members:
-
-EnvironmentMap
-==========================================
-.. autoclass:: pyredner.EnvironmentMap
-    :members:
-
-Texture
-==========================================
-.. autoclass:: pyredner.Texture
-    :members:
-
-Object
-==========================================
-.. autoclass:: pyredner.Object
-    :members:
-
-Scene
-==========================================
-.. autoclass:: pyredner.Scene
-    :members:
-
-DeferredLight
-==========================================
-.. autoclass:: pyredner.DeferredLight
-    :members:
-
-AmbientLight
-==========================================
-.. autoclass:: pyredner.AmbientLight
-    :members:
-
-PointLight
-==========================================
-.. autoclass:: pyredner.PointLight
-    :members:
-
-DirectionalLight
-==========================================
-.. autoclass:: pyredner.DirectionalLight
-    :members:
-
-SpotLight
-==========================================
-.. autoclass:: pyredner.SpotLight
-    :members:
-
-Rendering
-==========================================
-.. autofunction:: pyredner.render_albedo
-
-.. autofunction:: pyredner.render_deferred
-
-.. autofunction:: pyredner.render_g_buffer
-
-.. autofunction:: pyredner.render_pathtracing
-
-automatic_camera_placement
-==========================================
-.. autofunction:: pyredner.automatic_camera_placement
-
-device
-==========================================
-.. autofunction:: pyredner.set_device
-
-.. autofunction:: pyredner.get_device
-
-image writing/reading
-==========================================
-.. autofunction:: pyredner.imwrite
-
-.. autofunction:: pyredner.imread
-
-scene loading
-==========================================
-.. autofunction:: pyredner.load_mitsuba
-
-.. autofunction:: pyredner.load_obj
-
-.. autofunction:: pyredner.save_obj
-
-gen_rotate_matrix
-==========================================
-.. autofunction:: pyredner.gen_rotate_matrix
-
-generate_sphere
-==========================================
-.. autofunction:: pyredner.generate_sphere
-
-generate_quad_light
-==========================================
-.. autofunction:: pyredner.generate_quad_light
 
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
+
+   pyredner
+   pyredner_tensorflow
 
 Indices and tables
 ==================

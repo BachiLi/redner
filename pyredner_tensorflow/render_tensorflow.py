@@ -11,13 +11,13 @@ __EMPTY_TENSOR = tf.constant([])
 use_correlated_random_number = False
 def set_use_correlated_random_number(v: bool):
     """
-        There is a bias-variance trade off in the backward pass.
-        If the forward pass and the backward pass are correlated
-        the gradients are biased for L2 loss.
-        (E[d/dx(f(x) - y)^2] = E[(f(x) - y) d/dx f(x)])
-                             = E[f(x) - y] E[d/dx f(x)]
-        The last equation only holds when f(x) and d/dx f(x) are independent.
-        It is usually better to use the unbiased one, but we left it as an option here
+        | There is a bias-variance trade off in the backward pass.
+        | If the forward pass and the backward pass are correlated
+        | the gradients are biased for L2 loss.
+        | (E[d/dx(f(x) - y)^2] = E[(f(x) - y) d/dx f(x)])
+        |                      = E[f(x) - y] E[d/dx f(x)]
+        | The last equation only holds when f(x) and d/dx f(x) are independent.
+        | It is usually better to use the unbiased one, but we left it as an option here
     """
     global use_correlated_random_number
     use_correlated_random_number = v
@@ -68,31 +68,30 @@ def serialize_scene(scene: pyredner.Scene,
             number of bounces for global illumination
             1 means direct lighting only
         channels: List[redner.channels]
-            a list of channels that should present in the output image
-            following channels are supported:
-                redner.channels.radiance,
-                redner.channels.alpha,
-                redner.channels.depth,
-                redner.channels.position,
-                redner.channels.geometry_normal,
-                redner.channels.shading_normal,
-                redner.channels.uv,
-                redner.channels.diffuse_reflectance,
-                redner.channels.specular_reflectance,
-                redner.channels.vertex_color,
-                redner.channels.roughness,
-                redner.channels.generic_texture,
-                redner.channels.shape_id,
-                redner.channels.material_id
-            all channels, except for shape id and material id, are differentiable
+            | A list of channels that should present in the output image
+            | following channels are supported\:
+            | redner.channels.radiance,
+            | redner.channels.alpha,
+            | redner.channels.depth,
+            | redner.channels.position,
+            | redner.channels.geometry_normal,
+            | redner.channels.shading_normal,
+            | redner.channels.uv,
+            | redner.channels.diffuse_reflectance,
+            | redner.channels.specular_reflectance,
+            | redner.channels.vertex_color,
+            | redner.channels.roughness,
+            | redner.channels.generic_texture,
+            | redner.channels.shape_id,
+            | redner.channels.material_id
+            | all channels, except for shape id and material id, are differentiable
         sampler_type: redner.SamplerType
-            which sampling pattern to use?
-            see Chapter 7 of the PBRT book for an explanation of the difference
-            between different samplers.
-            http://www.pbr-book.org/3ed-2018/Sampling_and_Reconstruction.html
-            following samplers are supported:
-                redner.SamplerType.independent
-                redner.SamplerType.sobol
+            | Which sampling pattern to use?
+            | see `Chapter 7 of the PBRT book <http://www.pbr-book.org/3ed-2018/Sampling_and_Reconstruction.html>`
+              for an explanation of the difference between different samplers.
+            | Following samplers are supported:
+            | redner.SamplerType.independent
+            | redner.SamplerType.sobol
         use_primary_edge_sampling: bool
 
         use_secondary_edge_sampling: bool

@@ -210,24 +210,24 @@ def render_g_buffer(scene: pyredner.Scene,
         scene: pyredner.Scene
             pyredner Scene containing camera, geometry, material, and lighting
         channels: List[pyredner.channels]
-            a list of the following channels --
-                pyredner.channels.alpha
-                pyredner.channels.depth
-                pyredner.channels.position
-                pyredner.channels.geometry_normal
-                pyredner.channels.shading_normal
-                pyredner.channels.uv
-                pyredner.channels.diffuse_reflectance
-                pyredner.channels.specular_reflectance
-                pyredner.channels.roughness
-                pyredner.channels.generic_texture
-                pyredner.channels.vertex_color
-                pyredner.channels.shape_id
-                pyredner.channels.material_id
+            | A list of the following channels\:
+            | pyredner.channels.alpha
+            | pyredner.channels.depth
+            | pyredner.channels.position
+            | pyredner.channels.geometry_normal
+            | pyredner.channels.shading_normal
+            | pyredner.channels.uv
+            | pyredner.channels.diffuse_reflectance
+            | pyredner.channels.specular_reflectance
+            | pyredner.channels.roughness
+            | pyredner.channels.generic_texture
+            | pyredner.channels.vertex_color
+            | pyredner.channels.shape_id
+            | pyredner.channels.material_id
         num_samples: Union[int, Tuple[int, int]]
-            number of samples for forward and backward passes, respectively
-            if a single integer is provided, use the same number of samples
-            for both
+            Number of samples for forward and backward passes, respectively.
+            If a single integer is provided, use the same number of samples
+            for both.
         seed: Optional[int]
             Random seed used for sampling. Randomly assigned if set to None.
     """
@@ -256,19 +256,17 @@ def render_pathtracing(scene: pyredner.Scene,
         scene: pyredner.Scene
             pyredner Scene containing camera, geometry, material, and lighting
         max_bounces: int
-            number of bounces for global illumination
-            1 means direct lighting only
+            Number of bounces for global illumination, 1 means direct lighting only.
         num_samples: int
-            number of samples per pixel for forward and backward passes
-            can be an integer or a tuple of 2 integers
+            Number of samples per pixel for forward and backward passes.
+            Can be an integer or a tuple of 2 integers.
         sampler_type: pyredner.sampler_type
-            which sampling pattern to use?
-            see Chapter 7 of the PBRT book for an explanation of the
-            difference between different samplers.
-            http://www.pbr-book.org/3ed-2018/Sampling_and_Reconstruction.html
-            Following samplers are supported:
-                pyredner.sampler_type.independent
-                pyredner.sampler_type.sobol
+            | Which sampling pattern to use? See 
+              `Chapter 7 of the PBRT book <http://www.pbr-book.org/3ed-2018/Sampling_and_Reconstruction.html>`_
+              for an explanation of the difference between different samplers.
+            | Following samplers are supported\:
+            | pyredner.sampler_type.independent
+            | pyredner.sampler_type.sobol
     """
     if seed==None:
         seed = random.randint(0, 16777216)

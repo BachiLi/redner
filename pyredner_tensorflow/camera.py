@@ -21,7 +21,7 @@ class Camera:
                 the point camera is looking at, 1-d tensor with size 3 and type float32
             up: Optional[tf.tensor]
                 the up vector of the camera, 1-d tensor with size 3 and type float32
-            fov: Optional[tf.Tensor]:
+            fov: Optional[tf.Tensor]
                 the field of view of the camera in angle
                 no effect if the camera is a fisheye or panorama camera
                 1-d tensor with size 1 and type float32

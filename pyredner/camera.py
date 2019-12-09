@@ -19,7 +19,7 @@ class Camera:
                 the point camera is looking at, 1-d tensor with size 3 and type float32
             up: Optional[torch.tensor]
                 the up vector of the camera, 1-d tensor with size 3 and type float32
-            fov: Optional[torch.Tensor]:
+            fov: Optional[torch.Tensor]
                 the field of view of the camera in angle
                 no effect if the camera is a fisheye or panorama camera
                 1-d tensor with size 1 and type float32
