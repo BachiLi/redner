@@ -6,6 +6,7 @@ import time
 import weakref
 import os
 from typing import List, Union, Tuple
+from .redner_enum_wrapper import RednerCameraType, RednerSamplerType, RednerChannels
 
 __EMPTY_TENSOR = tf.constant([])
 use_correlated_random_number = False
@@ -129,7 +130,7 @@ def serialize_scene(scene: pyredner.Scene,
         args.append(tf.identity(cam.intrinsic_mat))
     args.append(tf.constant(cam.clip_near))
     args.append(tf.constant(cam.resolution))
-    args.append(pyredner.RednerCameraType.asTensor(cam.camera_type))
+    args.append(RednerCameraType.asTensor(cam.camera_type))
     for shape in scene.shapes:
         with tf.device(pyredner.get_device_name()):
             args.append(tf.identity(shape.vertices))
@@ -208,9 +209,9 @@ def serialize_scene(scene: pyredner.Scene,
     args.append(tf.constant(max_bounces))
     args.append(tf.constant(num_channels))
     for ch in channels:
-        args.append(pyredner.RednerChannels.asTensor(ch))
+        args.append(RednerChannels.asTensor(ch))
 
-    args.append(pyredner.RednerSamplerType.asTensor(sampler_type))
+    args.append(RednerSamplerType.asTensor(sampler_type))
     args.append(tf.constant(use_primary_edge_sampling))
     args.append(tf.constant(use_secondary_edge_sampling))
     return args
@@ -249,7 +250,7 @@ def forward(seed:int, *args):
     current_index += 1
     resolution = args[current_index].numpy() # Tuple[int, int]
     current_index += 1
-    camera_type = pyredner.RednerCameraType.asCameraType(args[current_index]) # FIXME: Map to custom type
+    camera_type = RednerCameraType.asCameraType(args[current_index]) # FIXME: Map to custom type
     current_index += 1
 
     with tf.device('/device:cpu:' + str(pyredner.get_cpu_device_id())):
@@ -496,12 +497,12 @@ def forward(seed:int, *args):
     channels = []
     for _ in range(__num_channels):
         ch = args[current_index]
-        ch = pyredner.RednerChannels.asChannel(ch)
+        ch = RednerChannels.asChannel(ch)
         channels.append(ch)
         current_index += 1
 
     sampler_type = args[current_index]
-    sampler_type = pyredner.RednerSamplerType.asSamplerType(sampler_type)
+    sampler_type = RednerSamplerType.asSamplerType(sampler_type)
     current_index += 1
 
     use_primary_edge_sampling = args[current_index]

@@ -25,7 +25,7 @@ def gen_look_at_matrix(pos, look, up):
 
 def gen_scale_matrix(scale):
     o = tf.convert_to_tensor(np.ones([1], dtype=np.float32), dtype=tf.float32)
-    return tf.diag(tf.concat([scale, o], 0))
+    return tf.linalg.tensor_diag(tf.concat([scale, o], 0))
 
 def gen_translate_matrix(translate):
     z = tf.constant(np.zeros([1]), dtype=tf.float32)

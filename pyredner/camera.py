@@ -2,6 +2,7 @@ import torch
 import pyredner.transform as transform
 import redner
 import math
+import pyredner
 from typing import Tuple, Optional, List
 
 class Camera:
@@ -57,7 +58,7 @@ class Camera:
                  resolution: Tuple[int, int] = (256, 256),
                  cam_to_world: Optional[torch.Tensor] = None,
                  intrinsic_mat: Optional[torch.Tensor] = None,
-                 camera_type = redner.CameraType.perspective,
+                 camera_type = pyredner.camera_type.perspective,
                  fisheye: bool = False):
         if position is not None:
             assert(position.dtype == torch.float32)
@@ -99,7 +100,7 @@ class Camera:
         self.resolution = resolution
         self.camera_type = camera_type
         if fisheye:
-            self.camera_type = redner.camera_type.fisheye
+            self.camera_type = pyredner.camera_type.fisheye
 
     @property
     def fov(self):
@@ -120,8 +121,12 @@ class Camera:
 
     @intrinsic_mat.setter
     def intrinsic_mat(self, value):
-        self._intrinsic_mat = value
-        self.intrinsic_mat_inv = torch.inverse(self._intrinsic_mat).contiguous()
+        if value is not None:
+            self._intrinsic_mat = value
+            self.intrinsic_mat_inv = torch.inverse(self._intrinsic_mat).contiguous()
+        else:
+            assert(self.fov is not None)
+            self.fov = self._fov
 
     @property
     def cam_to_world(self):
@@ -129,8 +134,12 @@ class Camera:
 
     @cam_to_world.setter
     def cam_to_world(self, value):
-        self._cam_to_world = value
-        self.world_to_cam = torch.inverse(self.cam_to_world).contiguous()
+        if value is not None:
+            self._cam_to_world = value
+            self.world_to_cam = torch.inverse(self.cam_to_world).contiguous()
+        else:
+            self._cam_to_world = None
+            self.world_to_cam = None
 
     def state_dict(self):
         return {
@@ -162,17 +171,22 @@ class Camera:
 def automatic_camera_placement(shapes: List,
                                resolution: Tuple[int, int]):
     """
-        Given a list of shapes, generates camera parameters automatically
+        Given a list of objects or shapes, generates camera parameters automatically
         using the bounding boxes of the shapes. Place the camera at
         some distances from the shapes, so that it can see all of them.
         Inspired by https://github.com/mitsuba-renderer/mitsuba/blob/master/src/librender/scene.cpp#L286
 
         Parameters
-        ----------
+        ==========
         shapes: List
             a list of redner Shape or Object
         resolution: Tuple[int, int]
             the size of the output image in (height, width)
+
+        Returns
+        =======
+        pyredner.Camera
+            a camera that can see all the objects.
     """
     aabb_min = torch.tensor((float('inf'), float('inf'), float('inf')))
     aabb_max = -torch.tensor((float('inf'), float('inf'), float('inf')))
@@ -194,3 +208,39 @@ def automatic_camera_placement(shapes: List,
                   fov = torch.tensor([45.0]),
                   clip_near = 0.001 * float(distance),
                   resolution = resolution)
+
+def generate_intrinsic_mat(fx: torch.Tensor,
+                           fy: torch.Tensor,
+                           skew: torch.Tensor,
+                           x0: torch.Tensor,
+                           y0: torch.Tensor):
+    """
+        Generate the following 3x3 intrinsic matrix given the parameters.
+        fx, skew, x0
+         0,   fy, y0
+         0,    0,  1
+
+        Parameters
+        ==========
+        fx: torch.Tensor
+            Focal length at x dimension. 1D tensor with size 1.
+        fy: torch.Tensor
+            Focal length at y dimension. 1D tensor with size 1.
+        skew: torch.Tensor
+            Axis skew parameter describing shearing transform. 1D tensor with size 1.
+        x0: torch.Tensor
+            Principle point offset at x dimension. 1D tensor with size 1.
+        y0: torch.Tensor
+            Principle point offset at y dimension. 1D tensor with size 1.
+
+        Returns
+        =======
+        torch.Tensor
+            3x3 intrinsic matrix
+    """
+    z = torch.zeros_like(fx)
+    o = torch.ones_like(fx)
+    row0 = torch.cat([fx, skew, x0])
+    row1 = torch.cat([ z,   fy, y0])
+    row2 = torch.cat([ z,    z,  o])
+    return torch.stack([row0, row1, row2]).contiguous()

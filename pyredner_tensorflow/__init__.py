@@ -1,6 +1,7 @@
 import numpy as np
 import tensorflow as tf
 from .device import *
+from .camera_type import *
 from .camera import *
 from .shape import *
 from .texture import *
@@ -12,7 +13,7 @@ from .scene import *
 from .image import *
 from .load_obj import load_obj
 from .load_mitsuba import load_mitsuba
-from .transform import gen_rotate_matrix
+from .transform import *
 from .utils import *
 from .channels import *
 from .sampler_type import *
