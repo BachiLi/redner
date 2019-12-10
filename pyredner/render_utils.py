@@ -26,6 +26,12 @@ def render_albedo(scene: pyredner.Scene,
             for both
         seed: Optional[int]
             Random seed used for sampling. Randomly assigned if set to None.
+
+        Returns
+        =======
+        torch.Tensor
+            if alpha == True, a tensor with size [H, W, 4],
+            else, a tensor with size [H, W, 3]
     """
     if seed==None:
         seed = random.randint(0, 16777216)
@@ -162,6 +168,12 @@ def render_deferred(scene: pyredner.Scene,
             (e.g. if aa_samples=2, 4 samples are used).
         seed: Optional[int]:
             Random seed used for sampling. Randomly assigned if set to None.
+
+        Returns
+        =======
+        torch.Tensor
+            if alpha == True, a tensor with size [H, W, 4],
+            else, a tensor with size [H, W, 3]
     """
     if seed==None:
         seed = random.randint(0, 16777216)
@@ -231,6 +243,11 @@ def render_g_buffer(scene: pyredner.Scene,
             for both.
         seed: Optional[int]
             Random seed used for sampling. Randomly assigned if set to None.
+
+        Returns
+        =======
+        torch.Tensor
+            a tensor with size [H, W, C]
     """
     if seed==None:
         seed = random.randint(0, 16777216)
@@ -268,6 +285,12 @@ def render_pathtracing(scene: pyredner.Scene,
             | Following samplers are supported\:
             | pyredner.sampler_type.independent
             | pyredner.sampler_type.sobol
+
+        Returns
+        =======
+        torch.Tensor
+            if alpha == True, a tensor with size [H, W, 4],
+            else, a tensor with size [H, W, 3]
     """
     if seed==None:
         seed = random.randint(0, 16777216)

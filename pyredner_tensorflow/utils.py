@@ -59,7 +59,8 @@ def SH_reconstruct(coeffs, res):
     return result
 #######################################################################################
 
-def generate_sphere(theta_steps, phi_steps):
+def generate_sphere(theta_steps: int,
+                    phi_steps: int):
     """
         Generate a triangle mesh representing a sphere, center at (0, 0, 0) with radius 1.
 
@@ -72,7 +73,14 @@ def generate_sphere(theta_steps, phi_steps):
 
         Returns
         =======
-        (vertices, indices, uvs, normals)
+        tf.Tensor
+            vertices
+        tf.Tensor
+            indices
+        tf.Tensor
+            uvs
+        tf.Tensor
+            normals
     """
     d_theta = math.pi / (theta_steps - 1)
     d_phi = (2 * math.pi) / (phi_steps - 1)
@@ -120,18 +128,23 @@ def generate_quad_light(position: tf.Tensor,
                         size: tf.Tensor,
                         intensity: tf.Tensor):
     """
-        Generate a redner Object that is a quad light source.
+        Generate a pyredner.Object that is a quad light source.
 
         Args
         ====
-        position: torch.Tensor
+        position: tf.Tensor
             1-d tensor of size 3
-        look_at: torch.Tensor
+        look_at: tf.Tensor
             1-d tensor of size 3
-        size: torch.Tensor
+        size: tf.Tensor
             1-d tensor of size 2
-        intensity: torch.Tensor
+        intensity: tf.Tensor
             1-d tensor of size 3
+
+        Returns
+        =======
+        pyredner.Object
+            quad light source
     """
     d = look_at - position
     d = d / tf.norm(d)

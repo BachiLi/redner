@@ -52,7 +52,8 @@ def gen_rotate_matrix(angles: torch.Tensor):
 
         Returns
         =======
-            3x3 torch.Tensor
+            torch.Tensor
+                3x3 rotation matrix
     """
 
     theta = angles[0]

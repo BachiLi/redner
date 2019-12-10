@@ -1,26 +1,28 @@
-from typing import Optional
 import pyredner_tensorflow as pyredner
 import tensorflow as tf
 import math
 import numpy as np
+from typing import Optional
 
-def compute_vertex_normal(vertices, indices):
+def compute_vertex_normal(vertices: tf.Tensor,
+                          indices: tf.Tensor):
     """
-        Compute vertex normal by weighted average of nearby face normals using Nelson Max's algorithm
-        See Nelson Max, "Weights for Computing Vertex Normals from Facet Vectors", 1999
+        Compute vertex normal by weighted average of nearby face normals using Nelson Max's algorithm.
+        See `Weights for Computing Vertex Normals from Facet Vectors <https://escholarship.org/content/qt7657d8h3/qt7657d8h3.pdf?t=ptt283>`_.
 
         Args
         ====
-        vertices: torch.Tensor
+        vertices: tf.Tensor
             3D position of vertices
             float32 tensor with size num_vertices x 3
-        indices: torch.Tensor
+        indices: tf.Tensor
             vertex indices of triangle faces.
             int32 tensor with size num_triangles x 3
 
         Returns
         =======
-        float32 Tensor with size num_vertices x 3
+        tf.Tensor
+            per-vertex normal, float32 Tensor with size num_vertices x 3
     """
 
     def dot(v1, v2):
@@ -80,22 +82,23 @@ def compute_vertex_normal(vertices, indices):
 def compute_uvs(vertices, indices, print_progress = True):
     """
         Compute UV coordinates of a given mesh using a charting algorithm
-        with least square conformal mapping. This calls the xatlas library
-        https://github.com/jpcy/xatlas
+        with least square conformal mapping. This calls the `xatlas <https://github.com/jpcy/xatlas>`_ library.
 
         Args
         ====
-        vertices: torch.Tensor
+        vertices: tf.Tensor
             3D position of vertices
             float32 tensor with size num_vertices x 3
-        indices: torch.Tensor
+        indices: tf.Tensor
             vertex indices of triangle faces.
             int32 tensor with size num_triangles x 3
 
         Returns
         =======
-        float32 Tensor with size num_uv_vertices x 3
-        int32 Tensor with size num_triangles x 3
+        tf.Tensor
+            uv vertices pool, float32 Tensor with size num_uv_vertices x 3
+        tf.Tensor
+            uv indices, int32 Tensor with size num_triangles x 3
     """
     with tf.device('/device:cpu:' + str(pyredner.get_cpu_device_id())):
         vertices = tf.identity(vertices)

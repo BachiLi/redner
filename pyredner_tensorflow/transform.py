@@ -45,7 +45,7 @@ def gen_perspective_matrix(fov, clip_near, clip_far):
                      tf.concat([  z,   z, 1 / clip_dist, - clip_near / clip_dist], 0),
                      tf.concat([  z,   z,             o,                       z], 0)])
 
-def gen_rotate_matrix(angles:tf.Tensor) -> tf.Tensor:
+def gen_rotate_matrix(angles: tf.Tensor) -> tf.Tensor:
     """
         Given a 3D Euler angle vector, outputs a rotation matrix.
 
@@ -56,7 +56,8 @@ def gen_rotate_matrix(angles:tf.Tensor) -> tf.Tensor:
 
         Returns
         =======
-            3x3 torch.Tensor
+            tf.Tensor
+                3x3 rotation matrix
     """
     theta = angles[0]
     phi = angles[1]

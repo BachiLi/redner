@@ -12,8 +12,8 @@ def set_use_correlated_random_number(v: bool):
         | There is a bias-variance trade off in the backward pass.
         | If the forward pass and the backward pass are correlated
         | the gradients are biased for L2 loss.
-        | (E[d/dx(f(x) - y)^2] = E[(f(x) - y) d/dx f(x)])
-        |                      = E[f(x) - y] E[d/dx f(x)]
+        | E[d/dx(f(x) - y)^2] = E[(f(x) - y) d/dx f(x)]
+        |                     = E[f(x) - y] E[d/dx f(x)]
         | The last equation only holds when f(x) and d/dx f(x) are independent.
         | It is usually better to use the unbiased one, but we left it as an option here
     """

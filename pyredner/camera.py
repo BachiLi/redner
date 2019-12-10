@@ -13,41 +13,41 @@ class Camera:
         take an intrinsic matrix that models field of view and camera skew.
 
         Args
-        ----------
-            position: Optional[torch.Tensor]
-                the origin of the camera, 1-d tensor with size 3 and type float32
-            look_at: Optional[torch.Tensor]
-                the point camera is looking at, 1-d tensor with size 3 and type float32
-            up: Optional[torch.tensor]
-                the up vector of the camera, 1-d tensor with size 3 and type float32
-            fov: Optional[torch.Tensor]
-                the field of view of the camera in angle
-                no effect if the camera is a fisheye or panorama camera
-                1-d tensor with size 1 and type float32
-            clip_near: float
-                the near clipping plane of the camera, need to > 0
-            resolution: Tuple[int, int]
-                the size of the output image in (height, width)
-            cam_to_world: Optional[torch.Tensor]
-                overrides position, look_at, up vectors
-                4x4 matrix, optional
-            intrinsic_mat: Optional[torch.Tensor]
-                a matrix that transforms a point in camera space before the point
-                is projected to 2D screen space
-                used for modelling field of view and camera skewing
-                after the multiplication the point should be in
-                [-1, 1/aspect_ratio] x [1, -1/aspect_ratio] in homogeneous coordinates
-                the projection is then carried by the specific camera types
-                perspective camera normalizes the homogeneous coordinates
-                while orthogonal camera drop the Z coordinate.
-                ignored by fisheye or panorama cameras
-                overrides fov
-                3x3 matrix, optional
-            camera_type: render.camera_type
-                the type of the camera (perspective, orthographic, or fisheye)
-            fisheye: bool
-                whether the camera is a fisheye camera
-                (legacy parameter just to ensure compatibility).
+        ====
+        position: Optional[torch.Tensor]
+            the origin of the camera, 1-d tensor with size 3 and type float32
+        look_at: Optional[torch.Tensor]
+            the point camera is looking at, 1-d tensor with size 3 and type float32
+        up: Optional[torch.tensor]
+            the up vector of the camera, 1-d tensor with size 3 and type float32
+        fov: Optional[torch.Tensor]
+            the field of view of the camera in angle
+            no effect if the camera is a fisheye or panorama camera
+            1-d tensor with size 1 and type float32
+        clip_near: float
+            the near clipping plane of the camera, need to > 0
+        resolution: Tuple[int, int]
+            the size of the output image in (height, width)
+        cam_to_world: Optional[torch.Tensor]
+            overrides position, look_at, up vectors
+            4x4 matrix, optional
+        intrinsic_mat: Optional[torch.Tensor]
+            a matrix that transforms a point in camera space before the point
+            is projected to 2D screen space
+            used for modelling field of view and camera skewing
+            after the multiplication the point should be in
+            [-1, 1/aspect_ratio] x [1, -1/aspect_ratio] in homogeneous coordinates
+            the projection is then carried by the specific camera types
+            perspective camera normalizes the homogeneous coordinates
+            while orthogonal camera drop the Z coordinate.
+            ignored by fisheye or panorama cameras
+            overrides fov
+            3x3 matrix, optional
+        camera_type: render.camera_type
+            the type of the camera (perspective, orthographic, or fisheye)
+        fisheye: bool
+            whether the camera is a fisheye camera
+            (legacy parameter just to ensure compatibility).
     """
     def __init__(self,
                  position: Optional[torch.Tensor] = None,
@@ -215,10 +215,10 @@ def generate_intrinsic_mat(fx: torch.Tensor,
                            x0: torch.Tensor,
                            y0: torch.Tensor):
     """
-        Generate the following 3x3 intrinsic matrix given the parameters.
-        fx, skew, x0
-         0,   fy, y0
-         0,    0,  1
+        | Generate the following 3x3 intrinsic matrix given the parameters.
+        | fx, skew, x0
+        |  0,   fy, y0
+        |  0,    0,  1
 
         Parameters
         ==========

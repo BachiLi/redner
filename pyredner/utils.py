@@ -74,7 +74,14 @@ def generate_sphere(theta_steps: int,
 
         Returns
         =======
-        (vertices, indices, uvs, normals)
+        torch.Tensor
+            vertices
+        torch.Tensor
+            indices
+        torch.Tensor
+            uvs
+        torch.Tensor
+            normals
     """
 
     d_theta = math.pi / (theta_steps - 1)
@@ -122,7 +129,7 @@ def generate_quad_light(position: torch.Tensor,
                         size: torch.Tensor,
                         intensity: torch.Tensor):
     """
-        Generate a redner Object that is a quad light source.
+        Generate a pyredner.Object that is a quad light source.
 
         Args
         ====
@@ -134,6 +141,11 @@ def generate_quad_light(position: torch.Tensor,
             1-d tensor of size 2
         intensity: torch.Tensor
             1-d tensor of size 3
+
+        Returns
+        =======
+        pyredner.Object
+            quad light source
     """
     d = look_at - position
     d = d / torch.norm(d)

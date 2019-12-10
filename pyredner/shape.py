@@ -7,8 +7,8 @@ from typing import Optional
 def compute_vertex_normal(vertices: torch.Tensor,
                           indices: torch.Tensor):
     """
-        Compute vertex normal by weighted average of nearby face normals using Nelson Max's algorithm
-        See Nelson Max, "Weights for Computing Vertex Normals from Facet Vectors", 1999
+        Compute vertex normal by weighted average of nearby face normals using Nelson Max's algorithm.
+        See `Weights for Computing Vertex Normals from Facet Vectors <https://escholarship.org/content/qt7657d8h3/qt7657d8h3.pdf?t=ptt283>`_.
 
         Args
         ====
@@ -21,7 +21,8 @@ def compute_vertex_normal(vertices: torch.Tensor,
 
         Returns
         =======
-        float32 Tensor with size num_vertices x 3
+        tf.Tensor
+            float32 Tensor with size num_vertices x 3 representing vertex normal
     """
 
     def dot(v1, v2):
@@ -79,8 +80,7 @@ def compute_vertex_normal(vertices: torch.Tensor,
 def compute_uvs(vertices, indices, print_progress = True):
     """
         Compute UV coordinates of a given mesh using a charting algorithm
-        with least square conformal mapping. This calls the xatlas library
-        https://github.com/jpcy/xatlas
+        with least square conformal mapping. This calls the `xatlas <https://github.com/jpcy/xatlas>`_ library.
 
         Args
         ====
@@ -93,8 +93,10 @@ def compute_uvs(vertices, indices, print_progress = True):
 
         Returns
         =======
-        float32 Tensor with size num_uv_vertices x 3
-        int32 Tensor with size num_triangles x 3
+        torch.Tensor
+            uv vertices pool, float32 Tensor with size num_uv_vertices x 3
+        torch.Tensor
+            uv indices, int32 Tensor with size num_triangles x 3
     """
     vertices = vertices.cpu()
     indices = indices.cpu()

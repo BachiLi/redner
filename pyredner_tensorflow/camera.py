@@ -217,10 +217,10 @@ def generate_intrinsic_mat(fx: tf.Tensor,
                            x0: tf.Tensor,
                            y0: tf.Tensor):
     """
-        Generate the following 3x3 intrinsic matrix given the parameters.
-        fx, skew, x0
-         0,   fy, y0
-         0,    0,  1
+        | Generate the following 3x3 intrinsic matrix given the parameters.
+        | fx, skew, x0
+        |  0,   fy, y0
+        |  0,    0,  1
 
         Parameters
         ==========
