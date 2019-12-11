@@ -534,7 +534,6 @@ class RenderFunction(torch.autograd.Function):
         options = ctx.options
         camera = ctx.camera
 
-        print('CAMERA.USE_LOOK_AT:', camera.use_look_at)
         if camera.use_look_at:
             d_cam_position = torch.zeros(3, device = pyredner.get_device())
             d_cam_look = torch.zeros(3, device = pyredner.get_device())
