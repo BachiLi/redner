@@ -208,12 +208,9 @@ string( REPLACE "-DNDEBUG" "" CMAKE_C_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE}"
 string( REPLACE "/DNDEBUG" "" CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
 string( REPLACE "-DNDEBUG" "" CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
 
-# TODO: The tensorflow find script is currently broken for WIN32 (only?).
-#       If tensorflow is installed but not the developer libs, the script still reports
-#       that tensorflow SDK has been found.
-if(NOT WIN32)
-  find_package(TensorFlow)
-  if(TensorFlow_FOUND)
-      add_subdirectory(pyredner_tensorflow/custom_ops)
-  endif()
+find_package(TensorFlow)
+if(TensorFlow_FOUND)
+    add_subdirectory(pyredner_tensorflow/custom_ops)
+else()
+    message(INFO " Building without TensorFlow support (not found)")
 endif()
