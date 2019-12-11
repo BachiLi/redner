@@ -72,6 +72,8 @@ struct DCamera {
         : position(position.get()),
           look(look.get()),
           up(up.get()),
+          cam_to_world(cam_to_world.get()),
+          world_to_cam(world_to_cam.get()),
           intrinsic_mat_inv(intrinsic_mat_inv.get()),
           intrinsic_mat(intrinsic_mat.get()) {}
 
@@ -224,7 +226,7 @@ inline void d_sample_primary_ray(const Camera &camera,
                 atomic_add(d_camera.look, d_l);
                 atomic_add(d_camera.up, d_up);
             } else {
-                atomic_add(d_camera.cam_to_world, d_cam_to_world);
+                //atomic_add(d_camera.cam_to_world, d_cam_to_world);
             }
         } break;
         case CameraType::Orthographic: {

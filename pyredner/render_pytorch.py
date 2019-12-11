@@ -534,18 +534,19 @@ class RenderFunction(torch.autograd.Function):
         options = ctx.options
         camera = ctx.camera
 
+        print('CAMERA.USE_LOOK_AT:', camera.use_look_at)
         if camera.use_look_at:
             d_cam_position = torch.zeros(3, device = pyredner.get_device())
             d_cam_look = torch.zeros(3, device = pyredner.get_device())
             d_cam_up = torch.zeros(3, device = pyredner.get_device())
             d_cam_to_world = None
-            d_wolrd_to_cam = None
+            d_world_to_cam = None
         else:
             d_cam_position = None
             d_cam_look = None
             d_cam_up = None
             d_cam_to_world = torch.zeros(4, 4, device = pyredner.get_device())
-            d_wolrd_to_cam = torch.zeros(4, 4, device = pyredner.get_device())
+            d_world_to_cam = torch.zeros(4, 4, device = pyredner.get_device())
         d_intrinsic_mat_inv = torch.zeros(3, 3, device = pyredner.get_device())
         d_intrinsic_mat = torch.zeros(3, 3, device = pyredner.get_device())
         if camera.use_look_at:
@@ -561,7 +562,7 @@ class RenderFunction(torch.autograd.Function):
                                       redner.float_ptr(0), # look
                                       redner.float_ptr(0), # up
                                       redner.float_ptr(d_cam_to_world.data_ptr()),
-                                      redner.float_ptr(d_wolrd_to_cam.data_ptr()),
+                                      redner.float_ptr(d_world_to_cam.data_ptr()),
                                       redner.float_ptr(d_intrinsic_mat_inv.data_ptr()),
                                       redner.float_ptr(d_intrinsic_mat.data_ptr()))
         d_vertices_list = []
