@@ -226,7 +226,7 @@ inline void d_sample_primary_ray(const Camera &camera,
                 atomic_add(d_camera.look, d_l);
                 atomic_add(d_camera.up, d_up);
             } else {
-                //atomic_add(d_camera.cam_to_world, d_cam_to_world);
+                atomic_add(d_camera.cam_to_world, d_cam_to_world);
             }
         } break;
         case CameraType::Orthographic: {
