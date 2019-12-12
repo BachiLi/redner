@@ -21,8 +21,8 @@ otherwise (Linux and OS X):
 ```
 pip install redner
 ```
-No Windows support yet. Contributions are welcome.  
 You can also build from source. See the [wiki](https://github.com/BachiLi/redner/wiki/Installation) for building instructions.
+Preliminary windows support (CPU-only) made by [Markus Worchel](https://github.com/mworchel) can be accessed through building from source.
 
 ## Documentation
 
