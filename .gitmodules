@@ -10,3 +10,7 @@
 [submodule "redner-dependencies"]
 	path = redner-dependencies
 	url = https://github.com/BachiLi/redner-dependencies
+[submodule "pybind11"]
+	path = pybind11
+	url = https://github.com/pybind/pybind11.git
+	branch = v2.4

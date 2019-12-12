@@ -23,6 +23,17 @@
 #define M_PI 3.14159265358979323846
 #endif
 
+#if defined(__GNUC__) || defined(__clang__) || defined(__xlc__)
+#define USE_GCC_INTRINSICS
+#elif defined(_MSC_VER)
+#define USE_MSVC_INTRINSICS
+#include <intrin.h>
+// Define some MSVC replacements for the GCC intrinsics
+#define msvc_popcount(x) __popcnt(x)
+#define msvc_ffs(x) [](unsigned long mask){ unsigned long index; _BitScanReverse(&index, mask); return index + 1U; }(x)
+#define msvc_clzll(x) [](uint64_t mask){ unsigned long index; _BitScanReverse64(&index, mask); return sizeof(uint64_t) * 8U - (index + 1U); }(x)
+#endif
+
 #include <cstdint>
 #include <atomic>
 
@@ -111,8 +122,14 @@ inline int clz(uint64_t x) {
 #ifdef __CUDA_ARCH__
     return __clzll(x);
 #else
-    // TODO: use _BitScanReverse in windows
+  #if defined(USE_GCC_INTRINSICS)
     return x == 0 ? 64 : __builtin_clzll(x);
+  #elif defined(USE_MSVC_INTRINSICS)
+    return x == 0 ? 64 : msvc_clzll(x);
+  #else
+    assert(false);
+    return 64;
+  #endif
 #endif
 }
 
@@ -121,8 +138,14 @@ inline int ffs(uint8_t x) {
 #ifdef __CUDA_ARCH__
     return __ffs(x);
 #else
-    // TODO: use _BitScanReverse in windows
+  #if defined(USE_GCC_INTRINSICS)
     return __builtin_ffs(x);
+  #elif defined(USE_MSVC_INTRINSICS)
+    return msvc_ffs(x);
+  #else
+    assert(false);
+    return 0;
+  #endif
 #endif
 }
 
@@ -131,7 +154,13 @@ inline int popc(uint8_t x) {
 #ifdef __CUDA_ARCH__
     return __popc(x);
 #else
-    // TODO: use _popcnt in windows
-    return __builtin_popcount(x);
+  #if defined(USE_GCC_INTRINSICS)
+  return __builtin_popcount(x);
+  #elif defined(USE_MSVC_INTRINSICS)
+    return msvc_popcount(x);
+  #else
+    assert(false);
+    return 0;
+  #endif
 #endif
 }
