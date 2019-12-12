@@ -24,9 +24,7 @@ from .channels import *
 from .sampler_type import *
 from .render_utils import *
 from .render_tensorflow import *
-
 import os.path
-from tensorflow.python.framework import ops
 
 if tf.__cxx11_abi_flag__ == 0:
     __data_ptr_module = tf.load_op_library(os.path.join(os.path.dirname(redner.__file__), 'libredner_tf_data_ptr_no_cxx11_abi.so'))
