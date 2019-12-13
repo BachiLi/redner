@@ -63,14 +63,15 @@ def SH_reconstruct(coeffs, res):
 def generate_sphere(theta_steps: int,
                     phi_steps: int):
     """
-        Generate a triangle mesh representing a sphere, center at (0, 0, 0) with radius 1.
+        Generate a triangle mesh representing a UV sphere,
+        center at (0, 0, 0) with radius 1.
 
         Args
         ====
         theta_steps: int
-            azimuth subdivision
-        phi_steps: int
             zenith subdivision
+        phi_steps: int
+            azimuth subdivision
 
         Returns
         =======
@@ -83,40 +84,68 @@ def generate_sphere(theta_steps: int,
         torch.Tensor
             normals
     """
-
     d_theta = math.pi / (theta_steps - 1)
     d_phi = (2 * math.pi) / (phi_steps - 1)
 
-    vertices = torch.zeros(theta_steps * phi_steps, 3,
+    num_vertices = theta_steps * phi_steps - 2 * (phi_steps - 1)
+    vertices = torch.zeros(num_vertices, 3,
                            device = pyredner.get_device())
-    uvs = torch.zeros(theta_steps * phi_steps, 2,
+    uvs = torch.zeros(num_vertices, 2,
                       device = pyredner.get_device())
     vertices_index = 0
     for theta_index in range(theta_steps):
         sin_theta = math.sin(theta_index * d_theta)
         cos_theta = math.cos(theta_index * d_theta)
-        for phi_index in range(phi_steps):
-            sin_phi = math.sin(phi_index * d_phi)
-            cos_phi = math.cos(phi_index * d_phi)
+        if theta_index == 0:
+            # For the two polars of the sphere, only generate one vertex
             vertices[vertices_index, :] = \
-                torch.tensor([sin_theta * cos_phi, cos_theta, sin_theta * sin_phi],
-                    device = pyredner.get_device())
-            uvs[vertices_index, 0] = theta_index * d_theta / math.pi
-            uvs[vertices_index, 1] = phi_index * d_phi / (2 * math.pi)
+                torch.tensor([0.0, 1.0, 0.0])
+            uvs[vertices_index, 0] = 0.0
+            uvs[vertices_index, 1] = 0.0
             vertices_index += 1
+        elif theta_index == theta_steps - 1:
+            # For the two polars of the sphere, only generate one vertex
+            vertices[vertices_index, :] = \
+                torch.tensor([0.0, -1.0, 0.0])
+            uvs[vertices_index, 0] = 0.0
+            uvs[vertices_index, 1] = 1.0
+            vertices_index += 1
+        else:
+            for phi_index in range(phi_steps):
+                sin_phi = math.sin(phi_index * d_phi)
+                cos_phi = math.cos(phi_index * d_phi)
+                vertices[vertices_index, :] = \
+                    torch.tensor([sin_theta * cos_phi, cos_theta, sin_theta * sin_phi],
+                        device = pyredner.get_device())
+                uvs[vertices_index, 0] = phi_index * d_phi / (2 * math.pi)
+                uvs[vertices_index, 1] = theta_index * d_theta / math.pi
+                vertices_index += 1
 
     indices = []
     for theta_index in range(1, theta_steps):
         for phi_index in range(phi_steps - 1):
-            id0 = phi_steps * theta_index + phi_index
-            id1 = phi_steps * theta_index + phi_index + 1
-            id2 = phi_steps * (theta_index - 1) + phi_index
-            id3 = phi_steps * (theta_index - 1) + phi_index + 1
+            if theta_index < theta_steps - 1:
+                id0 = phi_steps * theta_index + phi_index - (phi_steps - 1)
+                id1 = phi_steps * theta_index + phi_index + 1 - (phi_steps - 1)
+            else:
+                # There is only one vertex at the pole
+                assert(theta_index == theta_steps - 1)
+                id0 = num_vertices - 1
+                id1 = num_vertices - 1
+            if theta_index > 1:
+                id2 = phi_steps * (theta_index - 1) + phi_index - (phi_steps - 1)
+                id3 = phi_steps * (theta_index - 1) + phi_index + 1 - (phi_steps - 1)
+            else:
+                # There is only one vertex at the pole
+                assert(theta_index == 1)
+                id2 = 0
+                id3 = 0
 
             if (theta_index < theta_steps - 1):
                 indices.append([id0, id2, id1])
             if (theta_index > 1):
                 indices.append([id1, id2, id3])
+
     indices = torch.tensor(indices,
                            dtype = torch.int32,
                            device = pyredner.get_device())
