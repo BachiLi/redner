@@ -86,7 +86,6 @@ The current development plan is to enhance the renderer. Following features will
 - Proper pixel filter (currently only support 1x1 box filter)
 - Volumetric path tracing (e.g. [http://www.cs.cornell.edu/projects/translucency/#acquisition-sa13](http://www.cs.cornell.edu/projects/translucency/#acquisition-sa13))
 - Spectral rendering
-- Backface culling
 - Gradient visualization
 - Spherical light sources
 
