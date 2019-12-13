@@ -14,7 +14,7 @@ class AmbientLight(DeferredLight):
     """
     def __init__(self,
                  intensity: torch.Tensor):
-        self.intensity = intensity
+        self.intensity = intensity.to(pyredner.get_device())
 
     def render(self,
                position: torch.Tensor,
@@ -29,8 +29,8 @@ class PointLight(DeferredLight):
     def __init__(self,
                  position: torch.Tensor,
                  intensity: torch.Tensor):
-        self.position = position
-        self.intensity = intensity
+        self.position = position.to(pyredner.get_device())
+        self.intensity = intensity.to(pyredner.get_device())
 
     def render(self,
                position: torch.Tensor,
@@ -53,8 +53,8 @@ class DirectionalLight(DeferredLight):
     def __init__(self,
                  direction: torch.Tensor,
                  intensity: torch.Tensor):
-        self.direction = direction
-        self.intensity = intensity
+        self.direction = direction.to(pyredner.get_device())
+        self.intensity = intensity.to(pyredner.get_device())
 
     def render(self,
                position: torch.Tensor,
@@ -78,10 +78,10 @@ class SpotLight(DeferredLight):
                  spot_direction: torch.Tensor,
                  spot_exponent: torch.Tensor,
                  intensity: torch.Tensor):
-        self.position = position
-        self.spot_direction = spot_direction
-        self.spot_exponent = spot_exponent
-        self.intensity = intensity
+        self.position = position.to(pyredner.get_device())
+        self.spot_direction = spot_direction.to(pyredner.get_device())
+        self.spot_exponent = spot_exponent.to(pyredner.get_device())
+        self.intensity = intensity.to(pyredner.get_device())
 
     def render(self,
                position: torch.Tensor,
