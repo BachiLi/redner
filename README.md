@@ -31,6 +31,7 @@ You can also take a look at the tests directories ([PyTorch](tests) and [TensorF
 
 ## News
 
+12/12/2019 - Preliminary Windows support (CPU-only) thanks to the contribution of [Markus Worchel](https://github.com/mworchel).  
 12/09/2019 - Added many tutorials in wiki using Google colab. Added a sphinx-generated documentation.  
 12/09/2019 - Fixed a bug in the Wavefront obj loader. Thanks Dejan Azinović for reporting!  
 12/01/2019 - Redo the build systems and setup Python wheel installation. Redner is now on PyPI ([https://pypi.org/project/redner-gpu/](https://pypi.org/project/redner-gpu/) and [https://pypi.org/project/redner/](https://pypi.org/project/redner/)).  
