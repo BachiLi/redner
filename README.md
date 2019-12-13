@@ -1,4 +1,4 @@
-# redner
+# redner: Differentiable rendering without approximation
 
 ![](https://people.csail.mit.edu/tzumao/diffrt/teaser.jpg)
 
