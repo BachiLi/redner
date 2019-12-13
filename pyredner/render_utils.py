@@ -171,6 +171,9 @@ def render_deferred(scene: Union[pyredner.Scene, List[pyredner.Scene]],
         img = torch.zeros(g_buffer.shape[0], g_buffer.shape[1], 3, device = pyredner.get_device())
         for light in lights:
             img = img + light.render(pos, normal, albedo)
+        if alpha:
+            # alpha is in the last channel
+            img = torch.cat((img, g_buffer[:, :, 9:10]), dim = -1)
         if aa_samples > 1:
             # Downsample
             img = img.permute(2, 0, 1) # HWC -> CHW
@@ -178,9 +181,6 @@ def render_deferred(scene: Union[pyredner.Scene, List[pyredner.Scene]],
             img = torch.nn.functional.interpolate(img, size = org_res, mode = 'area')
             img = img.squeeze(dim = 0) # NCHW -> CHW
             img = img.permute(1, 2, 0)
-        if alpha:
-            # alpha is in the last channel
-            img = torch.cat((img, g_buffer[:, :, 9:10]), dim = -1)
         return img
     else:
         assert(isinstance(scene, list))
@@ -257,6 +257,11 @@ def render_deferred(scene: Union[pyredner.Scene, List[pyredner.Scene]],
                     img = torch.cat((img, g_buffer[:, :, 9:10]), dim = -1)
                 imgs.append(img)
             imgs = torch.stack(imgs)
+        if aa_samples > 1:
+            # Downsample
+            imgs = imgs.permute(0, 3, 1, 2) # NHWC -> NCHW
+            imgs = torch.nn.functional.interpolate(imgs, size = org_res, mode = 'area')
+            imgs = imgs.permute(0, 2, 3, 1) # NCHW -> NHWC
         return imgs
 
 def render_generic(scene: pyredner.Scene,

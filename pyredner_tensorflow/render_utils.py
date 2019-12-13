@@ -168,14 +168,14 @@ def render_deferred(scene: Union[pyredner.Scene, List[pyredner.Scene]],
         img = tf.zeros((g_buffer.shape[0], g_buffer.shape[1], 3))
         for light in lights:
             img = img + light.render(pos, normal, albedo)
+        if alpha:
+            # alpha is in the last channel
+            img = tf.concat((img, g_buffer[:, :, 9:10]), axis = 2)
         if aa_samples > 1:
             # Downsample
             img = tf.expand_dims(img, 0) # HWC -> NHWC
             img = tf.image.resize(img, size = org_res, method = 'area', antialias = True)
             img = tf.squeeze(img, axis = 0) # NHWC -> HWC
-        if alpha:
-            # alpha is in the last channel
-            img = tf.concat((img, g_buffer[:, :, 9:10]), axis = 2)
         return img
     else:
         assert(isinstance(scene, list))
@@ -251,6 +251,9 @@ def render_deferred(scene: Union[pyredner.Scene, List[pyredner.Scene]],
                     img = tf.concat((img, g_buffer[:, :, 9:10]), axis = -1)
                 imgs.append(img)
             imgs = tf.stack(imgs)
+        if aa_samples > 1:
+            # Downsample
+            imgs = tf.image.resize(imgs, size = org_res, method = 'area', antialias = True)
         return imgs
 
 def render_generic(scene: pyredner.Scene,
