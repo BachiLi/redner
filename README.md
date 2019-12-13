@@ -84,7 +84,6 @@ The current development plan is to enhance the renderer. Following features will
 - Russian roulette
 - Distribution effects: depth of field/motion blur
 - Proper pixel filter (currently only support 1x1 box filter)
-- Mini-batching
 - Volumetric path tracing (e.g. [http://www.cs.cornell.edu/projects/translucency/#acquisition-sa13](http://www.cs.cornell.edu/projects/translucency/#acquisition-sa13))
 - Spectral rendering
 - Backface culling
