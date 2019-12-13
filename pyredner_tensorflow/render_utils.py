@@ -152,6 +152,9 @@ def render_deferred(scene: Union[pyredner.Scene, List[pyredner.Scene]],
             seed = random.randint(0, 16777216)
         # We do full-screen anti-aliasing: increase the rendering resolution
         # and downsample it after lighting
+        org_res = scene.camera.resolution
+        scene.camera.resolution = (org_res[0] * aa_samples,
+                                   org_res[1] * aa_samples)
         scene_args = pyredner.serialize_scene(\
             scene = scene,
             num_samples = (1, 1),
