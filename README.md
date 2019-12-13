@@ -59,8 +59,8 @@ You can also take a look at the tests directories ([PyTorch](tests) and [TensorF
 redner depends on a few libraries/systems, which are all included in the repository:
 - [Python 3.6 or above](https://www.python.org)
 - [pybind11](https://github.com/pybind/pybind11)
-- [PyTorch 1.0 or above](https://pytorch.org)
-- [Tensorflow 1.14](https://www.tensorflow.org/) (optional, required if PyTorch is not installed)
+- [PyTorch 1.0 or above](https://pytorch.org) (optional, required if TensorFlow is not installed)
+- [Tensorflow 2.0](https://www.tensorflow.org/) (optional, required if PyTorch is not installed)
 - [OpenEXR](https://github.com/openexr/openexr)
 - [Embree](https://embree.github.io)
 - [CUDA 10](https://developer.nvidia.com/cuda-downloads) (optional, need GPU at Kepler class or newer)
