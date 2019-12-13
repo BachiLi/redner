@@ -7,6 +7,8 @@ tests/results
 tests/scenes/living-room-3
 tests_tensorflow/results
 tutorials/results
+tutorials/bunny
+tutorials/bunny.zip
 tutorials/teapot
 tutorials/teapot.zip
 tutorials/mori_knob
