@@ -171,17 +171,24 @@ class Shape:
                  normal_indices: Optional[tf.Tensor] = None,
                  colors: Optional[tf.Tensor] = None):
         assert(vertices.dtype == tf.float32)
+        assert(len(vertices.shape) == 2 and vertices.shape[1] == 3)
         assert(indices.dtype == tf.int32)
+        assert(len(indices.shape) == 2 and indices.shape[1] == 3)
         if uvs is not None:
             assert(uvs.dtype == tf.float32)
+            assert(len(uvs.shape) == 2 and uvs.shape[1] == 2)
         if normals is not None:
             assert(normals.dtype == tf.float32)
+            assert(len(normals.shape) == 2 and normals.shape[1] == 3)
         if uv_indices is not None:
             assert(uv_indices.dtype == tf.int32)
+            assert(len(uv_indices.shape) == 2 and uv_indices.shape[1] == 3)
         if normal_indices is not None:
             assert(normal_indices.dtype == tf.int32)
+            assert(len(normal_indices.shape) == 2 and normal_indices.shape[1] == 3)
         if colors is not None:
             assert(colors.dtype == tf.float32)
+            assert(len(colors.shape) == 2 and colors.shape[1] == 3)
 
         self.vertices = vertices
         self.indices = indices
