@@ -102,7 +102,6 @@ class SpotLight(DeferredLight):
 def render_deferred(scene: Union[pyredner.Scene, List[pyredner.Scene]],
                     lights: Union[List[DeferredLight], List[List[DeferredLight]]],
                     alpha: bool = False,
-                    use_vertex_color: bool = False,
                     aa_samples: int = 2,
                     seed: Optional[Union[int, List[int]]] = None):
     """
@@ -127,8 +126,6 @@ def render_deferred(scene: Union[pyredner.Scene, List[pyredner.Scene]],
             If set to False, generates a 3-channel image,
             otherwise generates a 4-channel image where the
             fourth channel is alpha.
-        use_vertex_color: bool
-            ignores the reflectances and use the vertex color as diffuse color
         aa_samples: int
             Number of samples used for anti-aliasing at both x, y dimensions
             (e.g. if aa_samples=2, 4 samples are used).
@@ -146,11 +143,8 @@ def render_deferred(scene: Union[pyredner.Scene, List[pyredner.Scene]],
             | else, C = 3.
     """
     channels = [redner.channels.position,
-                redner.channels.shading_normal]
-    if use_vertex_color:
-        channels.append(redner.channels.vertex_color)
-    else:
-        channels.append(redner.channels.diffuse_reflectance)
+                redner.channels.shading_normal,
+                redner.channels.diffuse_reflectance]
     if alpha:
         channels.append(redner.channels.alpha)
     if isinstance(scene, pyredner.Scene):

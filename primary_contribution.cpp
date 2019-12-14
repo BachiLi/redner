@@ -130,8 +130,9 @@ struct primary_contribs_accumulator {
                             const auto &shading_point = shading_points[pixel_id];
                             const auto &shading_shape = scene.shapes[shading_isect.shape_id];
                             const auto &material = scene.materials[shading_shape.material_id];
-                            auto refl =
-                                get_diffuse_reflectance(material, shading_point) * weight;
+                            auto refl = material.use_vertex_color ?
+                                shading_point.color : get_diffuse_reflectance(material, shading_point);
+                            refl *= weight;
                             if (channel_multipliers != nullptr) {
                                 refl[0] *= channel_multipliers[nd * pixel_id + d];
                                 refl[1] *= channel_multipliers[nd * pixel_id + d + 1];
@@ -305,8 +306,9 @@ struct primary_contribs_accumulator {
                             const auto &shading_point = shading_points[pixel_id];
                             const auto &shading_shape = scene.shapes[shading_isect.shape_id];
                             const auto &material = scene.materials[shading_shape.material_id];
-                            auto refl =
-                                get_diffuse_reflectance(material, shading_point) * weight;
+                            auto refl = material.use_vertex_color ?
+                                shading_point.color : get_diffuse_reflectance(material, shading_point);
+                            refl *= weight;
                             refl[0] *= channel_multipliers[nd * pixel_id + d];
                             refl[1] *= channel_multipliers[nd * pixel_id + d + 1];
                             refl[2] *= channel_multipliers[nd * pixel_id + d + 2];
@@ -538,9 +540,13 @@ struct d_primary_contribs_accumulator {
                             d_refl[1] *= channel_multipliers[nd * pixel_id + d + 1];
                             d_refl[2] *= channel_multipliers[nd * pixel_id + d + 2];
                         }
-                        d_get_diffuse_reflectance(material, shading_point, d_refl,
-                            d_materials[shape.material_id].diffuse_reflectance,
-                            d_shading_points[pixel_id]);
+                        if (material.use_vertex_color) {
+                            d_shading_points[pixel_id].color += d_refl;
+                        } else {
+                            d_get_diffuse_reflectance(material, shading_point, d_refl,
+                                d_materials[shape.material_id].diffuse_reflectance,
+                                d_shading_points[pixel_id]);
+                        }
                     }
                     d += 3;
                 } break;
