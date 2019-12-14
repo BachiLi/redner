@@ -678,52 +678,54 @@ inline void d_intersect_shape(
         // dn_dx = (nn_len_sq * dnn_dx - dot(nn, dnn_dx) * nn) / (nn_len_sq * nn_len)
         // dn_dy = (nn_len_sq * dnn_dy - dot(nn, dnn_dy) * nn) / (nn_len_sq * nn_len)
 
-        // shading_normal = normalize(nn)
-        auto d_nn = d_normalize(nn, d_shading_normal);
+        if (nn_len_sq >= 0) { // < 0 means degenerate normal
+            // shading_normal = normalize(nn)
+            auto d_nn = d_normalize(nn, d_shading_normal);
+            
+            // dn_dx = (nn_len_sq * dnn_dx - dot(nn, dnn_dx) * nn) / nn_denom
+            // dn_dy = (nn_len_sq * dnn_dy - dot(nn, dnn_dy) * nn) / nn_denom
+            auto nn_denom = (nn_len_sq * nn_len);
+            auto d_dn_dx = d_point.dn_dx;
+            auto d_dn_dy = d_point.dn_dy;
+            auto d_nn_len_sq = (d_dn_dx * dnn_dx + d_dn_dy * dnn_dy) / nn_denom;
+            auto d_dnn_dx = d_dn_dx * nn_len_sq / nn_denom;
+            auto d_dnn_dy = d_dn_dy * nn_len_sq / nn_denom;
+            auto d_dot_nn_dnn_dx = sum(d_dn_dx * nn) / nn_denom;
+            auto d_dot_nn_dnn_dy = sum(d_dn_dy * nn) / nn_denom;
+            d_nn += (d_dn_dx * dot(nn, dnn_dx) + d_dn_dy * dot(nn, dnn_dy)) / nn_denom;
+            auto d_nn_denom = (d_dn_dx * (-dn_dx) + d_dn_dy * (-dn_dy)) / nn_denom;
+            // dot(nn, dnn_dx) & dot(nn, dnn_dy)
+            d_nn += d_dot_nn_dnn_dx * dnn_dx + d_dot_nn_dnn_dy * dnn_dy;
+            d_dnn_dx += d_dot_nn_dnn_dx * nn;
+            d_dnn_dy += d_dot_nn_dnn_dy * nn;
 
-        // dn_dx = (nn_len_sq * dnn_dx - dot(nn, dnn_dx) * nn) / nn_denom
-        // dn_dy = (nn_len_sq * dnn_dy - dot(nn, dnn_dy) * nn) / nn_denom
-        auto nn_denom = (nn_len_sq * nn_len);
-        auto d_dn_dx = d_point.dn_dx;
-        auto d_dn_dy = d_point.dn_dy;
-        auto d_nn_len_sq = (d_dn_dx * dnn_dx + d_dn_dy * dnn_dy) / nn_denom;
-        auto d_dnn_dx = d_dn_dx * nn_len_sq / nn_denom;
-        auto d_dnn_dy = d_dn_dy * nn_len_sq / nn_denom;
-        auto d_dot_nn_dnn_dx = sum(d_dn_dx * nn) / nn_denom;
-        auto d_dot_nn_dnn_dy = sum(d_dn_dy * nn) / nn_denom;
-        d_nn += (d_dn_dx * dot(nn, dnn_dx) + d_dn_dy * dot(nn, dnn_dy)) / nn_denom;
-        auto d_nn_denom = (d_dn_dx * (-dn_dx) + d_dn_dy * (-dn_dy)) / nn_denom;
-        // dot(nn, dnn_dx) & dot(nn, dnn_dy)
-        d_nn += d_dot_nn_dnn_dx * dnn_dx + d_dot_nn_dnn_dy * dnn_dy;
-        d_dnn_dx += d_dot_nn_dnn_dx * nn;
-        d_dnn_dy += d_dot_nn_dnn_dy * nn;
+            // nn_denom = pow(nn_len_sq, Real(3.0/2.0))
+            d_nn_len_sq += d_nn_denom * nn_len * Real(3.0 / 2.0);
+            // nn_len_sq = dot(nn, nn)
+            d_nn += 2 * d_nn_len_sq * nn;
 
-        // nn_denom = pow(nn_len_sq, Real(3.0/2.0))
-        d_nn_len_sq += d_nn_denom * nn_len * Real(3.0 / 2.0);
-        // nn_len_sq = dot(nn, nn)
-        d_nn += 2 * d_nn_len_sq * nn;
+            // dnn_dx = (- u_dxy.x - v_dxy.x) * n0 + u_dxy.x * n1 + v_dxy.x * n2
+            // dnn_dy = (- u_dxy.y - v_dxy.y) * n0 + u_dxy.y * n1 + v_dxy.y * n2
+            d_u_dxy.x += sum(d_dnn_dx * (n1 - n0));
+            d_u_dxy.y += sum(d_dnn_dy * (n1 - n0));
+            d_v_dxy.x += sum(d_dnn_dx * (n2 - n0));
+            d_v_dxy.y += sum(d_dnn_dy * (n2 - n0));
+            auto d_n0 = d_dnn_dx * (- u_dxy.x - v_dxy.x) +
+                        d_dnn_dy * (- u_dxy.y - v_dxy.y);
+            auto d_n1 = d_dnn_dx * u_dxy.x + d_dnn_dy * u_dxy.y;
+            auto d_n2 = d_dnn_dx * v_dxy.x + d_dnn_dy * v_dxy.y;
 
-        // dnn_dx = (- u_dxy.x - v_dxy.x) * n0 + u_dxy.x * n1 + v_dxy.x * n2
-        // dnn_dy = (- u_dxy.y - v_dxy.y) * n0 + u_dxy.y * n1 + v_dxy.y * n2
-        d_u_dxy.x += sum(d_dnn_dx * (n1 - n0));
-        d_u_dxy.y += sum(d_dnn_dy * (n1 - n0));
-        d_v_dxy.x += sum(d_dnn_dx * (n2 - n0));
-        d_v_dxy.y += sum(d_dnn_dy * (n2 - n0));
-        auto d_n0 = d_dnn_dx * (- u_dxy.x - v_dxy.x) +
-                    d_dnn_dy * (- u_dxy.y - v_dxy.y);
-        auto d_n1 = d_dnn_dx * u_dxy.x + d_dnn_dy * u_dxy.y;
-        auto d_n2 = d_dnn_dx * v_dxy.x + d_dnn_dy * v_dxy.y;
-
-        // nn = w * n0 + u * n1 + v * n2
-        d_w += sum(d_nn * n0);
-        d_u += sum(d_nn * n1);
-        d_v += sum(d_nn * n2);
-        d_n0 += d_nn * w;
-        d_n1 += d_nn * u;
-        d_n2 += d_nn * v;
-        d_v_n[0] += d_n0;
-        d_v_n[1] += d_n1;
-        d_v_n[2] += d_n2;
+            // nn = w * n0 + u * n1 + v * n2
+            d_w += sum(d_nn * n0);
+            d_u += sum(d_nn * n1);
+            d_v += sum(d_nn * n2);
+            d_n0 += d_nn * w;
+            d_n1 += d_nn * u;
+            d_n2 += d_nn * v;
+            d_v_n[0] += d_n0;
+            d_v_n[1] += d_n1;
+            d_v_n[2] += d_n2;
+        }
     } else {
         d_geom_normal += d_point.shading_frame[2];
         d_coordinate_system(shading_normal, d_point.shading_frame[0], d_point.shading_frame[1],
