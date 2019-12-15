@@ -443,7 +443,12 @@ inline TVector2<T> normalize(const TVector2<T> &v0) {
 template <typename T>
 DEVICE
 inline TVector3<T> normalize(const TVector3<T> &v0) {
-    return v0 / length(v0);
+    auto l = length(v0);
+    if (l <= 0) {
+        return TVector3<T>{0, 0, 0};
+    } else {
+        return v0 / length(v0);
+    }
 }
 
 template <typename T>
