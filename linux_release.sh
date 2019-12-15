@@ -1,5 +1,8 @@
 #!/bin/sh
 
+rm -R ./build
+sudo rm -Rf ./dist
+sudo docker rmi tzumao/redner:manylinux tzumao/redner:manylinux-gpu
 mkdir -p dist
 sudo docker build -t tzumao/redner:manylinux -f manylinux.Dockerfile .
 sudo docker create --name redner_manylinux tzumao/redner:manylinux --entrypoint /

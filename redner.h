@@ -164,3 +164,7 @@ inline int popc(uint8_t x) {
   #endif
 #endif
 }
+
+#define STR(x) #x
+#define ASSERT(x) if (!(x)) { printf("Assertion failed: (%s), function %s, file %s, line %d.\n", STR(x), __PRETTY_FUNCTION__, __FILE__, __LINE__); abort(); }
+

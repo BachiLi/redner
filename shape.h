@@ -678,7 +678,7 @@ inline void d_intersect_shape(
         // dn_dx = (nn_len_sq * dnn_dx - dot(nn, dnn_dx) * nn) / (nn_len_sq * nn_len)
         // dn_dy = (nn_len_sq * dnn_dy - dot(nn, dnn_dy) * nn) / (nn_len_sq * nn_len)
 
-        if (nn_len_sq >= 0) { // < 0 means degenerate normal
+        if (nn_len_sq > 0) { // <= 0 means degenerate normal
             // shading_normal = normalize(nn)
             auto d_nn = d_normalize(nn, d_shading_normal);
             
