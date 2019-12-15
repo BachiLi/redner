@@ -447,7 +447,7 @@ inline TVector3<T> normalize(const TVector3<T> &v0) {
     if (l <= 0) {
         return TVector3<T>{0, 0, 0};
     } else {
-        return v0 / length(v0);
+        return v0 / l;
     }
 }
 
