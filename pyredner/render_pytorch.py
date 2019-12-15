@@ -523,6 +523,7 @@ class RenderFunction(torch.autograd.Function):
         ctx.scene = scene
         ctx.options = options
         ctx.num_samples = num_samples
+        ctx.args = args # Important to prevent GC from deallocating the tensors
         return rendered_image
 
     @staticmethod
