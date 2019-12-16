@@ -177,7 +177,8 @@ def render_deferred(scene: Union[pyredner.Scene, List[pyredner.Scene]],
         if aa_samples > 1:
             # Downsample
             img = tf.expand_dims(img, 0) # HWC -> NHWC
-            img = tf.image.resize(img, size = org_res, method = 'area', antialias = True)
+            # TODO: switch to method = 'area' when tensorflow implements the gradients...
+            img = tf.image.resize(img, size = org_res, method = 'bilinear', antialias = True)
             img = tf.squeeze(img, axis = 0) # NHWC -> HWC
         return img
     else:
@@ -256,7 +257,8 @@ def render_deferred(scene: Union[pyredner.Scene, List[pyredner.Scene]],
             imgs = tf.stack(imgs)
         if aa_samples > 1:
             # Downsample
-            imgs = tf.image.resize(imgs, size = org_res, method = 'area', antialias = True)
+            # TODO: switch to method = 'area' when tensorflow implements the gradients...
+            imgs = tf.image.resize(imgs, size = org_res, method = 'bilinear', antialias = True)
         return imgs
 
 def render_generic(scene: pyredner.Scene,
