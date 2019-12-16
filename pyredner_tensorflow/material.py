@@ -63,6 +63,16 @@ class Material:
         if normal_map is not None and tf.is_tensor(normal_map):
             normal_map = pyredner.Texture(normal_map)
 
+        assert((len(diffuse_reflectance.texels.shape) == 1 and diffuse_reflectance.texels.shape[0] == 3) or \
+               (len(diffuse_reflectance.texels.shape) == 3 and diffuse_reflectance.texels.shape[2] == 3))
+        assert((len(specular_reflectance.texels.shape) == 1 and specular_reflectance.texels.shape[0] == 3) or \
+               (len(specular_reflectance.texels.shape) == 3 and specular_reflectance.texels.shape[2] == 3))
+        assert((len(roughness.texels.shape) == 1 and roughness.texels.shape[0] == 1) or \
+               (len(roughness.texels.shape) == 3 and roughness.texels.shape[2] == 1))
+        if normal_map is not None:
+            assert((len(normal_map.texels.shape) == 1 and normal_map.texels.shape[0] == 1) or \
+                   (len(normal_map.texels.shape) == 3 and normal_map.texels.shape[2] == 1))
+
         self.diffuse_reflectance = diffuse_reflectance
         self._specular_reflectance = specular_reflectance
         self.compute_specular_lighting = compute_specular_lighting
