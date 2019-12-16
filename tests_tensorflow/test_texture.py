@@ -83,15 +83,15 @@ pyredner.imwrite(diff, 'results/test_texture/init_diff.png')
 
 # Optimize for triangle vertices
 optimizer = tf.compat.v1.train.AdamOptimizer(5e-2)
-scene_args = pyredner.serialize_scene(
-    scene = scene,
-    num_samples = 4,
-    max_bounces = 1)
 for t in range(200):
     print('iteration:', t)
 
     with tf.GradientTape() as tape:
         # Forward pass: render the image
+        scene_args = pyredner.serialize_scene(
+            scene = scene,
+            num_samples = 4,
+            max_bounces = 1)
         img = pyredner.render(t+1, *scene_args)
         pyredner.imwrite(img, 'results/test_texture/iter_{}.png'.format(t))
         loss = tf.reduce_sum(tf.square(img - target))
