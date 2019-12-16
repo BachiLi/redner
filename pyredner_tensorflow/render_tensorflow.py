@@ -98,6 +98,7 @@ def serialize_scene(scene: pyredner.Scene,
         use_secondary_edge_sampling: bool
 
     """
+    # TODO: figure out a way to determine whether a TF tensor requires gradient or not
     cam = scene.camera
     num_shapes = len(scene.shapes)
     num_materials = len(scene.materials)
