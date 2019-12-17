@@ -225,7 +225,7 @@ def render_deferred(scene: Union[pyredner.Scene, List[pyredner.Scene]],
             # If each scene has a different lighting: light them in the loop
             imgs = []
             # Render each scene in the batch and stack them together
-            for sc, se in zip(scene, seed):
+            for sc, se, lgts in zip(scene, seed, lights):
                 # We do full-screen anti-aliasing: increase the rendering resolution
                 # and downsample it after lighting
                 org_res = sc.camera.resolution
@@ -247,7 +247,7 @@ def render_deferred(scene: Union[pyredner.Scene, List[pyredner.Scene]],
                 img = tf.zeros(g_buffer.shape[0],
                                g_buffer.shape[1],
                                3)
-                for light in lights:
+                for light in lgts:
                     img = img + light.render(pos, normal, albedo)
                 if alpha:
                     # alpha is in the last channel
