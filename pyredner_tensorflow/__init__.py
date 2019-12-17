@@ -24,6 +24,7 @@ from .channels import *
 from .sampler_type import *
 from .render_utils import *
 from .render_tensorflow import *
+from .geometry_images import *
 import os.path
 
 if tf.__cxx11_abi_flag__ == 0:

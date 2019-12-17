@@ -18,3 +18,4 @@ from .utils import *
 from .channels import channels
 from .sampler_type import sampler_type
 from .render_utils import *
+from .geometry_images import *
