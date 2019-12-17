@@ -73,8 +73,8 @@ class Material:
         assert((len(roughness.texels.shape) == 1 and roughness.texels.shape[0] == 1) or \
                (len(roughness.texels.shape) == 3 and roughness.texels.shape[2] == 1))
         if normal_map is not None:
-            assert((len(normal_map.texels.shape) == 1 and normal_map.texels.shape[0] == 1) or \
-                   (len(normal_map.texels.shape) == 3 and normal_map.texels.shape[2] == 1))
+            assert((len(normal_map.texels.shape) == 1 and normal_map.texels.shape[0] == 3) or \
+                   (len(normal_map.texels.shape) == 3 and normal_map.texels.shape[2] == 3))
 
         self.diffuse_reflectance = diffuse_reflectance
         self._specular_reflectance = specular_reflectance
