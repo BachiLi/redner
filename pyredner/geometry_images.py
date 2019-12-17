@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 import math
+import pyredner
 
 def generate_geometry_image(size: int):
     """
