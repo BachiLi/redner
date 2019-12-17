@@ -244,10 +244,9 @@ def render_deferred(scene: Union[pyredner.Scene, List[pyredner.Scene]],
                 pos = g_buffer[:, :, :3]
                 normal = g_buffer[:, :, 3:6]
                 albedo = g_buffer[:, :, 6:9]
-                imgs = tf.zeros((g_buffers.shape[0],
-                                 g_buffers.shape[1],
-                                 g_buffers.shape[2],
-                                 3))
+                img = tf.zeros(g_buffer.shape[0],
+                               g_buffer.shape[1],
+                               3)
                 for light in lights:
                     img = img + light.render(pos, normal, albedo)
                 if alpha:

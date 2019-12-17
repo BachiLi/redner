@@ -246,8 +246,8 @@ def render_deferred(scene: Union[pyredner.Scene, List[pyredner.Scene]],
                 pos = g_buffer[:, :, :3]
                 normal = g_buffer[:, :, 3:6]
                 albedo = g_buffer[:, :, 6:9]
-                img = torch.zeros(g_buffers.shape[0],
-                                  g_buffers.shape[1],
+                img = torch.zeros(g_buffer.shape[0],
+                                  g_buffer.shape[1],
                                   3,
                                   device = pyredner.get_device())
                 for light in lights:
