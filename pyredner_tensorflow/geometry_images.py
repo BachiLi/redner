@@ -18,11 +18,11 @@ def generate_geometry_image(size: int):
 
         Returns
         =======
-        torch.Tensor
+        tf.Tensor
             vertices of size [(2 * size + 1 * 2 * size + 1), 3]
-        torch.Tensor
+        tf.Tensor
             indices of size [2 * (2 * size + 1 * 2 * size + 1), 3]
-        torch.Tensor
+        tf.Tensor
             uvs of size [(2 * size + 1 * 2 * size + 1), 2]
     """
     size *= 2
