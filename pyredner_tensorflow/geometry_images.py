@@ -1,7 +1,7 @@
 import numpy as np
 import tensorflow as tf
 import math
-import pyredner
+import pyredner_tensorflow as pyredner
 
 def generate_geometry_image(size: int):
     """
