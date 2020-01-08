@@ -27,10 +27,12 @@ struct EnvironmentMap {
           sample_cdf_xs(sample_cdf_xs.get()),
           pdf_norm((Real)pdf_norm) {}
 
-    inline std::tuple<int, int, int> get_size() const {
-        return std::make_tuple(values.width,
-                values.height,
-                values.num_levels);
+    inline int get_levels() const {
+        return values.num_levels;
+    }
+
+    inline std::tuple<int, int> get_size(int i) const {
+        return std::make_tuple(values.width[i], values.height[i]);
     }
 
     Texture3 values;
@@ -201,26 +203,26 @@ inline Vector3 envmap_sample(const EnvironmentMap &envmap, Vector2 sample) {
     const float *y_ptr =
         thrust::upper_bound(thrust::seq,
             envmap.sample_cdf_ys,
-            envmap.sample_cdf_ys + envmap.values.height,
+            envmap.sample_cdf_ys + envmap.values.height[0],
             sample.y);
     auto y_pos = clamp((int)(y_ptr - envmap.sample_cdf_ys - 1),
-                       0, envmap.values.height - 1);
-    if (y_pos < envmap.values.height - 1) {
+                       0, envmap.values.height[0] - 1);
+    if (y_pos < envmap.values.height[0] - 1) {
         sample.y = (sample.y - envmap.sample_cdf_ys[y_pos]) /
             (envmap.sample_cdf_ys[y_pos + 1] - envmap.sample_cdf_ys[y_pos]);
     } else {
         sample.y = (sample.y - envmap.sample_cdf_ys[y_pos]) /
             (1 - envmap.sample_cdf_ys[y_pos]);
     }
-    auto sample_cdf_xs = envmap.sample_cdf_xs + y_pos * envmap.values.width;
+    auto sample_cdf_xs = envmap.sample_cdf_xs + y_pos * envmap.values.width[0];
     const float *x_ptr =
         thrust::upper_bound(thrust::seq,
             sample_cdf_xs,
-            sample_cdf_xs + envmap.values.width,
+            sample_cdf_xs + envmap.values.width[0],
             sample.x);
     auto x_pos = clamp((int)(x_ptr - sample_cdf_xs - 1),
-                       0, envmap.values.width - 1);
-    if (x_pos < envmap.values.width - 1) {
+                       0, envmap.values.width[0] - 1);
+    if (x_pos < envmap.values.width[0] - 1) {
         sample.x = (sample.x - sample_cdf_xs[x_pos]) /
             (sample_cdf_xs[x_pos + 1] - sample_cdf_xs[x_pos]);
     } else {
@@ -230,8 +232,8 @@ inline Vector3 envmap_sample(const EnvironmentMap &envmap, Vector2 sample) {
 
     // Importance sample bilinear sampling
     auto uv = Vector2{x_pos + tent_inv_cdf(sample.x), y_pos + tent_inv_cdf(sample.y)};
-    auto phi = (2 * Real(M_PI) / envmap.values.width) * (uv.x + 0.5f);
-    auto theta = (Real(M_PI) / envmap.values.height) * (uv.y + 0.5f);
+    auto phi = (2 * Real(M_PI) / envmap.values.width[0]) * (uv.x + 0.5f);
+    auto theta = (Real(M_PI) / envmap.values.height[0]) * (uv.y + 0.5f);
     auto sin_phi = sin(phi);
     auto cos_phi = cos(phi);
     auto sin_theta = sin(theta);
@@ -247,8 +249,8 @@ inline Real envmap_pdf(const EnvironmentMap &envmap, const Vector3 &dir) {
         atan2(local_dir.x, -local_dir.z) / Real(2 * M_PI),
         safe_acos(local_dir.y) / Real(M_PI)
     };
-    auto w = envmap.values.width;
-    auto h = envmap.values.height;
+    auto w = envmap.values.width[0];
+    auto h = envmap.values.height[0];
     auto x = uv.x * w - 0.5f;
     auto y = uv.y * h - 0.5f;
     auto xfi = modulo((int)floor(x), w);
@@ -257,7 +259,7 @@ inline Real envmap_pdf(const EnvironmentMap &envmap, const Vector3 &dir) {
     auto yci = modulo(yfi + 1, h);
     auto dx = x - xfi;
     auto dy = y - yfi;
-    auto texels = envmap.values.texels;
+    auto texels = envmap.values.texels[0];
     auto lum_ff = luminance(
         Vector3f{texels[3 * (yfi * w + xfi) + 0],
                  texels[3 * (yfi * w + xfi) + 1],

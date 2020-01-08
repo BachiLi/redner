@@ -6,13 +6,13 @@
 void test_d_bsdf() {
     Vector3f d{0.5, 0.4, 0.3};
     Vector2f uv_scale{1, 1};
-    Texture3 diffuse{&d[0], -1, -1, -1, -1, &uv_scale[0]};
+    Texture3 diffuse{{&d[0]}, {-1}, {-1}, -1, &uv_scale[0]};
     Vector3f s{0.2, 0.3, 0.4};
-    Texture3 specular{&s[0], -1, -1, -1, -1, &uv_scale[0]};
+    Texture3 specular{{&s[0]}, {-1}, {-1}, -1, &uv_scale[0]};
     float r = 0.5;
-    Texture1 roughness{&r, -1, -1, -1, -1, &uv_scale[0]};
-    TextureN generic{&d[0], -1, -1, 3 /* channels */, -1, &uv_scale[0]};
-    Texture3 normal_map{nullptr, 0, 0, 0, 0, nullptr};
+    Texture1 roughness{{&r}, {-1}, {-1}, -1, &uv_scale[0]};
+    TextureN generic{{&d[0]}, {-1}, {-1}, 3 /* channels */, &uv_scale[0]};
+    Texture3 normal_map{{nullptr}, {0}, {0}, 0, nullptr};
     Material m{diffuse,
                specular,
                roughness,
@@ -23,13 +23,13 @@ void test_d_bsdf() {
                false}; // use_vertex_color
     Vector3f d_d{0, 0, 0};
     Vector2f d_uv_scale{0, 0};
-    Texture3 d_diffuse_tex{&d_d[0], -1, -1, -1, -1, &d_uv_scale[0]};
+    Texture3 d_diffuse_tex{{&d_d[0]}, {-1}, {-1}, -1, &d_uv_scale[0]};
     Vector3f d_s{0, 0, 0};
-    Texture3 d_specular_tex{&d_s[0], -1, -1, -1, -1, &d_uv_scale[0]};
+    Texture3 d_specular_tex{{&d_s[0]}, {-1}, {-1}, -1, &d_uv_scale[0]};
     float d_r = 0.f;
-    Texture1 d_roughness_tex{&d_r, -1, -1, -1, -1, &d_uv_scale[0]};
-    TextureN d_generic_tex{&d_d[0], -1, -1, 3 /* channels */, -1, &d_uv_scale[0]};
-    Texture3 d_normal_map{nullptr, 0, 0, 0, 0, nullptr};
+    Texture1 d_roughness_tex{{&d_r}, {-1}, {-1}, -1, &d_uv_scale[0]};
+    TextureN d_generic_tex{{&d_d[0]}, {-1}, {-1}, 3 /* channels */, &d_uv_scale[0]};
+    Texture3 d_normal_map{{nullptr}, {0}, {0}, 0, nullptr};
     DMaterial d_material{d_diffuse_tex, d_specular_tex, d_roughness_tex, d_generic_tex, d_normal_map};
     SurfacePoint p{Vector3{0, 0, 0},
                    Vector3{0, 1, 0},
@@ -53,9 +53,9 @@ void test_d_bsdf() {
     auto finite_delta = Real(1e-6);
     for (int i = 0; i < 3; i++) {
         auto delta_m = m;
-        delta_m.diffuse_reflectance.texels[i] += finite_delta;
+        delta_m.diffuse_reflectance.texels[0][i] += finite_delta;
         auto positive = bsdf(delta_m, p, wi, wo, min_roughness);
-        delta_m.diffuse_reflectance.texels[i] -= 2 * finite_delta;
+        delta_m.diffuse_reflectance.texels[0][i] -= 2 * finite_delta;
         auto negative = bsdf(delta_m, p, wi, wo, min_roughness);
         auto diff = sum(positive - negative) / (2 * finite_delta);
         equal_or_error(__FILE__, __LINE__, diff, d_d[i]);
@@ -64,9 +64,9 @@ void test_d_bsdf() {
     // Check specular derivatives
     for (int i = 0; i < 3; i++) {
         auto delta_m = m;
-        delta_m.specular_reflectance.texels[i] += finite_delta;
+        delta_m.specular_reflectance.texels[0][i] += finite_delta;
         auto positive = bsdf(delta_m, p, wi, wo, min_roughness);
-        delta_m.specular_reflectance.texels[i] -= 2 * finite_delta;
+        delta_m.specular_reflectance.texels[0][i] -= 2 * finite_delta;
         auto negative = bsdf(delta_m, p, wi, wo, min_roughness);
         auto diff = sum(positive - negative) / (2 * finite_delta);
         equal_or_error(__FILE__, __LINE__, diff, d_s[i]);
@@ -75,9 +75,9 @@ void test_d_bsdf() {
     // Check roughness derivatives
     {
         auto delta_m = m;
-        delta_m.roughness.texels[0] += finite_delta;
+        delta_m.roughness.texels[0][0] += finite_delta;
         auto positive = bsdf(delta_m, p, wi, wo, min_roughness);
-        delta_m.roughness.texels[0] -= 2 * finite_delta;
+        delta_m.roughness.texels[0][0] -= 2 * finite_delta;
         auto negative = bsdf(delta_m, p, wi, wo, min_roughness);
         auto diff = sum(positive - negative) / (2 * finite_delta);
         equal_or_error(__FILE__, __LINE__, diff, d_r);
@@ -151,13 +151,13 @@ void test_d_bsdf() {
 void test_d_bsdf_sample() {
     Vector2f uv_scale = Vector2f{1, 1};
     Vector3f d{0.5, 0.4, 0.3};
-    Texture3 diffuse{&d[0], -1, -1, -1, -1, &uv_scale[0]};
+    Texture3 diffuse{{&d[0]}, {-1}, {-1}, -1, &uv_scale[0]};
     Vector3f s{0.2, 0.3, 0.4};
-    Texture3 specular{&s[0], -1, -1, -1, -1, &uv_scale[0]};
+    Texture3 specular{{&s[0]}, {-1}, {-1}, -1, &uv_scale[0]};
     float r = 0.5;
-    Texture1 roughness{&r, -1, -1, -1, -1, &uv_scale[0]};
-    TextureN generic{&d[0], -1, -1, 3 /* channels*/, -1, &uv_scale[0]};
-    Texture3 normal_map{nullptr, 0, 0, 0, 0, nullptr};
+    Texture1 roughness{{&r}, {-1}, {-1}, -1, &uv_scale[0]};
+    TextureN generic{{&d[0]}, {-1}, {-1}, 3 /* channels*/, &uv_scale[0]};
+    Texture3 normal_map{{nullptr}, {0}, {0}, 0, nullptr};
     Material m{diffuse,
                specular,
                roughness,
@@ -168,13 +168,13 @@ void test_d_bsdf_sample() {
                false}; // use_vertex_color
     Vector3f d_d{0, 0, 0};
     Vector2f d_uv_scale{0, 0};
-    Texture3 d_diffuse_tex{&d_d[0], -1, -1, -1, -1, &d_uv_scale[0]};
+    Texture3 d_diffuse_tex{{&d_d[0]}, {-1}, {-1}, -1, &d_uv_scale[0]};
     Vector3f d_s{0, 0, 0};
-    Texture3 d_specular_tex{&d_s[0], -1, -1, -1, -1, &d_uv_scale[0]};
+    Texture3 d_specular_tex{{&d_s[0]}, {-1}, {-1}, -1, &d_uv_scale[0]};
     float d_r = 0.f;
-    Texture1 d_roughness_tex{&d_r, -1, -1, -1, -1, &d_uv_scale[0]};
-    TextureN d_generic_tex{&d_d[0], -1, -1, 3 /* channels */, -1, &d_uv_scale[0]};
-    Texture3 d_normal_map{nullptr, 0, 0, 0, 0, nullptr};
+    Texture1 d_roughness_tex{{&d_r}, {-1}, {-1}, -1, &d_uv_scale[0]};
+    TextureN d_generic_tex{{&d_d[0]}, {-1}, {-1}, 3 /* channels */, &d_uv_scale[0]};
+    Texture3 d_normal_map{{nullptr}, {0}, {0}, 0, nullptr};
     DMaterial d_material{d_diffuse_tex, d_specular_tex, d_roughness_tex, d_generic_tex, d_normal_map};
     SurfacePoint p{Vector3{0, 0, 0},
                    Vector3{0, 1, 0},
@@ -226,10 +226,10 @@ void test_d_bsdf_sample() {
                 Vector3{0, 0, 0}, Vector3{0, 0, 0},
                 Vector3{0, 0, 0}, Vector3{0, 0, 0}};
             auto delta_m = m;
-            delta_m.roughness.texels[0] += finite_delta;
+            delta_m.roughness.texels[0][0] += finite_delta;
             auto positive = bsdf_sample(delta_m, p, wi, sample, min_roughness,
                 wi_differential, ray_diff_pos);
-            delta_m.roughness.texels[0] -= 2 * finite_delta;
+            delta_m.roughness.texels[0][0] -= 2 * finite_delta;
             auto negative = bsdf_sample(delta_m, p, wi, sample, min_roughness,
                 wi_differential, ray_diff_neg);
             auto diff = (sum(positive - negative) +
@@ -366,13 +366,13 @@ void test_d_bsdf_sample() {
 void test_d_bsdf_pdf() {
     Vector2f uv_scale = Vector2f{1, 1};
     Vector3f d{0.5, 0.4, 0.3};
-    Texture3 diffuse{&d[0], -1, -1, -1, -1, &uv_scale[0]};
+    Texture3 diffuse{{&d[0]}, {-1}, {-1}, -1, &uv_scale[0]};
     Vector3f s{0.2, 0.3, 0.4};
-    Texture3 specular{&s[0], -1, -1, -1, -1, &uv_scale[0]};
+    Texture3 specular{{&s[0]}, {-1}, {-1}, -1, &uv_scale[0]};
     float r = 0.5;
-    Texture1 roughness{&r, -1, -1, -1, -1, &uv_scale[0]};
-    TextureN generic{&d[0], -1, -1, 3 /* channels*/, -1, &uv_scale[0]};
-    Texture3 normal_map{nullptr, 0, 0, 0, 0, nullptr};
+    Texture1 roughness{{&r}, {-1}, {-1}, -1, &uv_scale[0]};
+    TextureN generic{{&d[0]}, {-1}, {-1}, 3 /* channels*/, &uv_scale[0]};
+    Texture3 normal_map{{nullptr}, {0}, {0}, 0, nullptr};
     Material m{diffuse,
                specular,
                roughness,
@@ -383,13 +383,13 @@ void test_d_bsdf_pdf() {
                false}; // use_vertex_color
     Vector3f d_d{0, 0, 0};
     Vector2f d_uv_scale{0, 0};
-    Texture3 d_diffuse_tex{&d_d[0], -1, -1, -1, -1, &d_uv_scale[0]};
+    Texture3 d_diffuse_tex{{&d_d[0]}, {-1}, {-1}, -1, &d_uv_scale[0]};
     Vector3f d_s{0, 0, 0};
-    Texture3 d_specular_tex{&d_s[0], -1, -1, -1, -1, &d_uv_scale[0]};
+    Texture3 d_specular_tex{{&d_s[0]}, {-1}, {-1}, -1, &d_uv_scale[0]};
     float d_r = 0.f;
-    Texture1 d_roughness_tex{&d_r, -1, -1, -1, -1, &d_uv_scale[0]};
-    TextureN d_generic_tex{&d_d[0], -1, -1, 3 /* channels*/, -1, &d_uv_scale[0]};
-    Texture3 d_normal_map{nullptr, 0, 0, 0, 0, nullptr};
+    Texture1 d_roughness_tex{{&d_r}, {-1}, {-1}, -1, &d_uv_scale[0]};
+    TextureN d_generic_tex{{&d_d[0]}, {-1}, {-1}, 3 /* channels*/, &d_uv_scale[0]};
+    Texture3 d_normal_map{{nullptr}, {0}, {0}, 0, nullptr};
     DMaterial d_material{d_diffuse_tex, d_specular_tex, d_roughness_tex, d_generic_tex, d_normal_map};
     SurfacePoint p{Vector3{0, 0, 0},
                    Vector3{0, 1, 0},
@@ -413,9 +413,9 @@ void test_d_bsdf_pdf() {
     auto finite_delta = Real(1e-5);
     {
         auto delta_m = m;
-        delta_m.roughness.texels[0] += finite_delta;
+        delta_m.roughness.texels[0][0] += finite_delta;
         auto positive = bsdf_pdf(delta_m, p, wi, wo, min_roughness);
-        delta_m.roughness.texels[0] -= 2 * finite_delta;
+        delta_m.roughness.texels[0][0] -= 2 * finite_delta;
         auto negative = bsdf_pdf(delta_m, p, wi, wo, min_roughness);
         auto diff = (positive - negative) / (2 * finite_delta);
         equal_or_error(__FILE__, __LINE__, diff, d_r);

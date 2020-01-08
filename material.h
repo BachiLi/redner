@@ -29,40 +29,55 @@ struct Material {
           two_sided(two_sided),
           use_vertex_color(use_vertex_color) {}
 
-    inline std::tuple<int, int, int> get_diffuse_size() const {
-        return std::make_tuple(
-            diffuse_reflectance.width,
-            diffuse_reflectance.height,
-            diffuse_reflectance.num_levels);
+    inline int get_diffuse_levels() const {
+        return diffuse_reflectance.num_levels;
     }
 
-    inline std::tuple<int, int, int> get_specular_size() const {
+    inline std::tuple<int, int> get_diffuse_size(int i) const {
         return std::make_tuple(
-            specular_reflectance.width,
-            specular_reflectance.height,
-            specular_reflectance.num_levels);
+            diffuse_reflectance.width[i],
+            diffuse_reflectance.height[i]);
     }
 
-    inline std::tuple<int, int, int> get_roughness_size() const {
-        return std::make_tuple(
-            roughness.width,
-            roughness.height,
-            roughness.num_levels);
+    inline int get_specular_levels() const {
+        return specular_reflectance.num_levels;
     }
 
-    inline std::tuple<int, int, int, int> get_generic_size() const {
+    inline std::tuple<int, int> get_specular_size(int i) const {
+        return std::make_tuple(
+            specular_reflectance.width[i],
+            specular_reflectance.height[i]);
+    }
+
+    inline int get_roughness_levels() const {
+        return roughness.num_levels;
+    }
+
+    inline std::tuple<int, int> get_roughness_size(int i) const {
+        return std::make_tuple(
+            roughness.width[i],
+            roughness.height[i]);
+    }
+
+    inline int get_generic_levels() const {
+        return generic_texture.num_levels;
+    }
+
+    inline std::tuple<int, int, int> get_generic_size(int i) const {
         return std::make_tuple(
             generic_texture.channels,
-            generic_texture.width,
-            generic_texture.height,
-            generic_texture.num_levels);
+            generic_texture.width[i],
+            generic_texture.height[i]);
     }
 
-    inline std::tuple<int, int, int> get_normal_map_size() const {
+    inline int get_normal_map_levels() const {
+        return normal_map.num_levels;
+    }
+
+    inline std::tuple<int, int> get_normal_map_size(int i) const {
         return std::make_tuple(
-            normal_map.width,
-            normal_map.height,
-            normal_map.num_levels);
+            normal_map.width[i],
+            normal_map.height[i]);
     }
 
     Texture3 diffuse_reflectance;
@@ -209,7 +224,7 @@ inline void d_get_generic_texture(const Material &material,
 
 DEVICE
 inline bool has_normal_map(const Material &material) {
-    return material.normal_map.texels != nullptr;
+    return material.normal_map.num_levels > 0;
 }
 
 DEVICE

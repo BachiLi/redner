@@ -282,7 +282,7 @@ Scene::Scene(const Camera &camera,
 
     max_generic_texture_dimension = 0;
     for (int material_id = 0; material_id < (int)materials.size(); material_id++) {
-        if (materials[material_id]->generic_texture.texels != nullptr) {
+        if (materials[material_id]->generic_texture.num_levels > 0) {
             max_generic_texture_dimension =
                 std::max(max_generic_texture_dimension,
                          materials[material_id]->generic_texture.channels);

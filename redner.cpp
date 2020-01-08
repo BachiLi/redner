@@ -102,27 +102,24 @@ PYBIND11_MODULE(redner, m) {
                       ptr<float>>());
 
     py::class_<Texture1>(m, "Texture1")
-        .def(py::init<ptr<float>,
-                      int, // width
-                      int, // height
+        .def(py::init<const std::vector<ptr<float>> &,
+                      const std::vector<int> &, // width
+                      const std::vector<int> &, // height
                       int, // channels
-                      int, // num_levels
                       ptr<float>>());
 
     py::class_<Texture3>(m, "Texture3")
-        .def(py::init<ptr<float>,
-                      int, // width
-                      int, // height
+        .def(py::init<const std::vector<ptr<float>> &,
+                      const std::vector<int> &, // width
+                      const std::vector<int> &, // height
                       int, // channels
-                      int, // num_levels
                       ptr<float>>());
 
     py::class_<TextureN>(m, "TextureN")
-        .def(py::init<ptr<float>,
-                      int, // width
-                      int, // height
+        .def(py::init<const std::vector<ptr<float>> &,
+                      const std::vector<int> &, // width
+                      const std::vector<int> &, // height
                       int, // channels
-                      int, // num_levels
                       ptr<float>>());
 
     py::class_<Material>(m, "Material")
@@ -134,10 +131,15 @@ PYBIND11_MODULE(redner, m) {
                       bool, // compute_specular_lighting
                       bool, // two_sided
                       bool>()) // use_vertex_color
+        .def("get_diffuse_levels", &Material::get_diffuse_levels)
         .def("get_diffuse_size", &Material::get_diffuse_size)
+        .def("get_specular_levels", &Material::get_specular_levels)
         .def("get_specular_size", &Material::get_specular_size)
+        .def("get_roughness_levels", &Material::get_roughness_levels)
         .def("get_roughness_size", &Material::get_roughness_size)
+        .def("get_generic_levels", &Material::get_generic_levels)
         .def("get_generic_size", &Material::get_generic_size)
+        .def("get_normal_map_levels", &Material::get_normal_map_levels)
         .def("get_normal_map_size", &Material::get_normal_map_size);
 
     py::class_<DMaterial>(m, "DMaterial")
@@ -162,6 +164,7 @@ PYBIND11_MODULE(redner, m) {
                       ptr<float>, // sample_cdf_ys
                       ptr<float>, // sample_cdf_xs
                       Real>())
+        .def("get_levels", &EnvironmentMap::get_levels)
         .def("get_size", &EnvironmentMap::get_size);
     py::class_<DEnvironmentMap, std::shared_ptr<DEnvironmentMap>>(m, "DEnvironmentMap")
         .def(py::init<Texture3,       // values
