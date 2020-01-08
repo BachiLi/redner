@@ -18,6 +18,7 @@ with tf.device(pyredner.get_device_name()):
     material_map, mesh_list, light_map = pyredner.load_obj('scenes/teapot.obj')
     for _, mesh in mesh_list:
         mesh.normals = pyredner.compute_vertex_normal(mesh.vertices, mesh.indices)
+        mesh.uvs, mesh.uv_indices = pyredner.compute_uvs(mesh.vertices, mesh.indices)
 
 # Setup camera
 with tf.device('/device:cpu:' + str(pyredner.get_cpu_device_id())):

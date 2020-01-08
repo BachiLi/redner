@@ -3,6 +3,7 @@ import tensorflow as tf
 import math
 import numpy as np
 from typing import Optional
+import redner
 
 def compute_vertex_normal(vertices: tf.Tensor,
                           indices: tf.Tensor):
@@ -114,7 +115,7 @@ def compute_uvs(vertices, indices, print_progress = True):
         atlas = redner.TextureAtlas()
         num_uv_vertices = redner.automatic_uv_map([uv_trimesh], atlas, print_progress)[0]
 
-        uvs = tf.zeros(num_uv_vertices, 2, dtype=tf.float32)
+        uvs = tf.zeros([num_uv_vertices, 2], dtype=tf.float32)
         uv_indices = tf.zeros_like(indices)
         uv_trimesh.uvs = redner.float_ptr(pyredner.data_ptr(uvs))
         uv_trimesh.uv_indices = redner.int_ptr(pyredner.data_ptr(uv_indices))

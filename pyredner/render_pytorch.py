@@ -39,7 +39,7 @@ def serialize_texture(texture, args):
         assert(mipmap.is_contiguous())
         args.append(mipmap.to(pyredner.get_device()))
     assert(torch.isfinite(texture.uv_scale).all())
-    args.append(texture.uv_scale.to(pyredner.get_device()))    
+    args.append(texture.uv_scale.to(pyredner.get_device()))
 
 class RenderFunction(torch.autograd.Function):
     """
@@ -308,6 +308,7 @@ class RenderFunction(torch.autograd.Function):
                 int(indices.shape[0]),
                 material_id,
                 light_id))
+
         materials = []
         for i in range(num_materials):
             num_levels = args[current_index]

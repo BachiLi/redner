@@ -30,29 +30,18 @@ class Texture:
                 width = max(texels.shape[0], texels.shape[1])
                 num_levels = min(math.ceil(math.log(width, 2) + 1), 8)
                 num_channels = texels.shape[2]
-                box_filter = tf.ones([2, 2, num_channels, 1], dtype=tf.float32) / 4.0
+                box_filter = tf.ones([2, 2, num_channels, 1],
+                    dtype=tf.float32) / 4.0
     
+                mipmap = [texels]
+
                 # HWC -> NHWC
                 base_level = tf.expand_dims(texels, axis=0)
-    
-                mipmap = [base_level]
                 prev_lvl = base_level
                 for l in range(1, num_levels):
                     # Pad for circular boundary condition
-                    # This is slow. The hope is at some point Tensorflow will support
-                    # circular boundary condition for conv2d
-                    desired_height = prev_lvl.shape[1] + 1
-                    while prev_lvl.shape[1] < desired_height:
-                        prev_lvl = tf.concat(
-                            [
-                                prev_lvl, 
-                                prev_lvl[:,:,0:(desired_height - prev_lvl.shape[1])]
-                            ], 1)
-                    desired_width = prev_lvl.shape[2] + 1
-                    while prev_lvl.shape[2] < desired_width:
-                        prev_lvl = tf.concat(
-                            [prev_lvl, prev_lvl[:,:,:,0:1]], 
-                            2)
+                    prev_lvl = tf.concat([prev_lvl, prev_lvl[:,0:1,:,:]], 1)
+                    prev_lvl = tf.concat([prev_lvl, prev_lvl[:,:,0:1,:]], 2)
                     # Convolve with a box filter
                     current_lvl = tf.nn.depthwise_conv2d(
                         prev_lvl,
@@ -62,12 +51,16 @@ class Texture:
                         data_format="NHWC"
                     )
                     # Downsample
-                    current_lvl = tf.nn.avg_pool(current_lvl, 2)
-                    mipmap.append(current_lvl)
+                    # TODO: switch to method = 'area' when tensorflow implements the gradients...
+                    next_size = (max(current_lvl.shape[2] // 2, 1),
+                                 max(current_lvl.shape[3] // 2, 1))
+                    current_lvl = tf.image.resize(current_lvl, size = next_size, method = 'bilinear', antialias = True)
+                    mipmap.append(tf.squeeze(current_lvl, axis = 0))
                     prev_lvl = current_lvl
-    
-                texels = mipmap
-        self.mipmap = texels
+        else:
+            mipmap = [texels]
+
+        self.mipmap = mipmap
 
     @property
     def texels(self):
