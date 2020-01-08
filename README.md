@@ -31,6 +31,7 @@ You can also take a look at the tests directories ([PyTorch](tests) and [TensorF
 
 ## News
 
+01/08/2020 - Significantly improves the memory usage of mipmapping. Now you can use large textures (say 4096x4096) relatively safely.  
 12/15/2019 - Fixed a GC-related bug on the PyTorch rendering code in 0.1.30. Please update.  
 12/12/2019 - Preliminary Windows support (CPU-only) is available thanks to the contribution of [Markus Worchel](https://github.com/mworchel).  
 12/09/2019 - Added many tutorials in wiki using Google colab. Added a sphinx-generated documentation.  
@@ -81,7 +82,7 @@ The current development plan is to enhance the renderer. Following features will
   (The code currently assumes every triangle edge is shared by at most two triangles.
    If your mesh doesn't satisfy this, you can preprocess it in other mesh processing softwares such as [MeshLab](http://www.meshlab.net))
 - Source-to-source automatic differentiation
-- Improve mipmapping memory usage, EWA filtering, covariance tracing
+- EWA filtering, covariance tracing
 - Russian roulette
 - Distribution effects: depth of field/motion blur
 - Proper pixel filter (currently only support 1x1 box filter)
