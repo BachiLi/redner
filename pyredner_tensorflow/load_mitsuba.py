@@ -223,6 +223,8 @@ def parse_shape(node, material_dict, shape_id):
                 uvs = None
             if normals.shape[0] == 0:
                 normals = None
+            uv_indices = None # Serialized doesn't use different indices for UV & normal
+            normal_indices = None
 
         # Transform the vertices and normals
         vertices = tf.concat((vertices, tf.ones([vertices.shape[0], 1], dtype=tf.float32)), axis = 1)
@@ -261,6 +263,8 @@ def parse_shape(node, material_dict, shape_id):
                               indices=indices,
                               uvs=uvs,
                               normals=normals,
+                              uv_indices=uv_indices,
+                              normal_indices=normal_indices,
                               material_id=mat_id), lgt
     elif node.attrib['type'] == 'rectangle':
         indices = tf.constant([[0, 2, 1], [1, 2, 3]],

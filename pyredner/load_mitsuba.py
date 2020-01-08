@@ -255,6 +255,7 @@ def parse_shape(node, material_dict, shape_id, shape_group_dict = None):
             if normals.shape[0] == 0:
                 normals = None
             uv_indices = None # Serialized doesn't use different indices for UV & normal
+            normal_indices = None
 
         # Transform the vertices and normals
         vertices = torch.cat((vertices, torch.ones(vertices.shape[0], 1)), dim = 1)
