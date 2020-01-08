@@ -37,7 +37,7 @@ envmap = pyredner.imread('sunsky.exr')
 if pyredner.get_use_gpu():
     envmap = envmap.cuda(device = pyredner.get_device())
 envmap = pyredner.EnvironmentMap(envmap)
-scene = pyredner.Scene(cam, shapes, materials, [], envmap)
+scene = pyredner.Scene(cam, shapes, materials, [], [], envmap)
 scene_args = pyredner.RenderFunction.serialize_scene(\
     scene = scene,
     num_samples = 256,
@@ -54,7 +54,7 @@ envmap_texels = torch.tensor(0.5 * torch.ones([32, 64, 3],
     device = pyredner.get_device()),
     requires_grad = True)
 envmap = pyredner.EnvironmentMap(torch.abs(envmap_texels))
-scene = pyredner.Scene(cam, shapes, materials, [], envmap)
+scene = pyredner.Scene(cam, shapes, materials, [], [], envmap)
 scene_args = pyredner.RenderFunction.serialize_scene(\
     scene = scene,
     num_samples = 256,
@@ -69,7 +69,7 @@ for t in range(600):
     print('iteration:', t)
     optimizer.zero_grad()
     envmap = pyredner.EnvironmentMap(torch.abs(envmap_texels))
-    scene = pyredner.Scene(cam, shapes, materials, [], envmap)
+    scene = pyredner.Scene(cam, shapes, materials, [], [], envmap)
     scene_args = pyredner.RenderFunction.serialize_scene(\
         scene = scene,
         num_samples = 4,
