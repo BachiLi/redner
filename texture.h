@@ -6,6 +6,7 @@
 #include "atomic.h"
 
 #include <vector>
+#include <cassert>
 
 constexpr auto max_num_texels = 8;
 
