@@ -145,7 +145,11 @@ def serialize_scene(scene: pyredner.Scene,
     for shape in scene.shapes:
         with tf.device(pyredner.get_device_name()):
             args.append(tf.identity(shape.vertices))
-            args.append(tf.identity(shape.indices))
+            # HACK: tf.bitcast forces tensorflow to copy int32 to GPU memory.
+            # tf.identity stopped working since TF 2.1 (if you print the device
+            # it will say it's on GPU, but the address returned by data_ptr is wrong).
+            # Hopefully TF people will fix this in the future.
+            args.append(tf.bitcast(shape.indices, type=tf.int32))
             if shape.uvs is None:
                 args.append(__EMPTY_TENSOR)
             else:
@@ -157,11 +161,11 @@ def serialize_scene(scene: pyredner.Scene,
             if shape.uv_indices is None:
                 args.append(__EMPTY_TENSOR)
             else:
-                args.append(tf.identity(shape.uv_indices))
+                args.append(tf.bitcast(shape.uv_indices, type=tf.int32))
             if shape.normal_indices is None:
                 args.append(__EMPTY_TENSOR)
             else:
-                args.append(tf.identity(shape.normal_indices))
+                args.append(tf.bitcast(shape.normal_indices, type=tf.int32))
             if shape.colors is None:
                 args.append(__EMPTY_TENSOR)
             else:
@@ -289,6 +293,7 @@ def forward(seed:int, *args):
             current_index += 1
             light_id = int(args[current_index])
             current_index += 1
+
             shapes.append(redner.Shape(\
                 redner.float_ptr(pyredner.data_ptr(vertices)),
                 redner.int_ptr(pyredner.data_ptr(indices)),

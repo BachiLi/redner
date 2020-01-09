@@ -158,7 +158,6 @@ if(REDNER_CUDA)
         shape.cpp
         sobol_sampler.cpp
         PROPERTIES CUDA_SOURCE_PROPERTY_FORMAT OBJ)
-    set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -std=c++14")
 
     cuda_add_library(redner MODULE ${SRCS})
     target_link_libraries(redner

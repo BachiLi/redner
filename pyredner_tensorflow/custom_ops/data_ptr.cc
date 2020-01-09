@@ -34,9 +34,8 @@ class DataPtrOp : public OpKernel {
 
   void Compute(OpKernelContext* context) override {
     // Grab the input tensor
-
     const Tensor& input_tensor = context->input(0);
-    auto tensor = reinterpret_cast<const T*>(input_tensor.tensor_data().data());
+    const T *tensor = input_tensor.flat<T>().data();
 
     // Create an output tensor
     // NOTE: The output datatype must match the Ops definition!!!.
