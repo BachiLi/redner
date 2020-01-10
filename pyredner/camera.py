@@ -44,7 +44,7 @@ class Camera:
             overrides fov
             3x3 matrix, optional
         camera_type: render.camera_type
-            the type of the camera (perspective, orthographic, or fisheye)
+            the type of the camera (perspective, orthographic, fisheye, or panorama)
         fisheye: bool
             whether the camera is a fisheye camera
             (legacy parameter just to ensure compatibility).
