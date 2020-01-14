@@ -231,19 +231,18 @@ def parse_shape(node, material_dict, shape_id, shape_group_dict = None):
         if node.attrib['type'] == 'obj':
             _, mesh_list, _ = pyredner.load_obj(filename)
             # Convert to CPU for rebuild_topology
-            with tf.device('/device:cpu:' + str(pyredner.get_cpu_device_id())):
-                vertices = tf.identity(mesh_list[0][1].vertices)
-                indices = tf.identity(mesh_list[0][1].indices)
-                uvs = mesh_list[0][1].uvs
-                normals = mesh_list[0][1].normals
-                uv_indices = mesh_list[0][1].uv_indices
-                normal_indices = mesh_list[0][1].normal_indices
-                if uvs is not None:
-                    uvs = tf.identity(uvs)
-                if normals is not None:
-                    normals = tf.identity(normals)
-                if uv_indices is not None:
-                    uv_indices = tf.identity(uv_indices)
+            vertices = mesh_list[0][1].vertices.cpu()
+            indices = mesh_list[0][1].indices.cpu()
+            uvs = mesh_list[0][1].uvs
+            normals = mesh_list[0][1].normals
+            uv_indices = mesh_list[0][1].uv_indices
+            normal_indices = mesh_list[0][1].normal_indices
+            if uvs is not None:
+                uvs = uvs.cpu()
+            if normals is not None:
+                normals = normals.cpu()
+            if uv_indices is not None:
+                uv_indices = uv_indices.cpu()
         else:
             assert(node.attrib['type'] == 'serialized')
             mitsuba_tri_mesh = redner.load_serialized(filename, serialized_shape_id)
