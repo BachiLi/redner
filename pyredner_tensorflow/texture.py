@@ -52,8 +52,8 @@ class Texture:
                     )
                     # Downsample
                     # TODO: switch to method = 'area' when tensorflow implements the gradients...
-                    next_size = (max(current_lvl.shape[2] // 2, 1),
-                                 max(current_lvl.shape[3] // 2, 1))
+                    next_size = (max(current_lvl.shape[1] // 2, 1),
+                                 max(current_lvl.shape[2] // 2, 1))
                     current_lvl = tf.image.resize(current_lvl, size = next_size, method = 'bilinear', antialias = True)
                     mipmap.append(tf.squeeze(current_lvl, axis = 0))
                     prev_lvl = current_lvl
