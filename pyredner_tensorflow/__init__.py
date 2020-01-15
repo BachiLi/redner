@@ -17,6 +17,7 @@ from .envmap import *
 from .scene import *
 from .image import *
 from .load_obj import load_obj
+from .save_obj import save_obj
 from .load_mitsuba import load_mitsuba
 from .transform import *
 from .utils import *
