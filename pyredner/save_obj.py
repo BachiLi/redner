@@ -1,4 +1,3 @@
-import torch
 import pyredner
 from typing import Union
 
@@ -18,9 +17,9 @@ def save_obj(shape: Union[pyredner.Object, pyredner.Shape],
             flip the v coordinate of uv by applying v' = 1 - v
     """
     with open(filename, 'w') as f:
-        vertices = shape.vertices.cpu()
-        uvs = shape.uvs.cpu() if shape.uvs is not None else None
-        normals = shape.normals.cpu() if shape.normals is not None else None
+        vertices = shape.vertices.cpu().numpy()
+        uvs = shape.uvs.cpu().numpy() if shape.uvs is not None else None
+        normals = shape.normals.cpu().numpy() if shape.normals is not None else None
         for i in range(vertices.shape[0]):
             f.write('v {} {} {}\n'.format(vertices[i, 0], vertices[i, 1], vertices[i, 2]))
         if uvs is not None:
@@ -32,9 +31,9 @@ def save_obj(shape: Union[pyredner.Object, pyredner.Shape],
         if normals is not None:
             for i in range(normals.shape[0]):
                 f.write('vn {} {} {}\n'.format(normals[i, 0], normals[i, 1], normals[i, 2]))
-        indices = shape.indices.cpu() + 1
-        uv_indices = shape.uv_indices.cpu() + 1 if shape.uv_indices is not None else None
-        normal_indices = shape.normal_indices.cpu() + 1 if shape.normal_indices is not None else None
+        indices = shape.indices.cpu().numpy() + 1
+        uv_indices = shape.uv_indices.cpu().numpy() + 1 if shape.uv_indices is not None else None
+        normal_indices = shape.normal_indices.cpu().numpy() + 1 if shape.normal_indices is not None else None
         for i in range(indices.shape[0]):
             vi = (indices[i, 0], indices[i, 1], indices[i, 2])
             if uv_indices is not None:
