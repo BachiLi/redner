@@ -13,17 +13,11 @@ endif()
 
 option(REDNER_CUDA "Build redner with GPU code path?" OFF)
 
-# TODO: CUDA does currently not work with Win32 as
-#       pybind11_add_module creates the redner target but the
-#       call to cuda_add_library tries to create it again.
-if(WIN32 AND REDNER_CUDA)
-  set(REDNER_CUDA OFF)
-  message(WARNING "GPU build currently not supported for Win32.")
-endif()
 
 if(REDNER_CUDA)
     message(STATUS "Build with CUDA support")
     find_package(CUDA 10 REQUIRED)
+    set(CMAKE_CUDA_STANDARD 11)
     # We don't set REQUIRED here as the main OptiX lib will not be found
     # (only OptiX Prime is required)
     find_package(OptiX)
@@ -121,21 +115,6 @@ set(SRCS aabb.h
          sobol_sampler.cpp
          xatlas/xatlas.cpp)
 
-if(APPLE)
-    # The "-undefined dynamic_lookup" is a hack for systems with
-    # multiple Python installed. If we link a particular Python version
-    # here, and we import it with a different Python version later.
-    # likely a segmentation fault.
-    # The solution for Linux Mac OS machines, as mentioned in 
-    # https://github.com/pybind/pybind11/blob/master/tools/pybind11Tools.cmake
-    # is to not link against Python library at all and resolve the symbols
-    # at compile time.
-    set(DYNAMIC_LOOKUP "-undefined dynamic_lookup")
-endif()
-if (WIN32)
-    pybind11_add_module(redner SHARED ${SRCS})
-endif()
-
 if(REDNER_CUDA)
     add_compile_definitions(COMPILE_WITH_CUDA)
     set_source_files_properties(
@@ -158,34 +137,32 @@ if(REDNER_CUDA)
         shape.cpp
         sobol_sampler.cpp
         PROPERTIES CUDA_SOURCE_PROPERTY_FORMAT OBJ)
-    set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -std=c++11")
 
     cuda_add_library(redner MODULE ${SRCS})
-    target_link_libraries(redner
-        ${EMBREE_LIBRARY}
-        ${optix_prime_LIBRARY}
-        ${DYNAMIC_LOOKUP})
+    target_link_libraries(redner ${optix_prime_LIBRARY})
 else()
-    # No CUDA
-    if (NOT WIN32)
-        add_library(redner MODULE ${SRCS})
-    
-        # The "-undefined dynamic_lookup" is a hack for systems with
-        # multiple Python installed. If we link a particular Python version
-        # here, and we import it with a different Python version later.
-        # likely a segmentation fault.
-        # The solution for Linux/Mac OS machines, as mentioned in 
-        # https://github.com/pybind/pybind11/blob/master/tools/pybind11Tools.cmake
-        # is to not link against Python library at all and resolve the symbols
-        # at compile time.
-        target_link_libraries(redner
-            ${EMBREE_LIBRARY}
-            ${DYNAMIC_LOOKUP})
-    else()
-        target_link_libraries(redner
-            PRIVATE
-            ${EMBREE_LIBRARY})
-    endif()
+    add_library(redner MODULE ${SRCS})
+endif()
+
+if(APPLE)
+    # The "-undefined dynamic_lookup" is a hack for systems with
+    # multiple Python installed. If we link a particular Python version
+    # here, and we import it with a different Python version later.
+    # likely a segmentation fault.
+    # The solution for Linux Mac OS machines, as mentioned in 
+    # https://github.com/pybind/pybind11/blob/master/tools/pybind11Tools.cmake
+    # is to not link against Python library at all and resolve the symbols
+    # at compile time.
+    set(DYNAMIC_LOOKUP "-undefined dynamic_lookup")
+endif()
+
+target_link_libraries(redner ${EMBREE_LIBRARY} ${DYNAMIC_LOOKUP})
+
+if(WIN32)
+    # See: https://pybind11.readthedocs.io/en/master/compiling.html#advanced-interface-library-target
+    target_link_libraries(redner pybind11::module)
+    set_target_properties(redner PROPERTIES PREFIX "${PYTHON_MODULE_PREFIX}"
+                                            SUFFIX "${PYTHON_MODULE_EXTENSION}")
 endif()
 
 set_target_properties(redner PROPERTIES SKIP_BUILD_RPATH FALSE)
