@@ -103,7 +103,8 @@ def render_deferred(scene: Union[pyredner.Scene, List[pyredner.Scene]],
                     lights: Union[List[DeferredLight], List[List[DeferredLight]]],
                     alpha: bool = False,
                     aa_samples: int = 2,
-                    seed: Optional[Union[int, List[int]]] = None):
+                    seed: Optional[Union[int, List[int]]] = None,
+                    sample_pixel_center: bool = False):
     """
         Render the scenes using `deferred rendering <https://en.wikipedia.org/wiki/Deferred_shading>`_.
         We generate G-buffer images containing world-space position,
@@ -133,6 +134,12 @@ def render_deferred(scene: Union[pyredner.Scene, List[pyredner.Scene]],
             Random seed used for sampling. Randomly assigned if set to None.
             For batch render, if seed it not None, need to provide a list
             of seeds.
+        sample_pixel_center: bool
+            Always sample at the pixel center when rendering.
+            This trades noise with aliasing.
+            If this option is activated, the rendering becomes non-differentiable
+            (since there is no antialiasing integral),
+            and redner's edge sampling becomes an approximation to the gradients of the aliased rendering.
 
         Returns
         =======
@@ -161,7 +168,8 @@ def render_deferred(scene: Union[pyredner.Scene, List[pyredner.Scene]],
             max_bounces = 0,
             sampler_type = redner.SamplerType.sobol,
             channels = channels,
-            use_secondary_edge_sampling = False)
+            use_secondary_edge_sampling = False,
+            sample_pixel_center = sample_pixel_center)
         # Need to revert the resolution back
         scene.camera.resolution = org_res
         g_buffer = pyredner.render(seed, *scene_args)
@@ -205,7 +213,8 @@ def render_deferred(scene: Union[pyredner.Scene, List[pyredner.Scene]],
                     max_bounces = 0,
                     sampler_type = redner.SamplerType.sobol,
                     channels = channels,
-                    use_secondary_edge_sampling = False)
+                    use_secondary_edge_sampling = False,
+                    sample_pixel_center = sample_pixel_center)
                 # Need to revert the resolution back
                 sc.camera.resolution = org_res
                 g_buffers.append(pyredner.render(se, *scene_args))
@@ -237,7 +246,8 @@ def render_deferred(scene: Union[pyredner.Scene, List[pyredner.Scene]],
                     max_bounces = 0,
                     sampler_type = redner.SamplerType.sobol,
                     channels = channels,
-                    use_secondary_edge_sampling = False)
+                    use_secondary_edge_sampling = False,
+                    sample_pixel_center = sample_pixel_center)
                 # Need to revert the resolution back
                 sc.camera.resolution = org_res
                 g_buffer = pyredner.render(se, *scene_args)
@@ -265,7 +275,8 @@ def render_generic(scene: pyredner.Scene,
                    max_bounces: int = 1,
                    sampler_type = pyredner.sampler_type.sobol,
                    num_samples: Union[int, Tuple[int, int]] = (4, 4),
-                   seed: Optional[int] = None):
+                   seed: Optional[int] = None,
+                   sample_pixel_center: bool = False):
     """
         A generic rendering function that can be either pathtracing or
         g-buffer rendering or both.
@@ -307,6 +318,12 @@ def render_generic(scene: pyredner.Scene,
             Random seed used for sampling. Randomly assigned if set to None.
             For batch render, if seed it not None, need to provide a list
             of seeds.
+        sample_pixel_center: bool
+            Always sample at the pixel center when rendering.
+            This trades noise with aliasing.
+            If this option is activated, the rendering becomes non-differentiable
+            (since there is no antialiasing integral),
+            and redner's edge sampling becomes an approximation to the gradients of the aliased rendering.
 
         Returns
         =======
@@ -322,7 +339,8 @@ def render_generic(scene: pyredner.Scene,
             num_samples = num_samples,
             max_bounces = max_bounces,
             sampler_type = sampler_type,
-            channels = channels)
+            channels = channels,
+            sample_pixel_center = sample_pixel_center)
         return pyredner.render(seed, *scene_args)
     else:
         assert(isinstance(scene, list))
@@ -340,7 +358,8 @@ def render_generic(scene: pyredner.Scene,
                 num_samples = num_samples,
                 max_bounces = max_bounces,
                 sampler_type = sampler_type,
-                channels = channels)
+                channels = channels,
+                sample_pixel_center = sample_pixel_center)
             imgs.append(pyredner.render(se, *scene_args))
         imgs = tf.stack(imgs)
         return imgs
@@ -348,7 +367,8 @@ def render_generic(scene: pyredner.Scene,
 def render_g_buffer(scene: pyredner.Scene,
                     channels: List[redner.channels],
                     num_samples: Union[int, Tuple[int, int]] = (1, 1),
-                    seed: Optional[int] = None):
+                    seed: Optional[int] = None,
+                    sample_pixel_center: bool = False):
     """
         Render a G buffer from the scene.
 
@@ -377,6 +397,12 @@ def render_g_buffer(scene: pyredner.Scene,
             for both.
         seed: Optional[int]
             Random seed used for sampling. Randomly assigned if set to None.
+        sample_pixel_center: bool
+            Always sample at the pixel center when rendering.
+            This trades noise with aliasing.
+            If this option is activated, the rendering becomes non-differentiable
+            (since there is no antialiasing integral),
+            and redner's edge sampling becomes an approximation to the gradients of the aliased rendering.
 
         Returns
         =======
@@ -388,14 +414,16 @@ def render_g_buffer(scene: pyredner.Scene,
                           max_bounces = 0,
                           sampler_type = redner.SamplerType.sobol,
                           num_samples = num_samples,
-                          seed = seed)
+                          seed = seed,
+                          sample_pixel_center = sample_pixel_center)
 
 def render_pathtracing(scene: Union[pyredner.Scene, List[pyredner.Scene]],
                        alpha: bool = False,
                        max_bounces: int = 1,
                        sampler_type = pyredner.sampler_type.sobol,
                        num_samples: Union[int, Tuple[int, int]] = (4, 4),
-                       seed: Optional[Union[int, List[int]]] = None):
+                       seed: Optional[Union[int, List[int]]] = None,
+                       sample_pixel_center: bool = False):
     """
         Render a pyredner scene using pathtracing.
 
@@ -421,6 +449,12 @@ def render_pathtracing(scene: Union[pyredner.Scene, List[pyredner.Scene]],
             Random seed used for sampling. Randomly assigned if set to None.
             For batch render, if seed it not None, need to provide a list
             of seeds.
+        sample_pixel_center: bool
+            Always sample at the pixel center when rendering.
+            This trades noise with aliasing.
+            If this option is activated, the rendering becomes non-differentiable
+            (since there is no antialiasing integral),
+            and redner's edge sampling becomes an approximation to the gradients of the aliased rendering.
 
         Returns
         =======
@@ -438,12 +472,14 @@ def render_pathtracing(scene: Union[pyredner.Scene, List[pyredner.Scene]],
                           max_bounces = max_bounces,
                           sampler_type = sampler_type,
                           num_samples = num_samples,
-                          seed = seed)
+                          seed = seed,
+                          sample_pixel_center = sample_pixel_center)
 
 def render_albedo(scene: Union[pyredner.Scene, List[pyredner.Scene]],
                   alpha: bool = False,
                   num_samples: Union[int, Tuple[int, int]] = (16, 4),
-                  seed: Optional[Union[int, List[int]]] = None):
+                  seed: Optional[Union[int, List[int]]] = None,
+                  sample_pixel_center: bool = False):
     """
         Render the diffuse albedo colors of the scenes.
 
@@ -465,6 +501,12 @@ def render_albedo(scene: Union[pyredner.Scene, List[pyredner.Scene]],
             Random seed used for sampling. Randomly assigned if set to None.
             For batch render, if seed it not None, need to provide a list
             of seeds.
+        sample_pixel_center: bool
+            Always sample at the pixel center when rendering.
+            This trades noise with aliasing.
+            If this option is activated, the rendering becomes non-differentiable
+            (since there is no antialiasing integral),
+            and redner's edge sampling becomes an approximation to the gradients of the aliased rendering.
 
         Returns
         =======
@@ -480,4 +522,5 @@ def render_albedo(scene: Union[pyredner.Scene, List[pyredner.Scene]],
     return render_g_buffer(scene = scene,
                            channels = channels,
                            num_samples = num_samples,
-                           seed = seed)
+                           seed = seed,
+                           sample_pixel_center = sample_pixel_center)

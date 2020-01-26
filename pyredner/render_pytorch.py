@@ -53,7 +53,8 @@ class RenderFunction(torch.autograd.Function):
                         channels: List = [redner.channels.radiance],
                         sampler_type = redner.SamplerType.independent,
                         use_primary_edge_sampling: bool = True,
-                        use_secondary_edge_sampling: bool = True):
+                        use_secondary_edge_sampling: bool = True,
+                        sample_pixel_center: bool = False):
         """
             Given a pyredner scene & rendering options, convert them to a linear list of argument,
             so that we can use it in PyTorch.
@@ -98,6 +99,12 @@ class RenderFunction(torch.autograd.Function):
 
             use_secondary_edge_sampling: bool
 
+            sample_pixel_center: bool
+                Always sample at the pixel center when rendering.
+                This trades noise with aliasing.
+                If this option is activated, the rendering becomes non-differentiable
+                (since there is no antialiasing integral),
+                and redner's edge sampling becomes an approximation to the gradients of the aliased rendering.
         """
         # Record if there is any parameter that requires gradient need discontinuity sampling.
         # For skipping edge sampling when it is not necessary.
@@ -201,6 +208,7 @@ class RenderFunction(torch.autograd.Function):
             # Don't need to do edge sampling if we don't require spatial derivatives
             args.append(False)
             args.append(False)
+        args.append(sample_pixel_center)
 
         return args
 
@@ -510,6 +518,8 @@ class RenderFunction(torch.autograd.Function):
         current_index += 1
         use_secondary_edge_sampling = args[current_index]
         current_index += 1
+        sample_pixel_center = args[current_index]
+        current_index += 1
 
         start = time.time()
         scene = redner.Scene(camera,
@@ -529,7 +539,12 @@ class RenderFunction(torch.autograd.Function):
         if isinstance(num_samples, int):
             num_samples = (num_samples, num_samples)
 
-        options = redner.RenderOptions(seed, num_samples[0], max_bounces, channels, sampler_type)
+        options = redner.RenderOptions(seed,
+                                       num_samples[0],
+                                       max_bounces,
+                                       channels,
+                                       sampler_type,
+                                       sample_pixel_center)
         num_channels = redner.compute_num_channels(channels,
                                                    scene.max_generic_texture_dimension)
         rendered_image = torch.zeros(resolution[0], resolution[1], num_channels,
@@ -967,5 +982,6 @@ class RenderFunction(torch.autograd.Function):
         ret_list.append(None) # sampler type
         ret_list.append(None) # use_primary_edge_sampling
         ret_list.append(None) # use_secondary_edge_sampling
+        ret_list.append(None) # sample_pixel_center
 
         return tuple(ret_list)

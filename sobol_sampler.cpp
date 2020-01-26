@@ -1,7 +1,10 @@
 #include "sobol_sampler.h"
 #include "parallel.h"
+#include "thrust_utils.h"
 
 #include "sobol.inc"
+
+#include <thrust/fill.h>
 
 // Initialize Sobol sampler's scramble parameter for each pixel
 struct sobol_initializer {
@@ -96,24 +99,34 @@ void SobolSampler::begin_sample(int sample_id) {
     current_dimension = 0;
 }
 
-void SobolSampler::next_camera_samples(BufferView<TCameraSample<float>> samples) {
-    parallel_for(sobol_sampler<2, float>{
-        current_sample_id,
-        current_dimension,
-        sobol_matrices,
-        sobol_scramble.begin(),
-        (float*)samples.begin()}, samples.size(), use_gpu);
-    current_dimension += 2;
+void SobolSampler::next_camera_samples(BufferView<TCameraSample<float>> samples, bool sample_pixel_center) {
+    if (sample_pixel_center) {
+        DISPATCH(use_gpu, thrust::fill,
+            (float*)samples.begin(), (float*)samples.end(), 0.f);
+    } else {
+        parallel_for(sobol_sampler<2, float>{
+            current_sample_id,
+            current_dimension,
+            sobol_matrices,
+            sobol_scramble.begin(),
+            (float*)samples.begin()}, samples.size(), use_gpu);
+        current_dimension += 2;
+    }
 }
 
-void SobolSampler::next_camera_samples(BufferView<TCameraSample<double>> samples) {
-    parallel_for(sobol_sampler<2, double>{
-        current_sample_id,
-        current_dimension,
-        sobol_matrices,
-        sobol_scramble.begin(),
-        (double*)samples.begin()}, samples.size(), use_gpu);
-    current_dimension += 2;
+void SobolSampler::next_camera_samples(BufferView<TCameraSample<double>> samples, bool sample_pixel_center) {
+    if (sample_pixel_center) {
+        DISPATCH(use_gpu, thrust::fill,
+            (float*)samples.begin(), (float*)samples.end(), 0.f);
+    } else {
+        parallel_for(sobol_sampler<2, double>{
+            current_sample_id,
+            current_dimension,
+            sobol_matrices,
+            sobol_scramble.begin(),
+            (double*)samples.begin()}, samples.size(), use_gpu);
+        current_dimension += 2;
+    }
 }
 
 void SobolSampler::next_light_samples(BufferView<TLightSample<float>> samples) {

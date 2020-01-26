@@ -62,7 +62,8 @@ def serialize_scene(scene: pyredner.Scene,
                     channels = [redner.channels.radiance],
                     sampler_type = redner.SamplerType.independent,
                     use_primary_edge_sampling = True,
-                    use_secondary_edge_sampling = True) -> List:
+                    use_secondary_edge_sampling = True,
+                    sample_pixel_center: bool = False) -> List:
     """
         Given a pyredner scene & rendering options, convert them to a linear list of argument,
         so that we can use it in PyTorch.
@@ -107,6 +108,12 @@ def serialize_scene(scene: pyredner.Scene,
 
         use_secondary_edge_sampling: bool
 
+            sample_pixel_center: bool
+                Always sample at the pixel center when rendering.
+                This trades noise with aliasing.
+                If this option is activated, the rendering becomes non-differentiable
+                (since there is no antialiasing integral),
+                and redner's edge sampling becomes an approximation to the gradients of the aliased rendering.
     """
     # TODO: figure out a way to determine whether a TF tensor requires gradient or not
     cam = scene.camera
@@ -207,6 +214,7 @@ def serialize_scene(scene: pyredner.Scene,
     args.append(RednerSamplerType.asTensor(sampler_type))
     args.append(tf.constant(use_primary_edge_sampling))
     args.append(tf.constant(use_secondary_edge_sampling))
+    args.append(tf.constant(sample_pixel_center))
     return args
 
 def forward(seed:int, *args):
@@ -536,6 +544,8 @@ def forward(seed:int, *args):
     current_index += 1
     use_secondary_edge_sampling = args[current_index]
     current_index += 1
+    sample_pixel_center = args[current_index]
+    current_index += 1
 
     start = time.time()
     scene = redner.Scene(camera,
@@ -559,7 +569,8 @@ def forward(seed:int, *args):
                                    num_samples[0],
                                    max_bounces,
                                    channels,
-                                   sampler_type)
+                                   sampler_type,
+                                   sample_pixel_center)
     num_channels = redner.compute_num_channels(channels,
                                                scene.max_generic_texture_dimension)
 
@@ -1005,6 +1016,7 @@ def render(*x):
         ret_list.append(None) # sampler type
         ret_list.append(None) # use_primary_edge_sampling
         ret_list.append(None) # use_secondary_edge_sampling
+        ret_list.append(None) # sample_pixel_center
 
         return ret_list
 

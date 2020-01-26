@@ -19,6 +19,7 @@ struct RenderOptions {
     int max_bounces;
     std::vector<Channels> channels;
     SamplerType sampler_type;
+    bool sample_pixel_center;
 };
 
 void render(const Scene &scene,

@@ -194,10 +194,12 @@ PYBIND11_MODULE(redner, m) {
 
     py::class_<RenderOptions>(m, "RenderOptions")
         .def(py::init<uint64_t,
-                      int,
-                      int,
+                      int, // num_samples
+                      int, // max_bounces
                       std::vector<Channels>,
-                      SamplerType>())
+                      SamplerType,
+                      bool // sample_pixel_center
+                      >())
         .def_readwrite("seed", &RenderOptions::seed)
         .def_readwrite("num_samples", &RenderOptions::num_samples);
 

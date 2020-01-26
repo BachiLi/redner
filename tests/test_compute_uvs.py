@@ -45,14 +45,11 @@ envmap = pyredner.EnvironmentMap(envmap)
 
 # Finally we construct our scene using all the variables we setup previously.
 scene = pyredner.Scene(cam, shapes, materials, area_lights = [], envmap = envmap)
-# Like the previous tutorial, we serialize and render the scene, 
-# save it as our target
 scene_args = pyredner.RenderFunction.serialize_scene(\
     scene = scene,
     num_samples = 512,
     max_bounces = 1)
 render = pyredner.RenderFunction.apply
 img = render(0, *scene_args)
-pyredner.imwrite(img.cpu(), 'results/test_compute_uvs/target.exr')
-pyredner.imwrite(img.cpu(), 'results/test_compute_uvs/target.png')
-target = pyredner.imread('results/test_compute_uvs/target.exr')
+pyredner.imwrite(img.cpu(), 'results/test_compute_uvs/img.exr')
+pyredner.imwrite(img.cpu(), 'results/test_compute_uvs/img.png')
