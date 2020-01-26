@@ -84,7 +84,7 @@ PCGSampler::PCGSampler(bool use_gpu,
 void PCGSampler::next_camera_samples(BufferView<TCameraSample<float>> samples, bool sample_pixel_center) {
     if (sample_pixel_center) {
         DISPATCH(use_gpu, thrust::fill,
-            (float*)samples.begin(), (float*)samples.end(), 0.f);
+            (float*)samples.begin(), (float*)samples.end(), 0.5f);
     } else {
         parallel_for(pcg_sampler_float<2>{rng_states.begin(),
             (float*)samples.begin()}, samples.size(), use_gpu);
@@ -94,7 +94,7 @@ void PCGSampler::next_camera_samples(BufferView<TCameraSample<float>> samples, b
 void PCGSampler::next_camera_samples(BufferView<TCameraSample<double>> samples, bool sample_pixel_center) {
     if (sample_pixel_center) {
         DISPATCH(use_gpu, thrust::fill,
-            (double*)samples.begin(), (double*)samples.end(), 0.0);
+            (double*)samples.begin(), (double*)samples.end(), 0.5);
     } else {
         parallel_for(pcg_sampler_double<2>{rng_states.begin(),
             (double*)samples.begin()}, samples.size(), use_gpu);

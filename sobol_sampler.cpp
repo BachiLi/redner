@@ -102,7 +102,7 @@ void SobolSampler::begin_sample(int sample_id) {
 void SobolSampler::next_camera_samples(BufferView<TCameraSample<float>> samples, bool sample_pixel_center) {
     if (sample_pixel_center) {
         DISPATCH(use_gpu, thrust::fill,
-            (float*)samples.begin(), (float*)samples.end(), 0.f);
+            (float*)samples.begin(), (float*)samples.end(), 0.5f);
     } else {
         parallel_for(sobol_sampler<2, float>{
             current_sample_id,
@@ -117,7 +117,7 @@ void SobolSampler::next_camera_samples(BufferView<TCameraSample<float>> samples,
 void SobolSampler::next_camera_samples(BufferView<TCameraSample<double>> samples, bool sample_pixel_center) {
     if (sample_pixel_center) {
         DISPATCH(use_gpu, thrust::fill,
-            (float*)samples.begin(), (float*)samples.end(), 0.f);
+            (double*)samples.begin(), (double*)samples.end(), 0.5);
     } else {
         parallel_for(sobol_sampler<2, double>{
             current_sample_id,
