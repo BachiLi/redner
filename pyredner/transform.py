@@ -12,20 +12,20 @@ def gen_look_at_matrix(pos, look, up):
     d = normalize(look - pos)
     right = normalize(torch.cross(d, normalize(up)))
     new_up = normalize(torch.cross(right, d))
-    z = torch.zeros([1], dtype=torch.float32)
-    o = torch.ones([1], dtype=torch.float32)
+    z = torch.zeros([1], dtype=torch.float32, device = d.device)
+    o = torch.ones([1], dtype=torch.float32, device = d.device)
     return torch.transpose(torch.stack([torch.cat([right , z], 0),
                                         torch.cat([new_up, z], 0),
                                         torch.cat([d     , z], 0),
                                         torch.cat([pos   , o], 0)]), 0, 1).contiguous()
 
 def gen_scale_matrix(scale):
-    o = torch.ones([1], dtype=torch.float32)
+    o = torch.ones([1], dtype=torch.float32, device = d.device)
     return torch.diag(torch.cat([scale, o], 0))
 
 def gen_translate_matrix(translate):
-    z = torch.zeros([1], dtype=torch.float32)
-    o = torch.ones([1], dtype=torch.float32)
+    z = torch.zeros([1], dtype=torch.float32, device = d.device)
+    o = torch.ones([1], dtype=torch.float32, device = d.device)
     return torch.stack([torch.cat([o, z, z, translate[0:1]], 0),
                         torch.cat([z, o, z, translate[1:2]], 0),
                         torch.cat([z, z, o, translate[2:3]], 0),
@@ -34,8 +34,8 @@ def gen_translate_matrix(translate):
 def gen_perspective_matrix(fov, clip_near, clip_far):
     clip_dist = clip_far - clip_near
     cot = 1 / torch.tan(radians(fov / 2.0))
-    z = torch.zeros([1], dtype=torch.float32)
-    o = torch.ones([1], dtype=torch.float32)
+    z = torch.zeros([1], dtype=torch.float32, device = d.device)
+    o = torch.ones([1], dtype=torch.float32, device = d.device)
     return torch.stack([torch.cat([cot,   z,             z,                       z], 0),
                         torch.cat([  z, cot,             z,                       z], 0),
                         torch.cat([  z,   z, 1 / clip_dist, - clip_near / clip_dist], 0),
