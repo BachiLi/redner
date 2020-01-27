@@ -46,15 +46,18 @@ class Texture:
                     current_lvl = tf.nn.depthwise_conv2d(
                         prev_lvl,
                         box_filter,  # [filter_height, filter_width, in_channels, out_channels]
-                        strides=[1,1,1,1],
-                        padding="VALID",   # No padding
-                        data_format="NHWC"
+                        strides = [1,1,1,1],
+                        padding = 'VALID',   # No padding
+                        data_format = 'NHWC'
                     )
                     # Downsample
-                    # TODO: switch to method = 'area' when tensorflow implements the gradients...
-                    next_size = (max(current_lvl.shape[1] // 2, 1),
-                                 max(current_lvl.shape[2] // 2, 1))
-                    current_lvl = tf.image.resize(current_lvl, size = next_size, method = 'bilinear', antialias = True)
+                    # tf.image.resize is too slow, so we use average pooling
+                    current_lvl = tf.nn.avg_pool2d(
+                        current_lvl,
+                        ksize = 2,
+                        strides = 2,
+                        padding = 'SAME'
+                    )
                     mipmap.append(tf.squeeze(current_lvl, axis = 0))
                     prev_lvl = current_lvl
         else:
