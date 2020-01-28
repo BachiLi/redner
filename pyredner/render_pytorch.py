@@ -116,6 +116,9 @@ class RenderFunction(torch.autograd.Function):
         for light_id, light in enumerate(scene.area_lights):
             scene.shapes[light.shape_id].light_id = light_id
 
+        if max_bounces == 0:
+            use_secondary_edge_sampling = False
+
         args = []
         args.append(num_shapes)
         args.append(num_materials)

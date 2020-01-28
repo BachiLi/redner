@@ -108,12 +108,12 @@ def serialize_scene(scene: pyredner.Scene,
 
         use_secondary_edge_sampling: bool
 
-            sample_pixel_center: bool
-                Always sample at the pixel center when rendering.
-                This trades noise with aliasing.
-                If this option is activated, the rendering becomes non-differentiable
-                (since there is no antialiasing integral),
-                and redner's edge sampling becomes an approximation to the gradients of the aliased rendering.
+        sample_pixel_center: bool
+            Always sample at the pixel center when rendering.
+            This trades noise with aliasing.
+            If this option is activated, the rendering becomes non-differentiable
+            (since there is no antialiasing integral),
+            and redner's edge sampling becomes an approximation to the gradients of the aliased rendering.
     """
     # TODO: figure out a way to determine whether a TF tensor requires gradient or not
     cam = scene.camera
@@ -124,6 +124,9 @@ def serialize_scene(scene: pyredner.Scene,
 
     for light_id, light in enumerate(scene.area_lights):
         scene.shapes[light.shape_id].light_id = light_id
+
+    if max_bounces == 0:
+        use_secondary_edge_sampling = False
 
     args = []
     args.append(tf.constant(num_shapes))
