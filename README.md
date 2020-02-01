@@ -22,7 +22,7 @@ otherwise (Linux and OS X):
 pip install redner
 ```
 You can also build from source. See the [wiki](https://github.com/BachiLi/redner/wiki/Installation) for building instructions.
-Preliminary windows support (CPU-only) made by [Markus Worchel](https://github.com/mworchel) can be accessed through building from source.
+Preliminary windows support made by [Markus Worchel](https://github.com/mworchel) can be accessed through building from source.
 
 ## Documentation
 
@@ -31,6 +31,7 @@ You can also take a look at the tests directories ([PyTorch](tests) and [TensorF
 
 ## News
 
+02/01/2020 - Preliminary Windows support for GPU is available thanks to [Markus Worchel](https://github.com/mworchel) again.  
 01/08/2020 - Significantly improves the memory usage of mipmapping. Now you can use large textures (say 4096x4096) relatively safely.  
 12/15/2019 - Fixed a GC-related bug on the PyTorch rendering code in 0.1.30. Please update.  
 12/12/2019 - Preliminary Windows support (CPU-only) is available thanks to the contribution of [Markus Worchel](https://github.com/mworchel).  
