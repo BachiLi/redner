@@ -31,6 +31,7 @@ You can also take a look at the tests directories ([PyTorch](tests) and [TensorF
 
 ## News
 
+02/02/2020 - Fixed a serious bug for G-buffer rendering (https://github.com/BachiLi/redner/issues/93). Thanks [Markus Worchel](https://github.com/mworchel) for reporting this.  
 02/01/2020 - Preliminary Windows support for GPU is available thanks to [Markus Worchel](https://github.com/mworchel) again.  
 01/08/2020 - Significantly improves the memory usage of mipmapping. Now you can use large textures (say 4096x4096) relatively safely.  
 12/15/2019 - Fixed a GC-related bug on the PyTorch rendering code in 0.1.30. Please update.  
