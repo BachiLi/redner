@@ -18,6 +18,10 @@ if(REDNER_CUDA)
     message(STATUS "Build with CUDA support")
     find_package(CUDA 10 REQUIRED)
     set(CMAKE_CUDA_STANDARD 11)
+    if(NOT WIN32)
+        # Hack: for some reason the line above doesn't work on some Linux systems.
+        set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -std=c++11")
+    endif()
     # We don't set REQUIRED here as the main OptiX lib will not be found
     # (only OptiX Prime is required)
     find_package(OptiX)
