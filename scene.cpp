@@ -108,9 +108,15 @@ Scene::Scene(const Camera &camera,
         }
 
         optix_scene = optix_context->createModel();
-        optix_scene->setInstances(
-            (int)shapes.size(), RTP_BUFFER_TYPE_HOST, &optix_instances[0], 
-            RTP_BUFFER_FORMAT_TRANSFORM_FLOAT4x4, RTP_BUFFER_TYPE_HOST, &transforms[0]);
+        if (shapes.size() > 0) {
+            optix_scene->setInstances(
+                (int)shapes.size(), RTP_BUFFER_TYPE_HOST, &optix_instances[0], 
+                RTP_BUFFER_FORMAT_TRANSFORM_FLOAT4x4, RTP_BUFFER_TYPE_HOST, &transforms[0]);
+        } else {
+            // Hack: the last argument is the pointer to a buffer, but optix prime
+            // complains if we pass nullptr. Therefore we give it a non zero number.
+            optix_scene->setTriangles(0, RTP_BUFFER_TYPE_CUDA_LINEAR, (const void *)1);
+        }
         optix_scene->update(RTP_MODEL_HINT_NONE);
         optix_scene->finish();
 #else
