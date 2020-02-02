@@ -120,7 +120,8 @@ void test_d_sample_primary_rays() {
     d_sample_primary_ray(camera,
                          Vector2{0.5, 0.5},
                          d_ray,
-                         d_camera);
+                         d_camera,
+                         nullptr); // d_screen_pos
     // Compare with central difference
     auto finite_delta = Real(1e-6);
     for (int i = 0; i < 3; i++) {

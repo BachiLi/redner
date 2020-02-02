@@ -27,4 +27,5 @@ void render(const Scene &scene,
             ptr<float> rendered_image,
             ptr<float> d_rendered_image,
             std::shared_ptr<DScene> d_scene,
+            ptr<float> screen_gradient_image,
             ptr<float> debug_image);

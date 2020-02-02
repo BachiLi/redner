@@ -179,6 +179,7 @@ void render(const Scene &scene,
             ptr<float> rendered_image,
             ptr<float> d_rendered_image,
             std::shared_ptr<DScene> d_scene,
+            ptr<float> screen_gradient_image,
             ptr<float> debug_image) {
 #ifdef __NVCC__
     int old_device_id = -1;
@@ -737,7 +738,8 @@ void render(const Scene &scene,
                                        d_rays,
                                        d_ray_differentials,
                                        d_points,
-                                       d_scene.get());
+                                       d_scene.get(),
+                                       screen_gradient_image.get());
             }
 
             /////////////////////////////////////////////////////////////////////////////////
@@ -915,7 +917,9 @@ void render(const Scene &scene,
                 // Convert edge contributions to vertex derivatives
                 compute_primary_edge_derivatives(
                     scene, edge_records, edge_contribs,
-                    d_scene->shapes.view(0, d_scene->shapes.size()), d_scene->camera);
+                    d_scene->shapes.view(0, d_scene->shapes.size()),
+                    d_scene->camera,
+                    screen_gradient_image.get());
             }
             /////////////////////////////////////////////////////////////////////////////////
         }

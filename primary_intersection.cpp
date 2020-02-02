@@ -96,9 +96,19 @@ struct d_primary_intersector {
         d_ray.dir += (d_primary_ray_differential.dir_dx * -pixel_size_x +
                       d_primary_ray_differential.dir_dy * -pixel_size_y) / delta;
 
-        d_sample_primary_ray(camera, screen_pos, d_ray, d_camera);
-        d_sample_primary_ray(camera, screen_pos_dx, d_ray_dx, d_camera);
-        d_sample_primary_ray(camera, screen_pos_dy, d_ray_dy, d_camera);
+        auto d_screen_pos = Vector2{0, 0};
+        Vector2 *d_screen_pos_ptr = nullptr;
+        if (screen_gradient_image != nullptr) {
+            d_screen_pos_ptr = &d_screen_pos;
+        }
+        d_sample_primary_ray(camera, screen_pos, d_ray, d_camera, d_screen_pos_ptr);
+        d_sample_primary_ray(camera, screen_pos_dx, d_ray_dx, d_camera, d_screen_pos_ptr);
+        d_sample_primary_ray(camera, screen_pos_dy, d_ray_dy, d_camera, d_screen_pos_ptr);
+
+        if (screen_gradient_image != nullptr) {
+            screen_gradient_image[2 * pixel_idx + 0] += d_screen_pos[0];
+            screen_gradient_image[2 * pixel_idx + 1] += d_screen_pos[1];
+        }
     }
 
     const Camera camera;
@@ -113,6 +123,7 @@ struct d_primary_intersector {
     const SurfacePoint *d_points;
     DShape *d_shapes;
     DCamera d_camera;
+    float *screen_gradient_image;
 };
 
 void d_primary_intersection(const Scene &scene,
@@ -124,7 +135,8 @@ void d_primary_intersection(const Scene &scene,
                             const BufferView<DRay> &d_rays,
                             const BufferView<RayDifferential> &d_ray_differentials,
                             const BufferView<SurfacePoint> &d_surface_points,
-                            DScene *d_scene) {
+                            DScene *d_scene,
+                            float *screen_gradient_image) {
     parallel_for(d_primary_intersector{
         scene.camera,
         scene.shapes.data,
@@ -137,5 +149,6 @@ void d_primary_intersection(const Scene &scene,
         d_ray_differentials.begin(),
         d_surface_points.begin(),
         d_scene->shapes.data,
-        d_scene->camera}, active_pixels.size(), scene.use_gpu);
+        d_scene->camera,
+        screen_gradient_image}, active_pixels.size(), scene.use_gpu);
 }

@@ -712,6 +712,7 @@ struct primary_edge_derivatives_computer {
         }
         auto d_v0_ss = Vector2{0, 0};
         auto d_v1_ss = Vector2{0, 0};
+        auto d_edge_pt = Vector2{0, 0};
         auto edge_pt = edge_record.edge_pt;
         if (camera.camera_type == CameraType::Perspective ||
                 camera.camera_type == CameraType::Orthographic) {
@@ -720,6 +721,8 @@ struct primary_edge_derivatives_computer {
             d_v0_ss.y = edge_pt.x - v1_ss.x;
             d_v1_ss.x = edge_pt.y - v0_ss.y;
             d_v1_ss.y = v0_ss.x - edge_pt.x;
+            d_edge_pt.x = v0_ss.y - v1_ss.y;
+            d_edge_pt.y = v1_ss.x - v0_ss.x;
         } else {
             assert(camera.camera_type == CameraType::Fisheye ||
                    camera.camera_type == CameraType::Panorama);
@@ -744,9 +747,15 @@ struct primary_edge_derivatives_computer {
             d_v0_ss.y = dot(cross(v1_dir, edge_dir), d_v0_dir_y);
             d_v1_ss.x = dot(cross(edge_dir, v0_dir), d_v1_dir_x);
             d_v1_ss.y = dot(cross(edge_dir, v0_dir), d_v1_dir_y);
+            auto d_edge_pt_dir_x = Vector3{0, 0, 0};
+            auto d_edge_pt_dir_y = Vector3{0, 0, 0};
+            d_screen_to_camera(camera, edge_pt, d_edge_pt_dir_x, d_edge_pt_dir_y);
+            d_edge_pt.x = dot(cross(v0_dir, v1_dir), d_edge_pt_dir_x);
+            d_edge_pt.y = dot(cross(v0_dir, v1_dir), d_edge_pt_dir_y);
         }
         d_v0_ss *= edge_contrib;
         d_v1_ss *= edge_contrib;
+        d_edge_pt *= edge_contrib;
 
         // v0_ss, v1_ss = project(camera, v0, v1)
         auto d_v0 = Vector3{0, 0, 0};
@@ -757,6 +766,13 @@ struct primary_edge_derivatives_computer {
             d_camera, d_v0, d_v1);
         atomic_add(&d_shapes[edge_record.edge.shape_id].vertices[3 * edge_record.edge.v0], d_v0);
         atomic_add(&d_shapes[edge_record.edge.shape_id].vertices[3 * edge_record.edge.v1], d_v1);
+        if (screen_gradient_image != nullptr) {
+            auto xi = clamp(int(edge_pt[0] * camera.width), 0, camera.width - 1);
+            auto yi = clamp(int(edge_pt[1] * camera.height), 0, camera.height - 1);
+            auto pixel_idx = yi * camera.width + xi;
+            atomic_add(&screen_gradient_image[2 * pixel_idx + 0], d_edge_pt[0]);
+            atomic_add(&screen_gradient_image[2 * pixel_idx + 1], d_edge_pt[1]);
+        }
     }
 
     const Camera camera;
@@ -765,19 +781,23 @@ struct primary_edge_derivatives_computer {
     const Real *edge_contribs;
     DShape *d_shapes;
     DCamera d_camera;
+    float *screen_gradient_image;
 };
 
 void compute_primary_edge_derivatives(const Scene &scene,
                                       const BufferView<PrimaryEdgeRecord> &edge_records,
                                       const BufferView<Real> &edge_contribs,
                                       BufferView<DShape> d_shapes,
-                                      DCamera d_camera) {
+                                      DCamera d_camera,
+                                      float *screen_gradient_image) {
     parallel_for(primary_edge_derivatives_computer{
         scene.camera,
         scene.shapes.data,
         edge_records.begin(),
         edge_contribs.begin(),
-        d_shapes.begin(), d_camera
+        d_shapes.begin(),
+        d_camera,
+        screen_gradient_image
     }, edge_records.size(), scene.use_gpu);
 }
 

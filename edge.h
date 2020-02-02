@@ -263,7 +263,8 @@ void compute_primary_edge_derivatives(const Scene &scene,
                                       const BufferView<PrimaryEdgeRecord> &edge_records,
                                       const BufferView<Real> &edge_contribs,
                                       BufferView<DShape> d_shapes,
-                                      DCamera d_camera);
+                                      DCamera d_camera,
+                                      float *screen_gradient_image);
 
 void sample_secondary_edges(const Scene &scene,
                             const BufferView<int> &active_pixels,

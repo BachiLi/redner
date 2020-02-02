@@ -173,7 +173,8 @@ DEVICE
 inline void d_sample_primary_ray(const Camera &camera,
                                  const Vector2 &screen_pos,
                                  const DRay &d_ray,
-                                 DCamera &d_camera) {
+                                 DCamera &d_camera,
+                                 Vector2 *d_screen_pos) {
     switch(camera.camera_type) {
         case CameraType::Perspective: {
             // Linear projection
@@ -228,6 +229,15 @@ inline void d_sample_primary_ray(const Camera &camera,
             } else {
                 atomic_add(d_camera.cam_to_world, d_cam_to_world);
             }
+            if (d_screen_pos != nullptr) {
+                // dir = camera.intrinsic_mat_inv * pt
+                auto d_pt = d_dir * camera.intrinsic_mat_inv;
+                // pt = Vector3{(screen_pos[0] - 0.5f) * 2.f,
+                //              (screen_pos[1] - 0.5f) * (-2.f) / aspect_ratio,
+                //              Real(1)};
+                (*d_screen_pos)[0] += d_pt[0] * 2;
+                (*d_screen_pos)[1] += d_pt[1] * (-2 / aspect_ratio);
+            }
         } break;
         case CameraType::Orthographic: {
             // Linear projection
@@ -275,6 +285,16 @@ inline void d_sample_primary_ray(const Camera &camera,
             } else {
                 atomic_add(d_camera.cam_to_world, d_cam_to_world);
             }
+
+            if (d_screen_pos != nullptr) {
+                // local_org = camera.intrinsic_mat_inv * pt
+                auto d_pt = d_local_org * camera.intrinsic_mat_inv;
+                // pt = Vector3{(screen_pos[0] - 0.5f) * 2.f,
+                //              (screen_pos[1] - 0.5f) * (-2.f) / aspect_ratio,
+                //              Real(1)};
+                (*d_screen_pos)[0] += d_pt[0] * 2;
+                (*d_screen_pos)[1] += d_pt[1] * (-2 / aspect_ratio);
+            }
         } break;
         case CameraType::Fisheye: {
             // Equi-angular projection
@@ -308,7 +328,6 @@ inline void d_sample_primary_ray(const Camera &camera,
             auto d_cam_to_world = Matrix4x4();
             d_xfm_vector(camera.cam_to_world, dir, d_world_dir,
                          d_cam_to_world, d_dir);
-            // No need to propagate to x, y
             // org = xfm_point(camera.cam_to_world, Vector3{0, 0, 0})
             auto cam_org = Vector3{0, 0, 0};
             d_xfm_point(camera.cam_to_world, Vector3{0, 0, 0}, d_org,
@@ -324,6 +343,34 @@ inline void d_sample_primary_ray(const Camera &camera,
                 atomic_add(d_camera.up, d_up);
             } else {
                 atomic_add(d_camera.cam_to_world, d_cam_to_world);
+            }
+
+            if (d_screen_pos != nullptr) {
+                // dir = Vector3{-cos_phi * sin_theta,
+                //               -sin_phi * sin_theta,
+                //               cos_theta};
+                auto d_cos_phi = d_dir[0] * (-sin_theta);
+                auto d_sin_phi = d_dir[1] * (-sin_theta);
+                auto d_sin_theta = d_dir[0] * (-cos_phi) + d_dir[1] * (-sin_phi);
+                auto d_cos_theta = d_dir[2];
+                // sin_phi = sin(phi)
+                // cos_phi = cos(phi)
+                auto d_phi = d_cos_phi * (-sin_phi) + d_sin_phi * cos_phi;
+                // sin_theta = sin(theta)
+                // cos_theta = cos(theta)
+                auto d_theta = d_cos_theta * (-sin_theta) + d_sin_theta * cos_theta;
+                // theta = r * Real(M_PI) / 2.f
+                auto d_r = d_theta * (Real(M_PI) / 2.f);
+                // phi = atan2(y, x)
+                auto d_x = d_phi * (-y / (x * x + y * y));
+                auto d_y = d_phi * (x / (x * x + y * y));
+                // r = sqrt(x*x + y*y)
+                d_x += (d_r * (x / r));
+                d_y += (d_r * (y / r));
+                // auto x = 2.f * (screen_pos[0] - 0.5f);
+                // auto y = 2.f * (screen_pos[1] - 0.5f);
+                (*d_screen_pos)[0] += 2 * d_x;
+                (*d_screen_pos)[1] += 2 * d_y;
             }
         } break;
         case CameraType::Panorama: {
@@ -365,6 +412,26 @@ inline void d_sample_primary_ray(const Camera &camera,
                 atomic_add(d_camera.up, d_up);
             } else {
                 atomic_add(d_camera.cam_to_world, d_cam_to_world);
+            }
+
+            if (d_screen_pos != nullptr) {
+                // dir = Vector3{cos_phi * sin_theta,
+                //               cos_theta,
+                //               sin_phi * sin_theta};
+                auto d_cos_phi = d_dir[0] * sin_theta;
+                auto d_sin_phi = d_dir[2] * sin_theta;
+                auto d_sin_theta = d_dir[0] * cos_phi + d_dir[2] * sin_phi;
+                auto d_cos_theta = d_dir[1];
+                // sin_phi = sin(phi)
+                // cos_phi = cos(phi)
+                auto d_phi = d_cos_phi * (-sin_phi) + d_sin_phi * cos_phi;
+                // sin_theta = sin(theta)
+                // cos_theta = cos(theta)
+                auto d_theta = d_cos_theta * (-sin_theta) + d_sin_theta * cos_theta;
+                // theta = Real(M_PI) * screen_pos.y
+                // phi = Real(2 * M_PI) * screen_pos.x
+                (*d_screen_pos)[0] += d_phi * Real(2 * M_PI);
+                (*d_screen_pos)[1] += d_theta * Real(M_PI);
             }
         } break;
         default: {
