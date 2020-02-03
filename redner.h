@@ -30,7 +30,7 @@
 #include <intrin.h>
 // Define some MSVC replacements for the GCC intrinsics
 #define msvc_popcount(x) __popcnt(x)
-#define msvc_ffs(x) [](unsigned long mask){ unsigned long index; _BitScanReverse(&index, mask); return index + 1U; }(x)
+#define msvc_ffs(x) [](unsigned long mask){ unsigned long index; _BitScanForward(&index, mask); return index + 1U; }(x)
 #define msvc_clzll(x) [](uint64_t mask){ unsigned long index; _BitScanReverse64(&index, mask); return sizeof(uint64_t) * 8U - (index + 1U); }(x)
 #endif
 
