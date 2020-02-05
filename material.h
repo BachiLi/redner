@@ -436,7 +436,7 @@ Vector3 bsdf(const Material &material,
             // Schlick's approximation
             auto F = specular_reflectance +
                 (1.f - specular_reflectance) *
-                pow(max(1.f - cos_theta_d, Real(0)), 5.f);
+                pow(max(Real(1) - cos_theta_d, Real(0)), Real(5));
             specular_contrib = F * D * G / (4.f * shading_wi);
         }
     }
@@ -598,7 +598,7 @@ void d_bsdf(const Material &material,
             auto G = Gwi * Gwo;
             auto cos_theta_d = dot(m, wo);
             // Schlick's approximation
-            auto cos5 = pow(max(1.f - cos_theta_d, Real(0)), 5.f);
+            auto cos5 = pow(max(Real(1) - cos_theta_d, Real(0)), Real(5));
             auto F = specular_reflectance + (1.f - specular_reflectance) * cos5;
             auto specular_contrib = F * D * G / (4.f * shading_wi);
 
@@ -616,8 +616,8 @@ void d_bsdf(const Material &material,
             // F = specular_reflectance + (1.f - specular_reflectance) * cos5
             auto d_specular_reflectance = d_F * (1.f - cos5);
             auto d_cos_5 = sum(d_F * (1.f - specular_reflectance));
-            // cos5 = pow(max(1.f - cos_theta_d, Real(0)), 5.f)
-            auto d_cos_theta_d = -5.f * d_cos_5 * pow(max(1.f - cos_theta_d, Real(0)), 4.f);
+            // cos5 = pow(max(Real(1) - cos_theta_d, Real(0)), Real(5))
+            auto d_cos_theta_d = -5.f * d_cos_5 * pow(max(Real(1) - cos_theta_d, Real(0)), Real(4));
             // cos_theta_d = dot(m, wo)
             auto d_m = d_cos_theta_d * wo;
             d_wo += d_cos_theta_d * m;
@@ -774,7 +774,7 @@ Vector3 bsdf_sample(const Material &material,
         auto cos_phi = cos(phi);
         
         // Sample theta
-        auto cos_theta = pow(bsdf_sample.uv[0], 1.0f / (phong_exponent + 2.0f));
+        auto cos_theta = pow(bsdf_sample.uv[0], Real(1) / (phong_exponent + Real(2)));
         auto sin_theta = sqrt(max(1.f - cos_theta * cos_theta, Real(0)));
         // local microfacet normal
         auto m_local = Vector3{sin_theta * cos_phi, sin_theta * sin_phi, cos_theta};
@@ -897,7 +897,7 @@ void d_bsdf_sample(const Material &material,
         auto cos_phi = cos(phi);
         
         // Sample theta
-        auto cos_theta = pow(bsdf_sample.uv[0], 1.0f / (phong_exponent + 2.0f));
+        auto cos_theta = pow(bsdf_sample.uv[0], Real(1) / (phong_exponent + Real(2)));
         auto sin_theta = sqrt(max(1.f - cos_theta*cos_theta, Real(0)));
         // local microfacet normal
         auto m_local = Vector3{sin_theta * cos_phi, sin_theta * sin_phi, cos_theta};
@@ -987,7 +987,7 @@ void d_bsdf_sample(const Material &material,
         auto d_one_minus_cos_theta_2 = sin_theta > 0 ? d_sin_theta * 0.5f / sin_theta : Real(0);
         // 1 - cos_theta * cos_theta
         d_cos_theta -= d_one_minus_cos_theta_2 * 2 * cos_theta;
-        // cos_theta = pow(bsdf_sample.uv[0], 1.0f / (phong_exponent + 2.0f))
+        // cos_theta = pow(bsdf_sample.uv[0], Real(1) / (phong_exponent + Real(2)))
         auto d_one_over_phong_exponent_plus_2 =
             bsdf_sample.uv[0] > 0 ? d_cos_theta * cos_theta * log(bsdf_sample.uv[0]) : Real(0);
         // 1 / (phong_exponent + 2)
