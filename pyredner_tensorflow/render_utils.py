@@ -301,6 +301,7 @@ def render_generic(scene: pyredner.Scene,
             | pyredner.channels.generic_texture
             | pyredner.channels.vertex_color
             | pyredner.channels.shape_id
+            | pyredner.channels.triangle_id
             | pyredner.channels.material_id
         max_bounces: int
             Number of bounces for global illumination, 1 means direct lighting only.
@@ -390,6 +391,7 @@ def render_g_buffer(scene: pyredner.Scene,
             | pyredner.channels.generic_texture
             | pyredner.channels.vertex_color
             | pyredner.channels.shape_id
+            | pyredner.channels.triangle_id
             | pyredner.channels.material_id
         num_samples: Union[int, Tuple[int, int]]
             Number of samples for forward and backward passes, respectively.

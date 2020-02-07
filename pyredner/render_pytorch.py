@@ -88,8 +88,9 @@ class RenderFunction(torch.autograd.Function):
                 | redner.channels.roughness,
                 | redner.channels.generic_texture,
                 | redner.channels.shape_id,
+                | redner.channels.triangle_id,
                 | redner.channels.material_id
-                | all channels, except for shape id and material id, are differentiable
+                | all channels, except for shape id, triangle id, and material id, are differentiable
             sampler_type: redner.SamplerType
                 | Which sampling pattern to use?
                 | see `Chapter 7 of the PBRT book <http://www.pbr-book.org/3ed-2018/Sampling_and_Reconstruction.html>`

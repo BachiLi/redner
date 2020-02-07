@@ -15,6 +15,7 @@ class Channel:
         self.generic_texture = redner.channels.generic_texture
         self.vertex_color = redner.channels.vertex_color
         self.shape_id = redner.channels.shape_id
+        self.triangle_id = redner.channels.triangle_id
         self.material_id = redner.channels.material_id
 
 channels = Channel()

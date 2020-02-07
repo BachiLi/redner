@@ -184,6 +184,7 @@ PYBIND11_MODULE(redner, m) {
         .value("generic_texture", Channels::generic_texture)
         .value("vertex_color", Channels::vertex_color)
         .value("shape_id", Channels::shape_id)
+        .value("triangle_id", Channels::triangle_id)
         .value("material_id", Channels::material_id);
 
     m.def("compute_num_channels", compute_num_channels, "");

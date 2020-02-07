@@ -17,6 +17,7 @@ enum class Channels {
     generic_texture,
     vertex_color,
     shape_id,
+    triangle_id,
     material_id
 };
 

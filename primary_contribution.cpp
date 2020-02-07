@@ -210,10 +210,16 @@ struct primary_contribs_accumulator {
                         d += 3;
                     } break;
                     // when there are multiple samples per pixel,
-                    // we use the last sample for determining shape id & material id
+                    // we use the last sample for determining the ids
                     case Channels::shape_id: {
                         if (shading_isect.valid()) {
                             rendered_image[nd * pixel_id + d    ] = Real(shading_isect.shape_id);
+                        }
+                        d++;
+                    } break;
+                    case Channels::triangle_id: {
+                        if (shading_isect.valid()) {
+                            rendered_image[nd * pixel_id + d    ] = Real(shading_isect.tri_id);
                         }
                         d++;
                     } break;
@@ -369,8 +375,11 @@ struct primary_contribs_accumulator {
                         }
                         d += 3;
                     } break;
-                    // shape_id & material_id are not differentiable
+                    // ids are not differentiable
                     case Channels::shape_id: {
+                        d++;
+                    } break;
+                    case Channels::triangle_id: {
                         d++;
                     } break;
                     case Channels::material_id: {
@@ -622,8 +631,11 @@ struct d_primary_contribs_accumulator {
                     }
                     d += 3;
                 } break;
-                // shape_id & material_id are not differentiable
+                // ids are not differentiable
                 case Channels::shape_id: {
+                    d++;
+                } break;
+                case Channels::triangle_id: {
                     d++;
                 } break;
                 case Channels::material_id: {

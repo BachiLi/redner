@@ -94,6 +94,9 @@ int compute_num_channels(const std::vector<Channels> &channels,
             case Channels::shape_id: {
                 num_total_dimensions += 1;
             } break;
+            case Channels::triangle_id: {
+                num_total_dimensions += 1;
+            } break;
             case Channels::material_id: {
                 num_total_dimensions += 1;
             } break;
