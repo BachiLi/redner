@@ -28,6 +28,19 @@ def get_use_correlated_random_number():
     return use_correlated_random_number
 
 print_timing = True
+def set_print_timing(v: bool):
+    """
+        Set whether to print time measurements or not.
+    """
+    global print_timing
+    print_timing = v
+
+def get_print_timing():
+    """
+        Get whether we print time measurements or not.
+    """
+    global print_timing
+    return print_timing
 
 def serialize_texture(texture, args):
     if texture is None:
@@ -545,7 +558,7 @@ class RenderFunction(torch.autograd.Function):
                              use_primary_edge_sampling,
                              use_secondary_edge_sampling)
         time_elapsed = time.time() - start
-        if print_timing:
+        if get_print_timing():
             print('Scene construction, time: %.5f s' % time_elapsed)
 
         # check that num_samples is a tuple
@@ -608,7 +621,7 @@ class RenderFunction(torch.autograd.Function):
                       redner.float_ptr(0), # translational_gradient_image
                       redner.float_ptr(0)) # debug_image
         time_elapsed = time.time() - start
-        if print_timing:
+        if get_print_timing():
             print('Forward pass, time: %.5f s' % time_elapsed)
 
         ctx.camera = camera
@@ -949,7 +962,7 @@ class RenderFunction(torch.autograd.Function):
                       redner.float_ptr(screen_gradient_image.data_ptr()),
                       redner.float_ptr(0)) # debug_image
         time_elapsed = time.time() - start
-        if print_timing:
+        if get_print_timing():
             print('Visualize gradient, time: %.5f s' % time_elapsed)
 
         return screen_gradient_image
@@ -978,7 +991,7 @@ class RenderFunction(torch.autograd.Function):
                       redner.float_ptr(0), # translational_gradient_image
                       redner.float_ptr(0)) # debug_image
         time_elapsed = time.time() - start
-        if print_timing:
+        if get_print_timing():
             print('Backward pass, time: %.5f s' % time_elapsed)
 
         ret_list = []
