@@ -1,6 +1,7 @@
 #include "channels.h"
 #include "cuda_utils.h"
 #include <iostream>
+#include <stdexcept>
 
 ChannelInfo::ChannelInfo(const std::vector<Channels> &channels,
                          bool use_gpu,
