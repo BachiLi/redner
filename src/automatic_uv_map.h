@@ -2,7 +2,7 @@
 
 #include "redner.h"
 #include "ptr.h"
-#include "xatlas/xatlas.h"
+#include "../xatlas/xatlas.h"
 
 #include <vector>
 
