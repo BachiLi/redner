@@ -16,13 +16,17 @@ struct primary_contribs_accumulator {
             auto wi = -incoming_ray.dir;
             if (shading_shape.light_id >= 0) {
                 const auto &light = scene.area_lights[shading_shape.light_id];
-                if (light.two_sided || dot(wi, shading_point.shading_frame.n) > 0) {
-                    emission += light.intensity;
+                if (light.directly_visible) {
+                    if (light.two_sided || dot(wi, shading_point.shading_frame.n) > 0) {
+                        emission += light.intensity;
+                    }
                 }
             }
         } else if (scene.envmap != nullptr) {
-            auto dir = incoming_rays[pixel_id].dir;
-            emission = envmap_eval(*(scene.envmap), dir, incoming_ray_differentials[pixel_id]);
+            if (scene.envmap->directly_visible) {
+                auto dir = incoming_rays[pixel_id].dir;
+                emission = envmap_eval(*(scene.envmap), dir, incoming_ray_differentials[pixel_id]);
+            }
         }
         auto contrib = weight * throughput * emission;
         if (rendered_image != nullptr) {
@@ -433,23 +437,27 @@ struct d_primary_contribs_accumulator {
                         if (shading_shape.light_id >= 0 &&
                                 dot(wi, shading_point.shading_frame.n) > 0) {
                             const auto &light = scene.area_lights[shading_shape.light_id];
-                            if (light.two_sided || dot(wi, shading_point.shading_frame.n) > 0) {
-                                atomic_add(d_area_lights[shading_shape.light_id].intensity, d_emission);
+                            if (light.directly_visible) {
+                                if (light.two_sided || dot(wi, shading_point.shading_frame.n) > 0) {
+                                    atomic_add(d_area_lights[shading_shape.light_id].intensity, d_emission);
+                                }
                             }
                         }
                     } else if (scene.envmap != nullptr) {
-                        // Environment map
-                        auto dir = incoming_rays[pixel_id].dir;
-                        // emission = envmap_eval(*(scene.envmap),
-                        //                        dir,
-                        //                        incoming_ray_differentials[pixel_id])
-                        d_envmap_eval(*(scene.envmap),
-                                      dir,
-                                      incoming_ray_differentials[pixel_id],
-                                      d_emission,
-                                      *d_envmap,
-                                      d_incoming_rays[pixel_id].dir,
-                                      d_incoming_ray_differentials[pixel_id]);
+                        if (scene.envmap->directly_visible) {
+                            // Environment map
+                            auto dir = incoming_rays[pixel_id].dir;
+                            // emission = envmap_eval(*(scene.envmap),
+                            //                        dir,
+                            //                        incoming_ray_differentials[pixel_id])
+                            d_envmap_eval(*(scene.envmap),
+                                          dir,
+                                          incoming_ray_differentials[pixel_id],
+                                          d_emission,
+                                          *d_envmap,
+                                          d_incoming_rays[pixel_id].dir,
+                                          d_incoming_ray_differentials[pixel_id]);
+                        }
                     }
                     d += 3;
                 } break;

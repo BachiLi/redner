@@ -19,13 +19,15 @@ struct EnvironmentMap {
                    ptr<float> world_to_env,
                    ptr<float> sample_cdf_ys,
                    ptr<float> sample_cdf_xs,
-                   float pdf_norm)
+                   float pdf_norm,
+                   bool directly_visible)
         : values(values),
           env_to_world(env_to_world.get()),
           world_to_env(world_to_env.get()),
           sample_cdf_ys(sample_cdf_ys.get()),
           sample_cdf_xs(sample_cdf_xs.get()),
-          pdf_norm((Real)pdf_norm) {}
+          pdf_norm((Real)pdf_norm),
+          directly_visible(directly_visible) {}
 
     inline int get_levels() const {
         return values.num_levels;
@@ -41,6 +43,7 @@ struct EnvironmentMap {
     float *sample_cdf_ys;
     float *sample_cdf_xs;
     Real pdf_norm;
+    bool directly_visible;
 };
 
 struct DEnvironmentMap {

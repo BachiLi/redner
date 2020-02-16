@@ -13,11 +13,14 @@ class EnvironmentMap:
             a float32 tensor with size 3 or [height, width, 3] or a Texture
         env_to_world: torch.Tensor
             a float32 4x4 matrix that transforms the environment map
+        directly_visible: bool
+            can the camera sees the light source directly?
     """
 
     def __init__(self,
                  values: Union[torch.Tensor, pyredner.Texture],
-                 env_to_world: torch.Tensor = torch.eye(4, 4)):
+                 env_to_world: torch.Tensor = torch.eye(4, 4),
+                 directly_visible: bool = True):
         # Convert to constant texture if necessary
         if isinstance(values, torch.Tensor):
             values = pyredner.Texture(values)
@@ -28,6 +31,7 @@ class EnvironmentMap:
         self._env_to_world = env_to_world
         self.world_to_env = torch.inverse(env_to_world).contiguous()
         self.generate_envmap_pdf()
+        self.directly_visible = directly_visible
 
     def generate_envmap_pdf(self):
         values = self.values
@@ -81,6 +85,7 @@ class EnvironmentMap:
             'sample_cdf_ys': self.sample_cdf_ys,
             'sample_cdf_xs': self.sample_cdf_xs,
             'pdf_norm': self.pdf_norm,
+            'directly_visible': self.directly_visible
         }
 
     @classmethod
@@ -92,5 +97,5 @@ class EnvironmentMap:
         out.sample_cdf_ys = state_dict['sample_cdf_ys']
         out.sample_cdf_xs = state_dict['sample_cdf_xs']
         out.pdf_norm = state_dict['pdf_norm']
-
+        out.directly_visible = state_dict['directly_visible']
         return out

@@ -202,6 +202,7 @@ class RenderFunction(torch.autograd.Function):
             args.append(light.shape_id)
             args.append(light.intensity)
             args.append(light.two_sided)
+            args.append(light.directly_visible)
         if scene.envmap is not None:
             assert(torch.isfinite(scene.envmap.env_to_world).all())
             assert(torch.isfinite(scene.envmap.world_to_env).all())
@@ -213,6 +214,7 @@ class RenderFunction(torch.autograd.Function):
             args.append(scene.envmap.sample_cdf_ys.to(pyredner.get_device()))
             args.append(scene.envmap.sample_cdf_xs.to(pyredner.get_device()))
             args.append(scene.envmap.pdf_norm)
+            args.append(scene.envmap.directly_visible)
         else:
             args.append(None)
 
@@ -484,11 +486,14 @@ class RenderFunction(torch.autograd.Function):
             current_index += 1
             two_sided = args[current_index]
             current_index += 1
+            directly_visible = args[current_index]
+            current_index += 1
 
             area_lights.append(redner.AreaLight(\
                 shape_id,
                 redner.float_ptr(intensity.data_ptr()),
-                two_sided))
+                two_sided,
+                directly_visible))
 
         envmap = None
         if args[current_index] is not None:
@@ -510,6 +515,8 @@ class RenderFunction(torch.autograd.Function):
             current_index += 1
             pdf_norm = args[current_index]
             current_index += 1
+            directly_visible = args[current_index]
+            current_index += 1
             values = redner.Texture3(\
                 [redner.float_ptr(x.data_ptr()) for x in values],
                 [x.shape[1] for x in values], # width
@@ -522,7 +529,8 @@ class RenderFunction(torch.autograd.Function):
                 redner.float_ptr(world_to_env.data_ptr()),
                 redner.float_ptr(sample_cdf_ys.data_ptr()),
                 redner.float_ptr(sample_cdf_xs.data_ptr()),
-                pdf_norm)
+                pdf_norm,
+                directly_visible)
         else:
             current_index += 1
 
@@ -972,6 +980,7 @@ class RenderFunction(torch.autograd.Function):
                  grad_img):
         if not grad_img.is_contiguous():
             grad_img = grad_img.contiguous()
+        assert(torch.isfinite(grad_img).all())
         scene = ctx.scene
         options = ctx.options
         camera = ctx.camera
@@ -1065,7 +1074,8 @@ class RenderFunction(torch.autograd.Function):
         for i in range(num_area_lights):
             ret_list.append(None) # shape id
             ret_list.append(buffers.d_intensity_list[i].cpu())
-            ret_list.append(None) # two sided
+            ret_list.append(None) # two_sided
+            ret_list.append(None) # directly_visible
 
         if ctx.envmap is not None:
             ret_list.append(None) # num_levels
@@ -1077,6 +1087,7 @@ class RenderFunction(torch.autograd.Function):
             ret_list.append(None) # sample_cdf_ys
             ret_list.append(None) # sample_cdf_xs
             ret_list.append(None) # pdf_norm
+            ret_list.append(None) # directly_visible
         else:
             ret_list.append(None)
 

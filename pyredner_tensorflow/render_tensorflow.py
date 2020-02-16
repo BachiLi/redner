@@ -210,6 +210,7 @@ def serialize_scene(scene: pyredner.Scene,
             args.append(tf.constant(light.shape_id))
             args.append(tf.identity(light.intensity))
             args.append(tf.constant(light.two_sided))
+            args.append(tf.constant(light.directly_visible))
     if scene.envmap is not None:
         serialize_texture(scene.envmap.values, args)
         with tf.device('/device:cpu:' + str(pyredner.get_cpu_device_id())):
@@ -219,6 +220,7 @@ def serialize_scene(scene: pyredner.Scene,
             args.append(tf.identity(scene.envmap.sample_cdf_ys))
             args.append(tf.identity(scene.envmap.sample_cdf_xs))
         args.append(scene.envmap.pdf_norm)
+        args.append(scene.envmap.directly_visible)
     else:
         args.append(__EMPTY_TENSOR)
 
@@ -483,11 +485,14 @@ def unpack_args(seed,
             current_index += 1
             two_sided = bool(args[current_index])
             current_index += 1
+            directly_visible = bool(args[current_index])
+            current_index += 1
 
             area_lights.append(redner.AreaLight(
                 shape_id,
                 redner.float_ptr(pyredner.data_ptr(intensity)),
-                two_sided))
+                two_sided,
+                directly_visible))
 
     envmap = None
     if not is_empty_tensor(args[current_index]):
@@ -508,6 +513,8 @@ def unpack_args(seed,
         sample_cdf_xs = args[current_index]
         current_index += 1
         pdf_norm = float(args[current_index])
+        current_index += 1
+        directly_visible = bool(args[current_index])
         current_index += 1
 
         assert isinstance(pdf_norm, float)
@@ -530,7 +537,8 @@ def unpack_args(seed,
             world_to_env,
             sample_cdf_ys,
             sample_cdf_xs,
-            pdf_norm)
+            pdf_norm,
+            directly_visible)
     else:
         current_index += 1
 
@@ -1047,7 +1055,8 @@ def render(*x):
             ret_list.append(None) # shape id
             with tf.device('/device:cpu:' + str(pyredner.get_cpu_device_id())):
                 ret_list.append(tf.identity(buffers.d_intensity_list[i]))
-            ret_list.append(None) # two sided
+            ret_list.append(None) # two_sided
+            ret_list.append(None) # directly_visible
 
         if ctx.envmap is not None:
             ret_list.append(None) # num_levels
@@ -1060,6 +1069,7 @@ def render(*x):
             ret_list.append(None) # sample_cdf_ys
             ret_list.append(None) # sample_cdf_xs
             ret_list.append(None) # pdf_norm
+            ret_list.append(None) # directly_visible
         else:
             ret_list.append(None)
 

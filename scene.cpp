@@ -891,8 +891,14 @@ void test_sample_point_on_light(bool use_gpu) {
                  1, // num_triangles
                  0,
                  0};
-    AreaLight light0{0, Vector3f{1.f, 1.f, 1.f}, false};
-    AreaLight light1{1, Vector3f{2.f, 2.f, 2.f}, false};
+    AreaLight light0{0,
+                     Vector3f{1.f, 1.f, 1.f},
+                     false, // two_sided
+                     true}; // directly_visible
+    AreaLight light1{1,
+                     Vector3f{2.f, 2.f, 2.f},
+                     false, // two_sided
+                     true}; // directly_visible
 
     auto shapes = std::make_shared<std::vector<const Shape *>>(
         std::vector<const Shape*>{&shape0, &shape1});
