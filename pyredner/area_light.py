@@ -11,9 +11,9 @@ class AreaLight:
         intensity: torch.Tensor
             1-d tensor with size 3 and type float32
         two_sided: bool
-            is the light emitting light from the two sides of the faces?
+            Is the light emitting light from the two sides of the faces?
         directly_visible: bool
-            can the camera sees the light source directly?
+            Can the camera sees the light source directly?
     """
 
     def __init__(self,
