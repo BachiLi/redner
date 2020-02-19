@@ -182,10 +182,10 @@ def generate_quad_light(position: torch.Tensor,
     a = 1 / (1 + d[2])
     b = -d[0] * d[1] * a
     x = torch.where(d[2] < (-1 + 1e-6),
-                    torch.tensor([0.0, -1.0, 0.0]),
+                    torch.tensor([0.0, -1.0, 0.0], device = pyredner.get_device()),
                     torch.stack([1 - d[0] * d[0] * a, b, -d[0]]))
     y = torch.where(d[2] < (-1 + 1e-6),
-                    torch.tensor([-1.0, 0.0, 0.0]),
+                    torch.tensor([-1.0, 0.0, 0.0], device = pyredner.get_device()),
                     torch.stack([b, 1 - d[1] * d[1] * a, -d[1]]))
     v0 = position - x * size[0] * 0.5 - y * size[1] * 0.5
     v1 = position + x * size[0] * 0.5 - y * size[1] * 0.5
