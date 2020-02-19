@@ -47,12 +47,20 @@ tri_vertices = torch.cat((tri_vertices_2d,
     torch.zeros(tri_vertices_2d.shape[0], 1, device = pyredner.get_device())), dim=1).contiguous()
 quad_indices = torch.tensor([[0, 1, 2], [1, 2, 3]], dtype = torch.int32, device = pyredner.get_device())
 tri_indices = torch.tensor([[0, 1, 2]], dtype = torch.int32, device = pyredner.get_device())
-shape_quad = pyredner.Shape(quad_vertices, quad_indices, None, None, 0)
-shape_tri = pyredner.Shape(tri_vertices, tri_indices, None, None, 1)
+shape_quad = pyredner.Shape(\
+    vertices = quad_vertices,
+    indices = quad_indices,
+    material_id = 0)
+shape_tri = pyredner.Shape(\
+    vertices = tri_vertices,
+    indices = tri_indices,
+    material_id = 1)
 shapes = [shape_quad, shape_tri]
 
 # Setup the scene. We don't need lights.
-scene = pyredner.Scene(cam, shapes, materials, [])
+scene = pyredner.Scene(camera = cam,
+                       shapes = shapes,
+                       materials = materials)
 # We output the shape id, so that we can shape it later
 args = pyredner.RenderFunction.serialize_scene(\
     scene = scene,

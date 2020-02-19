@@ -82,7 +82,10 @@ pyredner.imwrite(envmap.cpu(), 'results/joint_material_envmap_sh/target_envmap.e
 # Convert the PyTorch tensor into pyredner compatible envmap
 envmap = pyredner.EnvironmentMap(envmap)
 # Setup the scene
-scene = pyredner.Scene(cam, shapes, materials, [], envmap)
+scene = pyredner.Scene(camera = cam,
+                       shapes = shapes,
+                       materials = materials,
+                       envmap = envmap)
 # Serialize the scene
 scene_args = pyredner.RenderFunction.serialize_scene(\
     scene = scene,
@@ -134,7 +137,10 @@ mat_grey = pyredner.Material(\
     specular_reflectance = specular_reflectance,
     roughness = roughness)
 materials = [mat_grey]
-scene = pyredner.Scene(cam, shapes, materials, [], envmap)
+scene = pyredner.Scene(camera = cam,
+                       shapes = shapes,
+                       materials = materials,
+                       envmap = envmap)
 scene_args = pyredner.RenderFunction.serialize_scene(\
     scene = scene,
     num_samples = 512,
@@ -162,7 +168,10 @@ for t in range(400):
         diffuse_reflectance = diffuse_reflectance,
         specular_reflectance = specular_reflectance,
         roughness = roughness)
-    scene = pyredner.Scene(cam, shapes, materials, [], envmap)
+    scene = pyredner.Scene(camera = cam,
+                           shapes = shapes,
+                           materials = materials,
+                           envmap = envmap)
     scene_args = pyredner.RenderFunction.serialize_scene(\
         scene = scene,
         num_samples = 4,
