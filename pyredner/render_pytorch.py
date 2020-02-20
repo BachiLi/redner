@@ -200,7 +200,7 @@ class RenderFunction(torch.autograd.Function):
             args.append(material.use_vertex_color)
         for light in scene.area_lights:
             args.append(light.shape_id)
-            args.append(light.intensity)
+            args.append(light.intensity.cpu())
             args.append(light.two_sided)
             args.append(light.directly_visible)
         if scene.envmap is not None:
