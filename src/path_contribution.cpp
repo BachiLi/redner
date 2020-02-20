@@ -347,12 +347,12 @@ struct d_path_contribs_accumulator {
             const auto &d_next_point = d_next_points[pixel_id];
             const auto &d_next_throughput = d_next_throughputs[pixel_id];
 
-            // Initialize bsdf vertex derivatives
             auto dir = bsdf_point.position - p;
             auto dist_sq = length_squared(dir);
             auto wo = dir / sqrt(dist_sq);
             auto pdf_bsdf = bsdf_pdf(material, shading_point, wi, wo, min_rough);
             if (pdf_bsdf > 0) {
+                // Initialize bsdf vertex derivatives
                 Vector3 d_bsdf_v_p[3] = {Vector3{0, 0, 0}, Vector3{0, 0, 0}, Vector3{0, 0, 0}};
                 Vector3 d_bsdf_v_n[3] = {Vector3{0, 0, 0}, Vector3{0, 0, 0}, Vector3{0, 0, 0}};
                 Vector2 d_bsdf_v_uv[3] = {Vector2{0, 0}, Vector2{0, 0}};
@@ -544,8 +544,8 @@ struct d_path_contribs_accumulator {
                 // scatter_contrib = weight * bsdf_val * light_contrib                
                 // auto d_weight = sum(d_scatter_contrib * bsdf_val * light_contrib);
                 // Ignore derivatives of MIS weight and pdf
-                // XXX: unlike the case of mesh light sources, we don't propagate to
-                //      the sampling procedure, since it causes higher variance when
+                // XXX: We don't propagate to the sampling procedure,
+                //      since it causes higher variance when
                 //      there is a huge gradients in d_envmap_eval()
                 // weight = mis_weight / pdf_bsdf
                 // auto d_pdf_bsdf = -d_weight * weight / pdf_bsdf;
