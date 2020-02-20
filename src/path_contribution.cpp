@@ -456,6 +456,10 @@ struct d_path_contribs_accumulator {
                 d_wo += d_ray.dir;
 
                 // We ignore backpropagation to bsdf importance sampling
+                // This is still correct given that we ignore the PDFs.
+                // \int f(x) dx = \int f(x(u)) / p du
+                // We are estimating the integral on the left and doesn't
+                // need to differentiate x(u).
                 // d_bsdf_sample(material,
                 //               shading_point,
                 //               wi,
