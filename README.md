@@ -2,7 +2,7 @@
 
 ![](https://people.csail.mit.edu/tzumao/diffrt/teaser.jpg)
 
-This is the Tensorflow graphics branch of redner. The plan is to gradually integrate this branch of redner into TF graphics.
+This is the [Tensorflow Graphics](https://github.com/tensorflow/graphics) branch of redner. The plan is to gradually integrate this branch of redner into TF graphics.
 
 redner is a differentiable renderer that can take the derivatives of rendering outputs with respect to arbitrary scene parameters, that is, you can backpropagate from the image to your 3D scene. One of the major usages of redner is inverse rendering (hence the name redner) through gradient descent. What sets redner apart are: 1) it computes correct rendering gradients stochastically without any approximation by properly considering the discontinuities, and 2) it has a physically-based mode -- which means it can simulate photons and produce realistic lighting phenomena, such as shadow and global illumination, and it handles the derivatives of these features correctly. You can also use redner in a [fast deferred rendering mode](https://colab.research.google.com/github/BachiLi/redner/blob/master/tutorials/fast_local_shading.ipynb) for local shading: in this mode it still has correct gradient estimation and more elaborate material models compared to most differentiable renderers out there.
 
