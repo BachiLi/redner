@@ -75,7 +75,6 @@ redner depends on a few libraries/systems, which are all included in the reposit
 - [xatlas](https://github.com/jpcy/xatlas)
 - A few other python packages: numpy, scikit-image
 
-
 ## Roadmap
 
 The current development plan is to enhance the renderer. Following features will be added in the near future (not listed in any particular order):
@@ -92,6 +91,20 @@ The current development plan is to enhance the renderer. Following features will
 - Spectral rendering
 - Gradient visualization
 - Spherical light sources
+
+## Citation
+
+```
+@article{Li:2018:DMC,
+    title = {Differentiable Monte Carlo Ray Tracing through Edge Sampling},
+    author = {Li, Tzu-Mao and Aittala, Miika and Durand, Fr{\'e}do and Lehtinen, Jaakko},
+    journal = {ACM Trans. Graph. (Proc. SIGGRAPH Asia)},
+    volume = {37},
+    number = {6},
+    pages = {222:1--222:11},
+    year = {2018}
+}
+```
 
 If you have any questions/comments/bug reports, feel free to open a github issue or e-mail to the author
 Tzu-Mao Li (tzumao@mit.edu)
