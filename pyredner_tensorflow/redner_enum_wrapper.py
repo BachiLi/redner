@@ -45,6 +45,7 @@ class RednerChannels:
         redner.channels.generic_texture,
         redner.channels.vertex_color,
         redner.channels.shape_id,
+        redner.channels.triangle_id,
         redner.channels.material_id
     ]
 
