@@ -273,10 +273,12 @@ inline Real d_roughness_to_phong(Real roughness, Real d_exponent) {
 DEVICE
 inline Frame perturb_shading_frame(const Material &material,
                                    const SurfacePoint &shading_point) {
-    auto n = 2 * get_normal(material, shading_point) - 1;
-    auto perturb_n = normalize(to_world(shading_point.shading_frame, n));
+    auto n_local = 2 * get_normal(material, shading_point) - 1;
+    auto n_world = to_world(shading_point.shading_frame, n_local);
+    auto perturb_n = normalize(n_world);
+    auto dot_pn_dpdu = dot(perturb_n, shading_point.dpdu);
     auto perturb_x = normalize(
-        shading_point.dpdu - perturb_n * dot(perturb_n, shading_point.dpdu));
+        shading_point.dpdu - perturb_n * dot_pn_dpdu);
     auto perturb_y = cross(perturb_n, perturb_x);
     return Frame(perturb_x, perturb_y, perturb_n);
 }
@@ -288,36 +290,39 @@ inline void d_perturb_shading_frame(const Material &material,
                                     DMaterial &d_material,
                                     SurfacePoint &d_shading_point) {
     // Perturb shading frame
-    auto n = 2 * get_normal(material, shading_point) - 1;
-    auto npn = to_world(shading_point.shading_frame, n);
-    auto perturb_n = normalize(npn);
+    auto n_local = 2 * get_normal(material, shading_point) - 1;
+    auto n_world = to_world(shading_point.shading_frame, n_local);
+    auto perturb_n = normalize(n_world);
     auto dot_pn_dpdu = dot(perturb_n, shading_point.dpdu);
     auto npx = shading_point.dpdu - perturb_n * dot_pn_dpdu;
     auto perturb_x = normalize(npx);
     // perturb_y = cross(perturb_n, perturb_x)
     // return Frame(perturb_x, perturb_y, perturb_n)
-    auto d_perturb_n = Vector3{0, 0, 0};
-    auto d_perturb_x = Vector3{0, 0, 0};
-    d_cross(perturb_n, perturb_x, d_frame[1], d_perturb_n, d_perturb_x);
+    auto d_perturb_n = d_frame.n;
+    auto d_perturb_x = d_frame.x;
+    auto d_perturb_y = d_frame.y;
+    // perturb_y = cross(perturb_n, perturb_x)
+    d_cross(perturb_n, perturb_x, d_perturb_y, d_perturb_n, d_perturb_x);
     // perturb_x = normalize(npx)
     auto d_npx = d_normalize(npx, d_perturb_x);
     // npx = shading_point.dpdu - perturb_n * dot(perturb_n, shading_point.dpdu)
     d_shading_point.dpdu += d_npx;
     d_perturb_n -= d_npx * dot_pn_dpdu;
-    auto d_dot_pn_dpdu = -d_npx * dot_pn_dpdu;
+    auto d_dot_pn_dpdu = -sum(d_npx * perturb_n);
     // dot_pn_dpdu = dot(perturb_n, shading_point.dpdu)
-    d_perturb_n += dot_pn_dpdu * shading_point.dpdu;
+    d_perturb_n += d_dot_pn_dpdu * shading_point.dpdu;
     d_shading_point.dpdu += d_dot_pn_dpdu * perturb_n;
-    // perturb_n = normalize(npn)
-    auto d_npn = d_normalize(npn, d_perturb_n);
-    // npn = to_world(shading_point.shading_frame, n)
-    auto d_normal_map_n = Vector3{0, 0, 0};
-    d_to_world(shading_point.shading_frame, n, d_npn,
-        d_shading_point.shading_frame, d_normal_map_n);
-    // n = 2 * get_normal(material, shading_point) - 1
+
+    // perturb_n = normalize(n_world)
+    auto d_n_world = d_normalize(n_world, d_perturb_n);
+    // n_world = to_world(shading_point.shading_frame, n_local)
+    auto d_local_n = Vector3{0, 0, 0};
+    d_to_world(shading_point.shading_frame, n_local, d_n_world,
+               d_shading_point.shading_frame, d_local_n);
+    // n_local = 2 * get_normal(material, shading_point) - 1
     d_get_normal(material,
                  shading_point,
-                 2 * d_normal_map_n,
+                 2 * d_local_n,
                  d_material.normal_map,
                  d_shading_point);
 }
@@ -330,17 +335,17 @@ inline void d_perturb_shading_frame(const Material &material,
                                     DMaterial &d_material,
                                     SurfacePoint &d_shading_point) {
     // Perturb shading frame
-    auto n = get_normal(material, shading_point);
-    auto npn = to_world(shading_point.shading_frame, n);
-    // perturb_n = normalize(npn)
-    auto d_npn = d_normalize(npn, d_n);
-    auto d_normal_map_n = Vector3{0, 0, 0};
-    d_to_world(shading_point.shading_frame, n, d_npn,
-        d_shading_point.shading_frame, d_normal_map_n);
-    // n = 2 * get_normal(material, shading_point) - 1
+    auto n_local = 2 * get_normal(material, shading_point) - 1;
+    auto n_world = to_world(shading_point.shading_frame, n_local);
+    // perturb_n = normalize(n_world)
+    auto d_n_world = d_normalize(n_world, d_n);
+    auto d_local_n = Vector3{0, 0, 0};
+    d_to_world(shading_point.shading_frame, n_local, d_n_world,
+        d_shading_point.shading_frame, d_local_n);
+    // local_n = 2 * get_normal(material, shading_point) - 1
     d_get_normal(material,
                  shading_point,
-                 2 * d_normal_map_n,
+                 2 * d_local_n,
                  d_material.normal_map,
                  d_shading_point);
 }
@@ -511,7 +516,7 @@ void d_bsdf(const Material &material,
         d_get_diffuse_reflectance(material, shading_point, d_diffuse_reflectance,
                                   d_material.diffuse_reflectance, d_shading_point);
     }
-    auto d_shading_wo = d_output * sum(diffuse_reflectance) / Real(M_PI);
+    auto d_shading_wo = sum(d_output * diffuse_reflectance) / Real(M_PI);
     // shading_wo = fabs(dot(shading_frame.n, wo))
     if (dot(shading_frame.n, wo) < 0)  {
         d_shading_wo = -d_shading_wo;
