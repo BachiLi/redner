@@ -236,7 +236,7 @@ setup(name = project_name,
         'Topic :: Scientific/Engineering :: Image Recognition'
       ],
       author = 'Tzu-Mao Li',
-      author_email = 'tzumao@berkeley.edu',
+      author_email = 'tzumao@mit.edu',
       license = 'MIT',
       packages = packages,
       ext_modules = [CMakeExtension('redner', '', build_with_cuda),
