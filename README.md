@@ -2,8 +2,6 @@
 
 ![](https://people.csail.mit.edu/tzumao/diffrt/teaser.jpg)
 
-This is the [Tensorflow Graphics](https://github.com/tensorflow/graphics) branch of redner. The plan is to gradually integrate this branch of redner into TF graphics.
-
 redner is a differentiable renderer that can take the derivatives of rendering outputs with respect to arbitrary scene parameters, that is, you can backpropagate from the image to your 3D scene. One of the major usages of redner is inverse rendering (hence the name redner) through gradient descent. What sets redner apart are: 1) it computes correct rendering gradients stochastically without any approximation by properly considering the discontinuities, and 2) it has a physically-based mode -- which means it can simulate photons and produce realistic lighting phenomena, such as shadow and global illumination, and it handles the derivatives of these features correctly. You can also use redner in a [fast deferred rendering mode](https://colab.research.google.com/github/BachiLi/redner/blob/master/tutorials/fast_local_shading.ipynb) for local shading: in this mode it still has correct gradient estimation and more elaborate material models compared to most differentiable renderers out there.
 
 For more details on the renderer, what it can do, and the techniques it use for computing the derivatives, please
@@ -14,12 +12,17 @@ the continuous derivatives significantly by replacing automatic differentiation 
 
 ## Installation
 
-With Tensorflow version >= 2.0 installed, at the directory `graphics/tensorflow_graphics/projects`:
+With either [PyTorch](https://pytorch.org/) (any version >= 1.0) or [TensorFlow](https://www.tensorflow.org/) (version >= 2.0) installed in your current Python environment. For GPU accelerated version (Linux only, CUDA 10.0 required):
 ```
-git submodule update redner
-cd redner
-python setup.py install
+pip install redner-gpu
 ```
+otherwise (Linux and OS X): 
+```
+pip install redner
+```
+
+You can also build from source. See the [wiki](https://github.com/BachiLi/redner/wiki/Installation) for building instructions.
+Preliminary windows support made by [Markus Worchel](https://github.com/mworchel) can be accessed through building from source.
 
 ## Documentation
 
@@ -28,6 +31,7 @@ You can also take a look at the tests directories ([PyTorch](tests) and [TensorF
 
 ## News
 
+02/27/2020 - Fixed a bug in BRDF derivatives. This affects normal mapping the most. Thanks [Markus Worchel](https://github.com/mworchel) again for reporting this.  
 02/02/2020 - Fixed a serious bug for G-buffer rendering (https://github.com/BachiLi/redner/issues/93). Thanks [Markus Worchel](https://github.com/mworchel) for reporting this.  
 02/01/2020 - Preliminary Windows support for GPU is available thanks to [Markus Worchel](https://github.com/mworchel) again.  
 01/08/2020 - Significantly improves the memory usage of mipmapping. Now you can use large textures (say 4096x4096) relatively safely.  
