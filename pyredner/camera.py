@@ -72,6 +72,12 @@ class Camera:
         if fov is not None:
             assert(fov.dtype == torch.float32)
             assert(len(fov.shape) == 1 and fov.shape[0] == 1)
+        if cam_to_world is not None:
+            assert(cam_to_world.dtype == torch.float32)
+            assert(len(cam_to_world.shape) == 2 and cam_to_world.shape[0] == 4 and cam_to_world.shape[1] == 4)
+        if intrinsic_mat is not None:
+            assert(intrinsic_mat.dtype == torch.float32)
+            assert(len(intrinsic_mat.shape) == 2 and intrinsic_mat.shape[0] == 3 and intrinsic_mat.shape[1] == 3)
         assert(isinstance(clip_near, float))
         if position is None and look_at is None and up is None:
             assert(cam_to_world is not None)
