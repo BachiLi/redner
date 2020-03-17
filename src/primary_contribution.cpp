@@ -36,11 +36,11 @@ struct primary_contribs_accumulator {
             for (int c = 0; c < nc; c++) {
                 switch (channel_info.channels[c]) {
                     case Channels::radiance: {
-                        rendered_image[nd * pixel_id + d] += contrib[0];
+                        rendered_image[nd * pixel_id + d] += float(contrib[0]);
                         d++;
-                        rendered_image[nd * pixel_id + d] += contrib[1];
+                        rendered_image[nd * pixel_id + d] += float(contrib[1]);
                         d++;
-                        rendered_image[nd * pixel_id + d] += contrib[2];
+                        rendered_image[nd * pixel_id + d] += float(contrib[2]);
                         d++;
                     } break;
                     case Channels::alpha: {
@@ -49,7 +49,7 @@ struct primary_contribs_accumulator {
                             if (channel_multipliers != nullptr) {
                                 alpha *= channel_multipliers[nd * pixel_id + d];
                             }
-                            rendered_image[nd * pixel_id + d] += alpha;
+                            rendered_image[nd * pixel_id + d] += float(alpha);
                         }
                         d++;
                     } break;
@@ -61,7 +61,7 @@ struct primary_contribs_accumulator {
                             if (channel_multipliers != nullptr) {
                                 depth *= channel_multipliers[nd * pixel_id + d];
                             }
-                            rendered_image[nd * pixel_id + d] += depth;
+                            rendered_image[nd * pixel_id + d] += float(depth);
                         }
                         d++;
                     } break;
@@ -74,9 +74,9 @@ struct primary_contribs_accumulator {
                                 position[1] *= channel_multipliers[nd * pixel_id + d + 1];
                                 position[2] *= channel_multipliers[nd * pixel_id + d + 2];
                             }
-                            rendered_image[nd * pixel_id + d    ] += position[0];
-                            rendered_image[nd * pixel_id + d + 1] += position[1];
-                            rendered_image[nd * pixel_id + d + 2] += position[2];
+                            rendered_image[nd * pixel_id + d    ] += float(position[0]);
+                            rendered_image[nd * pixel_id + d + 1] += float(position[1]);
+                            rendered_image[nd * pixel_id + d + 2] += float(position[2]);
                         }
                         d += 3;
                     } break;
@@ -89,9 +89,9 @@ struct primary_contribs_accumulator {
                                 geom_normal[1] *= channel_multipliers[nd * pixel_id + d + 1];
                                 geom_normal[2] *= channel_multipliers[nd * pixel_id + d + 2];
                             }
-                            rendered_image[nd * pixel_id + d    ] += geom_normal[0];
-                            rendered_image[nd * pixel_id + d + 1] += geom_normal[1];
-                            rendered_image[nd * pixel_id + d + 2] += geom_normal[2];
+                            rendered_image[nd * pixel_id + d    ] += float(geom_normal[0]);
+                            rendered_image[nd * pixel_id + d + 1] += float(geom_normal[1]);
+                            rendered_image[nd * pixel_id + d + 2] += float(geom_normal[2]);
                         }
                         d += 3;
                     } break;
@@ -110,9 +110,9 @@ struct primary_contribs_accumulator {
                                 shading_normal[1] *= channel_multipliers[nd * pixel_id + d + 1];
                                 shading_normal[2] *= channel_multipliers[nd * pixel_id + d + 2];
                             }
-                            rendered_image[nd * pixel_id + d    ] += shading_normal[0];
-                            rendered_image[nd * pixel_id + d + 1] += shading_normal[1];
-                            rendered_image[nd * pixel_id + d + 2] += shading_normal[2];
+                            rendered_image[nd * pixel_id + d    ] += float(shading_normal[0]);
+                            rendered_image[nd * pixel_id + d + 1] += float(shading_normal[1]);
+                            rendered_image[nd * pixel_id + d + 2] += float(shading_normal[2]);
                         }
                         d += 3;
                     } break;
@@ -124,8 +124,8 @@ struct primary_contribs_accumulator {
                                 uv[0] *= channel_multipliers[nd * pixel_id + d];
                                 uv[1] *= channel_multipliers[nd * pixel_id + d + 1];
                             }
-                            rendered_image[nd * pixel_id + d    ] += uv[0];
-                            rendered_image[nd * pixel_id + d + 1] += uv[1];
+                            rendered_image[nd * pixel_id + d    ] += float(uv[0]);
+                            rendered_image[nd * pixel_id + d + 1] += float(uv[1]);
                         }
                         d += 2;
                     } break;
@@ -142,9 +142,9 @@ struct primary_contribs_accumulator {
                                 refl[1] *= channel_multipliers[nd * pixel_id + d + 1];
                                 refl[2] *= channel_multipliers[nd * pixel_id + d + 2];
                             }
-                            rendered_image[nd * pixel_id + d    ] += refl[0];
-                            rendered_image[nd * pixel_id + d + 1] += refl[1];
-                            rendered_image[nd * pixel_id + d + 2] += refl[2];
+                            rendered_image[nd * pixel_id + d    ] += float(refl[0]);
+                            rendered_image[nd * pixel_id + d + 1] += float(refl[1]);
+                            rendered_image[nd * pixel_id + d + 2] += float(refl[2]);
                         }
                         d += 3;
                     } break;
@@ -160,9 +160,9 @@ struct primary_contribs_accumulator {
                                 refl[1] *= channel_multipliers[nd * pixel_id + d + 1];
                                 refl[2] *= channel_multipliers[nd * pixel_id + d + 2];
                             }
-                            rendered_image[nd * pixel_id + d    ] += refl[0];
-                            rendered_image[nd * pixel_id + d + 1] += refl[1];
-                            rendered_image[nd * pixel_id + d + 2] += refl[2];
+                            rendered_image[nd * pixel_id + d    ] += float(refl[0]);
+                            rendered_image[nd * pixel_id + d + 1] += float(refl[1]);
+                            rendered_image[nd * pixel_id + d + 2] += float(refl[2]);
                         }
                         d += 3;
                     } break;
@@ -175,7 +175,7 @@ struct primary_contribs_accumulator {
                             if (channel_multipliers != nullptr) {
                                 r *= channel_multipliers[nd * pixel_id + d];
                             }
-                            rendered_image[nd * pixel_id + d    ] += r;
+                            rendered_image[nd * pixel_id + d    ] += float(r);
                         }
                         d++;
                     } break;
@@ -193,7 +193,7 @@ struct primary_contribs_accumulator {
                                 if (channel_multipliers != nullptr) {
                                     gt *= channel_multipliers[nd * pixel_id + d + i];
                                 }
-                                rendered_image[nd * pixel_id + d + i] += gt;
+                                rendered_image[nd * pixel_id + d + i] += float(gt);
                             }
                         }
                         d += scene.max_generic_texture_dimension;
@@ -207,9 +207,9 @@ struct primary_contribs_accumulator {
                                 refl[1] *= channel_multipliers[nd * pixel_id + d + 1];
                                 refl[2] *= channel_multipliers[nd * pixel_id + d + 2];
                             }
-                            rendered_image[nd * pixel_id + d    ] += refl[0];
-                            rendered_image[nd * pixel_id + d + 1] += refl[1];
-                            rendered_image[nd * pixel_id + d + 2] += refl[2];
+                            rendered_image[nd * pixel_id + d    ] += float(refl[0]);
+                            rendered_image[nd * pixel_id + d + 1] += float(refl[1]);
+                            rendered_image[nd * pixel_id + d + 2] += float(refl[2]);
                         }
                         d += 3;
                     } break;
@@ -217,20 +217,20 @@ struct primary_contribs_accumulator {
                     // we use the last sample for determining the ids
                     case Channels::shape_id: {
                         if (shading_isect.valid()) {
-                            rendered_image[nd * pixel_id + d    ] = Real(shading_isect.shape_id);
+                            rendered_image[nd * pixel_id + d    ] = float(shading_isect.shape_id);
                         }
                         d++;
                     } break;
                     case Channels::triangle_id: {
                         if (shading_isect.valid()) {
-                            rendered_image[nd * pixel_id + d    ] = Real(shading_isect.tri_id);
+                            rendered_image[nd * pixel_id + d    ] = float(shading_isect.tri_id);
                         }
                         d++;
                     } break;
                     case Channels::material_id: {
                         if (shading_isect.valid()) {
                             const auto &shading_shape = scene.shapes[shading_isect.shape_id];
-                            rendered_image[nd * pixel_id + d    ] = Real(shading_shape.material_id);
+                            rendered_image[nd * pixel_id + d    ] = float(shading_shape.material_id);
                         }
                         d++;
                     } break;

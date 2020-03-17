@@ -39,8 +39,10 @@ Real compute_area_cdf(const Shape &shape, Real *cdf, bool use_gpu) {
     parallel_for(area_computer{shape, cdf}, shape.num_triangles, use_gpu);
     // cdf now stores the areas
     // First ask for the total area
+    #pragma warning(disable : 940 969)
     auto total_area = DISPATCH(use_gpu, thrust::reduce,
         cdf, cdf + shape.num_triangles, Real(0), thrust::plus<Real>());
+    #pragma warning(default : 940 969)
     // In-place prefix sum
     // XXX: for some reason the program crashes when I use exclusive_scan
     //thrust::exclusive_scan(dev_ptr, dev_ptr + shape.num_triangles, dev_ptr);
@@ -554,14 +556,14 @@ void intersect(const Scene &scene,
                 RTCIntersectContext rtc_context;
                 rtcInitIntersectContext(&rtc_context);
                 RTCRayHit rtc_ray_hit;
-                rtc_ray_hit.ray.org_x = ray.org[0];
-                rtc_ray_hit.ray.org_y = ray.org[1];
-                rtc_ray_hit.ray.org_z = ray.org[2];
-                rtc_ray_hit.ray.dir_x = ray.dir[0];
-                rtc_ray_hit.ray.dir_y = ray.dir[1];
-                rtc_ray_hit.ray.dir_z = ray.dir[2];
-                rtc_ray_hit.ray.tnear = ray.tmin;
-                rtc_ray_hit.ray.tfar = ray.tmax;
+                rtc_ray_hit.ray.org_x = (float)ray.org[0];
+                rtc_ray_hit.ray.org_y = (float)ray.org[1];
+                rtc_ray_hit.ray.org_z = (float)ray.org[2];
+                rtc_ray_hit.ray.dir_x = (float)ray.dir[0];
+                rtc_ray_hit.ray.dir_y = (float)ray.dir[1];
+                rtc_ray_hit.ray.dir_z = (float)ray.dir[2];
+                rtc_ray_hit.ray.tnear = (float)ray.tmin;
+                rtc_ray_hit.ray.tfar = (float)ray.tmax;
                 rtc_ray_hit.ray.mask = (unsigned int)(-1);
                 rtc_ray_hit.ray.time = 0.f;
                 rtc_ray_hit.ray.flags = 0;
@@ -665,14 +667,14 @@ void occluded(const Scene &scene,
                 RTCIntersectContext rtc_context;
                 rtcInitIntersectContext(&rtc_context);
                 RTCRay rtc_ray;
-                rtc_ray.org_x = ray.org[0];
-                rtc_ray.org_y = ray.org[1];
-                rtc_ray.org_z = ray.org[2];
-                rtc_ray.dir_x = ray.dir[0];
-                rtc_ray.dir_y = ray.dir[1];
-                rtc_ray.dir_z = ray.dir[2];
-                rtc_ray.tnear = ray.tmin;
-                rtc_ray.tfar = ray.tmax;
+                rtc_ray.org_x = (float)ray.org[0];
+                rtc_ray.org_y = (float)ray.org[1];
+                rtc_ray.org_z = (float)ray.org[2];
+                rtc_ray.dir_x = (float)ray.dir[0];
+                rtc_ray.dir_y = (float)ray.dir[1];
+                rtc_ray.dir_z = (float)ray.dir[2];
+                rtc_ray.tnear = (float)ray.tmin;
+                rtc_ray.tfar = (float)ray.tmax;
                 rtc_ray.mask = (unsigned int)(-1);
                 rtc_ray.time = 0.f;
                 rtc_ray.flags = 0;

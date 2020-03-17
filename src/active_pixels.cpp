@@ -24,7 +24,7 @@ void init_active_pixels(const BufferView<Ray> &rays,
     auto new_end = DISPATCH_CACHED(use_gpu, thrust_alloc, thrust::remove_if,
         active_pixels.begin(), active_pixels.end(),
         active_pixels.begin(), op);
-    active_pixels.count = new_end - active_pixels.begin();
+    active_pixels.count = int(new_end - active_pixels.begin());
 }
 
 struct is_valid_intersection {
@@ -45,7 +45,7 @@ void update_active_pixels(const BufferView<int> &active_pixels,
     auto new_end = DISPATCH(use_gpu, thrust::copy_if,
         active_pixels.begin(), active_pixels.end(),
         new_active_pixels.begin(), op);
-    new_active_pixels.count = new_end - new_active_pixels.begin();
+    new_active_pixels.count = int(new_end - new_active_pixels.begin());
 }
 
 void test_active_pixels(bool use_gpu) {

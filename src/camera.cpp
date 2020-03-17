@@ -126,7 +126,7 @@ void test_d_sample_primary_rays() {
     auto finite_delta = Real(1e-6);
     for (int i = 0; i < 3; i++) {
         auto delta_pos = pos;
-        delta_pos[i] += finite_delta;
+        delta_pos[i] += float(finite_delta);
         auto delta_camera = Camera{
             1, 1,
             &delta_pos[0],
@@ -140,7 +140,7 @@ void test_d_sample_primary_rays() {
             CameraType::Perspective};
         auto positive_ray =
             sample_primary(delta_camera, Vector2{0.5, 0.5});
-        delta_pos[i] -= 2 * finite_delta;
+        delta_pos[i] -= float(2 * finite_delta);
         delta_camera = Camera{
             1, 1,
             &delta_pos[0],
@@ -161,7 +161,7 @@ void test_d_sample_primary_rays() {
     }
     for (int i = 0; i < 3; i++) {
         auto delta_look = look;
-        delta_look[i] += finite_delta;
+        delta_look[i] += float(finite_delta);
         auto delta_camera = Camera{
             1, 1,
             &pos[0],
@@ -175,7 +175,7 @@ void test_d_sample_primary_rays() {
             CameraType::Perspective};
         auto positive_ray =
             sample_primary(delta_camera, Vector2{0.5, 0.5});
-        delta_look[i] -= 2 * finite_delta;
+        delta_look[i] -= float(2 * finite_delta);
         delta_camera = Camera{
             1, 1,
             &pos[0],
@@ -196,7 +196,7 @@ void test_d_sample_primary_rays() {
     }
     for (int i = 0; i < 3; i++) {
         auto delta_up = up;
-        delta_up[i] += finite_delta;
+        delta_up[i] += float(finite_delta);
         auto delta_camera = Camera{
             1, 1,
             &pos[0],
@@ -210,7 +210,7 @@ void test_d_sample_primary_rays() {
             CameraType::Perspective};
         auto positive_ray =
             sample_primary(delta_camera, Vector2{0.5, 0.5});
-        delta_up[i] -= 2 * finite_delta;
+        delta_up[i] -= float(2 * finite_delta);
         delta_camera = Camera{
             1, 1,
             &pos[0],
@@ -283,7 +283,7 @@ void test_d_camera_to_screen() {
     auto finite_delta = Real(1e-6);
     for (int i = 0; i < 3; i++) {
         auto delta_pos = pos;
-        delta_pos[i] += finite_delta;
+        delta_pos[i] += float(finite_delta);
         auto delta_camera = Camera{
             1, 1,
             &delta_pos[0],
@@ -296,7 +296,7 @@ void test_d_camera_to_screen() {
             1e-2f,
             CameraType::Perspective};
         auto pxy = camera_to_screen(delta_camera, pt);
-        delta_pos[i] -= 2 * finite_delta;
+        delta_pos[i] -= float(2 * finite_delta);
         delta_camera = Camera{
             1, 1,
             &delta_pos[0],
@@ -314,7 +314,7 @@ void test_d_camera_to_screen() {
     }
     for (int i = 0; i < 3; i++) {
         auto delta_look = look;
-        delta_look[i] += finite_delta;
+        delta_look[i] += float(finite_delta);
         auto delta_camera = Camera{
             1, 1,
             &pos[0],
@@ -327,7 +327,7 @@ void test_d_camera_to_screen() {
             1e-2f,
             CameraType::Perspective};
         auto pxy = camera_to_screen(delta_camera, pt);
-        delta_look[i] -= 2 * finite_delta;
+        delta_look[i] -= float(2 * finite_delta);
         delta_camera = Camera{
             1, 1,
             &pos[0],
@@ -345,7 +345,7 @@ void test_d_camera_to_screen() {
     }
     for (int i = 0; i < 3; i++) {
         auto delta_up = up;
-        delta_up[i] += finite_delta;
+        delta_up[i] += float(finite_delta);
         auto delta_camera = Camera{
             1, 1,
             &pos[0],
@@ -358,7 +358,7 @@ void test_d_camera_to_screen() {
             1e-2f,
             CameraType::Perspective};
         auto pxy = camera_to_screen(delta_camera, pt);
-        delta_up[i] -= 2 * finite_delta;
+        delta_up[i] -= float(2 * finite_delta);
         delta_camera = Camera{
             1, 1,
             &pos[0],

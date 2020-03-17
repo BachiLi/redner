@@ -93,8 +93,8 @@ public:
         }
     }
 
-    int size() const { return count; }
-    int bytes() const { return count * sizeof(T); }
+    int size() const { return (int)count; }
+    int bytes() const { return (int)count * sizeof(T); }
 
     T* begin() {
         return data;

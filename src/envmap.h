@@ -8,8 +8,12 @@
 #include "transform.h"
 #include "buffer.h"
 
+#pragma warning(push)
+#pragma warning(disable : 4324 4668)
 #include <thrust/execution_policy.h>
 #include <thrust/binary_search.h>
+#pragma warning(pop)
+
 struct Scene;
 
 struct EnvironmentMap {

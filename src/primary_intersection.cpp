@@ -106,8 +106,8 @@ struct d_primary_intersector {
         d_sample_primary_ray(camera, screen_pos_dy, d_ray_dy, d_camera, d_screen_pos_ptr);
 
         if (screen_gradient_image != nullptr) {
-            screen_gradient_image[2 * pixel_idx + 0] += d_screen_pos[0];
-            screen_gradient_image[2 * pixel_idx + 1] += d_screen_pos[1];
+            screen_gradient_image[2 * pixel_idx + 0] += (float)d_screen_pos[0];
+            screen_gradient_image[2 * pixel_idx + 1] += (float)d_screen_pos[1];
         }
     }
 

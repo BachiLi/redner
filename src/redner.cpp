@@ -8,11 +8,13 @@
 #include "material.h"
 #include "pathtracer.h"
 #include "ptr.h"
-#include "py_utils.h"
 #include "scene.h"
 #include "shape.h"
 
+#include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
+
+namespace py = pybind11;
 
 PYBIND11_MODULE(redner, m) {
     m.doc() = "Redner"; // optional module docstring

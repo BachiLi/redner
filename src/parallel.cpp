@@ -14,7 +14,7 @@ static ParallelForLoop *workList = nullptr;
 static std::mutex workListMutex;
 
 struct ParallelForLoop {
-    ParallelForLoop(std::function<void(int64_t)> func1D, int64_t maxIndex, int chunkSize)
+    ParallelForLoop(std::function<void(int)> func1D, int64_t maxIndex, int64_t chunkSize)
         : func1D(std::move(func1D)), maxIndex(maxIndex), chunkSize(chunkSize) {
     }
     ParallelForLoop(const std::function<void(Vector2i)> &f, const Vector2i count)
@@ -22,10 +22,10 @@ struct ParallelForLoop {
         nX = count[0];
     }
 
-    std::function<void(int64_t)> func1D;
+    std::function<void(int)> func1D;
     std::function<void(Vector2i)> func2D;
     const int64_t maxIndex;
-    const int chunkSize;
+    const int64_t chunkSize;
     int64_t nextIndex = 0;
     int activeWorkers = 0;
     ParallelForLoop *next = nullptr;
@@ -89,7 +89,7 @@ static void worker_thread_func(const int tIndex, std::shared_ptr<Barrier> barrie
             lock.unlock();
             for (int64_t index = indexStart; index < indexEnd; ++index) {
                 if (loop.func1D) {
-                    loop.func1D(index);
+                    loop.func1D((int)index);
                 }
                 // Handle other types of loops
                 else {
@@ -109,12 +109,12 @@ static void worker_thread_func(const int tIndex, std::shared_ptr<Barrier> barrie
     }
 }
 
-void parallel_for_host(const std::function<void(int64_t)> &func,
+void parallel_for_host(const std::function<void(int)> &func,
                        int64_t count,
-                       int chunkSize) {
+                       int64_t chunkSize) {
     // Run iterations immediately if not using threads or if _count_ is small
     if (threads.empty() || count < chunkSize) {
-        for (int64_t i = 0; i < count; ++i) {
+        for (int i = 0; i < (int)count; i++) {
             func(i);
         }
         return;
@@ -150,7 +150,7 @@ void parallel_for_host(const std::function<void(int64_t)> &func,
         lock.unlock();
         for (int64_t index = indexStart; index < indexEnd; ++index) {
             if (loop.func1D) {
-                loop.func1D(index);
+                loop.func1D((int)index);
             }
             // Handle other types of loops
             else {
@@ -209,7 +209,7 @@ void parallel_for_host(
         lock.unlock();
         for (int64_t index = indexStart; index < indexEnd; ++index) {
             if (loop.func1D) {
-                loop.func1D(index);
+                loop.func1D((int)index);
             }
             // Handle other types of loops
             else {

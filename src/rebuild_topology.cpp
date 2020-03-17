@@ -22,10 +22,10 @@ struct VertexUVInd {
 };
 
 struct TopoData {
-    size_t idx;   /// Triangle index
+    int idx;   /// Triangle index
     bool clustered; /// Has the tri-vert. pair been assigned to a cluster?
     inline TopoData() { }
-    inline TopoData(size_t idx, bool clustered)
+    inline TopoData(int idx, bool clustered)
         : idx(idx), clustered(clustered) { }
 };
 
@@ -144,7 +144,7 @@ void create_vertex_map(VertexMapType &vertex_map,
                                 uv_indices[3 * i + 1],
                                 uv_indices[3 * i + 2]};
         }
-        insert_vertex(vertex_map, vertices, uvs, i, index, uv_index);
+        insert_vertex(vertex_map, vertices, uvs, (int)i, index, uv_index);
         auto v0 = Vector3f{vertices[3 * index[0] + 0],
                            vertices[3 * index[0] + 1],
                            vertices[3 * index[0] + 2]};
@@ -403,6 +403,6 @@ int rebuild_topology(ptr<float> vertices,
         }
     }
 
-    return new_vertices.size();
+    return (int)new_vertices.size();
 }
 

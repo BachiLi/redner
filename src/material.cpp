@@ -53,34 +53,34 @@ void test_d_bsdf() {
     auto finite_delta = Real(1e-6);
     for (int i = 0; i < 3; i++) {
         auto delta_m = m;
-        delta_m.diffuse_reflectance.texels[0][i] += finite_delta;
+        delta_m.diffuse_reflectance.texels[0][i] += float(finite_delta);
         auto positive = bsdf(delta_m, p, wi, wo, min_roughness);
-        delta_m.diffuse_reflectance.texels[0][i] -= 2 * finite_delta;
+        delta_m.diffuse_reflectance.texels[0][i] -= float(2 * finite_delta);
         auto negative = bsdf(delta_m, p, wi, wo, min_roughness);
         auto diff = sum(positive - negative) / (2 * finite_delta);
-        equal_or_error(__FILE__, __LINE__, diff, d_d[i]);
+        equal_or_error(__FILE__, __LINE__, Real(diff), Real(d_d[i]));
     }
 
     // Check specular derivatives
     for (int i = 0; i < 3; i++) {
         auto delta_m = m;
-        delta_m.specular_reflectance.texels[0][i] += finite_delta;
+        delta_m.specular_reflectance.texels[0][i] += float(finite_delta);
         auto positive = bsdf(delta_m, p, wi, wo, min_roughness);
-        delta_m.specular_reflectance.texels[0][i] -= 2 * finite_delta;
+        delta_m.specular_reflectance.texels[0][i] -= float(2 * finite_delta);
         auto negative = bsdf(delta_m, p, wi, wo, min_roughness);
         auto diff = sum(positive - negative) / (2 * finite_delta);
-        equal_or_error(__FILE__, __LINE__, diff, d_s[i]);
+        equal_or_error(__FILE__, __LINE__, Real(diff), Real(d_s[i]));
     }
 
     // Check roughness derivatives
     {
         auto delta_m = m;
-        delta_m.roughness.texels[0][0] += finite_delta;
+        delta_m.roughness.texels[0][0] += float(finite_delta);
         auto positive = bsdf(delta_m, p, wi, wo, min_roughness);
-        delta_m.roughness.texels[0][0] -= 2 * finite_delta;
+        delta_m.roughness.texels[0][0] -= float(2 * finite_delta);
         auto negative = bsdf(delta_m, p, wi, wo, min_roughness);
         auto diff = sum(positive - negative) / (2 * finite_delta);
-        equal_or_error(__FILE__, __LINE__, diff, d_r);
+        equal_or_error(__FILE__, __LINE__, Real(diff), Real(d_r));
     }
 
     // Check surface point derivatives
@@ -226,10 +226,10 @@ void test_d_bsdf_sample() {
                 Vector3{0, 0, 0}, Vector3{0, 0, 0},
                 Vector3{0, 0, 0}, Vector3{0, 0, 0}};
             auto delta_m = m;
-            delta_m.roughness.texels[0][0] += finite_delta;
+            delta_m.roughness.texels[0][0] += float(finite_delta);
             auto positive = bsdf_sample(delta_m, p, wi, sample, min_roughness,
                 wi_differential, ray_diff_pos);
-            delta_m.roughness.texels[0][0] -= 2 * finite_delta;
+            delta_m.roughness.texels[0][0] -= float(2 * finite_delta);
             auto negative = bsdf_sample(delta_m, p, wi, sample, min_roughness,
                 wi_differential, ray_diff_neg);
             auto diff = (sum(positive - negative) +
@@ -238,7 +238,7 @@ void test_d_bsdf_sample() {
                      sum(ray_diff_pos.dir_dx - ray_diff_neg.dir_dx) +
                      sum(ray_diff_pos.dir_dy - ray_diff_neg.dir_dy))
                     / (2 * finite_delta);
-            equal_or_error(__FILE__, __LINE__, diff, d_r);
+            equal_or_error(__FILE__, __LINE__, Real(diff), Real(d_r));
         }
 
         // Check surface point derivatives
@@ -413,12 +413,12 @@ void test_d_bsdf_pdf() {
     auto finite_delta = Real(1e-5);
     {
         auto delta_m = m;
-        delta_m.roughness.texels[0][0] += finite_delta;
+        delta_m.roughness.texels[0][0] += float(finite_delta);
         auto positive = bsdf_pdf(delta_m, p, wi, wo, min_roughness);
-        delta_m.roughness.texels[0][0] -= 2 * finite_delta;
+        delta_m.roughness.texels[0][0] -= float(2 * finite_delta);
         auto negative = bsdf_pdf(delta_m, p, wi, wo, min_roughness);
         auto diff = (positive - negative) / (2 * finite_delta);
-        equal_or_error(__FILE__, __LINE__, diff, d_r);
+        equal_or_error(__FILE__, __LINE__, Real(diff), Real(d_r));
     }
 
     // Check surface point derivatives
@@ -432,7 +432,7 @@ void test_d_bsdf_pdf() {
         delta_p.shading_frame.x[i] -= 2 * finite_delta;
         auto negative = bsdf_pdf(m, delta_p, wi, wo, min_roughness);
         auto diff = (positive - negative) / (2 * finite_delta);
-        equal_or_error(__FILE__, __LINE__, diff, d_p.shading_frame.x[i]);
+        equal_or_error(__FILE__, __LINE__, Real(diff), Real(d_p.shading_frame.x[i]));
     }
     // Shading frame y
     for (int i = 0; i < 3; i++) {
@@ -442,7 +442,7 @@ void test_d_bsdf_pdf() {
         delta_p.shading_frame.y[i] -= 2 * finite_delta;
         auto negative = bsdf_pdf(m, delta_p, wi, wo, min_roughness);
         auto diff = (positive - negative) / (2 * finite_delta);
-        equal_or_error(__FILE__, __LINE__, diff, d_p.shading_frame.y[i]);
+        equal_or_error(__FILE__, __LINE__, Real(diff), Real(d_p.shading_frame.y[i]));
     }
     // Shading frame n
     for (int i = 0; i < 3; i++) {
@@ -452,7 +452,7 @@ void test_d_bsdf_pdf() {
         delta_p.shading_frame.n[i] -= 2 * finite_delta;
         auto negative = bsdf_pdf(m, delta_p, wi, wo, min_roughness);
         auto diff = (positive - negative) / (2 * finite_delta);
-        equal_or_error(__FILE__, __LINE__, diff, d_p.shading_frame.n[i]);
+        equal_or_error(__FILE__, __LINE__, Real(diff), Real(d_p.shading_frame.n[i]));
     }
     // uv
     for (int i = 0; i < 2; i++) {
@@ -462,7 +462,7 @@ void test_d_bsdf_pdf() {
         delta_p.uv[i] -= 2 * finite_delta;
         auto negative = bsdf_pdf(m, delta_p, wi, wo, min_roughness);
         auto diff = (positive - negative) / (2 * finite_delta);
-        equal_or_error(__FILE__, __LINE__, diff, d_p.uv[i]);
+        equal_or_error(__FILE__, __LINE__, Real(diff), Real(d_p.uv[i]));
     }
 
     // Check wi, wo
@@ -473,7 +473,7 @@ void test_d_bsdf_pdf() {
         delta_wi[i] -= 2 * finite_delta;
         auto negative = bsdf_pdf(m, p, delta_wi, wo, min_roughness);
         auto diff = (positive - negative) / (2 * finite_delta);
-        equal_or_error(__FILE__, __LINE__, diff, d_wi[i]);
+        equal_or_error(__FILE__, __LINE__, Real(diff), Real(d_wi[i]));
     }
     for (int i = 0; i < 3; i++) {
         auto delta_wo = wo;
@@ -482,6 +482,6 @@ void test_d_bsdf_pdf() {
         delta_wo[i] -= 2 * finite_delta;
         auto negative = bsdf_pdf(m, p, wi, delta_wo, min_roughness);
         auto diff = (positive - negative) / (2 * finite_delta);
-        equal_or_error(__FILE__, __LINE__, diff, d_wo[i]);
+        equal_or_error(__FILE__, __LINE__, Real(diff), Real(d_wo[i]));
     }
 }

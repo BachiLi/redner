@@ -1,5 +1,8 @@
 #pragma once
 
+// Turn off some overly aggressive MSVC warnings
+#pragma warning(disable : 4146 4244 4305 4334 4996)
+
 #ifdef __NVCC__ 
     #define DEVICE __device__ __host__ 
 #else
@@ -93,7 +96,8 @@ inline T min(const T &a, const T &b) {
 }
 
 /// Return ceil(x/y) for integers x and y
-inline int idiv_ceil(int x, int y) {
+template <typename T>
+inline T idiv_ceil(T x, T y) {
     return (x + y-1) / y;
 }
 
@@ -125,7 +129,7 @@ inline int clz(uint64_t x) {
   #if defined(USE_GCC_INTRINSICS)
     return x == 0 ? 64 : __builtin_clzll(x);
   #elif defined(USE_MSVC_INTRINSICS)
-    return x == 0 ? 64 : msvc_clzll(x);
+    return x == 0 ? 64 : (int)msvc_clzll(x);
   #else
     assert(false);
     return 64;
@@ -141,7 +145,7 @@ inline int ffs(uint8_t x) {
   #if defined(USE_GCC_INTRINSICS)
     return __builtin_ffs(x);
   #elif defined(USE_MSVC_INTRINSICS)
-    return msvc_ffs(x);
+    return (int)msvc_ffs(x);
   #else
     assert(false);
     return 0;
@@ -157,7 +161,7 @@ inline int popc(uint8_t x) {
   #if defined(USE_GCC_INTRINSICS)
   return __builtin_popcount(x);
   #elif defined(USE_MSVC_INTRINSICS)
-    return msvc_popcount(x);
+    return (int)msvc_popcount(x);
   #else
     assert(false);
     return 0;

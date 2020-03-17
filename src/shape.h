@@ -119,12 +119,6 @@ inline Vector2f get_uv(const Shape &shape, int index) {
 }
 
 DEVICE
-inline void accumulate_uv(DShape &d_shape, int index, const Vector2 &d) {
-    d_shape.uvs[2 * index + 0] += d[0];
-    d_shape.uvs[2 * index + 1] += d[1];
-}
-
-DEVICE
 inline bool has_shading_normals(const Shape &shape) {
     return shape.normals != nullptr;
 }
@@ -157,13 +151,6 @@ inline Vector3f get_color(const Shape &shape, int index) {
     return Vector3f{shape.colors[3 * index + 0],
                     shape.colors[3 * index + 1],
                     shape.colors[3 * index + 2]};
-}
-
-DEVICE
-inline void accumulate_shading_normal(DShape &d_shape, int index, const Vector3 &d) {
-    d_shape.normals[3 * index + 0] += d[0];
-    d_shape.normals[3 * index + 1] += d[1];
-    d_shape.normals[3 * index + 2] += d[2];
 }
 
 DEVICE
@@ -663,7 +650,6 @@ inline void d_intersect_shape(
         auto n0 = get_shading_normal(shape, normal_ind[0]);
         auto n1 = get_shading_normal(shape, normal_ind[1]);
         auto n2 = get_shading_normal(shape, normal_ind[2]);
-        auto d_shading_normal = d_point.shading_frame[2];
         // differentiate through frame construction
         d_coordinate_system(shading_normal, d_point.shading_frame[0], d_point.shading_frame[1],
                             d_shading_normal);

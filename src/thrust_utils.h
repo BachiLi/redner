@@ -71,7 +71,7 @@ struct ThrustCachedAllocator {
                         delete[] block_ptr[i];
                     }
                 }
-                block_size[i] = num_bytes;
+                block_size[i] = (int)num_bytes;
                 if (use_gpu) {
                     block_ptr[i] = thrust::device_malloc<char>(block_size[i]).get();
                 } else {

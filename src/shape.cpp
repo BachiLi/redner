@@ -244,10 +244,10 @@ void test_d_intersect() {
             auto ray_diff_neg = RayDifferential{
                 Vector3{0, 0, 0}, Vector3{0, 0, 0},
                 Vector3{0, 0, 0}, Vector3{0, 0, 0}};
-            float tmp = vertices[vi][i];
-            vertices[vi][i] += finite_delta;
+            auto tmp = vertices[vi][i];
+            vertices[vi][i] += (float)finite_delta;
             auto positive = intersect_shape(shape, 0, ray, ray_diff, ray_diff_pos);
-            vertices[vi][i] -= 2 * finite_delta;
+            vertices[vi][i] -= float(2 * finite_delta);
             auto negative = intersect_shape(shape, 0, ray, ray_diff, ray_diff_neg);
             vertices[vi][i] = tmp;
             auto diff = (sum(positive.position - negative.position) +
@@ -312,10 +312,10 @@ void test_d_sample_shape() {
     for (int vi = 0; vi < 3; vi++) {
         // Position
         for (int i = 0; i < 3; i++) {
-            float tmp = vertices[vi][i];
-            vertices[vi][i] += finite_delta;
+            auto tmp = vertices[vi][i];
+            vertices[vi][i] += float(finite_delta);
             auto positive = sample_shape(shape, 0, sample);
-            vertices[vi][i] -= 2 * finite_delta;
+            vertices[vi][i] -= float(2 * finite_delta);
             auto negative = sample_shape(shape, 0, sample);
             vertices[vi][i] = tmp;
             auto diff = (sum(positive.position - negative.position) +

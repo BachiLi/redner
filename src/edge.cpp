@@ -236,7 +236,7 @@ EdgeSampler::EdgeSampler(const std::vector<const Shape*> &shapes,
         // No need to collect edges
         return;
     }
-    auto shapes_buffer = scene.shapes.view(0, shapes.size());
+    auto shapes_buffer = scene.shapes.view(0, (int)shapes.size());
     // Conservatively allocate a big buffer for all edges
     auto num_total_triangles = 0;
     for (int shape_id = 0; shape_id < (int)shapes.size(); shape_id++) {
@@ -288,7 +288,7 @@ EdgeSampler::EdgeSampler(const std::vector<const Shape*> &shapes,
         }, num_edges, scene.use_gpu);
 
         DISPATCH(scene.use_gpu, thrust::copy, edges_buffer_begin, new_end, edges_begin);
-        current_num_edges += num_edges;
+        current_num_edges += (int)num_edges;
     }
     // Remove edges with 180 degree dihedral angles
     auto edges_end = DISPATCH(scene.use_gpu, thrust::remove_if, edges.begin(),
@@ -1421,7 +1421,7 @@ struct secondary_edge_sampler {
         }
         auto diffuse_pmf = diffuse_weight / weight_sum;
         auto specular_pmf = specular_weight / weight_sum;
-        auto m_pmf = 0.f;
+        auto m_pmf = Real(0);
         auto n = shading_point.shading_frame.n;
         if (material.two_sided) {
             if (dot(wi, n) < 0.f) {

@@ -10,9 +10,9 @@ DEVICE inline uint32_t next_pcg32(pcg32_state *rng) {
     // Advance internal state
     rng->state = oldstate * 6364136223846793005ULL + (rng->inc|1);
     // Calculate output function (XSH RR), uses old state for max ILP
-    uint32_t xorshifted = ((oldstate >> 18u) ^ oldstate) >> 27u;
-    uint32_t rot = oldstate >> 59u;
-    return (xorshifted >> rot) | (xorshifted << ((-rot) & 31));
+    uint32_t xorshifted = uint32_t(((oldstate >> 18u) ^ oldstate) >> 27u);
+    uint32_t rot = uint32_t(oldstate >> 59u);
+    return uint32_t((xorshifted >> rot) | (xorshifted << ((-rot) & 31)));
 }
 
 // https://github.com/wjakob/pcg32/blob/master/pcg32.h

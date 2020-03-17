@@ -5,7 +5,7 @@ project(redner VERSION 0.0.2 DESCRIPTION "Differentiable Ray Tracer")
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/")
 
 if(WIN32)
-    find_package(PythonLibs 3.6 COMPONENTS Development REQUIRED)
+    find_package(Python 3.6 COMPONENTS Development REQUIRED)
     add_subdirectory(pybind11)
 else()
     find_package(Python 3.6 COMPONENTS Development REQUIRED)
@@ -82,7 +82,6 @@ set(SRCS src/aabb.h
          src/primary_contribution.h
          src/primary_intersection.h
          src/ptr.h
-         src/py_utils.h
          src/ray.h
          src/rebuild_topology.h
          src/redner.h
@@ -104,7 +103,6 @@ set(SRCS src/aabb.h
          src/channels.cpp
          src/edge.cpp
          src/edge_tree.cpp
-         src/envmap.cpp
          src/load_serialized.cpp
          src/material.cpp
          src/miniz.c
@@ -131,7 +129,6 @@ if(REDNER_CUDA)
         src/channels.cpp
         src/edge.cpp
         src/edge_tree.cpp
-        src/envmap.cpp
         src/material.cpp
         src/parallel.cpp
         src/path_contribution.cpp
@@ -191,9 +188,15 @@ string( REPLACE "-DNDEBUG" "" CMAKE_C_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE}"
 string( REPLACE "/DNDEBUG" "" CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
 string( REPLACE "-DNDEBUG" "" CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
 
-find_package(TensorFlow)
-if(TensorFlow_FOUND)
-    add_subdirectory(pyredner_tensorflow/custom_ops)
-else()
-    message(INFO " Building without TensorFlow support (not found)")
+if(MSVC)
+    target_compile_options(redner PRIVATE /W3 /wd4244 /wd4146 /wd4244 /wd4305 /wd4334 /wd4996)
+endif()
+
+if(NOT WIN32)
+    find_package(TensorFlow)
+    if(TensorFlow_FOUND)
+        add_subdirectory(pyredner_tensorflow/custom_ops)
+    else()
+        message(INFO " Building without TensorFlow support (not found)")
+    endif()
 endif()

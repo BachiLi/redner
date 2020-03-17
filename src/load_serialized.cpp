@@ -58,7 +58,7 @@ class ZStream {
 ZStream::ZStream(std::fstream &fs) : fs(fs) {
     std::streampos pos = fs.tellg();
     fs.seekg(0, fs.end);
-    fsize = fs.tellg();
+    fsize = (size_t)fs.tellg();
     fs.seekg(pos, fs.beg);
 
     int windowBits = 15;
@@ -151,9 +151,9 @@ void load_position(ZStream &zs,
         zs.read(&x, sizeof(Precision));
         zs.read(&y, sizeof(Precision));
         zs.read(&z, sizeof(Precision));
-        v_acc(i, 0) = x;
-        v_acc(i, 1) = y;
-        v_acc(i, 2) = z;
+        v_acc(i, 0) = (float)x;
+        v_acc(i, 1) = (float)y;
+        v_acc(i, 2) = (float)z;
     }
 }
 
@@ -167,9 +167,9 @@ void load_normal(ZStream &zs,
         zs.read(&x, sizeof(Precision));
         zs.read(&y, sizeof(Precision));
         zs.read(&z, sizeof(Precision));
-        n_acc(i, 0) = x;
-        n_acc(i, 1) = y;
-        n_acc(i, 2) = z;
+        n_acc(i, 0) = (float)x;
+        n_acc(i, 1) = (float)y;
+        n_acc(i, 2) = (float)z;
     }
 }
 
@@ -182,8 +182,8 @@ void load_uv(ZStream &zs,
         Precision u, v;
         zs.read(&u, sizeof(Precision));
         zs.read(&v, sizeof(Precision));
-        uv_acc(i, 0) = u;
-        uv_acc(i, 1) = v;
+        uv_acc(i, 0) = (float)u;
+        uv_acc(i, 1) = (float)v;
     }
 }
 
@@ -197,9 +197,9 @@ void load_color(ZStream &zs,
         zs.read(&r, sizeof(Precision));
         zs.read(&g, sizeof(Precision));
         zs.read(&b, sizeof(Precision));
-        color_acc(i, 0) = r;
-        color_acc(i, 1) = g;
-        color_acc(i, 2) = b;
+        color_acc(i, 0) = (float)r;
+        color_acc(i, 1) = (float)g;
+        color_acc(i, 2) = (float)b;
     }
 }
 

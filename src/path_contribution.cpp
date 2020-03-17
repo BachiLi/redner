@@ -124,9 +124,9 @@ struct path_contribs_accumulator {
         if (rendered_image != nullptr) {
             auto nd = channel_info.num_total_dimensions;
             auto d = channel_info.radiance_dimension;
-            rendered_image[nd * pixel_id + d] += weight * path_contrib[0];
-            rendered_image[nd * pixel_id + d + 1] += weight * path_contrib[1];
-            rendered_image[nd * pixel_id + d + 2] += weight * path_contrib[2];
+            rendered_image[nd * pixel_id + d] += float(weight * path_contrib[0]);
+            rendered_image[nd * pixel_id + d + 1] += float(weight * path_contrib[1]);
+            rendered_image[nd * pixel_id + d + 2] += float(weight * path_contrib[2]);
         }
         if (edge_contribs != nullptr) {
             edge_contribs[pixel_id] += sum(weight * path_contrib);

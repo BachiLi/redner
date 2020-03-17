@@ -2,6 +2,11 @@
 
 ==============================================================================*/
 
+#pragma warning(disable : 4003 4061 4100 4127 4242 4244 4267 4355 4365 4388 4464 4514 4574 4623 4625 4626 4647 4668 4710 4820 4946 5026 5027 5031 5039)
+
+// For windows
+#define NOMINMAX
+
 #include "tensorflow/core/framework/op.h"
 #include "tensorflow/core/framework/shape_inference.h"
 #include "tensorflow/core/framework/op_kernel.h"

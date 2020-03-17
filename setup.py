@@ -100,14 +100,14 @@ if torch_spec is not None:
     import torch
     if torch.cuda.is_available():
         build_with_cuda = True
-if tf_spec is not None:
+if tf_spec is not None and sys.platform != 'win32':
     packages.append('pyredner_tensorflow')
     if not build_with_cuda:
         import tensorflow as tf
         if tf.test.is_gpu_available(cuda_only=True, min_cuda_compute_capability=None):
             build_with_cuda = True
 if len(packages) == 0:
-    print('Error: PyTorch or Tensorflow must be installed.')
+    print('Error: PyTorch or Tensorflow must be installed. For Windows platform only PyTorch is supported.')
     exit()
 # Override build_with_cuda with environment variable
 if 'REDNER_CUDA' in os.environ:
@@ -204,7 +204,7 @@ project_name = 'redner'
 if 'PROJECT_NAME' in os.environ:
     project_name = os.environ['PROJECT_NAME']
 setup(name = project_name,
-      version = '0.3.15',
+      version = '0.4.1',
       description = 'Differentiable rendering without approximation.',
       long_description = """redner is a differentiable renderer that can take the
                             derivatives of rendering output with respect to arbitrary

@@ -23,9 +23,9 @@ class Barrier {
     int count;
 };
 
-void parallel_for_host(const std::function<void(int64_t)> &func,
-                  int64_t count,
-                  int chunkSize = 1);
+void parallel_for_host(const std::function<void(int)> &func,
+                       int64_t count,
+                       int64_t chunkSize = 1);
 extern thread_local int ThreadIndex;
 void parallel_for_host(
     std::function<void(Vector2i)> func, const Vector2i count);
@@ -45,8 +45,8 @@ __global__ void parallel_for_device_kernel(T functor, int count) {
 }
 template <typename T>
 inline void parallel_for_device(T functor,
-                                int count,
-                                int work_per_thread = 256) {
+                                int64_t count,
+                                int64_t work_per_thread = 256) {
     if (count <= 0) {
         return;
     }
@@ -58,9 +58,9 @@ inline void parallel_for_device(T functor,
 
 template <typename T>
 inline void parallel_for(T functor,
-                         int count,
+                         int64_t count,
                          bool use_gpu,
-                         int work_per_thread = -1) {
+                         int64_t work_per_thread = -1) {
     if (work_per_thread == -1) {
         work_per_thread = use_gpu ? 64 : 256;
     }
@@ -71,7 +71,7 @@ inline void parallel_for(T functor,
 #ifdef __CUDACC__
         auto block_size = work_per_thread;
         auto block_count = idiv_ceil(count, block_size);
-        parallel_for_device_kernel<T><<<block_count, block_size>>>(functor, count);
+        parallel_for_device_kernel<T><<<(uint32_t)block_count, (uint32_t)block_size>>>(functor, (int)count);
 #else
         assert(false);
 #endif
@@ -80,7 +80,7 @@ inline void parallel_for(T functor,
         parallel_for_host([&](int thread_index) {
             auto id_offset = work_per_thread * thread_index;
             auto work_end = std::min(id_offset + work_per_thread, count);
-            for (int work_id = id_offset; work_id < work_end; work_id++) {
+            for (int work_id = (int)id_offset; work_id < (int)work_end; work_id++) {
                 auto idx = work_id;
                 assert(idx < count);
                 functor(idx);
