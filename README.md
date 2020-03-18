@@ -12,17 +12,17 @@ the continuous derivatives significantly by replacing automatic differentiation 
 
 ## Installation
 
-With either [PyTorch](https://pytorch.org/) (any version >= 1.0) or [TensorFlow](https://www.tensorflow.org/) (version >= 2.0) installed in your current Python environment. For GPU accelerated version (Linux only, CUDA 10.0 required):
+With either [PyTorch](https://pytorch.org/) (any version >= 1.0) or [TensorFlow](https://www.tensorflow.org/) (version >= 2.0) installed in your current Python environment. For GPU accelerated version (Linux and Windows, CUDA version >= 10.0):
 ```
 pip install redner-gpu
 ```
-otherwise (Linux and OS X): 
+otherwise (Windows, Linux and OS X): 
 ```
 pip install redner
 ```
+Windows version only supports PyTorch and not TensorFlow at the moment.
 
 You can also build from source. See the [wiki](https://github.com/BachiLi/redner/wiki/Installation) for building instructions.
-Preliminary windows support made by [Markus Worchel](https://github.com/mworchel) can be accessed through building from source.
 
 ## Documentation
 
@@ -31,6 +31,7 @@ You can also take a look at the tests directories ([PyTorch](tests) and [TensorF
 
 ## News
 
+03/17/2020 - Pip package for Windows! Currently only with PyTorch support. TensorFlow support is pending with some compilation issues.  
 02/27/2020 - Fixed a bug in BRDF derivatives. This affects normal mapping the most. Thanks [Markus Worchel](https://github.com/mworchel) again for reporting this.  
 02/02/2020 - Fixed a serious bug for G-buffer rendering (https://github.com/BachiLi/redner/issues/93). Thanks [Markus Worchel](https://github.com/mworchel) for reporting this.  
 02/01/2020 - Preliminary Windows support for GPU is available thanks to [Markus Worchel](https://github.com/mworchel) again.  
