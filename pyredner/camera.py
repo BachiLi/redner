@@ -21,13 +21,18 @@ class Camera:
         up: Optional[torch.Tensor]
             the up vector of the camera, 1-d tensor with size 3 and type float32
         fov: Optional[torch.Tensor]
-            the field of view of the camera in angle
-            no effect if the camera is a fisheye or panorama camera
+            the field of view of the camera in angle, 
+            no effect if the camera is a fisheye or panorama camera, 
             1-d tensor with size 1 and type float32
         clip_near: float
             the near clipping plane of the camera, need to > 0
         resolution: Tuple[int, int]
             the size of the output image in (height, width)
+        viewport: Optional[Tuple[int, int, int, int]]
+            optional viewport argument for rendering only a region of an image in
+            (left_top_y, left_top_x, bottom_right_y, bottom_right_x),
+            bottom_right is not inclusive.
+            if set to None the viewport is the whole image (i.e., (0, 0, cam.height, cam.width))
         cam_to_world: Optional[torch.Tensor]
             overrides position, look_at, up vectors
             4x4 matrix, optional
@@ -56,6 +61,7 @@ class Camera:
                  fov: Optional[torch.Tensor] = None,
                  clip_near: float = 1e-4,
                  resolution: Tuple[int, int] = (256, 256),
+                 viewport: Optional[Tuple[int, int, int, int]] = None,
                  cam_to_world: Optional[torch.Tensor] = None,
                  intrinsic_mat: Optional[torch.Tensor] = None,
                  camera_type = pyredner.camera_type.perspective,
@@ -104,6 +110,7 @@ class Camera:
         self.intrinsic_mat_inv = torch.inverse(self.intrinsic_mat).contiguous()
         self.clip_near = clip_near
         self.resolution = resolution
+        self.viewport = viewport
         self.camera_type = camera_type
         if fisheye:
             self.camera_type = pyredner.camera_type.fisheye

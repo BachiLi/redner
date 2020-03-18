@@ -165,6 +165,15 @@ def serialize_scene(scene: pyredner.Scene,
         args.append(tf.identity(cam.intrinsic_mat))
     args.append(tf.constant(cam.clip_near))
     args.append(tf.constant(cam.resolution))
+    viewport = cam.viewport
+    if viewport is None:
+        viewport = (0, 0, cam.resolution[0], cam.resolution[1])
+    # Clamp the viewport if necessary
+    viewport = (max(viewport[0], 0),
+                max(viewport[1], 0),
+                min(viewport[2], cam.resolution[0]),
+                min(viewport[3], cam.resolution[1]))
+    args.append(tf.constant(viewport))
     args.append(RednerCameraType.asTensor(cam.camera_type))
     for shape in scene.shapes:
         with tf.device(pyredner.get_device_name()):
@@ -272,6 +281,8 @@ def unpack_args(seed,
     current_index += 1
     resolution = args[current_index].numpy() # Tuple[int, int]
     current_index += 1
+    viewport = args[current_index].numpy() # Tuple[int, int, int, int]
+    current_index += 1
     camera_type = RednerCameraType.asCameraType(args[current_index]) # FIXME: Map to custom type
     current_index += 1
 
@@ -287,7 +298,9 @@ def unpack_args(seed,
                                    redner.float_ptr(pyredner.data_ptr(intrinsic_mat_inv)),
                                    redner.float_ptr(pyredner.data_ptr(intrinsic_mat)),
                                    clip_near,
-                                   camera_type)
+                                   camera_type,
+                                   redner.Vector2i(viewport[1], viewport[0]),
+                                   redner.Vector2i(viewport[3], viewport[2]))
         else:
             camera = redner.Camera(resolution[1],
                                    resolution[0],
@@ -299,7 +312,9 @@ def unpack_args(seed,
                                    redner.float_ptr(pyredner.data_ptr(intrinsic_mat_inv)),
                                    redner.float_ptr(pyredner.data_ptr(intrinsic_mat)),
                                    clip_near,
-                                   camera_type)
+                                   camera_type,
+                                   redner.Vector2i(viewport[1], viewport[0]),
+                                   redner.Vector2i(viewport[3], viewport[2]))
 
     with tf.device(pyredner.get_device_name()):
         shapes = []
@@ -603,6 +618,7 @@ def unpack_args(seed,
     ctx.channels = channels
     ctx.options = options
     ctx.resolution = resolution
+    ctx.viewport = viewport
     ctx.scene = scene
     ctx.camera = camera
     ctx.shapes = shapes
@@ -630,6 +646,7 @@ def forward(seed:int, *args):
     num_samples = args_ctx.num_samples
     options = args_ctx.options
     resolution = args_ctx.resolution
+    viewport = args_ctx.viewport
     scene = args_ctx.scene
     shapes = args_ctx.shapes
     num_channel_args = args_ctx.num_channel_args
@@ -637,8 +654,10 @@ def forward(seed:int, *args):
                                                scene.max_generic_texture_dimension)
 
     with tf.device(pyredner.get_device_name()):
+        img_height = viewport[2] - viewport[0]
+        img_width = viewport[3] - viewport[1]
         rendered_image = tf.zeros(
-            shape = [resolution[0], resolution[1], num_channels],
+            shape = [img_height, img_width, num_channels],
             dtype = tf.float32)
 
         start = time.time()
@@ -1004,6 +1023,7 @@ def render(*x):
         ret_list.append(buffers.d_intrinsic_mat)
         ret_list.append(None) # clip near
         ret_list.append(None) # resolution
+        ret_list.append(None) # viewport
         ret_list.append(None) # camera_type
 
         num_shapes = len(ctx.shapes)
@@ -1125,14 +1145,17 @@ def visualize_screen_gradient(grad_img: tf.Tensor,
     channels = args_ctx.channels
     options = args_ctx.options
     resolution = args_ctx.resolution
+    viewport = args_ctx.viewport
     scene = args_ctx.scene
 
     buffers = create_gradient_buffers(args_ctx)
     num_channels = redner.compute_num_channels(channels,
                                                scene.max_generic_texture_dimension)
     with tf.device(pyredner.get_device_name()):
+        img_height = viewport[2] - viewport[0]
+        img_width = viewport[3] - viewport[1]
         screen_gradient_image = tf.zeros(\
-            shape = [resolution[0], resolution[1], 2],
+            shape = [img_height, img_width, 2],
             dtype = tf.float32)
         if grad_img is not None:
             assert(grad_img.shape[0] == resolution[0])
@@ -1140,7 +1163,7 @@ def visualize_screen_gradient(grad_img: tf.Tensor,
             assert(grad_img.shape[2] == num_channels)
         else:
             grad_img = tf.ones(\
-                shape = [resolution[0], resolution[1], num_channels],
+                shape = [img_height, img_width, num_channels],
                 dtype = tf.float32)
         start = time.time()
         redner.render(scene,

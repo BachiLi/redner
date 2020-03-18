@@ -28,13 +28,17 @@ struct Camera {
            ptr<float> intrinsic_mat_inv,
            ptr<float> intrinsic_mat,
            float clip_near,
-           CameraType camera_type)
+           CameraType camera_type,
+           Vector2i viewport_beg,
+           Vector2i viewport_end)
         : width(width),
           height(height),
           intrinsic_mat_inv(intrinsic_mat_inv.get()),
           intrinsic_mat(intrinsic_mat.get()),
           clip_near(clip_near),
-          camera_type(camera_type) {
+          camera_type(camera_type),
+          viewport_beg(viewport_beg),
+          viewport_end(viewport_end) {
         if (cam_to_world_.get()) {
             cam_to_world = Matrix4x4(cam_to_world_.get());
             world_to_cam = Matrix4x4(world_to_cam_.get());
@@ -58,6 +62,7 @@ struct Camera {
     Matrix3x3 intrinsic_mat;
     float clip_near;
     CameraType camera_type;
+    Vector2i viewport_beg, viewport_end;
 };
 
 struct DCamera {
@@ -918,6 +923,14 @@ inline void d_screen_to_camera(const Camera &camera,
 
 DEVICE
 inline bool in_screen(const Camera &cam, const Vector2 &pt) {
+    // Check for the viewport
+    auto xi = int(pt[0] * cam.width);
+    auto yi = int(pt[1] * cam.height);
+    if (xi < cam.viewport_beg.x || xi >= cam.viewport_end.x ||
+            yi < cam.viewport_beg.y || yi >= cam.viewport_end.y) {
+        return false;
+    }
+    // Check for camera
     if (cam.camera_type != CameraType::Fisheye) {
         return pt[0] >= 0.f && pt[0] < 1.f &&
                pt[1] >= 0.f && pt[1] < 1.f;

@@ -28,6 +28,11 @@ class Camera:
                 the near clipping plane of the camera, need to > 0
             resolution: Tuple[int, int]
                 the size of the output image in (height, width)
+            viewport: Optional[Tuple[int, int, int, int]]
+                optional viewport argument for rendering only a region of an image in
+                (left_top_y, left_top_x, bottom_right_y, bottom_right_x),
+                bottom_right is not inclusive.
+                if set to None the viewport is the whole image (i.e., (0, 0, cam.height, cam.width))
             cam_to_world: Optional[tf.Tensor]
                 overrides position, look_at, up vectors
                 4x4 matrix, optional
@@ -57,6 +62,7 @@ class Camera:
                  fov: Optional[tf.Tensor] = None,
                  clip_near: float = 1e-4,
                  resolution: Tuple[int] = (256, 256),
+                 viewport: Optional[Tuple[int, int, int, int]] = None,
                  cam_to_world: Optional[tf.Tensor] = None,
                  intrinsic_mat: Optional[tf.Tensor] = None,
                  camera_type = pyredner.camera_type.perspective,
@@ -106,6 +112,7 @@ class Camera:
             self.intrinsic_mat_inv = tf.linalg.inv(self._intrinsic_mat)
         self.clip_near = clip_near
         self.resolution = resolution
+        self.viewport = viewport
         self.camera_type = camera_type
         if fisheye:
             self.camera_type = redner.CameraType.fisheye

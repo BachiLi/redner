@@ -43,7 +43,7 @@ endif()
 
 if(NOT MSVC)
   # These compile definitions are not meaningful for MSVC
-  add_compile_options(-Wall -g -O3 -fvisibility=hidden)
+  add_compile_options(-Wall -g -O3 -fvisibility=hidden -Wno-unknown-pragmas)
 else()
   add_compile_options(/Wall /Zi)
   add_link_options(/DEBUG)

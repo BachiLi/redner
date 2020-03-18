@@ -807,7 +807,9 @@ void test_scene_intersect(bool use_gpu) {
         &n2c.data[0][0],
         &c2n.data[0][0],
         1e-2f,
-        CameraType::Perspective};
+        CameraType::Perspective,
+        Vector2i{0, 0},
+        Vector2i{1, 1}};
     Scene scene{camera, {&triangle}, {}, {}, {}, use_gpu, 0, false, false};
     parallel_init();
 
@@ -922,7 +924,9 @@ void test_sample_point_on_light(bool use_gpu) {
         &n2c.data[0][0],
         &c2n.data[0][0],
         1e-2f,
-        CameraType::Perspective};
+        CameraType::Perspective,
+        Vector2i{0, 0},
+        Vector2i{1, 1}};
     Scene scene{camera, {&shape0, &shape1}, {}, {&light0, &light1}, {}, use_gpu, 0, false, false};
     cuda_synchronize();
     // Power of the first light source: 1.5

@@ -66,8 +66,11 @@ struct d_primary_intersector {
             }
         }
 
-        auto pixel_x = pixel_idx % camera.width;
-        auto pixel_y = pixel_idx / camera.width;
+        // Compute pixel coordinate based on index and camera viewport
+        auto viewport_width =
+            camera.viewport_end.x - camera.viewport_beg.x;
+        auto pixel_x = pixel_idx % viewport_width + camera.viewport_beg.x;
+        auto pixel_y = pixel_idx / viewport_width + camera.viewport_beg.y;
         auto sample = samples[pixel_idx].xy;
         auto screen_pos = Vector2{
             (pixel_x + sample[0]) / Real(camera.width),

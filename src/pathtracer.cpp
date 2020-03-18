@@ -200,7 +200,9 @@ void render(const Scene &scene,
 
     // Some common variables
     const auto &camera = scene.camera;
-    auto num_pixels = camera.width * camera.height;
+    auto num_pixels =
+        (camera.viewport_end.x - camera.viewport_beg.x) *
+        (camera.viewport_end.y - camera.viewport_beg.y);
     auto max_bounces = options.max_bounces;
 
     // A main difference between our path tracer and the usual path

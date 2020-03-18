@@ -171,6 +171,15 @@ class RenderFunction(torch.autograd.Function):
         args.append(cam.intrinsic_mat.cpu().contiguous())
         args.append(cam.clip_near)
         args.append(cam.resolution)
+        viewport = cam.viewport
+        if viewport is None:
+            viewport = (0, 0, cam.resolution[0], cam.resolution[1])
+        # Clamp the viewport if necessary
+        viewport = (max(viewport[0], 0),
+                    max(viewport[1], 0),
+                    min(viewport[2], cam.resolution[0]),
+                    min(viewport[3], cam.resolution[1]))
+        args.append(viewport)
         args.append(cam.camera_type)
         for shape in scene.shapes:
             assert(torch.isfinite(shape.vertices).all())
@@ -269,6 +278,8 @@ class RenderFunction(torch.autograd.Function):
         current_index += 1
         resolution = args[current_index]
         current_index += 1
+        viewport = args[current_index]
+        current_index += 1
         camera_type = args[current_index]
         current_index += 1
         if cam_to_world is None:
@@ -282,7 +293,9 @@ class RenderFunction(torch.autograd.Function):
                                    redner.float_ptr(intrinsic_mat_inv.data_ptr()),
                                    redner.float_ptr(intrinsic_mat.data_ptr()),
                                    clip_near,
-                                   camera_type)
+                                   camera_type,
+                                   redner.Vector2i(viewport[1], viewport[0]),
+                                   redner.Vector2i(viewport[3], viewport[2]))
         else:
             camera = redner.Camera(resolution[1],
                                    resolution[0],
@@ -294,7 +307,9 @@ class RenderFunction(torch.autograd.Function):
                                    redner.float_ptr(intrinsic_mat_inv.data_ptr()),
                                    redner.float_ptr(intrinsic_mat.data_ptr()),
                                    clip_near,
-                                   camera_type)
+                                   camera_type,
+                                   redner.Vector2i(viewport[1], viewport[0]),
+                                   redner.Vector2i(viewport[3], viewport[2]))
         shapes = []
         for i in range(num_shapes):
             vertices = args[current_index]
@@ -584,6 +599,7 @@ class RenderFunction(torch.autograd.Function):
         ctx.channels = channels
         ctx.options = options
         ctx.resolution = resolution
+        ctx.viewport = viewport
         ctx.scene = scene
         ctx.camera = camera
         ctx.shapes = shapes
@@ -613,12 +629,15 @@ class RenderFunction(torch.autograd.Function):
         num_samples = args_ctx.num_samples
         options = args_ctx.options
         resolution = args_ctx.resolution
+        viewport = args_ctx.viewport
         scene = args_ctx.scene
         shapes = args_ctx.shapes
 
         num_channels = redner.compute_num_channels(channels,
                                                    scene.max_generic_texture_dimension)
-        rendered_image = torch.zeros(resolution[0], resolution[1], num_channels,
+        img_height = viewport[2] - viewport[0]
+        img_width = viewport[3] - viewport[1]
+        rendered_image = torch.zeros(img_height, img_width, num_channels,
             device = pyredner.get_device())
         start = time.time()
         redner.render(scene,
@@ -946,20 +965,22 @@ class RenderFunction(torch.autograd.Function):
         channels = args_ctx.channels
         options = args_ctx.options
         resolution = args_ctx.resolution
+        viewport = args_ctx.viewport
         scene = args_ctx.scene
 
         buffers = RenderFunction.create_gradient_buffers(args_ctx)
         num_channels = redner.compute_num_channels(channels,
                                                    scene.max_generic_texture_dimension)
+        img_height = viewport[2] - viewport[0]
+        img_width = viewport[3] - viewport[1]
         screen_gradient_image = torch.zeros(\
-            resolution[0], resolution[1], 2,
-            device = pyredner.get_device())
+            img_height, img_width, 2, device = pyredner.get_device())
         if grad_img is not None:
-            assert(grad_img.shape[0] == resolution[0])
-            assert(grad_img.shape[1] == resolution[1])
+            assert(grad_img.shape[0] == img_height)
+            assert(grad_img.shape[1] == img_width)
             assert(grad_img.shape[2] == num_channels)
         else:
-            grad_img = torch.ones(resolution[0], resolution[1], num_channels,
+            grad_img = torch.ones(img_height, img_width, num_channels,
                 device = pyredner.get_device())
         start = time.time()
         redner.render(scene,
@@ -1024,6 +1045,7 @@ class RenderFunction(torch.autograd.Function):
         ret_list.append(buffers.d_intrinsic_mat.cpu())
         ret_list.append(None) # clip near
         ret_list.append(None) # resolution
+        ret_list.append(None) # viewport
         ret_list.append(None) # camera_type
 
         num_shapes = len(ctx.shapes)

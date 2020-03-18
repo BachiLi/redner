@@ -571,8 +571,6 @@ void d_coordinate_system(const TVector3<T> &n, const TVector3<T> &d_x, const TVe
     }
 }
 
-#pragma warning(push)
-#pragma warning(disable : 4514)
 DEVICE
 inline bool isfinite(const Vector2 &v) {
     return isfinite(v.x) &&
@@ -590,7 +588,6 @@ DEVICE
 inline bool is_zero(const Vector3 &v) {
     return v.x == 0 && v.y == 0 && v.z == 0;
 }
-#pragma warning(pop)
 
 template <typename T>
 DEVICE

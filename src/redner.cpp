@@ -41,7 +41,9 @@ PYBIND11_MODULE(redner, m) {
                       ptr<float>, // ndc_to_cam
                       ptr<float>, // cam_to_ndc
                       float, // clip_near
-                      CameraType>())
+                      CameraType,
+                      Vector2i, // viewport_beg
+                      Vector2i>()) // viewport_end
         .def_readonly("use_look_at", &Camera::use_look_at);
 
     py::class_<DCamera>(m, "DCamera")
@@ -207,6 +209,11 @@ PYBIND11_MODULE(redner, m) {
                       >())
         .def_readwrite("seed", &RenderOptions::seed)
         .def_readwrite("num_samples", &RenderOptions::num_samples);
+
+    py::class_<Vector2i>(m, "Vector2i")
+        .def(py::init<int, int>())
+        .def_readwrite("x", &Vector2i::x)
+        .def_readwrite("y", &Vector2i::y);
 
     py::class_<Vector2f>(m, "Vector2f")
         .def_readwrite("x", &Vector2f::x)

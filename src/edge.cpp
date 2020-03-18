@@ -443,15 +443,18 @@ struct primary_edge_sampler {
             rays[2 * idx + 1] = lower_ray;
 
             // Compute the corresponding backprop derivatives
-            auto xi = clamp(int(edge_pt[0] * camera.width), 0, camera.width - 1);
-            auto yi = clamp(int(edge_pt[1] * camera.height), 0, camera.height - 1);
+            auto xi = clamp(int(edge_pt[0] * camera.width - camera.viewport_beg.x),
+                            0, camera.viewport_end.x - camera.viewport_beg.x);
+            auto yi = clamp(int(edge_pt[1] * camera.height - camera.viewport_beg.y),
+                            0, camera.viewport_end.y - camera.viewport_beg.y);
             auto rd = channel_info.radiance_dimension;
             auto d_color = Vector3{0, 0, 0};
             if (rd != -1) {
+                auto viewport_width = camera.viewport_end.x - camera.viewport_beg.x;
                 d_color = Vector3{
-                    d_rendered_image[nd * (yi * camera.width + xi) + rd + 0],
-                    d_rendered_image[nd * (yi * camera.width + xi) + rd + 1],
-                    d_rendered_image[nd * (yi * camera.width + xi) + rd + 2]
+                    d_rendered_image[nd * (yi * viewport_width + xi) + rd + 0],
+                    d_rendered_image[nd * (yi * viewport_width + xi) + rd + 1],
+                    d_rendered_image[nd * (yi * viewport_width + xi) + rd + 2]
                 };
             }
             // The weight is the length of edge divided by the probability
@@ -470,7 +473,8 @@ struct primary_edge_sampler {
             throughputs[2 * idx + 1] = lower_weight;
 
             for (int d = 0; d < nd; d++) {
-                auto d_channel = d_rendered_image[nd * (yi * camera.width + xi) + d];
+                auto viewport_width = camera.viewport_end.x - camera.viewport_beg.x;
+                auto d_channel = d_rendered_image[nd * (yi * viewport_width + xi) + d];
                 channel_multipliers[2 * nd * idx + d] = d_channel / edges_pmf[edge_id];
                 channel_multipliers[2 * nd * idx + d + nd] = -d_channel / edges_pmf[edge_id];
             }
@@ -532,15 +536,18 @@ struct primary_edge_sampler {
             rays[2 * idx + 1] = lower_ray;
 
             // Compute the corresponding backprop derivatives
-            auto xi = int(edge_pt[0] * camera.width);
-            auto yi = int(edge_pt[1] * camera.height);
+            auto xi = clamp(int(edge_pt[0] * camera.width - camera.viewport_beg.x),
+                            0, camera.viewport_end.x - camera.viewport_beg.x);
+            auto yi = clamp(int(edge_pt[1] * camera.height - camera.viewport_beg.y),
+                            0, camera.viewport_end.y - camera.viewport_beg.y);
             auto rd = channel_info.radiance_dimension;
             auto d_color = Vector3{0, 0, 0};
             if (rd != -1) {
+                auto viewport_width = camera.viewport_end.x - camera.viewport_beg.x;
                 d_color = Vector3{
-                    d_rendered_image[nd * (yi * camera.width + xi) + rd + 0],
-                    d_rendered_image[nd * (yi * camera.width + xi) + rd + 1],
-                    d_rendered_image[nd * (yi * camera.width + xi) + rd + 2]
+                    d_rendered_image[nd * (yi * viewport_width + xi) + rd + 0],
+                    d_rendered_image[nd * (yi * viewport_width + xi) + rd + 1],
+                    d_rendered_image[nd * (yi * viewport_width + xi) + rd + 2]
                 };
             }
             // The weight is the length of edge divided by the probability
@@ -577,7 +584,8 @@ struct primary_edge_sampler {
             throughputs[2 * idx + 0] = upper_weight;
             throughputs[2 * idx + 1] = lower_weight;
             for (int d = 0; d < nd; d++) {
-                auto d_channel = d_rendered_image[nd * (yi * camera.width + xi) + d];
+                auto viewport_width = camera.viewport_end.x - camera.viewport_beg.x;
+                auto d_channel = d_rendered_image[nd * (yi * viewport_width + xi) + d];
                 channel_multipliers[2 * nd * idx + d] =
                     d_channel * jacobian / edges_pmf[edge_id];
                 channel_multipliers[2 * nd * idx + d + nd] =
@@ -767,9 +775,11 @@ struct primary_edge_derivatives_computer {
         atomic_add(&d_shapes[edge_record.edge.shape_id].vertices[3 * edge_record.edge.v0], d_v0);
         atomic_add(&d_shapes[edge_record.edge.shape_id].vertices[3 * edge_record.edge.v1], d_v1);
         if (screen_gradient_image != nullptr) {
-            auto xi = clamp(int(edge_pt[0] * camera.width), 0, camera.width - 1);
-            auto yi = clamp(int(edge_pt[1] * camera.height), 0, camera.height - 1);
-            auto pixel_idx = yi * camera.width + xi;
+            auto xi = clamp(int(edge_pt[0] * camera.width - camera.viewport_beg.x),
+                            0, camera.viewport_end.x - camera.viewport_beg.x);
+            auto yi = clamp(int(edge_pt[1] * camera.height - camera.viewport_beg.y),
+                            0, camera.viewport_end.y - camera.viewport_beg.y);
+            auto pixel_idx = yi * (camera.viewport_end.x - camera.viewport_beg.x) + xi;
             atomic_add(&screen_gradient_image[2 * pixel_idx + 0], d_edge_pt[0]);
             atomic_add(&screen_gradient_image[2 * pixel_idx + 1], d_edge_pt[1]);
         }
