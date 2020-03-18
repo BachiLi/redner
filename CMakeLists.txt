@@ -57,7 +57,6 @@ set(SRCS src/aabb.h
          src/active_pixels.h
          src/area_light.h
          src/atomic.h
-         src/atomic_msvc.h
          src/automatic_uv_map.h
          src/bsdf_sample.h
          src/buffer.h
@@ -97,6 +96,7 @@ set(SRCS src/aabb.h
          xatlas/xatlas.h
          src/aabb.cpp
          src/active_pixels.cpp
+         src/atomic.cpp
          src/automatic_uv_map.cpp
          src/bsdf_sample.cpp
          src/camera.cpp

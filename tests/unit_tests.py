@@ -1,7 +1,4 @@
-import pyredner
 import redner
-import numpy as np
-import torch
 
 def unit_tests():
     redner.test_sample_primary_rays(False)
@@ -14,6 +11,7 @@ def unit_tests():
     redner.test_d_bsdf_pdf()
     redner.test_d_intersect()
     redner.test_d_sample_shape()
+    redner.test_atomic()
 
     if torch.cuda.is_available():
         redner.test_sample_primary_rays(True)

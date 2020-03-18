@@ -262,4 +262,5 @@ PYBIND11_MODULE(redner, m) {
     m.def("test_d_bsdf_pdf", &test_d_bsdf_pdf, "");
     m.def("test_d_intersect", &test_d_intersect, "");
     m.def("test_d_sample_shape", &test_d_sample_shape, "");
+    m.def("test_atomic", &test_atomic, "");
 }
