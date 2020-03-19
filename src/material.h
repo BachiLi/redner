@@ -872,7 +872,7 @@ void d_bsdf_sample(const Material &material,
         //     wo = to_world(shading_frame, -local_dir);
         // }
         auto d_local_dir = Vector3{0, 0, 0};
-        if (dot(geom_normal, wo) * geom_wi < 0) {
+        if (dot(geom_normal, wo) * geom_wi >= 0) {
             d_to_world(shading_frame, local_dir, d_wo, d_shading_frame, d_local_dir);
         } else {
             d_to_world(shading_frame, -local_dir, d_wo, d_shading_frame, d_local_dir);

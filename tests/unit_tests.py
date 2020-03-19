@@ -1,4 +1,5 @@
 import redner
+import torch
 
 def unit_tests():
     redner.test_sample_primary_rays(False)

@@ -217,9 +217,9 @@ void test_d_sample_primary_rays() {
             1, 1,
             &pos[0],
             &look[0],
+            &delta_up[0],
             nullptr, // cam_to_world
             nullptr, // world_to_cam
-            &delta_up[0],
             &n2c.data[0][0],
             &c2n.data[0][0],
             1e-2f,
@@ -233,9 +233,9 @@ void test_d_sample_primary_rays() {
             1, 1,
             &pos[0],
             &look[0],
+            &delta_up[0],
             nullptr, // cam_to_world
             nullptr, // world_to_cam
-            &delta_up[0],
             &n2c.data[0][0],
             &c2n.data[0][0],
             1e-2f,

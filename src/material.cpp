@@ -12,7 +12,7 @@ void test_d_bsdf() {
     float r = 0.5;
     Texture1 roughness{{&r}, {-1}, {-1}, -1, &uv_scale[0]};
     TextureN generic{{&d[0]}, {-1}, {-1}, 3 /* channels */, &uv_scale[0]};
-    Texture3 normal_map{{nullptr}, {0}, {0}, 0, nullptr};
+    Texture3 normal_map{{}, {}, {}, 0, nullptr};
     Material m{diffuse,
                specular,
                roughness,
@@ -29,7 +29,7 @@ void test_d_bsdf() {
     float d_r = 0.f;
     Texture1 d_roughness_tex{{&d_r}, {-1}, {-1}, -1, &d_uv_scale[0]};
     TextureN d_generic_tex{{&d_d[0]}, {-1}, {-1}, 3 /* channels */, &d_uv_scale[0]};
-    Texture3 d_normal_map{{nullptr}, {0}, {0}, 0, nullptr};
+    Texture3 d_normal_map{{}, {}, {}, 0, nullptr};
     DMaterial d_material{d_diffuse_tex, d_specular_tex, d_roughness_tex, d_generic_tex, d_normal_map};
     SurfacePoint p{Vector3{0, 0, 0},
                    Vector3{0, 1, 0},
@@ -157,7 +157,7 @@ void test_d_bsdf_sample() {
     float r = 0.5;
     Texture1 roughness{{&r}, {-1}, {-1}, -1, &uv_scale[0]};
     TextureN generic{{&d[0]}, {-1}, {-1}, 3 /* channels*/, &uv_scale[0]};
-    Texture3 normal_map{{nullptr}, {0}, {0}, 0, nullptr};
+    Texture3 normal_map{{}, {}, {}, 0, nullptr};
     Material m{diffuse,
                specular,
                roughness,
@@ -174,7 +174,7 @@ void test_d_bsdf_sample() {
     float d_r = 0.f;
     Texture1 d_roughness_tex{{&d_r}, {-1}, {-1}, -1, &d_uv_scale[0]};
     TextureN d_generic_tex{{&d_d[0]}, {-1}, {-1}, 3 /* channels */, &d_uv_scale[0]};
-    Texture3 d_normal_map{{nullptr}, {0}, {0}, 0, nullptr};
+    Texture3 d_normal_map{{}, {}, {}, 0, nullptr};
     DMaterial d_material{d_diffuse_tex, d_specular_tex, d_roughness_tex, d_generic_tex, d_normal_map};
     SurfacePoint p{Vector3{0, 0, 0},
                    Vector3{0, 1, 0},
@@ -372,7 +372,7 @@ void test_d_bsdf_pdf() {
     float r = 0.5;
     Texture1 roughness{{&r}, {-1}, {-1}, -1, &uv_scale[0]};
     TextureN generic{{&d[0]}, {-1}, {-1}, 3 /* channels*/, &uv_scale[0]};
-    Texture3 normal_map{{nullptr}, {0}, {0}, 0, nullptr};
+    Texture3 normal_map{{}, {}, {}, 0, nullptr};
     Material m{diffuse,
                specular,
                roughness,
