@@ -42,14 +42,14 @@ def save_obj(shape: Union[pyredner.Object, pyredner.Shape],
                 if uvs is not None:
                     uvi = vi
                 else:
-                    uvi = ''
+                    uvi = ('', '', '')
             if normal_indices is not None:
                 ni = (normal_indices[i, 0], normal_indices[i, 1], normal_indices[i, 2])
             else:
                 if normals is not None:
                     ni = vi
                 else:
-                    ni = ''
+                    ni = ('', '', '')
             if normals is not None:
                 f.write('f {}/{}/{} {}/{}/{} {}/{}/{}\n'.format(\
                     vi[0], uvi[0], ni[0],
