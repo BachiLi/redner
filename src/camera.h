@@ -601,12 +601,16 @@ inline void d_camera_to_screen(const Camera &camera,
         case CameraType::Perspective: {
             auto aspect_ratio = Real(camera.width) / Real(camera.height);
             auto Ipt3 = camera.intrinsic_mat * pt;
-            auto Ipt = Vector2{Ipt3[0] / Ipt3[2], Ipt3[1] / Ipt3[2]};
+            auto Ipt = TVector2<T>{Ipt3[0] / Ipt3[2], Ipt3[1] / Ipt3[2]};
             // [-1, 1/aspect_ratio] x [1, -1/aspect_ratio] -> [0, 1] x [0, 1]
-            // auto x = (Ipt[0] + 1.f) * 0.5f;
-            // auto y = (-Ipt[1] * aspect_ratio + 1.f) * 0.5f;
+            auto x = (Ipt[0] + 1.f) * 0.5f;
+            auto y = (-Ipt[1] * aspect_ratio + 1.f) * 0.5f;
+            // return distort(camera.distortion_params, TVector2<T>{x, y});
+            auto dxy = TVector2<T>{0, 0};
+            d_distort(camera.distortion_params, TVector2<T>{x, y},
+                      TVector2<T>{dx, dy}, d_camera.distortion_params, dxy);
 
-            auto d_Ipt = Vector2{dx * 0.5f, dy * -0.5f * aspect_ratio};
+            auto d_Ipt = Vector2{dxy.x * 0.5f, dxy.y * -0.5f * aspect_ratio};
             // Ipt = Vector2{Ipt3[0] / Ipt3[2], Ipt3[1] / Ipt3[2]}
             auto d_Ipt3 = Vector3{d_Ipt[0] / Ipt3[2],
                                   d_Ipt[1] / Ipt3[2],
@@ -636,12 +640,16 @@ inline void d_camera_to_screen(const Camera &camera,
         } break;
         case CameraType::Orthographic: {
             auto aspect_ratio = Real(camera.width) / Real(camera.height);
-            // auto Ipt = camera.intrinsic_mat * pt;
+            auto Ipt = camera.intrinsic_mat * pt;
             // [-1, 1/aspect_ratio] x [1, -1/aspect_ratio] -> [0, 1] x [0, 1]
-            // auto x = (Ipt[0] + 1.f) * 0.5f;
-            // auto y = (-Ipt[1] * aspect_ratio + 1.f) * 0.5f;
+            auto x = (Ipt[0] + 1.f) * 0.5f;
+            auto y = (-Ipt[1] * aspect_ratio + 1.f) * 0.5f;
+            // return distort(camera.distortion_params, TVector2<T>{x, y});
+            auto dxy = TVector2<T>{0, 0};
+            d_distort(camera.distortion_params, TVector2<T>{x, y},
+                      TVector2<T>{dx, dy}, d_camera.distortion_params, dxy);
 
-            auto d_Ipt = Vector2{dx * 0.5f, dy * -0.5f * aspect_ratio};
+            auto d_Ipt = Vector2{dxy.x * 0.5f, dxy.y * -0.5f * aspect_ratio};
             // Ipt = camera.intrinsic_mat * pt
             auto d_intrinsic_mat = Matrix3x3{};
             d_intrinsic_mat(0, 0) += d_Ipt[0] * pt[0];
@@ -663,11 +671,16 @@ inline void d_camera_to_screen(const Camera &camera,
             auto phi = atan2(dir[1], dir[0]);
             auto theta = acos(dir[2]);
             auto r = theta * 2.f / Real(M_PI);
-            // x = 0.5f * (-r * cos(phi) + 1.f)
-            // y = 0.5f * (-r * sin(phi) + 1.f)
-            auto dr = -0.5f * (cos(phi) * dx + sin(phi) * dy);
-            auto dphi = 0.5f * r * sin(phi) * dx -
-                        0.5f * r * cos(phi) * dy;
+            auto x = 0.5f * (-r * cos(phi) + 1.f);
+            auto y = 0.5f * (-r * sin(phi) + 1.f);
+            // return distort(camera.distortion_params, TVector2<T>{x, y});
+            auto dxy = TVector2<T>{0, 0};
+            d_distort(camera.distortion_params, TVector2<T>{x, y},
+                      TVector2<T>{dx, dy}, d_camera.distortion_params, dxy);
+
+            auto dr = -0.5f * (cos(phi) * dxy.x + sin(phi) * dxy.y);
+            auto dphi = 0.5f * r * sin(phi) * dxy.x -
+                        0.5f * r * cos(phi) * dxy.y;
             // r = theta * 2.f / float(M_PI)
             auto dtheta = dr * (2.f / Real(M_PI));
             // theta = acos(cos_theta)
@@ -685,13 +698,18 @@ inline void d_camera_to_screen(const Camera &camera,
         case CameraType::Panorama: {
             // Find x, y from local dir
             auto dir = normalize(pt);
-            // auto cos_theta = dir[1];
-            // auto phi = atan2(dir[2], dir[0]);
-            // auto theta = acos(cos_theta);
-            // auto x = phi / Real(2 * M_PI);
-            // auto y = theta / Real(M_PI);
-            auto d_phi = dx / Real(2 * M_PI);
-            auto d_theta = dy / Real(M_PI);
+            auto cos_theta = dir[1];
+            auto phi = atan2(dir[2], dir[0]);
+            auto theta = acos(cos_theta);
+            auto x = phi / Real(2 * M_PI);
+            auto y = theta / Real(M_PI);
+            // return distort(camera.distortion_params, TVector2<T>{x, y});
+            auto dxy = TVector2<T>{0, 0};
+            d_distort(camera.distortion_params, TVector2<T>{x, y},
+                      TVector2<T>{dx, dy}, d_camera.distortion_params, dxy);
+
+            auto d_phi = dxy.x / Real(2 * M_PI);
+            auto d_theta = dxy.y / Real(M_PI);
             // theta = acos(cos_theta)
             auto d_cos_theta = -d_theta / sqrt(1.f - dir[1] * dir[1]);
             // phi = atan2(dir[2], dir[0])

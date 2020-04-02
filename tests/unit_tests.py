@@ -7,6 +7,7 @@ def unit_tests():
     redner.test_sample_point_on_light(False)
     redner.test_active_pixels(False)
     redner.test_camera_derivatives()
+    redner.test_camera_distortion()
     redner.test_d_bsdf()
     redner.test_d_bsdf_sample()
     redner.test_d_bsdf_pdf()

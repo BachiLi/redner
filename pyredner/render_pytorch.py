@@ -704,9 +704,9 @@ class RenderFunction(torch.autograd.Function):
                 redner.float_ptr(buffers.d_cam_up.data_ptr()),
                 redner.float_ptr(0), # cam_to_world
                 redner.float_ptr(0), # world_to_cam
-                redner.float_ptr(buffers.d_distortion_params.data_ptr() if buffers.d_distortion_params is not None else 0),
                 redner.float_ptr(buffers.d_intrinsic_mat_inv.data_ptr()),
-                redner.float_ptr(buffers.d_intrinsic_mat.data_ptr()))
+                redner.float_ptr(buffers.d_intrinsic_mat.data_ptr()),
+                redner.float_ptr(buffers.d_distortion_params.data_ptr() if buffers.d_distortion_params is not None else 0))
         else:
             buffers.d_camera = redner.DCamera(\
                 redner.float_ptr(0), # pos
@@ -714,9 +714,9 @@ class RenderFunction(torch.autograd.Function):
                 redner.float_ptr(0), # up
                 redner.float_ptr(buffers.d_cam_to_world.data_ptr()),
                 redner.float_ptr(buffers.d_world_to_cam.data_ptr()),
-                redner.float_ptr(buffers.d_distortion_params.data_ptr() if buffers.d_distortion_params is not None else 0),
                 redner.float_ptr(buffers.d_intrinsic_mat_inv.data_ptr()),
-                redner.float_ptr(buffers.d_intrinsic_mat.data_ptr()))
+                redner.float_ptr(buffers.d_intrinsic_mat.data_ptr()),
+                redner.float_ptr(buffers.d_distortion_params.data_ptr() if buffers.d_distortion_params is not None else 0))
         buffers.d_vertices_list = []
         buffers.d_uvs_list = []
         buffers.d_normals_list = []

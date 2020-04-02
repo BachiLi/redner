@@ -26,7 +26,7 @@ if pyredner.get_use_gpu():
     checkerboard_texture = checkerboard_texture.cuda(device = pyredner.get_device())
 
 mat_checkerboard = pyredner.Material(\
-    diffuse_reflectance = torch.tensor([0.5, 0.5, 0.5]))
+    diffuse_reflectance = checkerboard_texture)
 mat_black = pyredner.Material(\
     diffuse_reflectance = torch.tensor([0.0, 0.0, 0.0], device = pyredner.get_device()))
 

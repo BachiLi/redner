@@ -1,5 +1,4 @@
 import pyredner
-import numpy as np
 import torch
 
 # Optimize four vertices of a textured patch
@@ -24,7 +23,7 @@ cam = pyredner.Camera(position = position,
 
 checkerboard_texture = pyredner.imread('checkerboard.exr')
 if pyredner.get_use_gpu():
-	checkerboard_texture = checkerboard_texture.cuda(device = pyredner.get_device())
+    checkerboard_texture = checkerboard_texture.cuda(device = pyredner.get_device())
 
 mat_checkerboard = pyredner.Material(\
     diffuse_reflectance = checkerboard_texture)
@@ -37,7 +36,7 @@ vertices = torch.tensor([[-1.0,-1.0,0.0], [-1.0,1.0,0.0], [1.0,-1.0,0.0], [1.0,1
 indices = torch.tensor([[0, 1, 2], [1, 3, 2]], dtype = torch.int32,
                        device = pyredner.get_device())
 uvs = torch.tensor([[0.05, 0.05], [0.05, 0.95], [0.95, 0.05], [0.95, 0.95]],
-				   device = pyredner.get_device())
+                   device = pyredner.get_device())
 shape_plane = pyredner.Shape(vertices = vertices,
                              indices = indices,
                              uvs = uvs,
