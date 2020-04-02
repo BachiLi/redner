@@ -31,6 +31,7 @@ You can also take a look at the tests directories ([PyTorch](tests) and [TensorF
 
 ## News
 
+04/01/2020 - Added a camera distortion model.  
 03/17/2020 - Pip package for Windows! Currently only with PyTorch support. TensorFlow support is pending with some compilation issues.  
 02/27/2020 - Fixed a bug in BRDF derivatives. This affects normal mapping the most. Thanks [Markus Worchel](https://github.com/mworchel) again for reporting this.  
 02/02/2020 - Fixed a serious bug for G-buffer rendering (https://github.com/BachiLi/redner/issues/93). Thanks [Markus Worchel](https://github.com/mworchel) for reporting this.  
