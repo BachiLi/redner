@@ -193,7 +193,7 @@ Vector2 inverse_distort(const DistortionParameters &param, const Vector2 &pos) {
         auto invJ0 = inv_det * Vector2{drydp.y, -drxdp.y};
         auto invJ1 = inv_det * Vector2{-drydp.x, drxdp.x};
         result = result - Vector2{dot(invJ0, residual), dot(invJ1, residual)};
-    } while (err > Real(1e-3) && iter++ < 5000);
+    } while (err > Real(1e-3) && iter++ < 1000);
     return result;
 }
 
@@ -225,7 +225,7 @@ void d_inverse_distort(const DistortionParameters &param, const Vector2 &pos,
         auto invJ0 = inv_det * Vector2{drydp.y, -drxdp.y};
         auto invJ1 = inv_det * Vector2{-drydp.x, drxdp.x};
         result = result - Vector2{dot(invJ0, residual), dot(invJ1, residual)};
-    } while (err > Real(1e-3) && iter++ < 5000);
+    } while (err > Real(1e-3) && iter++ < 1000);
 
     // Use implicit function theorem for backprop.
     // Let f = distort(param, x) - pos,
