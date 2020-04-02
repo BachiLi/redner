@@ -61,6 +61,7 @@ set(SRCS src/aabb.h
          src/bsdf_sample.h
          src/buffer.h
          src/camera.h
+         src/camera_distortion.h
          src/channels.h
          src/cuda_utils.h
          src/edge.h
@@ -100,6 +101,7 @@ set(SRCS src/aabb.h
          src/automatic_uv_map.cpp
          src/bsdf_sample.cpp
          src/camera.cpp
+         src/camera_distortion.cpp
          src/channels.cpp
          src/edge.cpp
          src/edge_tree.cpp

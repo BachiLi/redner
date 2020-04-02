@@ -417,8 +417,9 @@ struct primary_edge_sampler {
             return;
         }
 
-        if (camera.camera_type == CameraType::Perspective ||
-                camera.camera_type == CameraType::Orthographic) {
+        if ((camera.camera_type == CameraType::Perspective ||
+                camera.camera_type == CameraType::Orthographic) &&
+                !camera.distortion_params.defined) {
             // Perspective or Orthographic cameras
 
             // Uniform sample on the edge
@@ -480,7 +481,8 @@ struct primary_edge_sampler {
             }
         } else {
             assert(camera.camera_type == CameraType::Fisheye ||
-                camera.camera_type == CameraType::Panorama);
+                   camera.camera_type == CameraType::Panorama ||
+                   camera.distortion_params.defined);
             // Fisheye or Panorama
 
             // In paper we focused on linear projection model.
@@ -561,14 +563,10 @@ struct primary_edge_sampler {
 
             // alpha(p(x, y)) = dot(p(x, y), cross(v0_dir, v1_dir))
             // p = screen_to_camera(x, y)
-            // dp/dx & dp/dy
-            auto d_edge_dir_x = Vector3{0, 0, 0};
-            auto d_edge_dir_y = Vector3{0, 0, 0};
-            d_screen_to_camera(camera, edge_pt, d_edge_dir_x, d_edge_dir_y);
-            // d alpha / d p = cross(v0_dir, v1_dir)
-            auto d_alpha_dx = dot(d_edge_dir_x, cross(v0_dir, v1_dir));
-            auto d_alpha_dy = dot(d_edge_dir_y, cross(v0_dir, v1_dir));
-            auto dirac_jacobian = 1.f / sqrt(square(d_alpha_dx) + square(d_alpha_dy));
+            auto d_edge_pt = Vector2{0, 0};
+            // dalpha/dx & dalpha/dy (d alpha / d p = cross(v0_dir, v1_dir))
+            d_screen_to_camera(camera, edge_pt, cross(v0_dir, v1_dir), d_edge_pt);
+            auto dirac_jacobian = 1.f / sqrt(square(d_edge_pt.x) + square(d_edge_pt.y));
             // We use finite difference to compute the Jacobian
             // for sampling on the line
             auto jac_offset = Real(1e-6);
@@ -722,8 +720,9 @@ struct primary_edge_derivatives_computer {
         auto d_v1_ss = Vector2{0, 0};
         auto d_edge_pt = Vector2{0, 0};
         auto edge_pt = edge_record.edge_pt;
-        if (camera.camera_type == CameraType::Perspective ||
-                camera.camera_type == CameraType::Orthographic) {
+        if ((camera.camera_type == CameraType::Perspective ||
+                camera.camera_type == CameraType::Orthographic) &&
+                !camera.distortion_params.defined) {
             // Equation 8 in the paper
             d_v0_ss.x = v1_ss.y - edge_pt.y;
             d_v0_ss.y = edge_pt.x - v1_ss.x;
@@ -733,7 +732,8 @@ struct primary_edge_derivatives_computer {
             d_edge_pt.y = v1_ss.x - v0_ss.x;
         } else {
             assert(camera.camera_type == CameraType::Fisheye ||
-                   camera.camera_type == CameraType::Panorama);
+                   camera.camera_type == CameraType::Panorama ||
+                   camera.distortion_params.defined);
 
             // This also works for perspective camera,
             // but for consistency we provide two versions.
@@ -745,21 +745,9 @@ struct primary_edge_derivatives_computer {
             auto v0_dir = screen_to_camera(camera, v0_ss);
             auto v1_dir = screen_to_camera(camera, v1_ss);
             auto edge_dir = screen_to_camera(camera, edge_pt);
-            auto d_v0_dir_x = Vector3{0, 0, 0};
-            auto d_v0_dir_y = Vector3{0, 0, 0};
-            d_screen_to_camera(camera, v0_ss, d_v0_dir_x, d_v0_dir_y);
-            auto d_v1_dir_x = Vector3{0, 0, 0};
-            auto d_v1_dir_y = Vector3{0, 0, 0};
-            d_screen_to_camera(camera, v1_ss, d_v1_dir_x, d_v1_dir_y);
-            d_v0_ss.x = dot(cross(v1_dir, edge_dir), d_v0_dir_x);
-            d_v0_ss.y = dot(cross(v1_dir, edge_dir), d_v0_dir_y);
-            d_v1_ss.x = dot(cross(edge_dir, v0_dir), d_v1_dir_x);
-            d_v1_ss.y = dot(cross(edge_dir, v0_dir), d_v1_dir_y);
-            auto d_edge_pt_dir_x = Vector3{0, 0, 0};
-            auto d_edge_pt_dir_y = Vector3{0, 0, 0};
-            d_screen_to_camera(camera, edge_pt, d_edge_pt_dir_x, d_edge_pt_dir_y);
-            d_edge_pt.x = dot(cross(v0_dir, v1_dir), d_edge_pt_dir_x);
-            d_edge_pt.y = dot(cross(v0_dir, v1_dir), d_edge_pt_dir_y);
+            d_screen_to_camera(camera, v0_ss, cross(v1_dir, edge_dir), d_v0_ss);
+            d_screen_to_camera(camera, v1_ss, cross(edge_dir, v0_dir), d_v1_ss);
+            d_screen_to_camera(camera, v1_ss, cross(v0_dir, v1_dir), d_edge_pt);
         }
         d_v0_ss *= edge_contrib;
         d_v1_ss *= edge_contrib;

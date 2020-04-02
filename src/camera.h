@@ -7,6 +7,7 @@
 #include "transform.h"
 #include "ptr.h"
 #include "atomic.h"
+#include "camera_distortion.h"
 
 enum class CameraType {
     Perspective,
@@ -27,6 +28,7 @@ struct Camera {
            ptr<float> world_to_cam_,
            ptr<float> intrinsic_mat_inv,
            ptr<float> intrinsic_mat,
+           ptr<float> distortion_params_,
            float clip_near,
            CameraType camera_type,
            Vector2i viewport_beg,
@@ -39,7 +41,7 @@ struct Camera {
           camera_type(camera_type),
           viewport_beg(viewport_beg),
           viewport_end(viewport_end) {
-        if (cam_to_world_.get()) {
+        if (cam_to_world_.get() != nullptr) {
             cam_to_world = Matrix4x4(cam_to_world_.get());
             world_to_cam = Matrix4x4(world_to_cam_.get());
             use_look_at = false;
@@ -51,6 +53,20 @@ struct Camera {
             world_to_cam = inverse(cam_to_world);
             use_look_at = true;
         }
+        if (distortion_params_.get() != nullptr) {
+            distortion_params.defined = true;
+            for (int i = 0; i < 6; i++) {
+                distortion_params.k[i] = distortion_params_[i];
+            }
+            distortion_params.p[0] = distortion_params_[6];
+            distortion_params.p[1] = distortion_params_[7];
+        } else {
+            distortion_params.defined = false;
+        }
+    }
+
+    bool has_distortion_params() const {
+        return distortion_params.defined;
     }
 
     int width, height;
@@ -60,6 +76,7 @@ struct Camera {
     Matrix4x4 world_to_cam;
     Matrix3x3 intrinsic_mat_inv;
     Matrix3x3 intrinsic_mat;
+    DistortionParameters distortion_params;
     float clip_near;
     CameraType camera_type;
     Vector2i viewport_beg, viewport_end;
@@ -73,14 +90,16 @@ struct DCamera {
             ptr<float> cam_to_world,
             ptr<float> world_to_cam,
             ptr<float> intrinsic_mat_inv,
-            ptr<float> intrinsic_mat)
+            ptr<float> intrinsic_mat,
+            ptr<float> distortion_params)
         : position(position.get()),
           look(look.get()),
           up(up.get()),
           cam_to_world(cam_to_world.get()),
           world_to_cam(world_to_cam.get()),
           intrinsic_mat_inv(intrinsic_mat_inv.get()),
-          intrinsic_mat(intrinsic_mat.get()) {}
+          intrinsic_mat(intrinsic_mat.get()),
+          distortion_params(DDistortionParameters{distortion_params.get()}) {}
 
     float *position;
     float *look;
@@ -89,6 +108,7 @@ struct DCamera {
     float *world_to_cam;
     float *intrinsic_mat_inv;
     float *intrinsic_mat;
+    DDistortionParameters distortion_params;
 };
 
 template <typename T>
@@ -102,14 +122,16 @@ DEVICE
 inline
 Ray sample_primary(const Camera &camera,
                    const Vector2 &screen_pos) {
+    auto distorted_screen_pos =
+        inverse_distort(camera.distortion_params, screen_pos);
     switch(camera.camera_type) {
         case CameraType::Perspective: {
             // Linear projection
             auto org = xfm_point(camera.cam_to_world, Vector3{0, 0, 0});
             // [0, 1] x [0, 1] -> [-1, 1/aspect_ratio] x [1, -1/aspect_ratio]
             auto aspect_ratio = Real(camera.width) / Real(camera.height);
-            auto pt = Vector3{(screen_pos[0] - 0.5f) * 2.f,
-                              (screen_pos[1] - 0.5f) * (-2.f) / aspect_ratio,
+            auto pt = Vector3{(distorted_screen_pos[0] - 0.5f) * 2.f,
+                              (distorted_screen_pos[1] - 0.5f) * (-2.f) / aspect_ratio,
                               Real(1)};
             auto dir = camera.intrinsic_mat_inv * pt;
             auto n_dir = normalize(dir);
@@ -121,8 +143,8 @@ Ray sample_primary(const Camera &camera,
             // Linear projection
             // [0, 1] x [0, 1] -> [-1, 1/aspect_ratio] x [1, -1/aspect_ratio]
             auto aspect_ratio = Real(camera.width) / Real(camera.height);
-            auto pt = Vector3{(screen_pos[0] - 0.5f) * 2.f,
-                              (screen_pos[1] - 0.5f) * (-2.f) / aspect_ratio,
+            auto pt = Vector3{(distorted_screen_pos[0] - 0.5f) * 2.f,
+                              (distorted_screen_pos[1] - 0.5f) * (-2.f) / aspect_ratio,
                               Real(0)};
             auto org = xfm_point(camera.cam_to_world, camera.intrinsic_mat_inv * pt);
             auto dir = xfm_vector(camera.cam_to_world, Vector3{0, 0, 1});
@@ -133,8 +155,8 @@ Ray sample_primary(const Camera &camera,
             // Equi-angular projection
             auto org = xfm_point(camera.cam_to_world, Vector3{0, 0, 0});
             // x, y to polar coordinate
-            auto x = 2.f * (screen_pos.x - 0.5f);
-            auto y = 2.f * (screen_pos.y - 0.5f);
+            auto x = 2.f * (distorted_screen_pos.x - 0.5f);
+            auto y = 2.f * (distorted_screen_pos.y - 0.5f);
             if (x * x + y * y > 1.f) {
                 return Ray{Vector3{0, 0, 0}, Vector3{0, 0, 0}};
             }
@@ -154,8 +176,8 @@ Ray sample_primary(const Camera &camera,
         case CameraType::Panorama: {
             auto org = xfm_point(camera.cam_to_world, Vector3{0, 0, 0});
             // x, y to spherical coordinate
-            auto theta = Real(M_PI) * screen_pos.y;
-            auto phi = Real(2 * M_PI) * screen_pos.x;
+            auto theta = Real(M_PI) * distorted_screen_pos.y;
+            auto phi = Real(2 * M_PI) * distorted_screen_pos.x;
             auto sin_phi = sin(phi);
             auto cos_phi = cos(phi);
             auto sin_theta = sin(theta);
@@ -180,14 +202,16 @@ inline void d_sample_primary_ray(const Camera &camera,
                                  const DRay &d_ray,
                                  DCamera &d_camera,
                                  Vector2 *d_screen_pos) {
+    auto distorted_screen_pos =
+        inverse_distort(camera.distortion_params, screen_pos);
     switch(camera.camera_type) {
         case CameraType::Perspective: {
             // Linear projection
             // auto org = xfm_point(camera.cam_to_world, Vector3{0, 0, 0});
             // [0, 1] x [0, 1] -> [-1, 1/aspect_ratio] x [1, -1/aspect_ratio]
             auto aspect_ratio = Real(camera.width) / Real(camera.height);
-            auto pt = Vector3{(screen_pos[0] - 0.5f) * 2.f,
-                               (screen_pos[1] - 0.5f) * (-2.f) / aspect_ratio,
+            auto pt = Vector3{(distorted_screen_pos[0] - 0.5f) * 2.f,
+                               (distorted_screen_pos[1] - 0.5f) * (-2.f) / aspect_ratio,
                                Real(1)};
             // Assume film at z=1, thus w=tan(fov), h=tan(fov) / aspect_ratio
             auto dir = camera.intrinsic_mat_inv * pt;
@@ -234,22 +258,30 @@ inline void d_sample_primary_ray(const Camera &camera,
             } else {
                 atomic_add(d_camera.cam_to_world, d_cam_to_world);
             }
-            if (d_screen_pos != nullptr) {
+
+            if (camera.distortion_params.defined || d_screen_pos != nullptr) {
                 // dir = camera.intrinsic_mat_inv * pt
                 auto d_pt = d_dir * camera.intrinsic_mat_inv;
-                // pt = Vector3{(screen_pos[0] - 0.5f) * 2.f,
-                //              (screen_pos[1] - 0.5f) * (-2.f) / aspect_ratio,
+                // pt = Vector3{(distorted_screen_pos[0] - 0.5f) * 2.f,
+                //              (distorted_screen_pos[1] - 0.5f) * (-2.f) / aspect_ratio,
                 //              Real(1)};
-                (*d_screen_pos)[0] += d_pt[0] * 2;
-                (*d_screen_pos)[1] += d_pt[1] * (-2 / aspect_ratio);
+                auto d_distorted_screen_pos = Vector2{d_pt[0] * 2, d_pt[1] * (-2 / aspect_ratio)};
+                auto d_screen_pos_ = Vector2{0, 0};
+                d_inverse_distort(camera.distortion_params, screen_pos,
+                                  d_distorted_screen_pos,
+                                  d_camera.distortion_params, d_screen_pos_);
+                if (d_screen_pos != nullptr) {
+                    (*d_screen_pos)[0] += d_screen_pos_[0];
+                    (*d_screen_pos)[1] += d_screen_pos_[1];
+                }
             }
         } break;
         case CameraType::Orthographic: {
             // Linear projection
             // [0, 1] x [0, 1] -> [-1, 1/aspect_ratio] x [1, -1/aspect_ratio]
             auto aspect_ratio = Real(camera.width) / Real(camera.height);
-            auto pt = Vector3{(screen_pos[0] - 0.5f) * 2.f,
-                               (screen_pos[1] - 0.5f) * (-2.f) / aspect_ratio,
+            auto pt = Vector3{(distorted_screen_pos[0] - 0.5f) * 2.f,
+                               (distorted_screen_pos[1] - 0.5f) * (-2.f) / aspect_ratio,
                                Real(1)};
             auto local_org = camera.intrinsic_mat_inv * pt;
             // auto org = xfm_point(camera.cam_to_world, local_org);
@@ -291,22 +323,29 @@ inline void d_sample_primary_ray(const Camera &camera,
                 atomic_add(d_camera.cam_to_world, d_cam_to_world);
             }
 
-            if (d_screen_pos != nullptr) {
+            if (camera.distortion_params.defined || d_screen_pos != nullptr) {
                 // local_org = camera.intrinsic_mat_inv * pt
                 auto d_pt = d_local_org * camera.intrinsic_mat_inv;
-                // pt = Vector3{(screen_pos[0] - 0.5f) * 2.f,
-                //              (screen_pos[1] - 0.5f) * (-2.f) / aspect_ratio,
+                // pt = Vector3{(distorted_screen_pos[0] - 0.5f) * 2.f,
+                //              (distorted_screen_pos[1] - 0.5f) * (-2.f) / aspect_ratio,
                 //              Real(1)};
-                (*d_screen_pos)[0] += d_pt[0] * 2;
-                (*d_screen_pos)[1] += d_pt[1] * (-2 / aspect_ratio);
+                auto d_distorted_screen_pos = Vector2{d_pt[0] * 2, d_pt[1] * (-2 / aspect_ratio)};
+                auto d_screen_pos_ = Vector2{0, 0};
+                d_inverse_distort(camera.distortion_params, screen_pos,
+                                  d_distorted_screen_pos,
+                                  d_camera.distortion_params, d_screen_pos_);
+                if (d_screen_pos != nullptr) {
+                    (*d_screen_pos)[0] += d_screen_pos_[0];
+                    (*d_screen_pos)[1] += d_screen_pos_[1];
+                }
             }
         } break;
         case CameraType::Fisheye: {
             // Equi-angular projection
             // auto org = xfm_point(camera.cam_to_world, Vector3{0, 0, 0});
             // x, y to polar coordinate
-            auto x = 2.f * (screen_pos[0] - 0.5f);
-            auto y = 2.f * (screen_pos[1] - 0.5f);
+            auto x = 2.f * (distorted_screen_pos[0] - 0.5f);
+            auto y = 2.f * (distorted_screen_pos[1] - 0.5f);
             if (x * x + y * y > 1.f) {
                 return;
             }
@@ -350,7 +389,7 @@ inline void d_sample_primary_ray(const Camera &camera,
                 atomic_add(d_camera.cam_to_world, d_cam_to_world);
             }
 
-            if (d_screen_pos != nullptr) {
+            if (camera.distortion_params.defined || d_screen_pos != nullptr) {
                 // dir = Vector3{-cos_phi * sin_theta,
                 //               -sin_phi * sin_theta,
                 //               cos_theta};
@@ -372,16 +411,23 @@ inline void d_sample_primary_ray(const Camera &camera,
                 // r = sqrt(x*x + y*y)
                 d_x += (d_r * (x / r));
                 d_y += (d_r * (y / r));
-                // auto x = 2.f * (screen_pos[0] - 0.5f);
-                // auto y = 2.f * (screen_pos[1] - 0.5f);
-                (*d_screen_pos)[0] += 2 * d_x;
-                (*d_screen_pos)[1] += 2 * d_y;
+                // auto x = 2.f * (distorted_screen_pos[0] - 0.5f);
+                // auto y = 2.f * (distorted_screen_pos[1] - 0.5f);
+                auto d_distorted_screen_pos = Vector2{2 * d_x, 2 * d_y};
+                auto d_screen_pos_ = Vector2{0, 0};
+                d_inverse_distort(camera.distortion_params, screen_pos,
+                                  d_distorted_screen_pos,
+                                  d_camera.distortion_params, d_screen_pos_);
+                if (d_screen_pos != nullptr) {
+                    (*d_screen_pos)[0] += d_screen_pos_[0];
+                    (*d_screen_pos)[1] += d_screen_pos_[1];
+                }
             }
         } break;
         case CameraType::Panorama: {
             // x, y to spherical coordinate
-            auto theta = Real(M_PI) * screen_pos.y;
-            auto phi = Real(2 * M_PI) * screen_pos.x;
+            auto theta = Real(M_PI) * distorted_screen_pos.y;
+            auto phi = Real(2 * M_PI) * distorted_screen_pos.x;
             auto sin_phi = sin(phi);
             auto cos_phi = cos(phi);
             auto sin_theta = sin(theta);
@@ -419,7 +465,7 @@ inline void d_sample_primary_ray(const Camera &camera,
                 atomic_add(d_camera.cam_to_world, d_cam_to_world);
             }
 
-            if (d_screen_pos != nullptr) {
+            if (camera.distortion_params.defined || d_screen_pos != nullptr) {
                 // dir = Vector3{cos_phi * sin_theta,
                 //               cos_theta,
                 //               sin_phi * sin_theta};
@@ -433,10 +479,18 @@ inline void d_sample_primary_ray(const Camera &camera,
                 // sin_theta = sin(theta)
                 // cos_theta = cos(theta)
                 auto d_theta = d_cos_theta * (-sin_theta) + d_sin_theta * cos_theta;
-                // theta = Real(M_PI) * screen_pos.y
-                // phi = Real(2 * M_PI) * screen_pos.x
-                (*d_screen_pos)[0] += d_phi * Real(2 * M_PI);
-                (*d_screen_pos)[1] += d_theta * Real(M_PI);
+                // theta = Real(M_PI) * distorted_screen_pos.y
+                // phi = Real(2 * M_PI) * distorted_screen_pos.x
+                auto d_distorted_screen_pos =
+                    Vector2{d_phi * Real(2 * M_PI), d_theta * Real(M_PI)};
+                auto d_screen_pos_ = Vector2{0, 0};
+                d_inverse_distort(camera.distortion_params, screen_pos,
+                                  d_distorted_screen_pos,
+                                  d_camera.distortion_params, d_screen_pos_);
+                if (d_screen_pos != nullptr) {
+                    (*d_screen_pos)[0] += d_screen_pos_[0];
+                    (*d_screen_pos)[1] += d_screen_pos_[1];
+                }
             }
         } break;
         default: {
@@ -464,7 +518,7 @@ TVector2<T> camera_to_screen(const Camera &camera,
             // [-1, 1/aspect_ratio] x [1, -1/aspect_ratio] -> [0, 1] x [0, 1]
             auto x = (Ipt[0] + 1.f) * 0.5f;
             auto y = (-Ipt[1] * aspect_ratio + 1.f) * 0.5f;
-            return TVector2<T>{x, y};
+            return distort(camera.distortion_params, TVector2<T>{x, y});
         }
         case CameraType::Orthographic: {
             // Linear projection
@@ -474,7 +528,7 @@ TVector2<T> camera_to_screen(const Camera &camera,
             // [-1, 1/aspect_ratio] x [1, -1/aspect_ratio] -> [0, 1] x [0, 1]
             auto x = (Ipt[0] + 1.f) * 0.5f;
             auto y = (-Ipt[1] * aspect_ratio + 1.f) * 0.5f;
-            return TVector2<T>{x, y};
+            return distort(camera.distortion_params, TVector2<T>{x, y});
         }
         case CameraType::Fisheye: {
             // Equi-angular projection
@@ -485,7 +539,7 @@ TVector2<T> camera_to_screen(const Camera &camera,
             auto r = theta * 2.f / Real(M_PI);
             auto x = 0.5f * (-r * cos(phi) + 1.f);
             auto y = 0.5f * (-r * sin(phi) + 1.f);
-            return TVector2<T>{x, y};
+            return distort(camera.distortion_params, TVector2<T>{x, y});
         }
         case CameraType::Panorama: {
             // Find x, y from local dir
@@ -495,13 +549,45 @@ TVector2<T> camera_to_screen(const Camera &camera,
             auto theta = acos(cos_theta);
             auto x = phi / Real(2 * M_PI);
             auto y = theta / Real(M_PI);
-            return TVector2<T>{x, y};
+            return distort(camera.distortion_params, TVector2<T>{x, y});
         }
         default: {
             assert(false);
             return TVector2<T>{T(0), T(0)};
         }
     }
+}
+
+template <typename T>
+DEVICE
+bool project(const Camera &camera,
+             const TVector3<T> &p0,
+             const TVector3<T> &p1,
+             TVector2<T> &pp0,
+             TVector2<T> &pp1) {
+    auto p0_local = xfm_point(camera.world_to_cam, p0);
+    auto p1_local = xfm_point(camera.world_to_cam, p1);
+    if (p0_local[2] < camera.clip_near && p1_local[2] < camera.clip_near) {
+        return false;
+    }
+    // clip against z = clip_near
+    if (p0_local[2] < camera.clip_near) {
+        // a ray from p1 to p0
+        auto dir = p0_local - p1_local;
+        // intersect with plane z = clip_near
+        auto t = -(p1_local[2] - camera.clip_near) / dir[2];
+        p0_local = p1_local + t * dir;
+    } else if (p1_local[2] < camera.clip_near) {
+        // a ray from p1 to p0
+        auto dir = p1_local - p0_local;
+        // intersect with plane z = clip_near
+        auto t = -(p0_local[2] - camera.clip_near) / dir[2];
+        p1_local = p0_local + t * dir;
+    }
+    // project to 2d screen
+    pp0 = camera_to_screen(camera, p0_local);
+    pp1 = camera_to_screen(camera, p1_local);
+    return true;
 }
 
 template <typename T>
@@ -624,38 +710,6 @@ inline void d_camera_to_screen(const Camera &camera,
     }
 }
 
-template <typename T>
-DEVICE
-bool project(const Camera &camera,
-             const TVector3<T> &p0,
-             const TVector3<T> &p1,
-             TVector2<T> &pp0,
-             TVector2<T> &pp1) {
-    auto p0_local = xfm_point(camera.world_to_cam, p0);
-    auto p1_local = xfm_point(camera.world_to_cam, p1);
-    if (p0_local[2] < camera.clip_near && p1_local[2] < camera.clip_near) {
-        return false;
-    }
-    // clip against z = clip_near
-    if (p0_local[2] < camera.clip_near) {
-        // a ray from p1 to p0
-        auto dir = p0_local - p1_local;
-        // intersect with plane z = clip_near
-        auto t = -(p1_local[2] - camera.clip_near) / dir[2];
-        p0_local = p1_local + t * dir;
-    } else if (p1_local[2] < camera.clip_near) {
-        // a ray from p1 to p0
-        auto dir = p1_local - p0_local;
-        // intersect with plane z = clip_near
-        auto t = -(p0_local[2] - camera.clip_near) / dir[2];
-        p1_local = p0_local + t * dir;
-    }
-    // project to 2d screen
-    pp0 = camera_to_screen(camera, p0_local);
-    pp1 = camera_to_screen(camera, p1_local);
-    return true;
-}
-
 DEVICE
 inline void d_project(const Camera &camera,
                       const Vector3 &p0,
@@ -761,28 +815,35 @@ template <typename T>
 DEVICE
 inline TVector3<T> screen_to_camera(const Camera &camera,
                                     const TVector2<T> &screen_pos) {
-    // XXX: also return position
+    auto distorted_screen_pos =
+        inverse_distort(camera.distortion_params, screen_pos);
     switch(camera.camera_type) {
         case CameraType::Perspective: {
             // Linear projection
             // [0, 1] x [0, 1] -> [1, -1] -> [1, -1]/aspect_ratio
             auto aspect_ratio = Real(camera.width) / Real(camera.height);
             auto pt = TVector3<T>{
-                (screen_pos[0] - 0.5f) * 2.f,
-                (screen_pos[1] - 0.5f) * -2.f / aspect_ratio,
+                (distorted_screen_pos[0] - 0.5f) * 2.f,
+                (distorted_screen_pos[1] - 0.5f) * -2.f / aspect_ratio,
                 T(1)};
             auto dir = camera.intrinsic_mat_inv * pt;
             auto dir_n = TVector3<T>{dir[0] / dir[2], dir[1] / dir[2], T(1)};
             return dir_n;
         }
         case CameraType::Orthographic: {
-            assert(false); // TODO
-            return TVector3<T>{0, 0, 1};
+            auto aspect_ratio = Real(camera.width) / Real(camera.height);
+            auto pt = TVector3<T>{
+                (distorted_screen_pos[0] - 0.5f) * 2.f,
+                (distorted_screen_pos[1] - 0.5f) * -2.f / aspect_ratio,
+                T(1)};
+            auto dir = camera.intrinsic_mat_inv * pt;
+            auto dir_n = TVector3<T>{dir[0], dir[1], T(1)};
+            return dir_n;
         }
         case CameraType::Fisheye: {
             // x, y to polar coordinate
-            auto x = 2.f * (screen_pos[0] - 0.5f);
-            auto y = 2.f * (screen_pos[1] - 0.5f);
+            auto x = 2.f * (distorted_screen_pos[0] - 0.5f);
+            auto y = 2.f * (distorted_screen_pos[1] - 0.5f);
             auto r = sqrt(x*x + y*y);
             auto phi = atan2(y, x);
             // polar coordinate to spherical, map r linearly on angle
@@ -797,8 +858,8 @@ inline TVector3<T> screen_to_camera(const Camera &camera,
         }
         case CameraType::Panorama: {
             // x, y to polar coordinate
-            auto x = screen_pos[0];
-            auto y = screen_pos[1];
+            auto x = distorted_screen_pos[0];
+            auto y = distorted_screen_pos[1];
             auto theta = Real(M_PI) * y;
             auto phi = Real(2 * M_PI) * x;
             auto sin_phi = sin(phi);
@@ -821,37 +882,69 @@ template <typename T>
 DEVICE
 inline void d_screen_to_camera(const Camera &camera,
                                const TVector2<T> &screen_pos,
-                               TVector3<T> &d_x,
-                               TVector3<T> &d_y) {
+                               const TVector3<T> &d_output,
+                               TVector2<T> &d_screen_pos) {
+    auto distorted_screen_pos =
+        inverse_distort(camera.distortion_params, screen_pos);
     switch(camera.camera_type) {
         case CameraType::Perspective: {
             auto aspect_ratio = Real(camera.width) / Real(camera.height);
             auto pt = TVector3<T>{
-                (screen_pos[0] - 0.5f) * 2.f,
-                (screen_pos[1] - 0.5f) * -2.f / aspect_ratio,
+                (distorted_screen_pos[0] - 0.5f) * 2.f,
+                (distorted_screen_pos[1] - 0.5f) * -2.f / aspect_ratio,
                 T(1)};
-            auto d_pt_d_x = TVector3<T>{
-                2.f * screen_pos[0], T(0), T(0)};
-            auto d_pt_d_y = TVector3<T>{
-                T(0), -2.f * screen_pos[1] / aspect_ratio, T(0)};
             auto dir = camera.intrinsic_mat_inv * pt;
-            auto d_dir_dx = camera.intrinsic_mat_inv * d_pt_d_x;
-            auto d_dir_dy = camera.intrinsic_mat_inv * d_pt_d_y;
-            // auto dir_n = TVector3<T>{dir[0] / dir[2], dir[1] / dir[2], T(1)};
-            d_x = TVector3<T>{dir[2] * d_dir_dx[0] - d_dir_dx[2] * dir[0],
-                              dir[2] * d_dir_dx[1] - d_dir_dx[2] * dir[1],
-                              T(0)} / square(dir[2]);
-            d_y = TVector3<T>{dir[2] * d_dir_dy[0] - d_dir_dy[2] * dir[0],
-                              dir[2] * d_dir_dy[1] - d_dir_dy[2] * dir[1],
-                              T(0)} / square(dir[2]);
+            auto dir_n = TVector3<T>{dir[0] / dir[2], dir[1] / dir[2], T(1)};
+            auto d_dir_n = d_output;
+            // dir_n = TVector3<T>{dir[0] / dir[2], dir[1] / dir[2], T(1)}
+            auto d_dir = TVector3<T>{
+                d_dir_n[0] / dir[2],
+                d_dir_n[1] / dir[2],
+                -(d_dir_n[0] * dir_n[0] / dir[2] + d_dir_n[1] * dir_n[1] / dir[2])};
+            // dir = camera.intrinsic_mat_inv * pt
+            auto d_pt = transpose(camera.intrinsic_mat_inv) * d_dir;
+            // auto pt = TVector3<T>{
+            //     (distorted_screen_pos[0] - 0.5f) * 2.f,
+            //     (distorted_screen_pos[1] - 0.5f) * -2.f / aspect_ratio,
+            //     T(1)};
+            auto d_distorted_screen_pos = TVector2<T>{
+                d_pt[0] * 2, d_pt[1] * (-2) / aspect_ratio};
+            auto d_distort_params = DDistortionParameters{nullptr};
+            d_inverse_distort(camera.distortion_params,
+                              screen_pos,
+                              d_distorted_screen_pos,
+                              d_distort_params,
+                              d_screen_pos);
         } break;
         case CameraType::Orthographic: {
-            assert(false); // TODO
+            auto aspect_ratio = Real(camera.width) / Real(camera.height);
+            // auto pt = TVector3<T>{
+            //     (distorted_screen_pos[0] - 0.5f) * 2.f,
+            //     (distorted_screen_pos[1] - 0.5f) * -2.f / aspect_ratio,
+            //     T(1)};
+            // auto dir = camera.intrinsic_mat_inv * pt;
+            // auto dir_n = TVector3<T>{dir[0], dir[1], T(1)};
+            auto d_dir_n = d_output;
+            // dir_n = TVector3<T>{dir[0], dir[1], T(1)}
+            auto d_dir = TVector3<T>{d_dir_n[0], d_dir_n[1], T(0)};
+            // dir = camera.intrinsic_mat_inv * pt
+            auto d_pt = transpose(camera.intrinsic_mat_inv) * d_dir;
+            // auto pt = TVector3<T>{
+            //     (distorted_screen_pos[0] - 0.5f) * 2.f,
+            //     (distorted_screen_pos[1] - 0.5f) * -2.f / aspect_ratio,
+            //     T(1)};
+            auto d_distorted_screen_pos = Vector2{d_pt[0] * 2, d_pt[1] * (-2) / aspect_ratio};
+            auto d_distort_params = DDistortionParameters{nullptr};
+            d_inverse_distort(camera.distortion_params,
+                              screen_pos,
+                              d_distorted_screen_pos,
+                              d_distort_params,
+                              d_screen_pos);
         } break;
         case CameraType::Fisheye: {
             // x, y to polar coordinate
-            auto x = 2.f * (screen_pos[0] - 0.5f);
-            auto y = 2.f * (screen_pos[1] - 0.5f);
+            auto x = 2.f * (distorted_screen_pos[0] - 0.5f);
+            auto y = 2.f * (distorted_screen_pos[1] - 0.5f);
             auto r = sqrt(x*x + y*y);
             auto phi = atan2(y, x);
             // polar coordinate to spherical, map r linearly on angle
@@ -860,60 +953,74 @@ inline void d_screen_to_camera(const Camera &camera,
             auto cos_phi = cos(phi);
             auto sin_theta = sin(theta);
             auto cos_theta = cos(theta);
-     
-            // d dir d screen_pos:
             // auto dir = TVector3<T>{
             //     -cos_phi * sin_theta, -sin_phi * sin_theta, cos_theta};
-            auto d_dir_x_d_phi = sin_phi * sin_theta;
-            auto d_dir_x_d_theta = -cos_phi * cos_theta;
-            auto d_dir_y_d_phi = -cos_phi * sin_theta;
-            auto d_dir_y_d_theta = -sin_phi * cos_theta;
-            auto d_dir_z_d_theta = -sin_theta;
-            auto d_phi_d_x = -y / (r*r);
-            auto d_phi_d_y = x / (r*r);
-            auto d_theta_d_x = (float(M_PI) / 2.f) * x / r;
-            auto d_theta_d_y = (float(M_PI) / 2.f) * y / r;
-
-            d_x = 2.f * TVector3<T>{
-                d_dir_x_d_phi * d_phi_d_x + d_dir_x_d_theta * d_theta_d_x,
-                d_dir_y_d_phi * d_phi_d_x + d_dir_y_d_theta * d_theta_d_x,
-                d_dir_z_d_theta * d_theta_d_x};
-            d_y = 2.f * TVector3<T>{
-                d_dir_x_d_phi * d_phi_d_y + d_dir_x_d_theta * d_theta_d_y,
-                d_dir_y_d_phi * d_phi_d_y + d_dir_y_d_theta * d_theta_d_y,
-                d_dir_z_d_theta * d_theta_d_y};
+            
+            auto d_dir = d_output;
+            auto d_cos_phi = -d_dir[0] * sin_theta;
+            auto d_sin_phi = -d_dir[1] * sin_theta;
+            auto d_sin_theta = -(d_dir[0] * cos_phi + d_dir[1] * sin_phi);
+            auto d_cos_theta = d_dir[2];
+            // sin_phi = sin(phi)
+            // cos_phi = cos(phi)
+            // sin_theta = sin(theta)
+            // cos_theta = cos(theta)
+            auto d_phi = d_sin_phi * cos_phi - d_cos_phi * sin_phi;
+            auto d_theta = d_sin_theta * cos_theta - d_cos_theta * sin_theta;
+            // theta = r * Real(M_PI) / 2.f
+            auto d_r = d_theta * (Real(M_PI) / 2.f);
+            // phi = atan2(y, x)
+            auto d_x = d_phi * (-y / (x * x + y * y));
+            auto d_y = d_phi * (x / (x * x + y * y));
+            // r = sqrt(x*x + y*y)
+            d_x += (d_r * (x / r));
+            d_y += (d_r * (y / r));
+            // x = 2.f * (distorted_screen_pos[0] - 0.5f)
+            // y = 2.f * (distorted_screen_pos[1] - 0.5f)
+            auto d_distorted_screen_pos = Vector2{d_x * 2, d_y * 2};
+            auto d_distort_params = DDistortionParameters{nullptr};
+            d_inverse_distort(camera.distortion_params,
+                              screen_pos,
+                              d_distorted_screen_pos,
+                              d_distort_params,
+                              d_screen_pos);
         } break;
         case CameraType::Panorama: {
-            auto x = screen_pos[0];
-            auto y = screen_pos[1];
+            auto x = distorted_screen_pos[0];
+            auto y = distorted_screen_pos[1];
             auto theta = Real(M_PI) * y;
             auto phi = Real(2 * M_PI) * x;
             auto sin_phi = sin(phi);
             auto cos_phi = cos(phi);
             auto sin_theta = sin(theta);
             auto cos_theta = cos(theta);
-     
-            // d dir d screen_pos:
-            // auto dir = TVector3<T>{
-            //     cos_phi * sin_theta, cos_theta, sin_phi * sin_theta};
-            auto d_dir_x_d_phi = -sin_phi * sin_theta;
-            auto d_dir_x_d_theta = cos_phi * cos_theta;
-            auto d_dir_y_d_theta = -sin_theta;
-            auto d_dir_z_d_phi = cos_phi * sin_theta;
-            auto d_dir_z_d_theta = sin_phi * cos_theta;
-            auto d_phi_d_x = Real(2 * M_PI);
-            auto d_phi_d_y = Real(0);
-            auto d_theta_d_x = Real(0);
-            auto d_theta_d_y = Real(M_PI);
-
-            d_x = TVector3<T>{
-                d_dir_x_d_phi * d_phi_d_x + d_dir_x_d_theta * d_theta_d_x,
-                d_dir_y_d_theta * d_theta_d_x,
-                d_dir_z_d_phi * d_phi_d_x + d_dir_z_d_theta * d_theta_d_x};
-            d_y = TVector3<T>{
-                d_dir_x_d_phi * d_phi_d_y + d_dir_x_d_theta * d_theta_d_y,
-                d_dir_z_d_theta * d_theta_d_y,
-                d_dir_z_d_phi * d_phi_d_y + d_dir_z_d_theta * d_theta_d_y};
+            // auto dir = TVector3<T>{cos_phi * sin_theta,
+            //                        cos_theta,
+            //                        sin_phi * sin_theta};
+            auto d_dir = d_output;
+            auto d_cos_phi = d_dir[0] * sin_theta;
+            auto d_sin_phi = d_dir[2] * sin_phi;
+            auto d_sin_theta = d_dir[0] * cos_phi + d_dir[2] * sin_phi;
+            auto d_cos_theta = d_dir[1];
+            // sin_phi = sin(phi)
+            // cos_phi = cos(phi)
+            // sin_theta = sin(theta)
+            // cos_theta = cos(theta)
+            auto d_phi = d_sin_phi * cos_phi - d_cos_phi * sin_phi;
+            auto d_theta = d_sin_theta * cos_theta - d_cos_theta * sin_theta;
+            // theta = Real(M_PI) * y
+            // phi = Real(2 * M_PI) * x
+            auto d_x = d_phi * Real(2 * M_PI);
+            auto d_y = d_theta * Real(M_PI);
+            // x = 2.f * (distorted_screen_pos[0] - 0.5f)
+            // y = 2.f * (distorted_screen_pos[1] - 0.5f)
+            auto d_distorted_screen_pos = Vector2{d_x * 2, d_y * 2};
+            auto d_distort_params = DDistortionParameters{nullptr};
+            d_inverse_distort(camera.distortion_params,
+                              screen_pos,
+                              d_distorted_screen_pos,
+                              d_distort_params,
+                              d_screen_pos);
         } break;
         default: {
             assert(false);

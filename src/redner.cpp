@@ -3,6 +3,7 @@
 #include "area_light.h"
 #include "automatic_uv_map.h"
 #include "camera.h"
+#include "camera_distortion.h"
 #include "envmap.h"
 #include "load_serialized.h"
 #include "material.h"
@@ -40,11 +41,13 @@ PYBIND11_MODULE(redner, m) {
                       ptr<float>, // world_to_cam
                       ptr<float>, // ndc_to_cam
                       ptr<float>, // cam_to_ndc
+                      ptr<float>, // distortion_params
                       float, // clip_near
                       CameraType,
                       Vector2i, // viewport_beg
                       Vector2i>()) // viewport_end
-        .def_readonly("use_look_at", &Camera::use_look_at);
+        .def_readonly("use_look_at", &Camera::use_look_at)
+        .def("has_distortion_params", &Camera::has_distortion_params);
 
     py::class_<DCamera>(m, "DCamera")
         .def(py::init<ptr<float>, // position
@@ -53,7 +56,8 @@ PYBIND11_MODULE(redner, m) {
                       ptr<float>, // cam_to_world
                       ptr<float>, // world_to_cam
                       ptr<float>, // ndc_to_cam
-                      ptr<float>>()); // cam_to_ndc
+                      ptr<float>, // cam_to_ndc
+                      ptr<float>>()); // distortion_params
 
     py::class_<Scene>(m, "Scene")
         .def(py::init<const Camera &,
@@ -257,6 +261,7 @@ PYBIND11_MODULE(redner, m) {
     m.def("test_sample_point_on_light", &test_sample_point_on_light, "");
     m.def("test_active_pixels", &test_active_pixels, "");
     m.def("test_camera_derivatives", &test_camera_derivatives, "");
+    m.def("test_camera_distortion", &test_camera_distortion, "");
     m.def("test_d_bsdf", &test_d_bsdf, "");
     m.def("test_d_bsdf_sample", &test_d_bsdf_sample, "");
     m.def("test_d_bsdf_pdf", &test_d_bsdf_pdf, "");

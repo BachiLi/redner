@@ -806,6 +806,7 @@ void test_scene_intersect(bool use_gpu) {
         nullptr, // world_to_cam
         &n2c.data[0][0],
         &c2n.data[0][0],
+        nullptr, // distortion_params
         1e-2f,
         CameraType::Perspective,
         Vector2i{0, 0},
@@ -923,6 +924,7 @@ void test_sample_point_on_light(bool use_gpu) {
         nullptr, // world_to_cam
         &n2c.data[0][0],
         &c2n.data[0][0],
+        nullptr, // distortion_params
         1e-2f,
         CameraType::Perspective,
         Vector2i{0, 0},

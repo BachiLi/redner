@@ -243,6 +243,14 @@ inline TMatrix3x3<T> inverse(const TMatrix3x3<T> &m) {
     return m_inv;
 }
 
+template <typename T>
+DEVICE
+TMatrix3x3<T> transpose(const TMatrix3x3<T> &m) {
+    return TMatrix3x3<T>(m(0, 0), m(1, 0), m(2, 0),
+                         m(0, 1), m(1, 1), m(2, 1),
+                         m(0, 2), m(1, 2), m(2, 2));
+}
+
 template <typename T0, typename T1>
 DEVICE
 inline auto operator+(const TMatrix4x4<T0> &m0, const TMatrix4x4<T1> &m1)

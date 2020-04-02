@@ -169,6 +169,12 @@ class RenderFunction(torch.autograd.Function):
             requires_visibility_grad = True
         args.append(cam.intrinsic_mat_inv.cpu().contiguous())
         args.append(cam.intrinsic_mat.cpu().contiguous())
+        if cam.distortion_params is not None:
+            if cam.distortion_params.requires_grad:
+                requires_visibility_grad = True
+            args.append(cam.distortion_params.cpu().contiguous())
+        else:
+            args.append(None)
         args.append(cam.clip_near)
         args.append(cam.resolution)
         viewport = cam.viewport
@@ -274,6 +280,8 @@ class RenderFunction(torch.autograd.Function):
         current_index += 1
         intrinsic_mat = args[current_index]
         current_index += 1
+        distortion_params = args[current_index]
+        current_index += 1
         clip_near = args[current_index]
         current_index += 1
         resolution = args[current_index]
@@ -292,6 +300,7 @@ class RenderFunction(torch.autograd.Function):
                                    redner.float_ptr(0), # world_to_cam
                                    redner.float_ptr(intrinsic_mat_inv.data_ptr()),
                                    redner.float_ptr(intrinsic_mat.data_ptr()),
+                                   redner.float_ptr(distortion_params.data_ptr() if distortion_params is not None else 0),
                                    clip_near,
                                    camera_type,
                                    redner.Vector2i(viewport[1], viewport[0]),
@@ -306,6 +315,7 @@ class RenderFunction(torch.autograd.Function):
                                    redner.float_ptr(world_to_cam.data_ptr()),
                                    redner.float_ptr(intrinsic_mat_inv.data_ptr()),
                                    redner.float_ptr(intrinsic_mat.data_ptr()),
+                                   redner.float_ptr(distortion_params.data_ptr()),
                                    clip_near,
                                    camera_type,
                                    redner.Vector2i(viewport[1], viewport[0]),
@@ -684,6 +694,9 @@ class RenderFunction(torch.autograd.Function):
             buffers.d_world_to_cam = torch.zeros(4, 4, device = pyredner.get_device())
         buffers.d_intrinsic_mat_inv = torch.zeros(3, 3, device = pyredner.get_device())
         buffers.d_intrinsic_mat = torch.zeros(3, 3, device = pyredner.get_device())
+        buffers.d_distortion_params = None
+        if camera.has_distortion_params():
+            buffers.d_distortion_params = torch.zeros(8, device = pyredner.get_device())
         if camera.use_look_at:
             buffers.d_camera = redner.DCamera(\
                 redner.float_ptr(buffers.d_cam_position.data_ptr()),
@@ -691,6 +704,7 @@ class RenderFunction(torch.autograd.Function):
                 redner.float_ptr(buffers.d_cam_up.data_ptr()),
                 redner.float_ptr(0), # cam_to_world
                 redner.float_ptr(0), # world_to_cam
+                redner.float_ptr(buffers.d_distortion_params.data_ptr() if buffers.d_distortion_params is not None else 0),
                 redner.float_ptr(buffers.d_intrinsic_mat_inv.data_ptr()),
                 redner.float_ptr(buffers.d_intrinsic_mat.data_ptr()))
         else:
@@ -700,6 +714,7 @@ class RenderFunction(torch.autograd.Function):
                 redner.float_ptr(0), # up
                 redner.float_ptr(buffers.d_cam_to_world.data_ptr()),
                 redner.float_ptr(buffers.d_world_to_cam.data_ptr()),
+                redner.float_ptr(buffers.d_distortion_params.data_ptr() if buffers.d_distortion_params is not None else 0),
                 redner.float_ptr(buffers.d_intrinsic_mat_inv.data_ptr()),
                 redner.float_ptr(buffers.d_intrinsic_mat.data_ptr()))
         buffers.d_vertices_list = []
@@ -1043,6 +1058,10 @@ class RenderFunction(torch.autograd.Function):
             ret_list.append(buffers.d_world_to_cam.cpu())
         ret_list.append(buffers.d_intrinsic_mat_inv.cpu())
         ret_list.append(buffers.d_intrinsic_mat.cpu())
+        if not camera.has_distortion_params():
+            ret_list.append(None) # distortion_params
+        else:
+            ret_list.append(buffers.d_distortion_params.cpu())
         ret_list.append(None) # clip near
         ret_list.append(None) # resolution
         ret_list.append(None) # viewport

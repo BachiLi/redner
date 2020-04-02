@@ -69,6 +69,7 @@ void test_sample_primary_rays(bool use_gpu) {
         nullptr, // world_to_cam
         &n2c.data[0][0],
         &c2n.data[0][0],
+        nullptr, // distortion_params
         1e-2f,
         CameraType::Perspective,
         Vector2i{0, 0},
@@ -108,6 +109,7 @@ void test_d_sample_primary_rays() {
         nullptr, // world_to_cam
         &n2c.data[0][0],
         &c2n.data[0][0],
+        nullptr, // distortion_params
         1e-2f,
         CameraType::Perspective,
         Vector2i{0, 0},
@@ -123,7 +125,8 @@ void test_d_sample_primary_rays() {
                      nullptr, // cam_to_world
                      nullptr, // world_to_cam
                      &d_n2c(0, 0),
-                     &d_c2n(0, 0)};
+                     &d_c2n(0, 0),
+                     nullptr}; // distortion_params
     DRay d_ray{Vector3{1, 1, 1}, Vector3{1, 1, 1}};
     d_sample_primary_ray(camera,
                          Vector2{0.5, 0.5},
@@ -144,6 +147,7 @@ void test_d_sample_primary_rays() {
             nullptr, // world_to_cam
             &n2c.data[0][0],
             &c2n.data[0][0],
+            nullptr, // distortion_params
             1e-2f,
             CameraType::Perspective,
             Vector2i{0, 0},
@@ -160,6 +164,7 @@ void test_d_sample_primary_rays() {
             nullptr, // world_to_cam
             &n2c.data[0][0],
             &c2n.data[0][0],
+            nullptr, // distortion_params
             1e-2f,
             CameraType::Perspective,
             Vector2i{0, 0},
@@ -183,6 +188,7 @@ void test_d_sample_primary_rays() {
             nullptr, // world_to_cam
             &n2c.data[0][0],
             &c2n.data[0][0],
+            nullptr, // distortion_params
             1e-2f,
             CameraType::Perspective,
             Vector2i{0, 0},
@@ -199,6 +205,7 @@ void test_d_sample_primary_rays() {
             nullptr, // world_to_cam
             &n2c.data[0][0],
             &c2n.data[0][0],
+            nullptr, // distortion_params
             1e-2f,
             CameraType::Perspective,
             Vector2i{0, 0},
@@ -222,6 +229,7 @@ void test_d_sample_primary_rays() {
             nullptr, // world_to_cam
             &n2c.data[0][0],
             &c2n.data[0][0],
+            nullptr, // distortion_params
             1e-2f,
             CameraType::Perspective,
             Vector2i{0, 0},
@@ -238,6 +246,7 @@ void test_d_sample_primary_rays() {
             nullptr, // world_to_cam
             &n2c.data[0][0],
             &c2n.data[0][0],
+            nullptr, // distortion_params
             1e-2f,
             CameraType::Perspective,
             Vector2i{0, 0},
@@ -280,6 +289,7 @@ void test_d_camera_to_screen() {
         nullptr, // world_to_cam
         &n2c.data[0][0],
         &c2n.data[0][0],
+        nullptr, // distortion_params
         1e-2f,
         CameraType::Perspective,
         Vector2i{0, 0},
@@ -298,7 +308,8 @@ void test_d_camera_to_screen() {
                      nullptr, // cam_to_world
                      nullptr, // world_to_cam
                      &d_n2c(0, 0),
-                     &d_c2n(0, 0)};
+                     &d_c2n(0, 0),
+                     nullptr}; // distortion_params
     auto d_pt = Vector3{0, 0, 0};
     d_camera_to_screen(camera, pt, dx, dy, d_camera, d_pt);
     // Compare with central difference
@@ -315,6 +326,7 @@ void test_d_camera_to_screen() {
             nullptr, // world_to_cam
             &n2c.data[0][0],
             &c2n.data[0][0],
+            nullptr, // distortion_params
             1e-2f,
             CameraType::Perspective,
             Vector2i{0, 0},
@@ -330,6 +342,7 @@ void test_d_camera_to_screen() {
             nullptr, // world_to_cam
             &n2c.data[0][0],
             &c2n.data[0][0],
+            nullptr, // distortion_params
             1e-2f,
             CameraType::Perspective,
             Vector2i{0, 0},
@@ -350,6 +363,7 @@ void test_d_camera_to_screen() {
             nullptr, // world_to_cam
             &n2c.data[0][0],
             &c2n.data[0][0],
+            nullptr, // distortion_params
             1e-2f,
             CameraType::Perspective,
             Vector2i{0, 0},
@@ -365,6 +379,7 @@ void test_d_camera_to_screen() {
             nullptr, // world_to_cam
             &n2c.data[0][0],
             &c2n.data[0][0],
+            nullptr, // distortion_params
             1e-2f,
             CameraType::Perspective,
             Vector2i{0, 0},
@@ -385,6 +400,7 @@ void test_d_camera_to_screen() {
             nullptr, // world_to_cam
             &n2c.data[0][0],
             &c2n.data[0][0],
+            nullptr, // distortion_params
             1e-2f,
             CameraType::Perspective,
             Vector2i{0, 0},
@@ -400,6 +416,7 @@ void test_d_camera_to_screen() {
             nullptr, // world_to_cam
             &n2c.data[0][0],
             &c2n.data[0][0],
+            nullptr, // distortion_params
             1e-2f,
             CameraType::Perspective,
             Vector2i{0, 0},
@@ -421,7 +438,43 @@ void test_d_camera_to_screen() {
     }
 }
 
+void test_d_screen_to_camera() {
+    auto pos = Vector3f{0, 0, 0};
+    auto look = Vector3f{0, 0, 1};
+    auto up = Vector3f{0, 1, 0};
+    Matrix3x3f n2c = Matrix3x3f::identity();
+    Matrix3x3f c2n = Matrix3x3f::identity();
+    Camera camera{1, 1,
+        &pos[0],
+        &look[0],
+        &up[0],
+        nullptr, // cam_to_world
+        nullptr, // world_to_cam
+        &n2c.data[0][0],
+        &c2n.data[0][0],
+        nullptr, // distortion_params
+        1e-2f,
+        CameraType::Perspective,
+        Vector2i{0, 0},
+        Vector2i{1, 1}};
+    auto pt = Vector2{0.2, 0.8};
+    auto d_pt = Vector2{0, 0};
+    d_screen_to_camera(camera, pt, Vector3{1, 1, 1}, d_pt);
+    // Compare with central difference
+    auto finite_delta = Real(1e-6);
+    for (int i = 0; i < 2; i++) {
+        auto delta_pt = pt;
+        delta_pt[i] += finite_delta;
+        auto positive_pt = screen_to_camera(camera, delta_pt);
+        delta_pt[i] -= 2*finite_delta;
+        auto negative_pt = screen_to_camera(camera, delta_pt);
+        auto diff = (sum(positive_pt - negative_pt)) / (2 * finite_delta);
+        equal_or_error(__FILE__, __LINE__, (Real)diff, (Real)d_pt[i]);
+    }
+}
+
 void test_camera_derivatives() {
     test_d_sample_primary_rays();
     test_d_camera_to_screen();
+    test_d_screen_to_camera();
 }
