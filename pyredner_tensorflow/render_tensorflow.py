@@ -163,6 +163,10 @@ def serialize_scene(scene: pyredner.Scene,
             args.append(tf.identity(cam.world_to_cam))
         args.append(tf.identity(cam.intrinsic_mat_inv))
         args.append(tf.identity(cam.intrinsic_mat))
+        if cam.distortion_params is not None:
+            args.append(tf.identity(cam.distortion_params))
+        else:
+            args.append(None)
     args.append(tf.constant(cam.clip_near))
     args.append(tf.constant(cam.resolution))
     viewport = cam.viewport
@@ -277,6 +281,8 @@ def unpack_args(seed,
     current_index += 1
     intrinsic_mat = args[current_index]
     current_index += 1
+    distortion_params = args[current_index]
+    current_index += 1
     clip_near = float(args[current_index])
     current_index += 1
     resolution = args[current_index].numpy() # Tuple[int, int]
@@ -297,6 +303,7 @@ def unpack_args(seed,
                                    redner.float_ptr(0), # world_to_cam
                                    redner.float_ptr(pyredner.data_ptr(intrinsic_mat_inv)),
                                    redner.float_ptr(pyredner.data_ptr(intrinsic_mat)),
+                                   redner.float_ptr(pyredner.data_ptr(distortion_params) if distortion_params is not None else 0),
                                    clip_near,
                                    camera_type,
                                    redner.Vector2i(viewport[1], viewport[0]),
@@ -311,6 +318,7 @@ def unpack_args(seed,
                                    redner.float_ptr(pyredner.data_ptr(world_to_cam)),
                                    redner.float_ptr(pyredner.data_ptr(intrinsic_mat_inv)),
                                    redner.float_ptr(pyredner.data_ptr(intrinsic_mat)),
+                                   redner.float_ptr(pyredner.data_ptr(distortion_params) if distortion_params is not None else 0),
                                    clip_near,
                                    camera_type,
                                    redner.Vector2i(viewport[1], viewport[0]),
@@ -625,7 +633,6 @@ def unpack_args(seed,
     ctx.materials = materials
     ctx.area_lights = area_lights
     ctx.envmap = envmap
-    ctx.scene = scene
     ctx.options = options
     ctx.num_samples = num_samples
     ctx.num_channel_args = num_channel_args
@@ -707,6 +714,9 @@ def create_gradient_buffers(ctx):
             buffers.d_world_to_cam = tf.zeros([4, 4], dtype=tf.float32)
         buffers.d_intrinsic_mat_inv = tf.zeros([3,3], dtype=tf.float32)
         buffers.d_intrinsic_mat = tf.zeros([3,3], dtype=tf.float32)
+        buffers.d_distortion_params = None
+        if camera.has_distortion_params():
+            buffers.d_distortion_params = tf.zeros(8, dtype=tf.float32)
         if camera.use_look_at:
             buffers.d_camera = redner.DCamera(\
                 redner.float_ptr(pyredner.data_ptr(buffers.d_position)),
@@ -715,7 +725,8 @@ def create_gradient_buffers(ctx):
                 redner.float_ptr(0), # cam_to_world
                 redner.float_ptr(0), # world_to_cam
                 redner.float_ptr(pyredner.data_ptr(buffers.d_intrinsic_mat_inv)),
-                redner.float_ptr(pyredner.data_ptr(buffers.d_intrinsic_mat)))
+                redner.float_ptr(pyredner.data_ptr(buffers.d_intrinsic_mat)),
+                redner.float_ptr(pyredner.data_ptr(buffers.d_distortion_params) if buffers.d_distortion_params is not None else 0))
         else:
             buffers.d_camera = redner.DCamera(\
                 redner.float_ptr(0),
@@ -724,7 +735,8 @@ def create_gradient_buffers(ctx):
                 redner.float_ptr(pyredner.data_ptr(buffers.d_cam_to_world)),
                 redner.float_ptr(pyredner.data_ptr(buffers.d_world_to_cam)),
                 redner.float_ptr(pyredner.data_ptr(buffers.d_intrinsic_mat_inv)),
-                redner.float_ptr(pyredner.data_ptr(buffers.d_intrinsic_mat)))
+                redner.float_ptr(pyredner.data_ptr(buffers.d_intrinsic_mat)),
+                redner.float_ptr(pyredner.data_ptr(buffers.d_distortion_params) if buffers.d_distortion_params is not None else 0))
 
     buffers.d_vertices_list = []
     buffers.d_uvs_list = []
@@ -979,6 +991,7 @@ def render(*x):
     def backward(grad_img):
         scene = ctx.scene
         options = ctx.options
+        camera = ctx.camera
 
         buffers = create_gradient_buffers(ctx)
 
@@ -1021,6 +1034,10 @@ def render(*x):
             ret_list.append(buffers.d_world_to_cam)
         ret_list.append(buffers.d_intrinsic_mat_inv)
         ret_list.append(buffers.d_intrinsic_mat)
+        if not camera.has_distortion_params():
+            ret_list.append(None) # distortion_params
+        else:
+            ret_list.append(buffers.d_distortion_params.cpu())
         ret_list.append(None) # clip near
         ret_list.append(None) # resolution
         ret_list.append(None) # viewport

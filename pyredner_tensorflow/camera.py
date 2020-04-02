@@ -48,6 +48,13 @@ class Camera:
                 ignored by fisheye or panorama cameras
                 overrides fov
                 3x3 matrix, optional
+            distortion_params: Optional[tf.Tensor]
+                an array describing the coefficient of a Brown–Conrady lens distortion model.
+                the array is expected to be 1D with size of 8. the first six coefficients describes
+                the parameters of the rational polynomial for radial distortion (k1~k6) and
+                the last two coefficients are for the tangential distortion (p1~p2).
+                see https://docs.opencv.org/2.4/modules/calib3d/doc/camera_calibration_and_3d_reconstruction.html
+                for more details.
             camera_type: render.camera_type
                 the type of the camera (perspective, orthographic, fisheye, or panorama)
             fisheye: bool
@@ -65,6 +72,7 @@ class Camera:
                  viewport: Optional[Tuple[int, int, int, int]] = None,
                  cam_to_world: Optional[tf.Tensor] = None,
                  intrinsic_mat: Optional[tf.Tensor] = None,
+                 distortion_params: Optional[tf.Tensor] = None,
                  camera_type = pyredner.camera_type.perspective,
                  fisheye: bool = False):
         assert(tf.executing_eagerly())
@@ -110,6 +118,7 @@ class Camera:
             else:
                 self._intrinsic_mat = intrinsic_mat
             self.intrinsic_mat_inv = tf.linalg.inv(self._intrinsic_mat)
+        self.distortion_params = distortion_params
         self.clip_near = clip_near
         self.resolution = resolution
         self.viewport = viewport
