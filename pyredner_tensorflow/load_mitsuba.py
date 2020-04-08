@@ -62,9 +62,9 @@ def parse_camera(node):
             for grandchild in child:
                 if 'name' in grandchild.attrib:
                     if grandchild.attrib['name'] == 'width':
-                        resolution[0] = int(grandchild.attrib['value'])
-                    elif grandchild.attrib['name'] == 'height':
                         resolution[1] = int(grandchild.attrib['value'])
+                    elif grandchild.attrib['name'] == 'height':
+                        resolution[0] = int(grandchild.attrib['value'])
 
     return pyredner.Camera(position     = position,
                            look_at      = look_at,
