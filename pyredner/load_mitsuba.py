@@ -127,13 +127,17 @@ def parse_material(node, two_sided = False):
             if child.attrib['name'] == 'reflectance':
                 if child.tag == 'texture':
                     diffuse_reflectance, diffuse_uv_scale = parse_texture(child)
-                elif child.tag == 'rgb' or child.tag == 'spectrum':
+                elif child.tag == 'rgb' or child.tag == 'spectrum' or child.tag == 'srgb':
                     diffuse_reflectance = parse_vector(child.attrib['value'])
+                    if child.tag == 'srgb':
+                        diffuse_reflectance = pyredner.srgb_to_linear(diffuse_reflectance)
             elif child.attrib['name'] == 'specular':
                 if child.tag == 'texture':
                     specular_reflectance, specular_uv_scale = parse_texture(child)
-                elif child.tag == 'rgb' or child.tag == 'spectrum':
+                elif child.tag == 'rgb' or child.tag == 'spectrum' or child.tag == 'srgb':
                     specular_reflectance = parse_vector(child.attrib['value'])
+                    if child.tag == 'srgb':
+                        specular_reflectance = pyredner.srgb_to_linear(specular_reflectance)
             elif child.attrib['name'] == 'roughness':
                 roughness = torch.tensor([float(child.attrib['value'])])
         if pyredner.get_use_gpu():
@@ -160,13 +164,17 @@ def parse_material(node, two_sided = False):
             if child.attrib['name'] == 'diffuseReflectance':
                 if child.tag == 'texture':
                     diffuse_reflectance, diffuse_uv_scale = parse_texture(child)
-                elif child.tag == 'rgb' or child.tag == 'spectrum':
+                elif child.tag == 'rgb' or child.tag == 'spectrum' or child.tag == 'srgb':
                     diffuse_reflectance = parse_vector(child.attrib['value'])
+                    if child.tag == 'srgb':
+                        diffuse_reflectance = pyredner.srgb_to_linear(diffuse_reflectance)
             elif child.attrib['name'] == 'specularReflectance':
                 if child.tag == 'texture':
                     specular_reflectance, specular_uv_scale = parse_texture(child)
-                elif child.tag == 'rgb' or child.tag == 'spectrum':
+                elif child.tag == 'rgb' or child.tag == 'spectrum' or child.tag == 'srgb':
                     specular_reflectance = parse_vector(child.attrib['value'])
+                    if child.tag == 'srgb':
+                        specular_reflectance = pyredner.srgb_to_linear(specular_reflectance)
             elif child.attrib['name'] == 'alpha':
                 # Add 'alpha texture' support
                 if child.tag == 'texture':

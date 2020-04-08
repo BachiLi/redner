@@ -94,8 +94,10 @@ def parse_material(node, two_sided = False):
                             diffuse_uv_scale[0] = float(grandchild.attrib['value'])
                         elif grandchild.attrib['name'] == 'vscale':
                             diffuse_uv_scale[1] = float(grandchild.attrib['value'])
-                elif child.tag == 'rgb' or child.tag == 'spectrum':
+                elif child.tag == 'rgb' or child.tag == 'spectrum' or child.tag == 'srgb':
                     diffuse_reflectance = parse_vector(child.attrib['value'])
+                    if child.tag == 'srgb':
+                        diffuse_reflectance = pyredner.srgb_to_linear(diffuse_reflectance)
             elif child.attrib['name'] == 'specular':
                 if child.tag == 'texture':
                     for grandchild in child:
@@ -105,8 +107,10 @@ def parse_material(node, two_sided = False):
                             specular_uv_scale[0] = float(grandchild.attrib['value'])
                         elif grandchild.attrib['name'] == 'vscale':
                             specular_uv_scale[1] = float(grandchild.attrib['value'])
-                elif child.tag == 'rgb' or child.tag == 'spectrum':
+                elif child.tag == 'rgb' or child.tag == 'spectrum' or child.tag == 'srgb':
                     specular_reflectance = parse_vector(child.attrib['value'])
+                    if child.tag == 'srgb':
+                        specular_reflectance = pyredner.srgb_to_linear(specular_reflectance)
             elif child.attrib['name'] == 'roughness':
                 roughness = tf.constant([float(child.attrib['value'])])
         
@@ -135,8 +139,10 @@ def parse_material(node, two_sided = False):
                             diffuse_uv_scale[0] = float(grandchild.attrib['value'])
                         elif grandchild.attrib['name'] == 'vscale':
                             diffuse_uv_scale[1] = float(grandchild.attrib['value'])
-                elif child.tag == 'rgb' or child.tag == 'spectrum':
+                elif child.tag == 'rgb' or child.tag == 'spectrum' or child.tag == 'srgb':
                     diffuse_reflectance = parse_vector(child.attrib['value'])
+                    if child.tag == 'srgb':
+                        diffuse_reflectance = pyredner.srgb_to_linear(diffuse_reflectance)
             elif child.attrib['name'] == 'specularReflectance':
                 if child.tag == 'texture':
                     for grandchild in child:
@@ -146,8 +152,10 @@ def parse_material(node, two_sided = False):
                             specular_uv_scale[0] = float(grandchild.attrib['value'])
                         elif grandchild.attrib['name'] == 'vscale':
                             specular_uv_scale[1] = float(grandchild.attrib['value'])
-                elif child.tag == 'rgb' or child.tag == 'spectrum':
+                elif child.tag == 'rgb' or child.tag == 'spectrum' or child.tag == 'srgb':
                     specular_reflectance = parse_vector(child.attrib['value'])
+                    if child.tag == 'srgb':
+                        specular_reflectance = pyredner.srgb_to_linear(specular_reflectance)
             elif child.attrib['name'] == 'alpha':
                 alpha = float(child.attrib['value'])
                 roughness = tf.constant([alpha * alpha])
@@ -200,18 +208,19 @@ def parse_shape(node, material_dict, shape_id):
         if node.attrib['type'] == 'obj':
             _, mesh_list, _ = pyredner.load_obj(filename)
             # Convert to CPU for rebuild_topology
-            vertices = mesh_list[0][1].vertices.cpu()
-            indices = mesh_list[0][1].indices.cpu()
-            uvs = mesh_list[0][1].uvs
-            normals = mesh_list[0][1].normals
-            uv_indices = mesh_list[0][1].uv_indices
-            normal_indices = mesh_list[0][1].normal_indices
-            if uvs is not None:
-                uvs = uvs.cpu()
-            if normals is not None:
-                normals = normals.cpu()
-            if uv_indices is not None:
-                uv_indices = uv_indices.cpu()
+            with tf.device('/device:cpu:' + str(pyredner.get_cpu_device_id())):
+                vertices = tf.identity(mesh_list[0][1].vertices)
+                indices = tf.identity(mesh_list[0][1].indices)
+                uvs = mesh_list[0][1].uvs
+                normals = mesh_list[0][1].normals
+                uv_indices = mesh_list[0][1].uv_indices
+                normal_indices = mesh_list[0][1].normal_indices
+                if uvs is not None:
+                    uvs = tf.identity(uvs)
+                if normals is not None:
+                    normals = tf.identity(normals)
+                if uv_indices is not None:
+                    uv_indices = tf.identity(uv_indices)
         else:
             assert(node.attrib['type'] == 'serialized')
             mitsuba_tri_mesh = redner.load_serialized(filename, serialized_shape_id)
@@ -228,9 +237,10 @@ def parse_shape(node, material_dict, shape_id):
 
         # Transform the vertices and normals
         vertices = tf.concat((vertices, tf.ones([vertices.shape[0], 1], dtype=tf.float32)), axis = 1)
-        vertices = vertices @ tf.transpose(to_world, [0, 1])
+        vertices = vertices @ tf.transpose(to_world, [1, 0])
         vertices = vertices / vertices[:, 3:4]
         vertices = vertices[:, 0:3]
+
         if normals is not None:
             normals = normals @ (tf.linalg.inv(tf.transpose(to_world, [0, 1]))[:3, :3])
         assert(vertices is not None)

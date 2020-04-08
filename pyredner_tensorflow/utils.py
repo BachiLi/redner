@@ -211,3 +211,9 @@ def read_tensor(filename, shape):
         tensor = np.reshape(tensor, shape)
 
     return tensor
+
+def linear_to_srgb(x):
+    return tf.where(x <= 0.0031308, 12.92 * x, 1.055 * tf.pow(x, 1.0 / 2.4) - 0.055)
+
+def srgb_to_linear(x):
+    return tf.where(x <= 0.04045, x / 12.92, tf.pow((x + 0.055) / 1.055, 2.4))

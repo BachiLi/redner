@@ -166,7 +166,7 @@ def serialize_scene(scene: pyredner.Scene,
         if cam.distortion_params is not None:
             args.append(tf.identity(cam.distortion_params))
         else:
-            args.append(None)
+            args.append(__EMPTY_TENSOR)
     args.append(tf.constant(cam.clip_near))
     args.append(tf.constant(cam.resolution))
     viewport = cam.viewport

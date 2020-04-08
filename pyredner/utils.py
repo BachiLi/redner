@@ -200,3 +200,9 @@ def generate_quad_light(position: torch.Tensor,
                            indices = indices,
                            material = m,
                            light_intensity = intensity)
+
+def linear_to_srgb(x):
+    return torch.where(x <= 0.0031308, 12.92 * x, 1.055 * torch.pow(x, 1.0 / 2.4) - 0.055)
+
+def srgb_to_linear(x):
+    return torch.where(x <= 0.04045, x / 12.92, torch.pow((x + 0.055) / 1.055, 2.4))

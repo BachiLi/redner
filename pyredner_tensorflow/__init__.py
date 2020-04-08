@@ -18,9 +18,9 @@ from .scene import *
 from .image import *
 from .load_obj import load_obj
 from .save_obj import save_obj
+from .utils import *
 from .load_mitsuba import load_mitsuba
 from .transform import *
-from .utils import *
 from .channels import *
 from .sampler_type import *
 from .render_utils import *
