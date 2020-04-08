@@ -315,7 +315,7 @@ class RenderFunction(torch.autograd.Function):
                                    redner.float_ptr(world_to_cam.data_ptr()),
                                    redner.float_ptr(intrinsic_mat_inv.data_ptr()),
                                    redner.float_ptr(intrinsic_mat.data_ptr()),
-                                   redner.float_ptr(distortion_params.data_ptr()),
+                                   redner.float_ptr(distortion_params.data_ptr() if distortion_params is not None else 0),
                                    clip_near,
                                    camera_type,
                                    redner.Vector2i(viewport[1], viewport[0]),
