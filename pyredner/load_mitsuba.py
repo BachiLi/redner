@@ -237,7 +237,7 @@ def parse_shape(node, material_dict, shape_id, shape_group_dict = None):
                                           light_intensity[0]])
 
         if node.attrib['type'] == 'obj':
-            _, mesh_list, _ = pyredner.load_obj(filename)
+            _, mesh_list, _ = pyredner.load_obj(filename, obj_group = False)
             # Convert to CPU for rebuild_topology
             vertices = mesh_list[0][1].vertices.cpu()
             indices = mesh_list[0][1].indices.cpu()

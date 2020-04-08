@@ -206,7 +206,7 @@ def parse_shape(node, material_dict, shape_id):
                                           light_intensity[0]])
 
         if node.attrib['type'] == 'obj':
-            _, mesh_list, _ = pyredner.load_obj(filename)
+            _, mesh_list, _ = pyredner.load_obj(filename, obj_group = False)
             # Convert to CPU for rebuild_topology
             with tf.device('/device:cpu:' + str(pyredner.get_cpu_device_id())):
                 vertices = tf.identity(mesh_list[0][1].vertices)
