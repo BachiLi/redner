@@ -51,8 +51,8 @@ def serialize_texture(texture, args, device):
     for mipmap in texture.mipmap:
         assert(torch.isfinite(mipmap).all())
         assert(mipmap.is_contiguous())
-        if mipmap.device != device or mipmap.device != device:
-            warnings.warn('Converting texture to {}, this can be inefficient.'.format(device))
+        if mipmap.device != device:
+            warnings.warn('Converting texture from {} to {}, this can be inefficient.'.format(mipmap.device, device))
         args.append(mipmap.to(device))
     assert(torch.isfinite(texture.uv_scale).all())
     args.append(texture.uv_scale.to(device))
@@ -132,6 +132,9 @@ class RenderFunction(torch.autograd.Function):
         """
         if device is None:
             device = pyredner.get_device()
+        if device.index is None and device.type == 'cuda':
+            # Assign a default index so that we can avoid generating warnings
+            device = torch.device('cuda:' + str(torch.cuda.current_device()))
 
         # Record if there is any parameter that requires gradient need discontinuity sampling.
         # For skipping edge sampling when it is not necessary.
@@ -206,8 +209,10 @@ class RenderFunction(torch.autograd.Function):
                 assert(torch.isfinite(shape.normals).all())
             if (shape.vertices.requires_grad):
                 requires_visibility_grad = True
-            if shape.vertices.device != device or shape.indices.device != device:
-                warnings.warn('Converting shape vertices or indices to {}, this can be inefficient.'.format(device))
+            if shape.vertices.device != device:
+                warnings.warn('Converting shape vertices from {} to {}, this can be inefficient.'.format(shape.vertices.device, device))
+            if shape.indices.device != device:
+                warnings.warn('Converting shape indices from {} to {}, this can be inefficient.'.format(shape.indices.device, device))
             args.append(shape.vertices.to(device))
             args.append(shape.indices.to(device))
             args.append(shape.uvs.to(device) if shape.uvs is not None else None)
