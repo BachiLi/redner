@@ -113,74 +113,6 @@ if len(packages) == 0:
 if 'REDNER_CUDA' in os.environ:
     build_with_cuda = os.environ['REDNER_CUDA'] == '1'
 
-# OpenEXR Python installation
-openexr_python_version = "1.3.2"
-openexr_python_compiler_args = ['-g', '-DVERSION="%s"' % openexr_python_version, '-std=c++11']
-if sys.platform == 'win32':
-    # On windows (specifically MSVC we need different compiler arguments)
-    # See https://stackoverflow.com/a/1305470/6104263 for the /DVersion syntax
-    # We need the /Zc:__cplusplus command as MSVC reports some C++99 version by default 
-    # and IlmBaseConfig.h needs this constant to report at least C++11.
-    # See https://docs.microsoft.com/en-us/cpp/build/reference/zc-cplusplus
-    openexr_python_compiler_args = ['/DVERSION=\\"{:s}\\"'.format(openexr_python_version), '/Zc:__cplusplus']
-
-if sys.platform == 'darwin':
-    if 'MACOSX_DEPLOYMENT_TARGET' not in os.environ:
-        current_system = LooseVersion(platform.mac_ver()[0])
-        python_target = LooseVersion(
-            get_config_var('MACOSX_DEPLOYMENT_TARGET'))
-        if python_target < '10.9' and current_system >= '10.9':
-            os.environ['MACOSX_DEPLOYMENT_TARGET'] = '10.9'
-openexr_include_dir = 'redner-dependencies/openexr/include/OpenEXR'
-openexr_lib_dir = ''
-if sys.platform == 'darwin':
-    openexr_lib_dir = 'redner-dependencies/openexr/lib-macos'
-elif sys.platform == 'linux':
-    openexr_lib_dir = 'redner-dependencies/openexr/lib-linux'
-elif sys.platform == 'win32':
-    openexr_lib_dir = 'redner-dependencies/openexr/lib-win32'
-openexr_link_args = []
-if sys.platform == 'darwin':
-    openexr_link_args += ['-Wl,-all_load']
-elif sys.platform == 'linux':
-    openexr_link_args += ['-Wl,--whole-archive']
-elif sys.platform == 'win32':
-    openexr_link_args += ['/WHOLEARCHIVE']
-
-if sys.platform == 'darwin' or sys.platform == 'linux':
-    openexr_link_args += [os.path.join(openexr_lib_dir, 'libHalf-2_3_s.a'),
-                      os.path.join(openexr_lib_dir, 'libIex-2_3_s.a'),
-                      os.path.join(openexr_lib_dir, 'libIexMath-2_3_s.a'),
-                      os.path.join(openexr_lib_dir, 'libImath-2_3_s.a'),
-                      os.path.join(openexr_lib_dir, 'libIlmImf-2_3_s.a'),
-                      os.path.join(openexr_lib_dir, 'libIlmImfUtil-2_3_s.a'),
-                      os.path.join(openexr_lib_dir, 'libIlmThread-2_3_s.a')]
-elif sys.platform == 'win32':
-    openexr_link_args += [os.path.join(openexr_lib_dir, 'zlibstatic.lib'),
-                      os.path.join(openexr_lib_dir, 'Half-2_3_s.lib'),
-                      os.path.join(openexr_lib_dir, 'Iex-2_3_s.lib'),
-                      os.path.join(openexr_lib_dir, 'IexMath-2_3_s.lib'),
-                      os.path.join(openexr_lib_dir, 'Imath-2_3_s.lib'),
-                      os.path.join(openexr_lib_dir, 'IlmImf-2_3_s.lib'),
-                      os.path.join(openexr_lib_dir, 'IlmImfUtil-2_3_s.lib'),
-                      os.path.join(openexr_lib_dir, 'IlmThread-2_3_s.lib')]
-
-if sys.platform == 'darwin':
-    openexr_link_args += ['-Wl,-noall_load']
-elif sys.platform == 'linux':
-    openexr_link_args += [os.path.join(openexr_lib_dir, 'libz.a')]
-    openexr_link_args += ['-Wl,--no-whole-archive']
-
-openexr_libraries = []
-if sys.platform == 'darwin':
-    # OS X has zlib by default, link to it.
-    openexr_libraries = ['z']
-    # Supress warning by setting to the host's OS X version
-    osx_ver = platform.mac_ver()[0]
-    osx_ver = '.'.join(osx_ver.split('.')[:2])
-    openexr_python_compiler_args.append('-mmacosx-version-min=' + osx_ver)
-    openexr_link_args.append('-mmacosx-version-min=' + osx_ver)
-
 dynamic_libraries = []
 # Make Embree and OptiX part of the package
 if sys.platform == 'darwin':
@@ -240,17 +172,9 @@ setup(name = project_name,
       license = 'MIT',
       packages = packages,
       ext_modules = [CMakeExtension('redner', '', build_with_cuda),
-                     Extension('OpenEXR',
-                        ['openexrpython/OpenEXR.cpp'],
-                        include_dirs=[openexr_include_dir],
-                        library_dirs=[openexr_lib_dir, '/usr/lib', '/usr/local/lib', '/opt/local/lib'],
-                        libraries=openexr_libraries,
-                        extra_compile_args=openexr_python_compiler_args,
-                        extra_link_args=openexr_link_args),
-                     CopyExtension('redner-dependencies', dynamic_libraries),
-                     CopyExtension('openexrpython', ['openexrpython/Imath.py'])],
+                     CopyExtension('redner-dependencies', dynamic_libraries)],
       cmdclass = dict(build_ext=Build, install=RemoveOldRednerBeforeInstall),
-      install_requires = ['scikit-image'],
+      install_requires = ['scikit-image', 'imageio'],
       keywords = ['rendering',
                   'Monte Carlo ray tracing',
                   'computer vision',

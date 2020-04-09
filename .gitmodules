@@ -1,9 +1,6 @@
 [submodule "thrust"]
 	path = thrust
 	url = https://github.com/thrust/thrust.git
-[submodule "openexrpython"]
-	path = openexrpython
-	url = https://github.com/jamesbowman/openexrpython.git
 [submodule "xatlas"]
 	path = xatlas
 	url = https://github.com/jpcy/xatlas.git
