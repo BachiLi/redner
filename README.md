@@ -68,15 +68,13 @@ redner depends on a few libraries/systems, which are all included in the reposit
 - [pybind11](https://github.com/pybind/pybind11)
 - [PyTorch 1.0 or above](https://pytorch.org) (optional, required if TensorFlow is not installed)
 - [Tensorflow 2.0](https://www.tensorflow.org/) (optional, required if PyTorch is not installed)
-- [OpenEXR](https://github.com/openexr/openexr)
 - [Embree](https://embree.github.io)
 - [CUDA 10](https://developer.nvidia.com/cuda-downloads) (optional, need GPU at Kepler class or newer)
 - [optix prime V6.5 or older](https://developer.nvidia.com/optix) (optional, required when compiled with CUDA)
-- [OpenEXR Python](https://github.com/jamesbowman/openexrpython)
 - [Thrust](https://thrust.github.io)
 - [miniz](https://github.com/richgel999/miniz)
 - [xatlas](https://github.com/jpcy/xatlas)
-- A few other python packages: numpy, scikit-image
+- A few other python packages: numpy, scikit-image, and imageio
 
 ## Roadmap
 
