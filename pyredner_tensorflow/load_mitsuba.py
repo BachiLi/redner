@@ -126,11 +126,11 @@ def parse_material(node, two_sided = False):
     elif node.attrib['type'] == 'roughplastic':
         diffuse_reflectance = tf.constant([0.5, 0.5, 0.5])
         diffuse_uv_scale = [1.0, 1.0]
-        specular_reflectance = tf.constant([0.0, 0.0, 0.0])
+        specular_reflectance = tf.constant([1.0, 1.0, 1.0])
         specular_uv_scale = [1.0, 1.0]
-        roughness = tf.constant([1.0])
+        roughness = tf.constant([0.01])
         for child in node:
-            if child.attrib['name'] == 'diffuseReflectance':
+            if child.attrib['name'] == 'diffuseReflectance' or child.attrib['name'] == 'diffuse_reflectance':
                 if child.tag == 'texture':
                     for grandchild in child:
                         if grandchild.attrib['name'] == 'filename':
@@ -143,7 +143,7 @@ def parse_material(node, two_sided = False):
                     diffuse_reflectance = parse_vector(child.attrib['value'])
                     if child.tag == 'srgb':
                         diffuse_reflectance = pyredner.srgb_to_linear(diffuse_reflectance)
-            elif child.attrib['name'] == 'specularReflectance':
+            elif child.attrib['name'] == 'specularReflectance' or child.attrib['name'] == 'specular_reflectance':
                 if child.tag == 'texture':
                     for grandchild in child:
                         if grandchild.attrib['name'] == 'filename':
@@ -157,8 +157,12 @@ def parse_material(node, two_sided = False):
                     if child.tag == 'srgb':
                         specular_reflectance = pyredner.srgb_to_linear(specular_reflectance)
             elif child.attrib['name'] == 'alpha':
-                alpha = float(child.attrib['value'])
-                roughness = tf.constant([alpha * alpha])
+                if child.tag == 'texture':
+                    roughness, roughness_uv_scale = parse_texture(child)
+                    roughness = roughness * roughness
+                else:
+                    alpha = float(child.attrib['value'])
+                    roughness = tf.constant([alpha * alpha])
         
         diffuse_uv_scale = tf.constant(diffuse_uv_scale)
         specular_uv_scale = tf.constant(specular_uv_scale)

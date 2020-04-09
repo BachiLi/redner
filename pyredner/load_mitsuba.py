@@ -155,20 +155,20 @@ def parse_material(node, two_sided = False):
     elif node.attrib['type'] == 'roughplastic':
         diffuse_reflectance = torch.tensor([0.5, 0.5, 0.5])
         diffuse_uv_scale = torch.tensor([1.0, 1.0])
-        specular_reflectance = torch.tensor([0.0, 0.0, 0.0])
+        specular_reflectance = torch.tensor([1.0, 1.0, 1.0])
         specular_uv_scale = torch.tensor([1.0, 1.0])
-        roughness = torch.tensor([1.0])
+        roughness = torch.tensor([0.01])
         roughness_uv_scale = torch.tensor([1.0, 1.0])
 
         for child in node:
-            if child.attrib['name'] == 'diffuseReflectance':
+            if child.attrib['name'] == 'diffuseReflectance' or child.attrib['name'] == 'diffuse_reflectance':
                 if child.tag == 'texture':
                     diffuse_reflectance, diffuse_uv_scale = parse_texture(child)
                 elif child.tag == 'rgb' or child.tag == 'spectrum' or child.tag == 'srgb':
                     diffuse_reflectance = parse_vector(child.attrib['value'])
                     if child.tag == 'srgb':
                         diffuse_reflectance = pyredner.srgb_to_linear(diffuse_reflectance)
-            elif child.attrib['name'] == 'specularReflectance':
+            elif child.attrib['name'] == 'specularReflectance' or child.attrib['name'] == 'specular_reflectance':
                 if child.tag == 'texture':
                     specular_reflectance, specular_uv_scale = parse_texture(child)
                 elif child.tag == 'rgb' or child.tag == 'spectrum' or child.tag == 'srgb':
@@ -176,9 +176,9 @@ def parse_material(node, two_sided = False):
                     if child.tag == 'srgb':
                         specular_reflectance = pyredner.srgb_to_linear(specular_reflectance)
             elif child.attrib['name'] == 'alpha':
-                # Add 'alpha texture' support
                 if child.tag == 'texture':
-                    roughness, roughness_uv_scale = parse_texture(child) #? not sure to do square here
+                    roughness, roughness_uv_scale = parse_texture(child)
+                    roughness = roughness * roughness
                 elif child.tag == 'float':
                     alpha = float(child.attrib['value'])
                     roughness = torch.tensor([alpha * alpha])
