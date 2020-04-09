@@ -2,8 +2,10 @@ import numpy as np
 import torch
 import math
 import pyredner
+from typing import Optional
 
-def generate_geometry_image(size: int):
+def generate_geometry_image(size: int,
+                            device: Optional[torch.device] = None):
     """
         Generate an spherical geometry image [Gu et al. 2002 and Praun and Hoppe 2003]
         of size [2 * size + 1, 2 * size + 1]. This can be used for encoding a genus-0
@@ -15,7 +17,10 @@ def generate_geometry_image(size: int):
         Args
         ====
         size: int
-            size of the geometry image
+            Size of the geometry image.
+        device: Optional[torch.device]
+            Which device should we store the data in.
+            If set to None, use the device from pyredner.get_device().
 
         Returns
         =======
@@ -26,6 +31,9 @@ def generate_geometry_image(size: int):
         torch.Tensor
             uvs of size [(2 * size + 1 * 2 * size + 1), 2]
     """
+    if device is None:
+        device = pyredner.get_device()
+
     size *= 2
 
     # Generate vertices and uv by going through each vertex.
@@ -150,7 +158,7 @@ def generate_geometry_image(size: int):
                 indices.append((left_top, left_bottom, right_top))
                 indices.append((right_top, left_bottom, right_bottom))
 
-    vertices = torch.tensor(vertices, dtype = torch.float32, device = pyredner.get_device())
-    uvs = torch.tensor(uvs, dtype = torch.float32, device = pyredner.get_device())
-    indices = torch.tensor(indices, dtype = torch.int32, device = pyredner.get_device())
+    vertices = torch.tensor(vertices, dtype = torch.float32, device = device)
+    uvs = torch.tensor(uvs, dtype = torch.float32, device = device)
+    indices = torch.tensor(indices, dtype = torch.int32, device = device)
     return vertices, indices, uvs

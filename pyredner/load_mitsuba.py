@@ -5,6 +5,7 @@ import redner
 import os
 import pyredner
 import pyredner.transform as transform
+from typing import Optional
 
 def parse_transform(node):
     ret = torch.eye(4)
@@ -78,7 +79,7 @@ def parse_camera(node):
                            clip_near    = clip_near,
                            resolution   = resolution)
 
-def parse_material(node, two_sided = False):
+def parse_material(node, device, two_sided = False):
 
     def parse_material_bitmap(node, scale = None):
         reflectance_texture = None
@@ -93,8 +94,7 @@ def parse_material(node, two_sided = False):
             elif grandchild.attrib['name'] == 'vscale':
                 uv_scale[1] = float(grandchild.attrib['value'])
         assert reflectance_texture is not None
-        if pyredner.get_use_gpu():
-            uv_scale = uv_scale.cuda(device = pyredner.get_device())
+        uv_scale = uv_scale.to(device = device)
         return reflectance_texture, uv_scale
     
     # support mitsuba pulgin 'scale' for texture
@@ -140,13 +140,11 @@ def parse_material(node, two_sided = False):
                         specular_reflectance = pyredner.srgb_to_linear(specular_reflectance)
             elif child.attrib['name'] == 'roughness':
                 roughness = torch.tensor([float(child.attrib['value'])])
-        if pyredner.get_use_gpu():
-            # Copy to GPU
-            diffuse_reflectance = diffuse_reflectance.cuda(device=pyredner.get_device())
-            specular_reflectance = specular_reflectance.cuda(device=pyredner.get_device())
-            roughness = roughness.cuda(device=pyredner.get_device())
-            diffuse_uv_scale = diffuse_uv_scale.cuda(device = pyredner.get_device())
-            specular_uv_scale = specular_uv_scale.cuda(device = pyredner.get_device())
+        diffuse_reflectance = diffuse_reflectance.to(device = device)
+        specular_reflectance = specular_reflectance.to(device = device)
+        roughness = roughness.to(device = device)
+        diffuse_uv_scale = diffuse_uv_scale.to(device = device)
+        specular_uv_scale = specular_uv_scale.to(device = device)
         return (node_id, pyredner.Material(\
                 diffuse_reflectance = pyredner.Texture(diffuse_reflectance, diffuse_uv_scale),
                 specular_reflectance = pyredner.Texture(specular_reflectance, specular_uv_scale),
@@ -182,31 +180,29 @@ def parse_material(node, two_sided = False):
                 elif child.tag == 'float':
                     alpha = float(child.attrib['value'])
                     roughness = torch.tensor([alpha * alpha])
-        if pyredner.get_use_gpu():
-            # Copy to GPU
-            diffuse_reflectance = diffuse_reflectance.cuda(device=pyredner.get_device())
-            specular_reflectance = specular_reflectance.cuda(device=pyredner.get_device())
-            roughness = roughness.cuda(device=pyredner.get_device())
-            diffuse_uv_scale = diffuse_uv_scale.cuda(device = pyredner.get_device())
-            specular_uv_scale = specular_uv_scale.cuda(device = pyredner.get_device())
-            roughness_uv_scale = roughness_uv_scale.cuda(device = pyredner.get_device())
+        diffuse_reflectance = diffuse_reflectance.to(device = device)
+        specular_reflectance = specular_reflectance.to(device = device)
+        roughness = roughness.to(device = device)
+        diffuse_uv_scale = diffuse_uv_scale.to(device = device)
+        specular_uv_scale = specular_uv_scale.to(device = device)
+        roughness_uv_scale = roughness_uv_scale.to(device = device)
         return (node_id, pyredner.Material(\
                 diffuse_reflectance = pyredner.Texture(diffuse_reflectance, diffuse_uv_scale),
                 specular_reflectance = pyredner.Texture(specular_reflectance, specular_uv_scale),
                 roughness = pyredner.Texture(roughness, roughness_uv_scale),
                 two_sided = two_sided))
     elif node.attrib['type'] == 'twosided':
-        ret = parse_material(node[0], True)
+        ret = parse_material(node[0], device, True)
         return (node_id, ret[1])
     # Simply bypass mask's opacity
     elif node.attrib['type'] == 'mask': #TODO add opacity!!!
-        ret = parse_material(node[0])
+        ret = parse_material(node[0], device)
         return (node_id, ret[1])
     else:
         print('Unsupported material type:', node.attrib['type'])
         assert(False)
 
-def parse_shape(node, material_dict, shape_id, shape_group_dict = None):
+def parse_shape(node, material_dict, shape_id, device, shape_group_dict = None):
     if node.attrib['type'] == 'obj' or node.attrib['type'] == 'serialized':
         to_world = torch.eye(4)
         serialized_shape_id = 0
@@ -237,20 +233,14 @@ def parse_shape(node, material_dict, shape_id, shape_group_dict = None):
                                           light_intensity[0]])
 
         if node.attrib['type'] == 'obj':
-            _, mesh_list, _ = pyredner.load_obj(filename, obj_group = False)
-            # Convert to CPU for rebuild_topology
-            vertices = mesh_list[0][1].vertices.cpu()
-            indices = mesh_list[0][1].indices.cpu()
+            # Load in CPU for rebuild_topology
+            _, mesh_list, _ = pyredner.load_obj(filename, obj_group = False, device = torch.device('cpu'))
+            vertices = mesh_list[0][1].vertices
+            indices = mesh_list[0][1].indices
             uvs = mesh_list[0][1].uvs
             normals = mesh_list[0][1].normals
             uv_indices = mesh_list[0][1].uv_indices
             normal_indices = mesh_list[0][1].normal_indices
-            if uvs is not None:
-                uvs = uvs.cpu()
-            if normals is not None:
-                normals = normals.cpu()
-            if uv_indices is not None:
-                uv_indices = uv_indices.cpu()
         else:
             assert(node.attrib['type'] == 'serialized')
             mitsuba_tri_mesh = redner.load_serialized(filename, serialized_shape_id)
@@ -299,18 +289,16 @@ def parse_shape(node, material_dict, shape_id, shape_group_dict = None):
         if light_intensity is not None:
             lgt = pyredner.AreaLight(shape_id, light_intensity)
 
-        if pyredner.get_use_gpu():
-            # Copy to GPU
-            vertices = vertices.cuda(device=pyredner.get_device())
-            indices = indices.cuda(device=pyredner.get_device())
-            if uvs is not None:
-                uvs = uvs.cuda(device=pyredner.get_device())
-            if normals is not None:
-                normals = normals.cuda(device=pyredner.get_device())
-            if uv_indices is not None:
-                uv_indices = uv_indices.cuda(device=pyredner.get_device())
-            if normal_indices is not None:
-                normal_indices = normal_indices.cuda(device=pyredner.get_device())
+        vertices = vertices.to(device)
+        indices = indices.to(device)
+        if uvs is not None:
+            uvs = uvs.to(device)
+        if normals is not None:
+            normals = normals.to(device)
+        if uv_indices is not None:
+            uv_indices = uv_indices.to(device)
+        if normal_indices is not None:
+            normal_indices = normal_indices.to(device)
         return pyredner.Shape(vertices,
                               indices,
                               uvs=uvs,
@@ -360,14 +348,12 @@ def parse_shape(node, material_dict, shape_id, shape_group_dict = None):
         if light_intensity is not None:
             lgt = pyredner.AreaLight(shape_id, light_intensity)
 
-        if pyredner.get_use_gpu():
-            # Copy to GPU
-            vertices = vertices.cuda(device=pyredner.get_device())
-            indices = indices.cuda(device=pyredner.get_device())
-            if uvs is not None:
-                uvs = uvs.cuda(device=pyredner.get_device())
-            if normals is not None:
-                normals = normals.cuda(device=pyredner.get_device())
+        vertices = vertices.to(device)
+        indices = indices.to(device)
+        if uvs is not None:
+            uvs = uvs.to(device)
+        if normals is not None:
+            normals = normals.to(device)
         return pyredner.Shape(vertices, indices, uvs=uvs, normals=normals, material_id=mat_id), lgt
     # Add instance support 
     # TODO (simply transform & create a new shape now)
@@ -377,15 +363,14 @@ def parse_shape(node, material_dict, shape_id, shape_group_dict = None):
             if 'name' in child.attrib:
                 if child.attrib['name'] == 'toWorld':
                     to_world = parse_transform(child)
-                    if pyredner.get_use_gpu():
-                        to_world = to_world.cuda()
             if child.tag == 'ref':
                 shape = shape_group_dict[child.attrib['id']]
         # transform instance
         vertices = shape.vertices
         normals = shape.normals
-        vector1 = torch.ones(vertices.shape[0], 1)
-        vertices = torch.cat((vertices, vector1.cuda() if pyredner.get_use_gpu() else vector1), dim = 1)
+        vector1 = torch.ones(vertices.shape[0], 1, device = vertices.device)
+        to_world = to_world.to(vertices.device)
+        vertices = torch.cat((vertices, vector1), dim = 1)
         vertices = vertices @ torch.transpose(to_world, 0, 1)
         vertices = vertices / vertices[:, 3:4]
         vertices = vertices[:, 0:3].contiguous()
@@ -403,7 +388,7 @@ def parse_shape(node, material_dict, shape_id, shape_group_dict = None):
         print('Shape type {} is not supported!'.format(node.attrib['type']))
         assert(False)
 
-def parse_scene(node):
+def parse_scene(node, device):
     cam = None
     resolution = None
     materials = []
@@ -417,7 +402,7 @@ def parse_scene(node):
         if child.tag == 'sensor':
             cam = parse_camera(child)
         elif child.tag == 'bsdf':
-            node_id, material = parse_material(child)
+            node_id, material = parse_material(child, device)
             if node_id is not None:
                 material_dict[node_id] = len(materials)
                 materials.append(material)
@@ -447,21 +432,34 @@ def parse_scene(node):
                 if child_s.attrib['name'] == 'toWorld':
                     to_world = parse_transform(child_s)
             # load envmap
-            envmap = scale * pyredner.imread(envmap_filename)
-            if pyredner.get_use_gpu():
-                envmap = envmap.cuda()
+            envmap = scale * pyredner.imread(envmap_filename).to(device)
             envmap = pyredner.EnvironmentMap(envmap, env_to_world=to_world)
     return pyredner.Scene(cam, shapes, materials, lights, envmap)
 
-def load_mitsuba(filename):
+def load_mitsuba(filename: str,
+                 device: Optional[torch.device] = None):
     """
         Load from a Mitsuba scene file as PyTorch tensors.
+
+        Args
+        ====
+        filename: str
+            Path to the Mitsuba scene file.
+        device: Optional[torch.device]
+            Which device should we store the data in.
+            If set to None, use the device from pyredner.get_device().
+
+        Returns
+        =======
+        pyredner.Scene
     """
+    if device is None:
+        device = pyredner.get_device()
 
     tree = etree.parse(filename)
     root = tree.getroot()
     cwd = os.getcwd()
     os.chdir(os.path.dirname(filename))
-    ret = parse_scene(root)
+    ret = parse_scene(root, device)
     os.chdir(cwd)
     return ret

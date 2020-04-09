@@ -2,6 +2,7 @@ import torch
 import re
 import pyredner
 import os
+from typing import Optional
 
 class WavefrontMaterial:
     def __init__(self):
@@ -63,23 +64,29 @@ def load_obj(filename: str,
              obj_group: bool = True,
              flip_tex_coords: bool = True,
              use_common_indices: bool = False,
-             return_objects: bool = False):
+             return_objects: bool = False,
+             device: Optional[torch.device] = None):
     """
         Load from a Wavefront obj file as PyTorch tensors.
 
         Args
         ====
+        filename: str
+            Path to the obj file.
         obj_group: bool
-            split the meshes based on materials
+            Split the meshes based on materials.
         flip_tex_coords: bool
-            flip the v coordinate of uv by applying v' = 1 - v
+            Flip the v coordinate of uv by applying v' = 1 - v.
         use_common_indices: bool
             Use the same indices for position, uvs, normals.
-            Not recommended since texture seams in the objects sharing
-            the same positions would cause the optimization to "tear" the object
+            Not recommended since texture seams in the objects sharing.
+            The same positions would cause the optimization to "tear" the object.
         return_objects: bool
             Output list of Object instead.
             If there is no corresponding material for a shape, assign a grey material.
+        device: Optional[torch.device]
+            Which device should we store the data in.
+            If set to None, use the device from pyredner.get_device().
 
         Returns
         =======
@@ -89,6 +96,9 @@ def load_obj(filename: str,
         mesh_list -> List[TriangleMesh]
         light_map -> Map[mtl_name, torch.Tensor]
     """
+    if device is None:
+        device = pyredner.get_device()
+
     vertices_pool = []
     uvs_pool = []
     normals_pool = []
@@ -111,24 +121,24 @@ def load_obj(filename: str,
                     vertices,
                     uvs,
                     normals):
-        indices = torch.tensor(indices, dtype = torch.int32, device = pyredner.get_device())
+        indices = torch.tensor(indices, dtype = torch.int32, device = device)
         if len(uv_indices) == 0:
             uv_indices = None
         else:
-            uv_indices = torch.tensor(uv_indices, dtype = torch.int32, device = pyredner.get_device())
+            uv_indices = torch.tensor(uv_indices, dtype = torch.int32, device = device)
         if len(normal_indices) == 0:
             normal_indices = None
         else:
-            normal_indices = torch.tensor(normal_indices, dtype = torch.int32, device = pyredner.get_device())
-        vertices = torch.tensor(vertices, device = pyredner.get_device())
+            normal_indices = torch.tensor(normal_indices, dtype = torch.int32, device = device)
+        vertices = torch.tensor(vertices, device = device)
         if len(uvs) == 0:
             uvs = None
         else:
-            uvs = torch.tensor(uvs, device = pyredner.get_device())
+            uvs = torch.tensor(uvs, device = device)
         if len(normals) == 0:
             normals = None
         else:
-            normals = torch.tensor(normals, device = pyredner.get_device())
+            normals = torch.tensor(normals, device = device)
         return TriangleMesh(indices,
                             uv_indices,
                             normal_indices,
@@ -171,25 +181,25 @@ def load_obj(filename: str,
                     m = current_mtllib[mtl_name]
                     if m.map_Kd is None:
                         diffuse_reflectance = torch.tensor(m.Kd,
-                            dtype = torch.float32, device = pyredner.get_device())
+                            dtype = torch.float32, device = device)
                     else:
                         diffuse_reflectance = pyredner.imread(m.map_Kd)
                         if pyredner.get_use_gpu():
-                            diffuse_reflectance = diffuse_reflectance.cuda(device = pyredner.get_device())
+                            diffuse_reflectance = diffuse_reflectance.cuda(device = device)
                     if m.map_Ks is None:
                         specular_reflectance = torch.tensor(m.Ks,
-                            dtype = torch.float32, device = pyredner.get_device())
+                            dtype = torch.float32, device = device)
                     else:
                         specular_reflectance = pyredner.imread(m.map_Ks)
                         if pyredner.get_use_gpu():
-                            specular_reflectance = specular_reflectance.cuda(device = pyredner.get_device())
+                            specular_reflectance = specular_reflectance.cuda(device = device)
                     if m.map_Ns is None:
                         roughness = torch.tensor([2.0 / (m.Ns + 2.0)],
-                            dtype = torch.float32, device = pyredner.get_device())
+                            dtype = torch.float32, device = device)
                     else:
                         roughness = 2.0 / (pyredner.imread(m.map_Ks) + 2.0)
                         if pyredner.get_use_gpu():
-                            roughness = roughness.cuda(device = pyredner.get_device())
+                            roughness = roughness.cuda(device = device)
                     if m.Ke != (0.0, 0.0, 0.0):
                         light_map[mtl_name] = torch.tensor(m.Ke, dtype = torch.float32)
                     material_map[mtl_name] = pyredner.Material(\
@@ -301,8 +311,7 @@ def load_obj(filename: str,
                 m = material_map[mtl_name]
             else:
                 m = pyredner.Material(diffuse_reflectance = \
-                    torch.tensor((0.5, 0.5, 0.5),
-                                 device = pyredner.get_device()))
+                    torch.tensor((0.5, 0.5, 0.5), device = device))
             if mtl_name in light_map:
                 l = light_map[mtl_name]
             else:

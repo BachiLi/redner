@@ -14,13 +14,13 @@ class AmbientLight(DeferredLight):
     """
     def __init__(self,
                  intensity: torch.Tensor):
-        self.intensity = intensity.to(pyredner.get_device())
+        self.intensity = intensity
 
     def render(self,
                position: torch.Tensor,
                normal: torch.Tensor,
                albedo: torch.Tensor):
-        return self.intensity * albedo
+        return self.intensity.to(albedo.device) * albedo
 
 class PointLight(DeferredLight):
     """
@@ -29,14 +29,14 @@ class PointLight(DeferredLight):
     def __init__(self,
                  position: torch.Tensor,
                  intensity: torch.Tensor):
-        self.position = position.to(pyredner.get_device())
-        self.intensity = intensity.to(pyredner.get_device())
+        self.position = position
+        self.intensity = intensity
 
     def render(self,
                position: torch.Tensor,
                normal: torch.Tensor,
                albedo: torch.Tensor):
-        light_dir = self.position - position
+        light_dir = self.position.to(position.device) - position
         # the d^2 term:
         light_dist_sq = torch.sum(light_dir * light_dir, dim = -1, keepdim = True)
         light_dist = torch.sqrt(light_dist_sq)
@@ -44,7 +44,7 @@ class PointLight(DeferredLight):
         light_dir = light_dir / light_dist
         dot_l_n = torch.sum(light_dir * normal, dim = -1, keepdim = True)
         dot_l_n = torch.max(dot_l_n, torch.zeros_like(dot_l_n))
-        return self.intensity * dot_l_n * (albedo / math.pi) / light_dist_sq 
+        return self.intensity.to(dot_l_n.device) * dot_l_n * (albedo / math.pi) / light_dist_sq 
 
 class DirectionalLight(DeferredLight):
     """
@@ -53,8 +53,8 @@ class DirectionalLight(DeferredLight):
     def __init__(self,
                  direction: torch.Tensor,
                  intensity: torch.Tensor):
-        self.direction = direction.to(pyredner.get_device())
-        self.intensity = intensity.to(pyredner.get_device())
+        self.direction = direction
+        self.intensity = intensity
 
     def render(self,
                position: torch.Tensor,
@@ -63,9 +63,10 @@ class DirectionalLight(DeferredLight):
         # Normalize light direction
         light_dir = -self.direction / torch.norm(self.direction)
         light_dir = light_dir.view(1, 1, 3)
+        light_dir = light_dir.to(normal.device)
         dot_l_n = torch.sum(light_dir * normal, dim = -1, keepdim = True)
         dot_l_n = torch.max(dot_l_n, torch.zeros_like(dot_l_n))
-        return self.intensity * dot_l_n * (albedo / math.pi)
+        return self.intensity.to(dot_l_n.device) * dot_l_n * (albedo / math.pi)
 
 class SpotLight(DeferredLight):
     """
@@ -78,33 +79,35 @@ class SpotLight(DeferredLight):
                  spot_direction: torch.Tensor,
                  spot_exponent: torch.Tensor,
                  intensity: torch.Tensor):
-        self.position = position.to(pyredner.get_device())
-        self.spot_direction = spot_direction.to(pyredner.get_device())
-        self.spot_exponent = spot_exponent.to(pyredner.get_device())
-        self.intensity = intensity.to(pyredner.get_device())
+        self.position = position
+        self.spot_direction = spot_direction
+        self.spot_exponent = spot_exponent
+        self.intensity = intensity
 
     def render(self,
                position: torch.Tensor,
                normal: torch.Tensor,
                albedo: torch.Tensor):
-        light_dir = self.position - position
+        light_dir = self.position.to(position.device) - position
         # Normalize light direction
         light_dir = light_dir / torch.norm(light_dir, dim = -1, keepdim = True)
         # Normalize spot direction
         spot_direction = -self.spot_direction / torch.norm(self.spot_direction)
+        spot_direction = spot_direction.to(light_dir.device)
         spot_cosine = torch.sum(light_dir * spot_direction, dim = -1, keepdim = True)
         spot_cosine = torch.max(spot_cosine, torch.zeros_like(spot_cosine))
-        spot_factor = torch.pow(spot_cosine, self.spot_exponent)
+        spot_factor = torch.pow(spot_cosine, self.spot_exponent.to(spot_cosine.device))
         dot_l_n = torch.sum(light_dir * normal, dim = -1, keepdim = True)
         dot_l_n = torch.max(dot_l_n, torch.zeros_like(dot_l_n))
-        return self.intensity * spot_factor * dot_l_n * (albedo / math.pi)
+        return self.intensity.to(spot_factor.device) * spot_factor * dot_l_n * (albedo / math.pi)
 
 def render_deferred(scene: Union[pyredner.Scene, List[pyredner.Scene]],
                     lights: Union[List[DeferredLight], List[List[DeferredLight]]],
                     alpha: bool = False,
                     aa_samples: int = 2,
                     seed: Optional[Union[int, List[int]]] = None,
-                    sample_pixel_center: bool = False):
+                    sample_pixel_center: bool = False,
+                    device: Optional[torch.device] = None):
     """
         Render the scenes using `deferred rendering <https://en.wikipedia.org/wiki/Deferred_shading>`_.
         We generate G-buffer images containing world-space position,
@@ -140,6 +143,9 @@ def render_deferred(scene: Union[pyredner.Scene, List[pyredner.Scene]],
             If this option is activated, the rendering becomes non-differentiable
             (since there is no antialiasing integral),
             and redner's edge sampling becomes an approximation to the gradients of the aliased rendering.
+        device: Optional[torch.device]
+            Which device should we store the data in.
+            If set to None, use the device from pyredner.get_device().
 
         Returns
         =======
@@ -149,6 +155,9 @@ def render_deferred(scene: Union[pyredner.Scene, List[pyredner.Scene]],
             | if alpha == True, C = 4.
             | else, C = 3.
     """
+    if device is None:
+        device = pyredner.get_device()
+
     channels = [redner.channels.position,
                 redner.channels.shading_normal,
                 redner.channels.diffuse_reflectance]
@@ -169,14 +178,15 @@ def render_deferred(scene: Union[pyredner.Scene, List[pyredner.Scene]],
             sampler_type = redner.SamplerType.sobol,
             channels = channels,
             use_secondary_edge_sampling = False,
-            sample_pixel_center = sample_pixel_center)
+            sample_pixel_center = sample_pixel_center,
+            device = device)
         # Need to revert the resolution back
         scene.camera.resolution = org_res
         g_buffer = pyredner.RenderFunction.apply(seed, *scene_args)
         pos = g_buffer[:, :, :3]
         normal = g_buffer[:, :, 3:6]
         albedo = g_buffer[:, :, 6:9]
-        img = torch.zeros(g_buffer.shape[0], g_buffer.shape[1], 3, device = pyredner.get_device())
+        img = torch.zeros(g_buffer.shape[0], g_buffer.shape[1], 3, device = device)
         for light in lights:
             img = img + light.render(pos, normal, albedo)
         if alpha:
@@ -215,7 +225,8 @@ def render_deferred(scene: Union[pyredner.Scene, List[pyredner.Scene]],
                     sampler_type = redner.SamplerType.sobol,
                     channels = channels,
                     use_secondary_edge_sampling = False,
-                    sample_pixel_center = sample_pixel_center)
+                    sample_pixel_center = sample_pixel_center,
+                    device = device)
                 # Need to revert the resolution back
                 sc.camera.resolution = org_res
                 g_buffers.append(pyredner.RenderFunction.apply(se, *scene_args))
@@ -227,7 +238,7 @@ def render_deferred(scene: Union[pyredner.Scene, List[pyredner.Scene]],
                                g_buffers.shape[1],
                                g_buffers.shape[2],
                                3,
-                               device = pyredner.get_device())
+                               device = device)
             for light in lights:
                 imgs = imgs + light.render(pos, normal, albedo)
             if alpha:
@@ -249,7 +260,8 @@ def render_deferred(scene: Union[pyredner.Scene, List[pyredner.Scene]],
                     sampler_type = redner.SamplerType.sobol,
                     channels = channels,
                     use_secondary_edge_sampling = False,
-                    sample_pixel_center = sample_pixel_center)
+                    sample_pixel_center = sample_pixel_center,
+                    device = device)
                 # Need to revert the resolution back
                 sc.camera.resolution = org_res
                 g_buffer = pyredner.RenderFunction.apply(se, *scene_args)
@@ -259,7 +271,7 @@ def render_deferred(scene: Union[pyredner.Scene, List[pyredner.Scene]],
                 img = torch.zeros(g_buffer.shape[0],
                                   g_buffer.shape[1],
                                   3,
-                                  device = pyredner.get_device())
+                                  device = device)
                 for light in lgts:
                     img = img + light.render(pos, normal, albedo)
                 if alpha:
@@ -280,7 +292,8 @@ def render_generic(scene: pyredner.Scene,
                    sampler_type = pyredner.sampler_type.sobol,
                    num_samples: Union[int, Tuple[int, int]] = (4, 4),
                    seed: Optional[int] = None,
-                   sample_pixel_center: bool = False):
+                   sample_pixel_center: bool = False,
+                   device: Optional[torch.device] = None):
     """
         A generic rendering function that can be either pathtracing or
         g-buffer rendering or both.
@@ -329,6 +342,9 @@ def render_generic(scene: pyredner.Scene,
             If this option is activated, the rendering becomes non-differentiable
             (since there is no antialiasing integral),
             and redner's edge sampling becomes an approximation to the gradients of the aliased rendering.
+        device: Optional[torch.device]
+            Which device should we store the data in.
+            If set to None, use the device from pyredner.get_device().
 
         Returns
         =======
@@ -336,6 +352,9 @@ def render_generic(scene: pyredner.Scene,
             | if input scene is a list: a tensor with size [N, H, W, C], N is the list size
             | else: a tensor with size [H, W, C]
     """
+    if device is None:
+        device = pyredner.get_device()
+
     if isinstance(scene, pyredner.Scene):
         if seed==None:
             seed = random.randint(0, 16777216)
@@ -345,7 +364,8 @@ def render_generic(scene: pyredner.Scene,
             max_bounces = max_bounces,
             sampler_type = sampler_type,
             channels = channels,
-            sample_pixel_center = sample_pixel_center)
+            sample_pixel_center = sample_pixel_center,
+            device = device)
         return pyredner.RenderFunction.apply(seed, *scene_args)
     else:
         assert(isinstance(scene, list))
@@ -364,7 +384,8 @@ def render_generic(scene: pyredner.Scene,
                 max_bounces = max_bounces,
                 sampler_type = sampler_type,
                 channels = channels,
-                sample_pixel_center = sample_pixel_center)
+                sample_pixel_center = sample_pixel_center,
+                device = device)
             imgs.append(pyredner.RenderFunction.apply(se, *scene_args))
         imgs = torch.stack(imgs)
         return imgs
@@ -373,7 +394,8 @@ def render_g_buffer(scene: Union[pyredner.Scene, List[pyredner.Scene]],
                     channels: List,
                     num_samples: Union[int, Tuple[int, int]] = (1, 1),
                     seed: Optional[Union[int, List[int]]] = None,
-                    sample_pixel_center: bool = False):
+                    sample_pixel_center: bool = False,
+                    device: Optional[torch.device] = None):
     """
         Render G buffers from the scene.
 
@@ -413,6 +435,9 @@ def render_g_buffer(scene: Union[pyredner.Scene, List[pyredner.Scene]],
             If this option is activated, the rendering becomes non-differentiable
             (since there is no antialiasing integral),
             and redner's edge sampling becomes an approximation to the gradients of the aliased rendering.
+        device: Optional[torch.device]
+            Which device should we store the data in.
+            If set to None, use the device from pyredner.get_device().
 
         Returns
         =======
@@ -426,7 +451,8 @@ def render_g_buffer(scene: Union[pyredner.Scene, List[pyredner.Scene]],
                           sampler_type = redner.SamplerType.sobol,
                           num_samples = num_samples,
                           seed = seed,
-                          sample_pixel_center = sample_pixel_center)
+                          sample_pixel_center = sample_pixel_center,
+                          device = device)
 
 def render_pathtracing(scene: Union[pyredner.Scene, List[pyredner.Scene]],
                        alpha: bool = False,
@@ -434,7 +460,8 @@ def render_pathtracing(scene: Union[pyredner.Scene, List[pyredner.Scene]],
                        sampler_type = pyredner.sampler_type.sobol,
                        num_samples: Union[int, Tuple[int, int]] = (4, 4),
                        seed: Optional[Union[int, List[int]]] = None,
-                       sample_pixel_center: bool = False):
+                       sample_pixel_center: bool = False,
+                       device: Optional[torch.device] = None):
     """
         Render a pyredner scene using pathtracing.
 
@@ -466,6 +493,9 @@ def render_pathtracing(scene: Union[pyredner.Scene, List[pyredner.Scene]],
             If this option is activated, the rendering becomes non-differentiable
             (since there is no antialiasing integral),
             and redner's edge sampling becomes an approximation to the gradients of the aliased rendering.
+        device: Optional[torch.device]
+            Which device should we store the data in.
+            If set to None, use the device from pyredner.get_device().
 
         Returns
         =======
@@ -484,13 +514,15 @@ def render_pathtracing(scene: Union[pyredner.Scene, List[pyredner.Scene]],
                           sampler_type = sampler_type,
                           num_samples = num_samples,
                           seed = seed,
-                          sample_pixel_center = sample_pixel_center)
+                          sample_pixel_center = sample_pixel_center,
+                          device = device)
 
 def render_albedo(scene: Union[pyredner.Scene, List[pyredner.Scene]],
                   alpha: bool = False,
                   num_samples: Union[int, Tuple[int, int]] = (16, 4),
                   seed: Optional[Union[int, List[int]]] = None,
-                  sample_pixel_center: bool = False):
+                  sample_pixel_center: bool = False,
+                  device: Optional[torch.device] = None):
     """
         Render the diffuse albedo colors of the scenes.
 
@@ -518,6 +550,9 @@ def render_albedo(scene: Union[pyredner.Scene, List[pyredner.Scene]],
             If this option is activated, the rendering becomes non-differentiable
             (since there is no antialiasing integral),
             and redner's edge sampling becomes an approximation to the gradients of the aliased rendering.
+        device: Optional[torch.device]
+            Which device should we store the data in.
+            If set to None, use the device from pyredner.get_device().
 
         Returns
         =======
@@ -534,4 +569,5 @@ def render_albedo(scene: Union[pyredner.Scene, List[pyredner.Scene]],
                            channels = channels,
                            num_samples = num_samples,
                            seed = seed,
-                           sample_pixel_center = sample_pixel_center)
+                           sample_pixel_center = sample_pixel_center,
+                           device = device)

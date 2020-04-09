@@ -4,7 +4,8 @@ import redner
 import pyredner
 import time
 import skimage.io
-from typing import List, Union, Tuple
+from typing import List, Union, Tuple, Optional
+import warnings
 
 use_correlated_random_number = False
 def set_use_correlated_random_number(v: bool):
@@ -42,7 +43,7 @@ def get_print_timing():
     global print_timing
     return print_timing
 
-def serialize_texture(texture, args):
+def serialize_texture(texture, args, device):
     if texture is None:
         args.append(0)
         return
@@ -50,9 +51,11 @@ def serialize_texture(texture, args):
     for mipmap in texture.mipmap:
         assert(torch.isfinite(mipmap).all())
         assert(mipmap.is_contiguous())
-        args.append(mipmap.to(pyredner.get_device()))
+        if mipmap.device != device or mipmap.device != device:
+            warnings.warn('Converting texture to {}, this can be inefficient.'.format(device))
+        args.append(mipmap.to(device))
     assert(torch.isfinite(texture.uv_scale).all())
-    args.append(texture.uv_scale.to(pyredner.get_device()))
+    args.append(texture.uv_scale.to(device))
 
 class Context: pass
 
@@ -69,7 +72,8 @@ class RenderFunction(torch.autograd.Function):
                         sampler_type = redner.SamplerType.independent,
                         use_primary_edge_sampling: bool = True,
                         use_secondary_edge_sampling: bool = True,
-                        sample_pixel_center: bool = False):
+                        sample_pixel_center: bool = False,
+                        device: Optional[torch.device] = None):
         """
             Given a pyredner scene & rendering options, convert them to a linear list of argument,
             so that we can use it in PyTorch.
@@ -121,7 +125,14 @@ class RenderFunction(torch.autograd.Function):
                 If this option is activated, the rendering becomes non-differentiable
                 (since there is no antialiasing integral),
                 and redner's edge sampling becomes an approximation to the gradients of the aliased rendering.
+
+            device: Optional[torch.device]
+                Which device should we store the data in.
+                If set to None, use the device from pyredner.get_device().
         """
+        if device is None:
+            device = pyredner.get_device()
+
         # Record if there is any parameter that requires gradient need discontinuity sampling.
         # For skipping edge sampling when it is not necessary.
         requires_visibility_grad = False
@@ -195,21 +206,23 @@ class RenderFunction(torch.autograd.Function):
                 assert(torch.isfinite(shape.normals).all())
             if (shape.vertices.requires_grad):
                 requires_visibility_grad = True
-            args.append(shape.vertices.to(pyredner.get_device()))
-            args.append(shape.indices.to(pyredner.get_device()))
-            args.append(shape.uvs.to(pyredner.get_device()) if shape.uvs is not None else None)
-            args.append(shape.normals.to(pyredner.get_device()) if shape.normals is not None else None)
-            args.append(shape.uv_indices.to(pyredner.get_device()) if shape.uv_indices is not None else None)
-            args.append(shape.normal_indices.to(pyredner.get_device()) if shape.normal_indices is not None else None)
-            args.append(shape.colors.to(pyredner.get_device()) if shape.colors is not None else None)
+            if shape.vertices.device != device or shape.indices.device != device:
+                warnings.warn('Converting shape vertices or indices to {}, this can be inefficient.'.format(device))
+            args.append(shape.vertices.to(device))
+            args.append(shape.indices.to(device))
+            args.append(shape.uvs.to(device) if shape.uvs is not None else None)
+            args.append(shape.normals.to(device) if shape.normals is not None else None)
+            args.append(shape.uv_indices.to(device) if shape.uv_indices is not None else None)
+            args.append(shape.normal_indices.to(device) if shape.normal_indices is not None else None)
+            args.append(shape.colors.to(device) if shape.colors is not None else None)
             args.append(shape.material_id)
             args.append(shape.light_id)
         for material in scene.materials:
-            serialize_texture(material.diffuse_reflectance, args)
-            serialize_texture(material.specular_reflectance, args)
-            serialize_texture(material.roughness, args)
-            serialize_texture(material.generic_texture, args)
-            serialize_texture(material.normal_map, args)
+            serialize_texture(material.diffuse_reflectance, args, device)
+            serialize_texture(material.specular_reflectance, args, device)
+            serialize_texture(material.roughness, args, device)
+            serialize_texture(material.generic_texture, args, device)
+            serialize_texture(material.normal_map, args, device)
             args.append(material.compute_specular_lighting)
             args.append(material.two_sided)
             args.append(material.use_vertex_color)
@@ -223,11 +236,11 @@ class RenderFunction(torch.autograd.Function):
             assert(torch.isfinite(scene.envmap.world_to_env).all())
             assert(torch.isfinite(scene.envmap.sample_cdf_ys).all())
             assert(torch.isfinite(scene.envmap.sample_cdf_xs).all())
-            serialize_texture(scene.envmap.values, args)
+            serialize_texture(scene.envmap.values, args, device)
             args.append(scene.envmap.env_to_world.cpu())
             args.append(scene.envmap.world_to_env.cpu())
-            args.append(scene.envmap.sample_cdf_ys.to(pyredner.get_device()))
-            args.append(scene.envmap.sample_cdf_xs.to(pyredner.get_device()))
+            args.append(scene.envmap.sample_cdf_ys.to(device))
+            args.append(scene.envmap.sample_cdf_xs.to(device))
             args.append(scene.envmap.pdf_norm)
             args.append(scene.envmap.directly_visible)
         else:
@@ -245,6 +258,7 @@ class RenderFunction(torch.autograd.Function):
             args.append(False)
             args.append(False)
         args.append(sample_pixel_center)
+        args.append(device)
 
         return args
 
@@ -574,20 +588,25 @@ class RenderFunction(torch.autograd.Function):
         current_index += 1
         sample_pixel_center = args[current_index]
         current_index += 1
+        device = args[current_index]
+        current_index += 1
 
         if use_primary_edge_sampling is None:
             use_primary_edge_sampling = use_primary_edge_sampling_
         if use_secondary_edge_sampling is None:
             use_secondary_edge_sampling = use_secondary_edge_sampling_
 
+        device_index = device.index
+        if device.index is None:
+            device_index = torch.cuda.current_device() if torch.cuda.is_available() else 0
         start = time.time()
         scene = redner.Scene(camera,
                              shapes,
                              materials,
                              area_lights,
                              envmap,
-                             pyredner.get_use_gpu(),
-                             pyredner.get_device().index if pyredner.get_device().index is not None else -1,
+                             device.type == 'cuda',
+                             device_index,
                              use_primary_edge_sampling,
                              use_secondary_edge_sampling)
         time_elapsed = time.time() - start
@@ -619,6 +638,7 @@ class RenderFunction(torch.autograd.Function):
         ctx.scene = scene
         ctx.options = options
         ctx.num_samples = num_samples
+        ctx.device = device
 
         return ctx
 
@@ -642,13 +662,13 @@ class RenderFunction(torch.autograd.Function):
         viewport = args_ctx.viewport
         scene = args_ctx.scene
         shapes = args_ctx.shapes
+        device = args_ctx.device
 
         num_channels = redner.compute_num_channels(channels,
                                                    scene.max_generic_texture_dimension)
         img_height = viewport[2] - viewport[0]
         img_width = viewport[3] - viewport[1]
-        rendered_image = torch.zeros(img_height, img_width, num_channels,
-            device = pyredner.get_device())
+        rendered_image = torch.zeros(img_height, img_width, num_channels, device = device)
         start = time.time()
         redner.render(scene,
                       options,
@@ -669,6 +689,7 @@ class RenderFunction(torch.autograd.Function):
         ctx.scene = scene
         ctx.options = options
         ctx.num_samples = num_samples
+        ctx.device = device
         ctx.args = args # Important to prevent GC from deallocating the tensors
         return rendered_image
 
@@ -677,26 +698,27 @@ class RenderFunction(torch.autograd.Function):
         scene = ctx.scene
         options = ctx.options
         camera = ctx.camera
+        device = ctx.device
 
         buffers = Context()
 
         if camera.use_look_at:
-            buffers.d_cam_position = torch.zeros(3, device = pyredner.get_device())
-            buffers.d_cam_look = torch.zeros(3, device = pyredner.get_device())
-            buffers.d_cam_up = torch.zeros(3, device = pyredner.get_device())
+            buffers.d_cam_position = torch.zeros(3, device = device)
+            buffers.d_cam_look = torch.zeros(3, device = device)
+            buffers.d_cam_up = torch.zeros(3, device = device)
             buffers.d_cam_to_world = None
             buffers.d_world_to_cam = None
         else:
             buffers.d_cam_position = None
             buffers.d_cam_look = None
             buffers.d_cam_up = None
-            buffers.d_cam_to_world = torch.zeros(4, 4, device = pyredner.get_device())
-            buffers.d_world_to_cam = torch.zeros(4, 4, device = pyredner.get_device())
-        buffers.d_intrinsic_mat_inv = torch.zeros(3, 3, device = pyredner.get_device())
-        buffers.d_intrinsic_mat = torch.zeros(3, 3, device = pyredner.get_device())
+            buffers.d_cam_to_world = torch.zeros(4, 4, device = device)
+            buffers.d_world_to_cam = torch.zeros(4, 4, device = device)
+        buffers.d_intrinsic_mat_inv = torch.zeros(3, 3, device = device)
+        buffers.d_intrinsic_mat = torch.zeros(3, 3, device = device)
         buffers.d_distortion_params = None
         if camera.has_distortion_params():
-            buffers.d_distortion_params = torch.zeros(8, device = pyredner.get_device())
+            buffers.d_distortion_params = torch.zeros(8, device = device)
         if camera.use_look_at:
             buffers.d_camera = redner.DCamera(\
                 redner.float_ptr(buffers.d_cam_position.data_ptr()),
@@ -726,14 +748,13 @@ class RenderFunction(torch.autograd.Function):
             num_vertices = shape.num_vertices
             num_uv_vertices = shape.num_uv_vertices
             num_normal_vertices = shape.num_normal_vertices
-            d_vertices = torch.zeros(num_vertices, 3,
-                device = pyredner.get_device())
+            d_vertices = torch.zeros(num_vertices, 3, device = device)
             d_uvs = torch.zeros(num_uv_vertices, 2,
-                device = pyredner.get_device()) if shape.has_uvs() else None
+                device = device) if shape.has_uvs() else None
             d_normals = torch.zeros(num_normal_vertices, 3,
-                device = pyredner.get_device()) if shape.has_normals() else None
+                device = device) if shape.has_normals() else None
             d_colors = torch.zeros(num_vertices, 3,
-                device = pyredner.get_device()) if shape.has_colors() else None
+                device = device) if shape.has_colors() else None
             buffers.d_vertices_list.append(d_vertices)
             buffers.d_uvs_list.append(d_uvs)
             buffers.d_normals_list.append(d_normals)
@@ -757,7 +778,7 @@ class RenderFunction(torch.autograd.Function):
         buffers.d_materials = []
         for material in ctx.materials:
             if material.get_diffuse_size(0)[0] == 0:
-                d_diffuse = [torch.zeros(3, device = pyredner.get_device())]
+                d_diffuse = [torch.zeros(3, device = device)]
             else:
                 d_diffuse = []
                 for l in range(material.get_diffuse_levels()):
@@ -765,10 +786,10 @@ class RenderFunction(torch.autograd.Function):
                     d_diffuse.append(\
                         torch.zeros(diffuse_size[1],
                                     diffuse_size[0],
-                                    3, device = pyredner.get_device()))
+                                    3, device = device))
 
             if material.get_specular_size(0)[0] == 0:
-                d_specular = [torch.zeros(3, device = pyredner.get_device())]
+                d_specular = [torch.zeros(3, device = device)]
             else:
                 d_specular = []
                 for l in range(material.get_specular_levels()):
@@ -776,10 +797,10 @@ class RenderFunction(torch.autograd.Function):
                     d_specular.append(\
                         torch.zeros(specular_size[1],
                                     specular_size[0],
-                                    3, device = pyredner.get_device()))
+                                    3, device = device))
 
             if material.get_roughness_size(0)[0] == 0:
-                d_roughness = [torch.zeros(1, device = pyredner.get_device())]
+                d_roughness = [torch.zeros(1, device = device)]
             else:
                 d_roughness = []
                 for l in range(material.get_roughness_levels()):
@@ -787,7 +808,7 @@ class RenderFunction(torch.autograd.Function):
                     d_roughness.append(\
                         torch.zeros(roughness_size[1],
                                     roughness_size[0],
-                                    1, device = pyredner.get_device()))
+                                    1, device = device))
 
             if material.get_generic_levels() == 0:
                 d_generic = None
@@ -798,7 +819,7 @@ class RenderFunction(torch.autograd.Function):
                     d_generic.append(\
                         torch.zeros(generic_size[2],
                                     generic_size[1],
-                                    generic_size[0], device = pyredner.get_device()))
+                                    generic_size[0], device = device))
 
             if material.get_normal_map_levels() == 0:
                 d_normal_map = None
@@ -809,27 +830,27 @@ class RenderFunction(torch.autograd.Function):
                     d_normal_map.append(\
                         torch.zeros(normal_map_size[1],
                                     normal_map_size[0],
-                                    3, device = pyredner.get_device()))
+                                    3, device = device))
 
             buffers.d_diffuse_list.append(d_diffuse)
             buffers.d_specular_list.append(d_specular)
             buffers.d_roughness_list.append(d_roughness)
             buffers.d_generic_list.append(d_generic)
             buffers.d_normal_map_list.append(d_normal_map)
-            d_diffuse_uv_scale = torch.zeros(2, device = pyredner.get_device())
-            d_specular_uv_scale = torch.zeros(2, device = pyredner.get_device())
-            d_roughness_uv_scale = torch.zeros(2, device = pyredner.get_device())
+            d_diffuse_uv_scale = torch.zeros(2, device = device)
+            d_specular_uv_scale = torch.zeros(2, device = device)
+            d_roughness_uv_scale = torch.zeros(2, device = device)
             buffers.d_diffuse_uv_scale_list.append(d_diffuse_uv_scale)
             buffers.d_specular_uv_scale_list.append(d_specular_uv_scale)
             buffers.d_roughness_uv_scale_list.append(d_roughness_uv_scale)
             if d_generic is None:
                 d_generic_uv_scale = None
             else:
-                d_generic_uv_scale = torch.zeros(2, device = pyredner.get_device())
+                d_generic_uv_scale = torch.zeros(2, device = device)
             if d_normal_map is None:
                 d_normal_map_uv_scale = None
             else:
-                d_normal_map_uv_scale = torch.zeros(2, device = pyredner.get_device())
+                d_normal_map_uv_scale = torch.zeros(2, device = device)
 
             buffers.d_generic_uv_scale_list.append(d_generic_uv_scale)
             buffers.d_normal_map_uv_scale_list.append(d_normal_map_uv_scale)
@@ -906,7 +927,7 @@ class RenderFunction(torch.autograd.Function):
         buffers.d_intensity_list = []
         buffers.d_area_lights = []
         for light in ctx.area_lights:
-            d_intensity = torch.zeros(3, device = pyredner.get_device())
+            d_intensity = torch.zeros(3, device = device)
             buffers.d_intensity_list.append(d_intensity)
             buffers.d_area_lights.append(\
                 redner.DAreaLight(redner.float_ptr(d_intensity.data_ptr())))
@@ -920,26 +941,29 @@ class RenderFunction(torch.autograd.Function):
                 buffers.d_envmap_values.append(\
                     torch.zeros(size[1],
                                 size[0],
-                                3, device = pyredner.get_device()))
-            buffers.d_envmap_uv_scale = torch.zeros(2, device = pyredner.get_device())
+                                3, device = device))
+            buffers.d_envmap_uv_scale = torch.zeros(2, device = device)
             d_envmap_tex = redner.Texture3(\
                 [redner.float_ptr(x.data_ptr()) for x in buffers.d_envmap_values],
                 [x.shape[1] for x in buffers.d_envmap_values],
                 [x.shape[0] for x in buffers.d_envmap_values],
                 3,
                 redner.float_ptr(buffers.d_envmap_uv_scale.data_ptr()))
-            buffers.d_world_to_env = torch.zeros(4, 4, device = pyredner.get_device())
+            buffers.d_world_to_env = torch.zeros(4, 4, device = device)
             buffers.d_envmap = redner.DEnvironmentMap(\
                 d_envmap_tex,
                 redner.float_ptr(buffers.d_world_to_env.data_ptr()))
 
+        device_index = device.index
+        if device.index is None:
+            device_index = torch.cuda.current_device() if torch.cuda.is_available() else 0
         buffers.d_scene = redner.DScene(buffers.d_camera,
                                         buffers.d_shapes,
                                         buffers.d_materials,
                                         buffers.d_area_lights,
                                         buffers.d_envmap,
-                                        pyredner.get_use_gpu(),
-                                        pyredner.get_device().index if pyredner.get_device().index is not None else -1)
+                                        device.type == 'cuda',
+                                        device_index)
         return buffers
 
     @staticmethod
@@ -989,14 +1013,13 @@ class RenderFunction(torch.autograd.Function):
         img_height = viewport[2] - viewport[0]
         img_width = viewport[3] - viewport[1]
         screen_gradient_image = torch.zeros(\
-            img_height, img_width, 2, device = pyredner.get_device())
+            img_height, img_width, 2, device = device)
         if grad_img is not None:
             assert(grad_img.shape[0] == img_height)
             assert(grad_img.shape[1] == img_width)
             assert(grad_img.shape[2] == num_channels)
         else:
-            grad_img = torch.ones(img_height, img_width, num_channels,
-                device = pyredner.get_device())
+            grad_img = torch.ones(img_height, img_width, num_channels, device = device)
         start = time.time()
         redner.render(scene,
                       options,
@@ -1139,5 +1162,6 @@ class RenderFunction(torch.autograd.Function):
         ret_list.append(None) # use_primary_edge_sampling
         ret_list.append(None) # use_secondary_edge_sampling
         ret_list.append(None) # sample_pixel_center
+        ret_list.append(None) # device
 
         return tuple(ret_list)

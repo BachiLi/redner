@@ -126,7 +126,12 @@ def parse_material(node, two_sided = False):
     elif node.attrib['type'] == 'roughplastic':
         diffuse_reflectance = tf.constant([0.5, 0.5, 0.5])
         diffuse_uv_scale = [1.0, 1.0]
-        specular_reflectance = tf.constant([1.0, 1.0, 1.0])
+        # Mitsuba defaults specular reflectance to 1.0, but we use Schilick approximation and 
+        # use the specular reflectance for representing both index of refraction and color tint
+        # for metal materials simultaneously.
+        # Schilick's appsoximation set R0 to ((n1 - n2) / (n1 + n2))^2. Mitsuba defaults
+        # IOR to n1=1 and n2=1.5, so R0 ~= 0.04
+        specular_reflectance = tf.constant([0.04, 0.04, 0.04])
         specular_uv_scale = [1.0, 1.0]
         roughness = tf.constant([0.01])
         for child in node:

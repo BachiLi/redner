@@ -2,6 +2,7 @@ import torch
 import math
 import numpy as np
 import pyredner
+from typing import Optional
 
 ####################### Spherical Harmonics utilities ########################
 # Code adapted from "Spherical Harmonic Lighting: The Gritty Details", Robin Green
@@ -44,10 +45,9 @@ def SH_reconstruct(coeffs, res):
     uv = np.mgrid[0:res[1], 0:res[0]].astype(np.float32)
     theta = torch.from_numpy((math.pi / res[1]) * (uv[1, :, :] + 0.5))
     phi = torch.from_numpy((2 * math.pi / res[0]) * (uv[0, :, :] + 0.5))
-    if pyredner.get_use_gpu():
-        theta = theta.cuda()
-        phi = phi.cuda()
-    result = torch.zeros(res[1], res[0], coeffs.shape[0], device = pyredner.get_device())
+    theta = theta.to(coeffs.device)
+    phi = phi.to(coeffs.device)
+    result = torch.zeros(res[1], res[0], coeffs.shape[0], device = coeffs.device)
     num_order = int(math.sqrt(coeffs.shape[1]))
     i = 0
     for l in range(num_order):
@@ -56,12 +56,13 @@ def SH_reconstruct(coeffs, res):
             result = result + sh_factor.view(sh_factor.shape[0], sh_factor.shape[1], 1) * coeffs[:, i]
             i += 1
     result = torch.max(result,
-        torch.zeros(res[1], res[0], coeffs.shape[0], device = pyredner.get_device()))
+        torch.zeros(res[1], res[0], coeffs.shape[0], device = coeffs.device))
     return result
 #######################################################################################
 
 def generate_sphere(theta_steps: int,
-                    phi_steps: int):
+                    phi_steps: int,
+                    device: Optional[torch.device] = None):
     """
         Generate a triangle mesh representing a UV sphere,
         center at (0, 0, 0) with radius 1.
@@ -72,6 +73,9 @@ def generate_sphere(theta_steps: int,
             zenith subdivision
         phi_steps: int
             azimuth subdivision
+        device: Optional[torch.device]
+            Which device should we store the data in.
+            If set to None, use the device from pyredner.get_device().
 
         Returns
         =======
@@ -84,14 +88,15 @@ def generate_sphere(theta_steps: int,
         torch.Tensor
             normals
     """
+    if device is None:
+        device = pyredner.get_device()
+
     d_theta = math.pi / (theta_steps - 1)
     d_phi = (2 * math.pi) / (phi_steps - 1)
 
     num_vertices = theta_steps * phi_steps - 2 * (phi_steps - 1)
-    vertices = torch.zeros(num_vertices, 3,
-                           device = pyredner.get_device())
-    uvs = torch.zeros(num_vertices, 2,
-                      device = pyredner.get_device())
+    vertices = torch.zeros(num_vertices, 3, device = device)
+    uvs = torch.zeros(num_vertices, 2, device = device)
     vertices_index = 0
     for theta_index in range(theta_steps):
         sin_theta = math.sin(theta_index * d_theta)
@@ -116,7 +121,7 @@ def generate_sphere(theta_steps: int,
                 cos_phi = math.cos(phi_index * d_phi)
                 vertices[vertices_index, :] = \
                     torch.tensor([sin_theta * cos_phi, cos_theta, sin_theta * sin_phi],
-                        device = pyredner.get_device())
+                        device = device)
                 uvs[vertices_index, 0] = phi_index * d_phi / (2 * math.pi)
                 uvs[vertices_index, 1] = theta_index * d_theta / math.pi
                 vertices_index += 1
@@ -146,9 +151,7 @@ def generate_sphere(theta_steps: int,
             if (theta_index > 1):
                 indices.append([id1, id2, id3])
 
-    indices = torch.tensor(indices,
-                           dtype = torch.int32,
-                           device = pyredner.get_device())
+    indices = torch.tensor(indices, dtype = torch.int32, device = device)
 
     normals = vertices.clone()
     return (vertices, indices, uvs, normals)

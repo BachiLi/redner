@@ -77,6 +77,10 @@ class Texture:
         self._texels = value
         self.generate_mipmap()
 
+    @property
+    def device(self):
+        return self.texels.device
+
     def state_dict(self):
         return {
             'texels': self.texels,

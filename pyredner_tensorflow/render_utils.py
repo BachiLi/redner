@@ -104,7 +104,8 @@ def render_deferred(scene: Union[pyredner.Scene, List[pyredner.Scene]],
                     alpha: bool = False,
                     aa_samples: int = 2,
                     seed: Optional[Union[int, List[int]]] = None,
-                    sample_pixel_center: bool = False):
+                    sample_pixel_center: bool = False,
+                    device_name: Optional[str] = None):
     """
         Render the scenes using `deferred rendering <https://en.wikipedia.org/wiki/Deferred_shading>`_.
         We generate G-buffer images containing world-space position,
@@ -140,6 +141,9 @@ def render_deferred(scene: Union[pyredner.Scene, List[pyredner.Scene]],
             If this option is activated, the rendering becomes non-differentiable
             (since there is no antialiasing integral),
             and redner's edge sampling becomes an approximation to the gradients of the aliased rendering.
+        device_name: Optional[str]
+            Which device should we store the data in.
+            If set to None, use the device from pyredner.get_device_name().
 
         Returns
         =======
@@ -169,7 +173,8 @@ def render_deferred(scene: Union[pyredner.Scene, List[pyredner.Scene]],
             sampler_type = redner.SamplerType.sobol,
             channels = channels,
             use_secondary_edge_sampling = False,
-            sample_pixel_center = sample_pixel_center)
+            sample_pixel_center = sample_pixel_center,
+            device_name = device_name)
         # Need to revert the resolution back
         scene.camera.resolution = org_res
         g_buffer = pyredner.render(seed, *scene_args)
@@ -214,7 +219,8 @@ def render_deferred(scene: Union[pyredner.Scene, List[pyredner.Scene]],
                     sampler_type = redner.SamplerType.sobol,
                     channels = channels,
                     use_secondary_edge_sampling = False,
-                    sample_pixel_center = sample_pixel_center)
+                    sample_pixel_center = sample_pixel_center,
+                    device_name = device_name)
                 # Need to revert the resolution back
                 sc.camera.resolution = org_res
                 g_buffers.append(pyredner.render(se, *scene_args))
@@ -247,7 +253,8 @@ def render_deferred(scene: Union[pyredner.Scene, List[pyredner.Scene]],
                     sampler_type = redner.SamplerType.sobol,
                     channels = channels,
                     use_secondary_edge_sampling = False,
-                    sample_pixel_center = sample_pixel_center)
+                    sample_pixel_center = sample_pixel_center,
+                    device_name = device_name)
                 # Need to revert the resolution back
                 sc.camera.resolution = org_res
                 g_buffer = pyredner.render(se, *scene_args)
@@ -276,7 +283,8 @@ def render_generic(scene: pyredner.Scene,
                    sampler_type = pyredner.sampler_type.sobol,
                    num_samples: Union[int, Tuple[int, int]] = (4, 4),
                    seed: Optional[int] = None,
-                   sample_pixel_center: bool = False):
+                   sample_pixel_center: bool = False,
+                   device_name: Optional[str] = None):
     """
         A generic rendering function that can be either pathtracing or
         g-buffer rendering or both.
@@ -325,6 +333,9 @@ def render_generic(scene: pyredner.Scene,
             If this option is activated, the rendering becomes non-differentiable
             (since there is no antialiasing integral),
             and redner's edge sampling becomes an approximation to the gradients of the aliased rendering.
+        device_name: Optional[str]
+            Which device should we store the data in.
+            If set to None, use the device from pyredner.get_device_name().
 
         Returns
         =======
@@ -341,7 +352,8 @@ def render_generic(scene: pyredner.Scene,
             max_bounces = max_bounces,
             sampler_type = sampler_type,
             channels = channels,
-            sample_pixel_center = sample_pixel_center)
+            sample_pixel_center = sample_pixel_center,
+            device_name = device_name)
         return pyredner.render(seed, *scene_args)
     else:
         assert(isinstance(scene, list))
@@ -360,7 +372,8 @@ def render_generic(scene: pyredner.Scene,
                 max_bounces = max_bounces,
                 sampler_type = sampler_type,
                 channels = channels,
-                sample_pixel_center = sample_pixel_center)
+                sample_pixel_center = sample_pixel_center,
+                device_name = device_name)
             imgs.append(pyredner.render(se, *scene_args))
         imgs = tf.stack(imgs)
         return imgs
@@ -369,7 +382,8 @@ def render_g_buffer(scene: pyredner.Scene,
                     channels: List[redner.channels],
                     num_samples: Union[int, Tuple[int, int]] = (1, 1),
                     seed: Optional[int] = None,
-                    sample_pixel_center: bool = False):
+                    sample_pixel_center: bool = False,
+                    device_name: Optional[str] = None):
     """
         Render a G buffer from the scene.
 
@@ -405,6 +419,9 @@ def render_g_buffer(scene: pyredner.Scene,
             If this option is activated, the rendering becomes non-differentiable
             (since there is no antialiasing integral),
             and redner's edge sampling becomes an approximation to the gradients of the aliased rendering.
+        device_name: Optional[str]
+            Which device should we store the data in.
+            If set to None, use the device from pyredner.get_device_name().
 
         Returns
         =======
@@ -417,7 +434,8 @@ def render_g_buffer(scene: pyredner.Scene,
                           sampler_type = redner.SamplerType.sobol,
                           num_samples = num_samples,
                           seed = seed,
-                          sample_pixel_center = sample_pixel_center)
+                          sample_pixel_center = sample_pixel_center,
+                          device_name = device_name)
 
 def render_pathtracing(scene: Union[pyredner.Scene, List[pyredner.Scene]],
                        alpha: bool = False,
@@ -425,7 +443,8 @@ def render_pathtracing(scene: Union[pyredner.Scene, List[pyredner.Scene]],
                        sampler_type = pyredner.sampler_type.sobol,
                        num_samples: Union[int, Tuple[int, int]] = (4, 4),
                        seed: Optional[Union[int, List[int]]] = None,
-                       sample_pixel_center: bool = False):
+                       sample_pixel_center: bool = False,
+                       device_name: Optional[str] = None):
     """
         Render a pyredner scene using pathtracing.
 
@@ -457,6 +476,9 @@ def render_pathtracing(scene: Union[pyredner.Scene, List[pyredner.Scene]],
             If this option is activated, the rendering becomes non-differentiable
             (since there is no antialiasing integral),
             and redner's edge sampling becomes an approximation to the gradients of the aliased rendering.
+        device_name: Optional[str]
+            Which device should we store the data in.
+            If set to None, use the device from pyredner.get_device_name().
 
         Returns
         =======
@@ -475,13 +497,15 @@ def render_pathtracing(scene: Union[pyredner.Scene, List[pyredner.Scene]],
                           sampler_type = sampler_type,
                           num_samples = num_samples,
                           seed = seed,
-                          sample_pixel_center = sample_pixel_center)
+                          sample_pixel_center = sample_pixel_center,
+                          device_name = device_name)
 
 def render_albedo(scene: Union[pyredner.Scene, List[pyredner.Scene]],
                   alpha: bool = False,
                   num_samples: Union[int, Tuple[int, int]] = (16, 4),
                   seed: Optional[Union[int, List[int]]] = None,
-                  sample_pixel_center: bool = False):
+                  sample_pixel_center: bool = False,
+                  device_name: Optional[str] = None):
     """
         Render the diffuse albedo colors of the scenes.
 
@@ -509,6 +533,9 @@ def render_albedo(scene: Union[pyredner.Scene, List[pyredner.Scene]],
             If this option is activated, the rendering becomes non-differentiable
             (since there is no antialiasing integral),
             and redner's edge sampling becomes an approximation to the gradients of the aliased rendering.
+        device_name: Optional[str]
+            Which device should we store the data in.
+            If set to None, use the device from pyredner.get_device_name().
 
         Returns
         =======
@@ -525,4 +552,5 @@ def render_albedo(scene: Union[pyredner.Scene, List[pyredner.Scene]],
                            channels = channels,
                            num_samples = num_samples,
                            seed = seed,
-                           sample_pixel_center = sample_pixel_center)
+                           sample_pixel_center = sample_pixel_center,
+                           device_name = device_name)

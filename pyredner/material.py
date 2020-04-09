@@ -15,23 +15,23 @@ class Material:
         Args
         ====
         diffuse_reflectance: Optional[Union[torch.Tensor, pyredner.Texture]]
-            a float32 tensor with size 3 or [height, width, 3] or a Texture
-            optional if use_vertex_color is True
+            A float32 tensor with size 3 or [height, width, 3] or a Texture.
+            Optional if use_vertex_color is True.
         specular_reflectance: Optional[Union[torch.Tensor, pyredner.Texture]]
-            a float32 tensor with size 3 or [height, width, 3] or a Texture
+            A float32 tensor with size 3 or [height, width, 3] or a Texture.
         roughness: Optional[Union[torch.Tensor, pyredner.Texture]]
-            a float32 tensor with size 1 or [height, width, 1] or a Texture
+            A float32 tensor with size 1 or [height, width, 1] or a Texture.
         generic_texture: Optional[Union[torch.Tensor, pyredner.Texture]]
-            a float32 tensor with dimension 1 or 3, arbitrary number of channels
-            use render_g_buffer to visualize this texture
+            A float32 tensor with dimension 1 or 3, arbitrary number of channels
+            use render_g_buffer to visualize this texture.
         normal_map: Optional[Union[torch.Tensor, pyredner.Texture]]
-            a float32 tensor with size 3 or [height, width, 3] or a Texture
+            A float32 tensor with size 3 or [height, width, 3] or a Texture.
         two_sided: bool
             By default, the material only reflect lights on the side the
             normal is pointing to.
             Set this to True to make the material reflects from both sides.
         use_vertex_color: bool
-            ignores the reflectances and use the vertex color as diffuse color
+            Ignores the reflectances and use the vertex color as diffuse color
     """
     def __init__(self,
                  diffuse_reflectance: Optional[Union[torch.Tensor, pyredner.Texture]] = None,
@@ -41,18 +41,32 @@ class Material:
                  normal_map: Optional[Union[torch.Tensor, pyredner.Texture]] = None,
                  two_sided: bool = False,
                  use_vertex_color: bool = False):
+        # Search for device
+        device = None
+        if diffuse_reflectance is not None:
+            device = diffuse_reflectance.device
+        if device is None and specular_reflectance is not None:
+            device = specular_reflectance.device
+        if device is None and roughness is not None:
+            device = roughness.device
+        if device is None and generic_texture is not None:
+            device = generic_texture.device
+        if device is None and normal_map is not None:
+            device = normal_map.device
+        self.device = device
+
         if diffuse_reflectance is None:
             diffuse_reflectance = pyredner.Texture(\
-                torch.zeros(3, device = pyredner.get_device()))
+                torch.zeros(3, device = device))
         if specular_reflectance is None:
             specular_reflectance = pyredner.Texture(\
-                torch.zeros(3, device = pyredner.get_device()))
+                torch.zeros(3, device = device))
             compute_specular_lighting = False
         else:
             compute_specular_lighting = True
         if roughness is None:
             roughness = pyredner.Texture(\
-                torch.tensor([1.0], device = pyredner.get_device()))
+                torch.tensor([1.0], device = device))
 
         # Convert to constant texture if necessary
         if isinstance(diffuse_reflectance, torch.Tensor):
@@ -96,7 +110,7 @@ class Material:
             self.compute_specular_lighting = True
         else:
             self._specular_reflectance = pyredner.Texture(\
-                torch.zeros(3, device = pyredner.get_device()))
+                torch.zeros(3, device = self.device))
             self.compute_specular_lighting = False
 
     def state_dict(self):

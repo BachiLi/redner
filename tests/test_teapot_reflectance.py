@@ -2,6 +2,7 @@ import pyredner
 import numpy as np
 import torch
 import scipy
+import scipy.ndimage
 
 # Optimize for material parameters and camera pose
 

@@ -142,11 +142,10 @@ def generate_sphere(theta_steps: int,
             if (theta_index > 1):
                 indices.append([id1, id2, id3])
 
-    with tf.device(pyredner.get_device_name()):
-        indices = tf.convert_to_tensor(indices, dtype=tf.int32)
-        vertices = tf.convert_to_tensor(vertices, dtype=tf.float32)
-        uvs = tf.convert_to_tensor(uvs, dtype=tf.float32)
-        normals = tf.identity(vertices)
+    indices = tf.convert_to_tensor(indices, dtype=tf.int32)
+    vertices = tf.convert_to_tensor(vertices, dtype=tf.float32)
+    uvs = tf.convert_to_tensor(uvs, dtype=tf.float32)
+    normals = tf.identity(vertices)
     return (vertices, indices, uvs, normals)
 
 
@@ -189,10 +188,9 @@ def generate_quad_light(position: tf.Tensor,
     v2 = position - x * size[0] * 0.5 + y * size[1] * 0.5
     v3 = position + x * size[0] * 0.5 + y * size[1] * 0.5
 
-    with tf.device(pyredner.get_device_name()):
-        vertices = tf.stack((v0, v1, v2, v3), axis = 0)
-        indices = tf.constant([[0, 1, 2],[1, 3, 2]], dtype = tf.int32)
-        m = pyredner.Material(diffuse_reflectance = tf.constant([0.0, 0.0, 0.0]))
+    vertices = tf.stack((v0, v1, v2, v3), axis = 0)
+    indices = tf.constant([[0, 1, 2],[1, 3, 2]], dtype = tf.int32)
+    m = pyredner.Material(diffuse_reflectance = tf.constant([0.0, 0.0, 0.0]))
     return pyredner.Object(vertices = vertices,
                            indices = indices,
                            material = m,

@@ -5,7 +5,7 @@ import pyredner_tensorflow as pyredner
 import time
 import weakref
 import os
-from typing import List, Union, Tuple
+from typing import List, Union, Tuple, Optional
 from .redner_enum_wrapper import RednerCameraType, RednerSamplerType, RednerChannels
 
 __EMPTY_TENSOR = tf.constant([])
@@ -59,12 +59,12 @@ def get_print_timing():
     global print_timing
     return print_timing
 
-def serialize_texture(texture, args):
+def serialize_texture(texture, args, device_name):
     if texture is None:
         args.append(tf.constant(0))
         return
     args.append(tf.constant(len(texture.mipmap)))
-    with tf.device(pyredner.get_device_name()):
+    with tf.device(device_name):
         for mipmap in texture.mipmap:
             args.append(tf.identity(mipmap))
         args.append(tf.identity(texture.uv_scale))
@@ -76,7 +76,8 @@ def serialize_scene(scene: pyredner.Scene,
                     sampler_type = redner.SamplerType.independent,
                     use_primary_edge_sampling = True,
                     use_secondary_edge_sampling = True,
-                    sample_pixel_center: bool = False) -> List:
+                    sample_pixel_center: bool = False,
+                    device_name: Optional[str] = None) -> List:
     """
         Given a pyredner scene & rendering options, convert them to a linear list of argument,
         so that we can use it in TensorFlow.
@@ -128,7 +129,14 @@ def serialize_scene(scene: pyredner.Scene,
             If this option is activated, the rendering becomes non-differentiable
             (since there is no antialiasing integral),
             and redner's edge sampling becomes an approximation to the gradients of the aliased rendering.
+
+        device_name: Optional[str]
+            Which device should we store the data in.
+            If set to None, use the device from pyredner.get_device_name().
     """
+    if device_name is None:
+        device_name = pyredner.get_device_name()
+
     # TODO: figure out a way to determine whether a TF tensor requires gradient or not
     cam = scene.camera
     num_shapes = len(scene.shapes)
@@ -143,6 +151,7 @@ def serialize_scene(scene: pyredner.Scene,
         use_secondary_edge_sampling = False
 
     args = []
+    args.append(tf.constant(device_name))
     args.append(tf.constant(num_shapes))
     args.append(tf.constant(num_materials))
     args.append(tf.constant(num_lights))
@@ -180,7 +189,7 @@ def serialize_scene(scene: pyredner.Scene,
     args.append(tf.constant(viewport))
     args.append(RednerCameraType.asTensor(cam.camera_type))
     for shape in scene.shapes:
-        with tf.device(pyredner.get_device_name()):
+        with tf.device(device_name):
             args.append(tf.identity(shape.vertices))
             # HACK: tf.bitcast forces tensorflow to copy int32 to GPU memory.
             # tf.identity stopped working since TF 2.1 (if you print the device
@@ -210,11 +219,11 @@ def serialize_scene(scene: pyredner.Scene,
         args.append(tf.constant(shape.material_id))
         args.append(tf.constant(shape.light_id))
     for material in scene.materials:
-        serialize_texture(material.diffuse_reflectance, args)
-        serialize_texture(material.specular_reflectance, args)
-        serialize_texture(material.roughness, args)
-        serialize_texture(material.generic_texture, args)
-        serialize_texture(material.normal_map, args)
+        serialize_texture(material.diffuse_reflectance, args, device_name)
+        serialize_texture(material.specular_reflectance, args, device_name)
+        serialize_texture(material.roughness, args, device_name)
+        serialize_texture(material.generic_texture, args, device_name)
+        serialize_texture(material.normal_map, args, device_name)
         args.append(tf.constant(material.compute_specular_lighting))
         args.append(tf.constant(material.two_sided))
         args.append(tf.constant(material.use_vertex_color))
@@ -225,11 +234,11 @@ def serialize_scene(scene: pyredner.Scene,
             args.append(tf.constant(light.two_sided))
             args.append(tf.constant(light.directly_visible))
     if scene.envmap is not None:
-        serialize_texture(scene.envmap.values, args)
+        serialize_texture(scene.envmap.values, args, device_name)
         with tf.device('/device:cpu:' + str(pyredner.get_cpu_device_id())):
             args.append(tf.identity(scene.envmap.env_to_world))
             args.append(tf.identity(scene.envmap.world_to_env))
-        with tf.device(pyredner.get_device_name()):
+        with tf.device(device_name):
             args.append(tf.identity(scene.envmap.sample_cdf_ys))
             args.append(tf.identity(scene.envmap.sample_cdf_xs))
         args.append(scene.envmap.pdf_norm)
@@ -259,6 +268,8 @@ def unpack_args(seed,
     """
     # Unpack arguments
     current_index = 0
+    device_name = args[current_index].numpy().decode().lower()
+    current_index += 1
     num_shapes = int(args[current_index])
     current_index += 1
     num_materials = int(args[current_index])
@@ -324,7 +335,7 @@ def unpack_args(seed,
                                    redner.Vector2i(viewport[1], viewport[0]),
                                    redner.Vector2i(viewport[3], viewport[2]))
 
-    with tf.device(pyredner.get_device_name()):
+    with tf.device(device_name):
         shapes = []
         for i in range(num_shapes):
             vertices = args[current_index]
@@ -362,7 +373,7 @@ def unpack_args(seed,
                 light_id))
 
     materials = []
-    with tf.device(pyredner.get_device_name()):
+    with tf.device(device_name):
         for i in range(num_materials):
             num_levels = int(args[current_index])
             current_index += 1
@@ -541,13 +552,13 @@ def unpack_args(seed,
         current_index += 1
 
         assert isinstance(pdf_norm, float)
-        with tf.device(pyredner.get_device_name()):
+        with tf.device(device_name):
             sample_cdf_ys = redner.float_ptr(pyredner.data_ptr(sample_cdf_ys))
             sample_cdf_xs = redner.float_ptr(pyredner.data_ptr(sample_cdf_xs))
         with tf.device('/device:cpu:' + str(pyredner.get_cpu_device_id())):
             env_to_world = redner.float_ptr(pyredner.data_ptr(env_to_world))
             world_to_env = redner.float_ptr(pyredner.data_ptr(world_to_env))
-        with tf.device(pyredner.get_device_name()):
+        with tf.device(device_name):
             values = redner.Texture3(\
                 [redner.float_ptr(pyredner.data_ptr(x)) for x in values],
                 [x.shape[1] for x in values], # width
@@ -597,14 +608,18 @@ def unpack_args(seed,
     sample_pixel_center = args[current_index]
     current_index += 1
 
+    device_spec = tf.DeviceSpec.from_string(device_name)
+    use_gpu = device_spec.device_type == 'GPU'
+    gpu_index = device_spec.device_index if device_spec.device_index is not None else 0
+
     start = time.time()
     scene = redner.Scene(camera,
                          shapes,
                          materials,
                          area_lights,
                          envmap,
-                         pyredner.get_use_gpu(),
-                         pyredner.get_gpu_device_id(),
+                         use_gpu,
+                         gpu_index,
                          use_primary_edge_sampling,
                          use_secondary_edge_sampling)
     time_elapsed = time.time() - start
@@ -636,6 +651,7 @@ def unpack_args(seed,
     ctx.options = options
     ctx.num_samples = num_samples
     ctx.num_channel_args = num_channel_args
+    ctx.device_name = device_name
 
     return ctx
 
@@ -659,8 +675,9 @@ def forward(seed:int, *args):
     num_channel_args = args_ctx.num_channel_args
     num_channels = redner.compute_num_channels(channels,
                                                scene.max_generic_texture_dimension)
+    device_name = args_ctx.device_name
 
-    with tf.device(pyredner.get_device_name()):
+    with tf.device(device_name):
         img_height = viewport[2] - viewport[0]
         img_width = viewport[3] - viewport[1]
         rendered_image = tf.zeros(
@@ -690,16 +707,18 @@ def forward(seed:int, *args):
     ctx.num_samples = num_samples
     ctx.num_channel_args = num_channel_args
     ctx.args = args # important to avoid GC on tf tensors
+    ctx.device_name = device_name
     return rendered_image, ctx
 
 def create_gradient_buffers(ctx):
     scene = ctx.scene
     options = ctx.options
     camera = ctx.camera
+    device_name = ctx.device_name
 
     buffers = Context()
 
-    with tf.device(pyredner.get_device_name()):
+    with tf.device(device_name):
         if camera.use_look_at:
             buffers.d_position = tf.zeros(3, dtype=tf.float32)
             buffers.d_look_at = tf.zeros(3, dtype=tf.float32)
@@ -743,7 +762,7 @@ def create_gradient_buffers(ctx):
     buffers.d_normals_list = []
     buffers.d_colors_list = []
     buffers.d_shapes = []
-    with tf.device(pyredner.get_device_name()):
+    with tf.device(device_name):
         for i, shape in enumerate(ctx.shapes):
             num_vertices = shape.num_vertices
             d_vertices = tf.zeros([num_vertices, 3], dtype=tf.float32)
@@ -771,7 +790,7 @@ def create_gradient_buffers(ctx):
     buffers.d_generic_uv_scale_list = []
     buffers.d_normal_map_uv_scale_list = []
     buffers.d_materials = []
-    with tf.device(pyredner.get_device_name()):
+    with tf.device(device_name):
         for material in ctx.materials:
             if material.get_diffuse_size(0)[0] == 0:
                 d_diffuse = [tf.zeros(3, dtype=tf.float32)]
@@ -933,7 +952,7 @@ def create_gradient_buffers(ctx):
 
     buffers.d_intensity_list = []
     buffers.d_area_lights = []
-    with tf.device(pyredner.get_device_name()):
+    with tf.device(device_name):
         for light in ctx.area_lights:
             d_intensity = tf.zeros(3, dtype=tf.float32)
             buffers.d_intensity_list.append(d_intensity)
@@ -943,7 +962,7 @@ def create_gradient_buffers(ctx):
     buffers.d_envmap = None
     if ctx.envmap is not None:
         envmap = ctx.envmap
-        with tf.device(pyredner.get_device_name()):
+        with tf.device(device_name):
             buffers.d_envmap_values = []
             for l in range(envmap.get_levels()):
                 size = envmap.get_size(l)
@@ -962,13 +981,17 @@ def create_gradient_buffers(ctx):
             buffers.d_envmap = redner.DEnvironmentMap(d_envmap_tex,
                 redner.float_ptr(pyredner.data_ptr(buffers.d_world_to_env)))
 
+    device_spec = tf.DeviceSpec.from_string(device_name)
+    use_gpu = device_spec.device_type == 'GPU'
+    gpu_index = device_spec.device_index if device_spec.device_index is not None else 0
+
     buffers.d_scene = redner.DScene(buffers.d_camera,
                                     buffers.d_shapes,
                                     buffers.d_materials,
                                     buffers.d_area_lights,
                                     buffers.d_envmap,
-                                    pyredner.get_use_gpu(),
-                                    pyredner.get_gpu_device_id())
+                                    use_gpu,
+                                    gpu_index)
     return buffers
 
 @tf.custom_gradient
@@ -992,6 +1015,7 @@ def render(*x):
         scene = ctx.scene
         options = ctx.options
         camera = ctx.camera
+        device_name = ctx.device_name
 
         buffers = create_gradient_buffers(ctx)
 
@@ -1001,7 +1025,7 @@ def render(*x):
         start = time.time()
 
         options.num_samples = ctx.num_samples[1]
-        with tf.device(pyredner.get_device_name()):
+        with tf.device(device_name):
             grad_img = tf.identity(grad_img)
             redner.render(scene,
                           options,
@@ -1017,6 +1041,7 @@ def render(*x):
 
         ret_list = []
         ret_list.append(None) # seed
+        ret_list.append(None) # device
         ret_list.append(None) # num_shapes
         ret_list.append(None) # num_materials
         ret_list.append(None) # num_lights
@@ -1164,11 +1189,12 @@ def visualize_screen_gradient(grad_img: tf.Tensor,
     resolution = args_ctx.resolution
     viewport = args_ctx.viewport
     scene = args_ctx.scene
+    device_name = args_ctx.device_name
 
     buffers = create_gradient_buffers(args_ctx)
     num_channels = redner.compute_num_channels(channels,
                                                scene.max_generic_texture_dimension)
-    with tf.device(pyredner.get_device_name()):
+    with tf.device(device_name):
         img_height = viewport[2] - viewport[0]
         img_width = viewport[3] - viewport[1]
         screen_gradient_image = tf.zeros(\

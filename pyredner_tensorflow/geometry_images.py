@@ -16,6 +16,9 @@ def generate_geometry_image(size: int):
         ====
         size: int
             size of the geometry image
+        device_name: Optional[str]
+            Which device should we store the data in.
+            If set to None, use the device from pyredner.get_device_name().
 
         Returns
         =======
@@ -150,8 +153,7 @@ def generate_geometry_image(size: int):
                 indices.append((left_top, left_bottom, right_top))
                 indices.append((right_top, left_bottom, right_bottom))
 
-    with tf.device(pyredner.get_device_name()):
-        vertices = tf.constant(vertices, dtype = tf.float32)
-        uvs = tf.constant(uvs, dtype = tf.float32)
-        indices = tf.constant(indices, dtype = tf.int32)
+    vertices = tf.constant(vertices, dtype = tf.float32)
+    uvs = tf.constant(uvs, dtype = tf.float32)
+    indices = tf.constant(indices, dtype = tf.int32)
     return vertices, indices, uvs

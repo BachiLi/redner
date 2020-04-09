@@ -25,7 +25,7 @@ class Texture:
     def generate_mipmap(self):
         texels = self._texels
         if len(texels.shape) >= 2:
-            with tf.device(pyredner.get_device_name()):
+            with tf.device(texels.device):
                 # Build a mipmap for texels
                 width = max(texels.shape[0], texels.shape[1])
                 num_levels = min(math.ceil(math.log(width, 2) + 1), 8)

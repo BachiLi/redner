@@ -98,6 +98,7 @@ def compute_uvs(vertices, indices, print_progress = True):
         torch.Tensor
             uv indices, int32 Tensor with size num_triangles x 3
     """
+    device = vertices.device
     vertices = vertices.cpu()
     indices = indices.cpu()
 
@@ -120,10 +121,10 @@ def compute_uvs(vertices, indices, print_progress = True):
 
     redner.copy_texture_atlas(atlas, [uv_trimesh])
 
-    vertices = vertices.to(pyredner.get_device())
-    indices = indices.to(pyredner.get_device())
-    uvs = uvs.to(pyredner.get_device())
-    uv_indices = uv_indices.to(pyredner.get_device())
+    vertices = vertices.to(device)
+    indices = indices.to(device)
+    uvs = uvs.to(device)
+    uv_indices = uv_indices.to(device)
     return uvs, uv_indices
 
 class Shape:
