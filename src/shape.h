@@ -201,9 +201,12 @@ inline SurfacePoint sample_shape(const Shape &shape, int index, const Vector2 &s
         Vector3{0, 0, 0}, // TODO: compute proper dpdu
         sample, // TODO: give true light source uv
         Vector2{0, 0}, // TODO: inherit derivatives from previous path vertex
-        Vector2{0, 0},
-        Vector3{0, 0, 0} // color
-    }; 
+        Vector2{0, 0}, // du_dxy, dv_dxy
+        Vector3{0, 0, 0}, // dn_dx
+        Vector3{0, 0, 0}, // dn_dy
+        Vector3{0, 0, 0}, // color
+        Vector2{b1, b2}
+    };
 }
 
 DEVICE
@@ -227,8 +230,9 @@ inline void d_sample_shape(const Shape &shape, int index, const Vector2 &sample,
     //     sample,
     //     Vector2{0, 0},
     //     Vector2{0, 0},
-    //     Vector3{0, 0, 0}};
-    // No need to propagate to b1 b2
+    //     Vector3{0, 0, 0},
+    //     Vector2{b1, b2}};
+    // No need to propagate to b1 b2 since they only depend on random numbers
     auto d_v0 = d_point.position;
     auto d_e1 = d_point.position * b1;
     auto d_e2 = d_point.position * b2;
@@ -236,7 +240,7 @@ inline void d_sample_shape(const Shape &shape, int index, const Vector2 &sample,
     d_normalized_n += d_point.shading_frame[2];
     d_coordinate_system(
         normalized_n, d_point.shading_frame[0], d_point.shading_frame[1], d_normalized_n);
-    // auto normalized_n = normalize(n);
+    // normalized_n = normalize(n)
     auto d_n = d_normalize(n, d_normalized_n);
     // n = cross(e1, e2)
     d_cross(e1, e2, d_n, d_e1, d_e2);
@@ -373,7 +377,8 @@ inline SurfacePoint intersect_shape(const Shape &shape,
                         dv_dxy,
                         dn_dx,
                         dn_dy,
-                        cc};
+                        cc,
+                        Vector2{u, v}};
 }
 
 DEVICE
@@ -505,10 +510,13 @@ inline void d_intersect_shape(
     //                      dv_dxy,
     //                      dn_dx,
     //                      dn_dy,
-    //                      cc}
+    //                      cc,
+    //                      Vector2{u, v}}
 
     // Backprop
-    auto d_u = Real(0), d_v = Real(0), d_w = Real(0);
+    auto d_u = d_point.barycentric_coordinates.x;
+    auto d_v = d_point.barycentric_coordinates.y;
+    auto d_w = Real(0);
 
     if (has_colors(shape)) {
         auto c0 = get_color(shape, ind[0]);

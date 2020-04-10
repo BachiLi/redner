@@ -188,6 +188,7 @@ PYBIND11_MODULE(redner, m) {
         .value("geometry_normal", Channels::geometry_normal)
         .value("shading_normal", Channels::shading_normal)
         .value("uv", Channels::uv)
+        .value("barycentric_coordinates", Channels::barycentric_coordinates)
         .value("diffuse_reflectance", Channels::diffuse_reflectance)
         .value("specular_reflectance", Channels::specular_reflectance)
         .value("roughness", Channels::roughness)

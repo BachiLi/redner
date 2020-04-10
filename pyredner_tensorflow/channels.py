@@ -9,6 +9,7 @@ class Channel:
         self.geometry_normal = redner.channels.geometry_normal
         self.shading_normal = redner.channels.shading_normal
         self.uv = redner.channels.uv
+        self.barycentric_coordinates = redner.channels.barycentric_coordinates
         self.diffuse_reflectance = redner.channels.diffuse_reflectance
         self.specular_reflectance = redner.channels.specular_reflectance
         self.roughness = redner.channels.roughness

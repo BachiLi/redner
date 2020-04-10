@@ -129,6 +129,19 @@ struct primary_contribs_accumulator {
                         }
                         d += 2;
                     } break;
+                    case Channels::barycentric_coordinates: {
+                        if (shading_isect.valid()) {
+                            const auto &shading_point = shading_points[pixel_id];
+                            auto b = shading_point.barycentric_coordinates * weight;
+                            if (channel_multipliers != nullptr) {
+                                b[0] *= channel_multipliers[nd * pixel_id + d];
+                                b[1] *= channel_multipliers[nd * pixel_id + d + 1];
+                            }
+                            rendered_image[nd * pixel_id + d    ] += float(b[0]);
+                            rendered_image[nd * pixel_id + d + 1] += float(b[1]);
+                        }
+                        d += 2;
+                    } break;
                     case Channels::diffuse_reflectance: {
                         if (shading_isect.valid()) {
                             const auto &shading_point = shading_points[pixel_id];
@@ -308,6 +321,16 @@ struct primary_contribs_accumulator {
                             uv[0] *= channel_multipliers[nd * pixel_id + d];
                             uv[1] *= channel_multipliers[nd * pixel_id + d + 1];
                             edge_contribs[pixel_id] += sum(uv);
+                        }
+                        d += 2;
+                    } break;
+                    case Channels::barycentric_coordinates: {
+                        if (shading_isect.valid()) {
+                            const auto &shading_point = shading_points[pixel_id];
+                            auto b = shading_point.barycentric_coordinates * weight;
+                            b[0] *= channel_multipliers[nd * pixel_id + d];
+                            b[1] *= channel_multipliers[nd * pixel_id + d + 1];
+                            edge_contribs[pixel_id] += sum(b);
                         }
                         d += 2;
                     } break;
@@ -540,6 +563,19 @@ struct d_primary_contribs_accumulator {
                             d_uv[1] *= channel_multipliers[nd * pixel_id + d + 1];
                         }
                         d_shading_points[pixel_id].uv += d_uv;
+                    }
+                    d += 2;
+                } break;
+                case Channels::barycentric_coordinates: {
+                    if (shading_isect.valid()) {
+                        auto d_b = weight *
+                                Vector2{d_rendered_image[nd * pixel_id + d],
+                                        d_rendered_image[nd * pixel_id + d + 1]};
+                        if (channel_multipliers != nullptr) {
+                            d_b[0] *= channel_multipliers[nd * pixel_id + d];
+                            d_b[1] *= channel_multipliers[nd * pixel_id + d + 1];
+                        }
+                        d_shading_points[pixel_id].barycentric_coordinates += d_b;
                     }
                     d += 2;
                 } break;

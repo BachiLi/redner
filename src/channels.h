@@ -11,6 +11,7 @@ enum class Channels {
     geometry_normal,
     shading_normal,
     uv,
+    barycentric_coordinates,
     diffuse_reflectance,
     specular_reflectance,
     roughness,

@@ -99,6 +99,7 @@ class RenderFunction(torch.autograd.Function):
                 | redner.channels.geometry_normal,
                 | redner.channels.shading_normal,
                 | redner.channels.uv,
+                | redner.channels.barycentric_coordinates,
                 | redner.channels.diffuse_reflectance,
                 | redner.channels.specular_reflectance,
                 | redner.channels.vertex_color,

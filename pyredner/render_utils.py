@@ -312,6 +312,7 @@ def render_generic(scene: pyredner.Scene,
             | pyredner.channels.geometry_normal
             | pyredner.channels.shading_normal
             | pyredner.channels.uv
+            | pyredner.channels.barycentric_coordinates
             | pyredner.channels.diffuse_reflectance
             | pyredner.channels.specular_reflectance
             | pyredner.channels.roughness
@@ -413,6 +414,7 @@ def render_g_buffer(scene: Union[pyredner.Scene, List[pyredner.Scene]],
             | pyredner.channels.geometry_normal
             | pyredner.channels.shading_normal
             | pyredner.channels.uv
+            | pyredner.channels.barycentric_coordinates
             | pyredner.channels.diffuse_reflectance
             | pyredner.channels.specular_reflectance
             | pyredner.channels.roughness

@@ -77,6 +77,9 @@ int compute_num_channels(const std::vector<Channels> &channels,
             case Channels::uv: {
                 num_total_dimensions += 2;
             } break;
+            case Channels::barycentric_coordinates: {
+                num_total_dimensions += 2;
+            } break;
             case Channels::diffuse_reflectance: {
                 num_total_dimensions += 3;
             } break;

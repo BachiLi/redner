@@ -31,6 +31,7 @@ struct TSurfacePoint {
     TVector3<T> dn_dx, dn_dy;
 
     TVector3<T> color; // vertex color information
+    TVector2<T> barycentric_coordinates;
 
     DEVICE static TSurfacePoint<T> zero() {
         return TSurfacePoint<T>{
@@ -43,7 +44,8 @@ struct TSurfacePoint {
             TVector2<T>{0, 0}, // uv
             TVector2<T>{0, 0}, TVector2<T>{0, 0}, // du_dxy, dv_dxy
             TVector3<T>{0, 0, 0}, TVector3<T>{0, 0, 0}, // dn_dx, dn_dy
-            TVector3<T>{0, 0, 0} // color
+            TVector3<T>{0, 0, 0}, // color
+            TVector2<T>{0, 0} // barycentric_coordinates
         };
     }
 };
@@ -285,4 +287,3 @@ inline void d_intersect(const TVector3<T> &v0,
     d_v1 += d_e1;
     d_v0 -= d_e1;
 }
-
