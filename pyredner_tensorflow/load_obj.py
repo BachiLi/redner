@@ -89,9 +89,6 @@ def load_obj(filename: str,
         mesh_list -> List[TriangleMesh]
         light_map -> Map[mtl_name, torch.Tensor]
     """
-    if device_name is None:
-        device_name = pyredner.get_device_name()
-
     vertices_pool = []
     uvs_pool = []
     normals_pool = []
@@ -315,4 +312,3 @@ def load_obj(filename: str,
         return objects
     else:
         return material_map, mesh_list, light_map
-
