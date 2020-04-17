@@ -108,7 +108,7 @@ def compute_vertex_normal(vertices: torch.Tensor,
             angle = torch.where(dot(side_a, side_b) < 0,
                 torch.tensor(math.pi) - 2.0 * safe_asin(0.5 * length(side_a + side_b)),
                 2.0 * safe_asin(0.5 * length(side_b - side_a)))
-            cotangent = torch.tensor(1.0) / angle
+            cotangent = torch.tensor(1.0) / torch.tan(angle)
             v1_index = indices[:, (i + 1) % 3].long().reshape(-1, 1).expand(-1, 3)
             v2_index = indices[:, (i + 2) % 3].long().reshape(-1, 1).expand(-1, 3)
             contrib = (v2 - v1) * cotangent.reshape([-1, 1])
@@ -259,7 +259,7 @@ def smooth(vertices: torch.Tensor,
             angle = torch.where(dot(side_a, side_b) < 0,
                                 torch.tensor(math.pi) - 2.0 * safe_asin(0.5 * length(side_a + side_b)),
                                 2.0 * safe_asin(0.5 * length(side_b - side_a)))
-            cotangent = torch.tensor(1.0) / angle
+            cotangent = torch.tensor(1.0) / torch.tan(angle)
             v1_index = indices[:, (i + 1) % 3].long().reshape(-1, 1).expand(-1, 3)
             v2_index = indices[:, (i + 2) % 3].long().reshape(-1, 1).expand(-1, 3)
             contrib = (v2 - v1) * cotangent.reshape([-1, 1])
