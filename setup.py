@@ -136,7 +136,7 @@ project_name = 'redner'
 if 'PROJECT_NAME' in os.environ:
     project_name = os.environ['PROJECT_NAME']
 setup(name = project_name,
-      version = '0.4.15',
+      version = '0.4.24',
       description = 'Differentiable rendering without approximation.',
       long_description = """redner is a differentiable renderer that can take the
                             derivatives of rendering output with respect to arbitrary

@@ -5,6 +5,7 @@ import redner
 import os
 import pyredner_tensorflow as pyredner
 import pyredner_tensorflow.transform as transform
+import math
 
 def parse_transform(node):
     ret = tf.eye(4)
@@ -27,6 +28,31 @@ def parse_transform(node):
             z = float(child.attrib['z'])
             value = transform.gen_scale_matrix(tf.constant([x, y, z]))
             ret = value @ ret
+        elif child.tag == 'rotate':
+            x = float(child.attrib['x']) if 'x' in child.attrib else 0.0
+            y = float(child.attrib['y']) if 'y' in child.attrib else 0.0
+            z = float(child.attrib['z']) if 'z' in child.attrib else 0.0
+            angle = transform.radians(float(child.attrib['angle']))
+            axis = np.array([x, y, z])
+            axis = axis / np.linalg.norm(axis)
+            cos_theta = math.cos(angle)
+            sin_theta = math.sin(angle)
+            mat = np.zeros([4, 4], dtype = np.float32)
+            mat[0, 0] = axis[0] * axis[0] + (1.0 - axis[0] * axis[0]) * cos_theta
+            mat[0, 1] = axis[0] * axis[1] * (1.0 - cos_theta) - axis[2] * sin_theta
+            mat[0, 2] = axis[0] * axis[2] * (1.0 - cos_theta) + axis[1] * sin_theta
+
+            mat[1, 0] = axis[0] * axis[1] * (1.0 - cos_theta) + axis[2] * sin_theta
+            mat[1, 1] = axis[1] * axis[1] + (1.0 - axis[1] * axis[1]) * cos_theta
+            mat[1, 2] = axis[1] * axis[2] * (1.0 - cos_theta) - axis[0] * sin_theta
+
+            mat[2, 0] = axis[0] * axis[2] * (1.0 - cos_theta) - axis[1] * sin_theta
+            mat[2, 1] = axis[1] * axis[2] * (1.0 - cos_theta) + axis[0] * sin_theta
+            mat[2, 2] = axis[2] * axis[2] + (1.0 - axis[2] * axis[2]) * cos_theta
+
+            mat[3, 3] = 1.0
+
+            ret = tf.convert_to_tensor(mat) @ ret
     return ret
 
 def parse_vector(str):

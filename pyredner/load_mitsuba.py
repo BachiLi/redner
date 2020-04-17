@@ -6,6 +6,7 @@ import os
 import pyredner
 import pyredner.transform as transform
 from typing import Optional
+import math
 
 def parse_transform(node):
     ret = torch.eye(4)
@@ -33,6 +34,30 @@ def parse_transform(node):
                 z = float(child.attrib['z'])
             value = transform.gen_scale_matrix(torch.tensor([x, y, z]))
             ret = value @ ret
+        elif child.tag == 'rotate':
+            x = float(child.attrib['x']) if 'x' in child.attrib else 0.0
+            y = float(child.attrib['y']) if 'y' in child.attrib else 0.0
+            z = float(child.attrib['z']) if 'z' in child.attrib else 0.0
+            angle = transform.radians(float(child.attrib['angle']))
+            axis = np.array([x, y, z])
+            axis = axis / np.linalg.norm(axis)
+            cos_theta = math.cos(angle)
+            sin_theta = math.sin(angle)
+            mat = torch.zeros(4, 4)
+            mat[0, 0] = axis[0] * axis[0] + (1.0 - axis[0] * axis[0]) * cos_theta
+            mat[0, 1] = axis[0] * axis[1] * (1.0 - cos_theta) - axis[2] * sin_theta
+            mat[0, 2] = axis[0] * axis[2] * (1.0 - cos_theta) + axis[1] * sin_theta
+
+            mat[1, 0] = axis[0] * axis[1] * (1.0 - cos_theta) + axis[2] * sin_theta
+            mat[1, 1] = axis[1] * axis[1] + (1.0 - axis[1] * axis[1]) * cos_theta
+            mat[1, 2] = axis[1] * axis[2] * (1.0 - cos_theta) - axis[0] * sin_theta
+
+            mat[2, 0] = axis[0] * axis[2] * (1.0 - cos_theta) - axis[1] * sin_theta
+            mat[2, 1] = axis[1] * axis[2] * (1.0 - cos_theta) + axis[0] * sin_theta
+            mat[2, 2] = axis[2] * axis[2] + (1.0 - axis[2] * axis[2]) * cos_theta
+
+            mat[3, 3] = 1.0
+            ret = mat @ ret
     return ret
 
 def parse_vector(str):
@@ -412,7 +437,7 @@ def parse_scene(node, device):
                 if child_s.tag == 'shape':
                     shape_group_dict[child.attrib['id']] = parse_shape(child_s, material_dict, None)[0]
         elif child.tag == 'shape':
-            shape, light = parse_shape(child, material_dict, len(shapes), shape_group_dict if child.attrib['type'] == 'instance' else None)
+            shape, light = parse_shape(child, material_dict, len(shapes), device, shape_group_dict if child.attrib['type'] == 'instance' else None)
             shapes.append(shape)
             if light is not None:
                 lights.append(light)
