@@ -5,6 +5,7 @@ import redner
 import os
 import pyredner_tensorflow as pyredner
 import pyredner_tensorflow.transform as transform
+import math
 
 def parse_transform(node):
     ret = tf.eye(4)

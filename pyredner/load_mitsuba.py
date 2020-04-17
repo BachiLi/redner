@@ -6,6 +6,7 @@ import os
 import pyredner
 import pyredner.transform as transform
 from typing import Optional
+import math
 
 def parse_transform(node):
     ret = torch.eye(4)
