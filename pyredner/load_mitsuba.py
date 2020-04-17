@@ -40,8 +40,8 @@ def parse_transform(node):
             angle = transform.radians(float(child.attrib['angle']))
             axis = np.array([x, y, z])
             axis = axis / np.linalg.norm(axis)
-            cos_theta = cos(angle)
-            sin_theta = sin(angle)
+            cos_theta = math.cos(angle)
+            sin_theta = math.sin(angle)
             mat = torch.zeros(4, 4)
             mat[0, 0] = axis[0] * axis[0] + (1.0 - axis[0] * axis[0]) * cos_theta
             mat[0, 1] = axis[0] * axis[1] * (1.0 - cos_theta) - axis[2] * sin_theta
