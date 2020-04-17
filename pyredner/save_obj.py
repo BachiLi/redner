@@ -1,5 +1,6 @@
 import pyredner
 from typing import Union
+import os
 
 def save_obj(shape: Union[pyredner.Object, pyredner.Shape],
              filename: str,
