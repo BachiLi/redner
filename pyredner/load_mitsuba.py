@@ -33,6 +33,30 @@ def parse_transform(node):
                 z = float(child.attrib['z'])
             value = transform.gen_scale_matrix(torch.tensor([x, y, z]))
             ret = value @ ret
+        elif child.tag == 'rotate':
+            x = child.attrib['x'] if 'x' in child.attrib else 0.0
+            y = child.attrib['y'] if 'y' in child.attrib else 0.0
+            z = child.attrib['z'] if 'z' in child.attrib else 0.0
+            angle = transform.radians(child.attrib['angle'])
+            axis = np.array([x, y, z])
+            axis = axis / np.norm(axis)
+            cos_theta = cos(angle)
+            sin_theta = sin(angle)
+            mat = torch.zeros(4, 4)
+            mat[0, 0] = axis[0] * axis[0] + (1.0 - axis[0] * axis[0]) * cos_theta
+            mat[0, 1] = axis[0] * axis[1] * (1.0 - cos_theta) - axis[2] * sin_theta
+            mat[0, 2] = axis[0] * axis[2] * (1.0 - cos_theta) + axis[1] * sin_theta
+
+            mat[1, 0] = axis[0] * axis[1] * (1.0 - cos_theta) + axis[2] * sin_theta
+            mat[1, 1] = axis[1] * axis[1] + (1.0 - axis[1] * axis[1]) * cos_theta
+            mat[1, 2] = axis[1] * axis[2] * (1.0 - cos_theta) - axis[0] * sin_theta
+
+            mat[2, 0] = axis[0] * axis[2] * (1.0 - cos_theta) - axis[1] * sin_theta
+            mat[2, 1] = axis[1] * axis[2] * (1.0 - cos_theta) + axis[0] * sin_theta
+            mat[2, 2] = axis[2] * axis[2] + (1.0 - axis[2] * axis[2]) * cos_theta
+
+            mat[3, 3] = 1.0
+            ret = mat @ ret
     return ret
 
 def parse_vector(str):
