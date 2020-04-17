@@ -6,7 +6,8 @@ from typing import Optional
 import redner
 
 def compute_vertex_normal(vertices: tf.Tensor,
-                          indices: tf.Tensor):
+                          indices: tf.Tensor,
+                          weighting_scheme: str = 'max'):
     """
         Compute vertex normal by weighted average of nearby face normals using Nelson Max's algorithm.
         See `Weights for Computing Vertex Normals from Facet Vectors <https://escholarship.org/content/qt7657d8h3/qt7657d8h3.pdf?t=ptt283>`_.
@@ -19,6 +20,13 @@ def compute_vertex_normal(vertices: tf.Tensor,
         indices: tf.Tensor
             vertex indices of triangle faces.
             int32 tensor with size num_triangles x 3
+        weighting_scheme: str
+            How do we compute the weighting. Currently we support two weighting methods:
+            'max' and 'cotangent'.
+            'max' corresponds to Nelson Max's algorithm that uses the inverse length and sine of the angle as the weight
+            (see `Weights for Computing Vertex Normals from Facet Vectors <https://escholarship.org/content/qt7657d8h3/qt7657d8h3.pdf?t=ptt283>`_),
+            'cotangent' corresponds to weights derived through a discretization of the gradient of triangle area
+            (see, e.g., "Implicit Fairing of Irregular Meshes using Diffusion and Curvature Flow" from Desbrun et al.)
 
         Returns
         =======
@@ -36,48 +44,89 @@ def compute_vertex_normal(vertices: tf.Tensor,
         # Hack: asin(1)' is infinite, so we want to clamp the contribution
         return tf.asin(tf.clip_by_value(v, 0, 1-1e-6))
 
-    # Nelson Max, "Weights for Computing Vertex Normals from Facet Vectors", 1999
     normals = tf.zeros(vertices.shape, dtype = tf.float32)
 
     # NOTE: Try tf.TensorArray()
     v = [tf.gather(vertices, indices[:,0]),
          tf.gather(vertices, indices[:,1]),
          tf.gather(vertices, indices[:,2])]
+    if weighting_scheme == 'max':
+        for i in range(3):
+            v0 = v[i]
+            v1 = v[(i + 1) % 3]
+            v2 = v[(i + 2) % 3]
+            e1 = v1 - v0
+            e2 = v2 - v0
+            e1_len = length(e1)
+            e2_len = length(e2)
+            side_a = e1 / tf.reshape(e1_len, [-1, 1])
+            side_b = e2 / tf.reshape(e2_len, [-1, 1])
+            if i == 0:
+                n = tf.linalg.cross(side_a, side_b)
+                n = tf.where(\
+                    tf.broadcast_to(tf.reshape(length(n) > 0, (-1, 1)), tf.shape(n)),
+                    n / tf.reshape(length(n), (-1, 1)),
+                    tf.zeros(tf.shape(n), dtype=n.dtype))
 
-    for i in range(3):
-        v0 = v[i]
-        v1 = v[(i + 1) % 3]
-        v2 = v[(i + 2) % 3]
-        e1 = v1 - v0
-        e2 = v2 - v0
-        e1_len = length(e1)
-        e2_len = length(e2)
-        side_a = e1 / tf.reshape(e1_len, [-1, 1])
-        side_b = e2 / tf.reshape(e2_len, [-1, 1])
-        if i == 0:
-            n = tf.linalg.cross(side_a, side_b)
-            n = tf.where(\
-                tf.broadcast_to(tf.reshape(length(n) > 0, (-1, 1)), tf.shape(n)),
-                n / tf.reshape(length(n), (-1, 1)),
-                tf.zeros(tf.shape(n), dtype=n.dtype))
+            # numerically stable angle between two unit direction vectors
+            # http://www.plunk.org/~hatch/rightway.php
+            angle = tf.where(dot(side_a, side_b) < 0,
+                math.pi - 2.0 * safe_asin(0.5 * length(side_a + side_b)),
+                2.0 * safe_asin(0.5 * length(side_b - side_a)))
+            sin_angle = tf.sin(angle)
 
-        angle = tf.where(dot(side_a, side_b) < 0,
-            math.pi - 2.0 * safe_asin(0.5 * length(side_a + side_b)),
-            2.0 * safe_asin(0.5 * length(side_b - side_a)))
-        sin_angle = tf.sin(angle)
+            e1e2 = e1_len * e2_len
+            # contrib is 0 when e1e2 is 0
+            contrib = tf.reshape(\
+                tf.where(e1e2 > 0, sin_angle / e1e2, tf.zeros(tf.shape(e1e2), dtype=e1e2.dtype)), (-1, 1))
+            contrib = n * tf.broadcast_to(contrib, [tf.shape(contrib)[0],3]) # In torch, `expand(-1, 3)`
+            normals += tf.scatter_nd(tf.reshape(indices[:, i], [-1, 1]), contrib, shape = tf.shape(normals))
 
-        e1e2 = e1_len * e2_len
-        # contrib is 0 when e1e2 is 0
-        contrib = tf.reshape(\
-            tf.where(e1e2 > 0, sin_angle / e1e2, tf.zeros(tf.shape(e1e2), dtype=e1e2.dtype)), (-1, 1))
-        contrib = n * tf.broadcast_to(contrib, [tf.shape(contrib)[0],3]) # In torch, `expand(-1, 3)`
-        normals += tf.scatter_nd(tf.reshape(indices[:, i], [-1, 1]), contrib, shape = tf.shape(normals))
+        degenerate_normals = tf.constant((0.0, 0.0, 1.0))
+        degenerate_normals = tf.broadcast_to(tf.reshape(degenerate_normals, (1, 3)), tf.shape(normals))
+        normals = tf.where(tf.broadcast_to(tf.reshape(length(normals) > 0, (-1, 1)), tf.shape(normals)),
+            normals / tf.reshape(length(normals), (-1, 1)),
+            degenerate_normals)
+    elif weighting_scheme == 'cotangent':
+        # Cotangent weighting generates 0-length normal when
+        # the local surface is planar. Prepare weighted average normal
+        # computed using Nelson Max's algorithm for those cases.
+        max_normal = compute_vertex_normal(vertices, indices, 'max')
+        for i in range(3):
+            v0 = v[i]
+            v1 = v[(i + 1) % 3]
+            v2 = v[(i + 2) % 3]
+            e1 = v1 - v0
+            e2 = v2 - v0
+            e1_len = length(e1)
+            e2_len = length(e2)
+            side_a = e1 / tf.reshape(e1_len, [-1, 1])
+            side_b = e2 / tf.reshape(e2_len, [-1, 1])
+            if i == 0:
+                n = tf.linalg.cross(side_a, side_b)
+                n = tf.where(\
+                    tf.broadcast_to(tf.reshape(length(n) > 0, (-1, 1)), tf.shape(n)),
+                    n / tf.reshape(length(n), (-1, 1)),
+                    tf.zeros(tf.shape(n), dtype=n.dtype))
 
-    degenerate_normals = tf.constant((0.0, 0.0, 1.0))
-    degenerate_normals = tf.broadcast_to(tf.reshape(degenerate_normals, (1, 3)), tf.shape(normals))
-    normals = tf.where(tf.broadcast_to(tf.reshape(length(normals) > 0, (-1, 1)), tf.shape(normals)),
-        normals / tf.reshape(length(normals), (-1, 1)),
-        degenerate_normals)
+            # numerically stable angle between two unit direction vectors
+            # http://www.plunk.org/~hatch/rightway.php
+            angle = tf.where(dot(side_a, side_b) < 0,
+                math.pi - 2.0 * safe_asin(0.5 * length(side_a + side_b)),
+                2.0 * safe_asin(0.5 * length(side_b - side_a)))
+            cotangent = 1.0 / tf.tan(angle)
+            contrib = (v2 - v1) * tf.reshape(cotangent, [-1, 1])
+            normals += tf.scatter_nd(tf.reshape(indices[:, (i + 1) % 3], [-1, 1]), contrib, shape = tf.shape(normals))
+            normals += tf.scatter_nd(tf.reshape(indices[:, (i + 2) % 3], [-1, 1]), -contrib, shape = tf.shape(normals))
+        # Make sure the normals are pointing at the right direction
+        normals = tf.where(tf.broadcast_to(tf.reshape(dot(normals, max_normal), (-1, 1)), (tf.shape(normals))) > 0,
+                           normals, -normals)
+        normals = tf.where(tf.broadcast_to(tf.reshape(length(normals), (-1, 1)), tf.shape(normals)) > 0.05,
+            normals / tf.reshape(length(normals), [-1, 1]),
+            max_normal)
+    else:
+        assert(False, 'Unknown weighting scheme {}'.format(weighting_scheme))
+
     return normals
 
 def compute_uvs(vertices, indices, print_progress = True):

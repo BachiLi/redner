@@ -5,19 +5,26 @@ import redner
 from typing import Optional
 
 def compute_vertex_normal(vertices: torch.Tensor,
-                          indices: torch.Tensor):
+                          indices: torch.Tensor,
+                          weighting_scheme: str = 'max'):
     """
-        Compute vertex normal by weighted average of nearby face normals using Nelson Max's algorithm.
-        See `Weights for Computing Vertex Normals from Facet Vectors <https://escholarship.org/content/qt7657d8h3/qt7657d8h3.pdf?t=ptt283>`_.
+        Compute vertex normal by weighted average of nearby face normals.
 
         Args
         ====
         vertices: torch.Tensor
-            3D position of vertices
+            3D position of vertices.
             float32 tensor with size num_vertices x 3
         indices: torch.Tensor
-            vertex indices of triangle faces.
+            Vertex indices of triangle faces.
             int32 tensor with size num_triangles x 3
+        weighting_scheme: str
+            How do we compute the weighting. Currently we support two weighting methods:
+            'max' and 'cotangent'.
+            'max' corresponds to Nelson Max's algorithm that uses the inverse length and sine of the angle as the weight
+            (see `Weights for Computing Vertex Normals from Facet Vectors <https://escholarship.org/content/qt7657d8h3/qt7657d8h3.pdf?t=ptt283>`_),
+            'cotangent' corresponds to weights derived through a discretization of the gradient of triangle area
+            (see, e.g., "Implicit Fairing of Irregular Meshes using Diffusion and Curvature Flow" from Desbrun et al.)
 
         Returns
         =======
@@ -35,45 +42,88 @@ def compute_vertex_normal(vertices: torch.Tensor,
         # Hack: asin(1)' is infinite, so we want to clamp the contribution
         return torch.asin(v.clamp(0, 1-1e-6))
 
+    # XXX: This whole thing is inefficient but it's PyTorch's limitation
+
     normals = torch.zeros(vertices.shape, dtype = torch.float32, device = vertices.device)
     v = [vertices[indices[:, 0].long(), :],
          vertices[indices[:, 1].long(), :],
          vertices[indices[:, 2].long(), :]]
-    for i in range(3):
-        v0 = v[i]
-        v1 = v[(i + 1) % 3]
-        v2 = v[(i + 2) % 3]
-        e1 = v1 - v0
-        e2 = v2 - v0
-        e1_len = length(e1)
-        e2_len = length(e2)
-        side_a = e1 / torch.reshape(e1_len, [-1, 1])
-        side_b = e2 / torch.reshape(e2_len, [-1, 1])
-        if i == 0:
-            n = torch.cross(side_a, side_b)
-            n = torch.where(length(n).reshape(-1, 1).expand(-1, 3) > 0,
-                n / torch.reshape(length(n), [-1, 1]),
-                torch.zeros(n.shape, dtype=n.dtype, device=n.device))
-        angle = torch.where(dot(side_a, side_b) < 0, 
-            math.pi - 2.0 * safe_asin(0.5 * length(side_a + side_b)),
-            2.0 * safe_asin(0.5 * length(side_b - side_a)))
-        sin_angle = torch.sin(angle)
-        
-        # XXX: Inefficient but it's PyTorch's limitation
-        e1e2 = e1_len * e2_len
-        # contrib is 0 when e1e2 is 0
-        contrib = torch.where(e1e2.reshape(-1, 1).expand(-1, 3) > 0,
-            n * (sin_angle / e1e2).reshape(-1, 1).expand(-1, 3),
-            torch.zeros(n.shape, dtype = torch.float32, device = vertices.device))
-        index = indices[:, i].long().reshape(-1, 1).expand(-1, 3)
-        normals.scatter_add_(0, index, contrib)
+    if weighting_scheme == 'max':
+        for i in range(3):
+            v0 = v[i]
+            v1 = v[(i + 1) % 3]
+            v2 = v[(i + 2) % 3]
+            e1 = v1 - v0
+            e2 = v2 - v0
+            e1_len = length(e1)
+            e2_len = length(e2)
+            side_a = e1 / torch.reshape(e1_len, [-1, 1])
+            side_b = e2 / torch.reshape(e2_len, [-1, 1])
+            if i == 0:
+                n = torch.cross(side_a, side_b)
+                n = torch.where(length(n).reshape(-1, 1).expand(-1, 3) > 0,
+                    n / torch.reshape(length(n), [-1, 1]),
+                    torch.zeros(n.shape, dtype=n.dtype, device=n.device))
+            # numerically stable angle between two unit direction vectors
+            # http://www.plunk.org/~hatch/rightway.php
+            angle = torch.where(dot(side_a, side_b) < 0, 
+                math.pi - 2.0 * safe_asin(0.5 * length(side_a + side_b)),
+                2.0 * safe_asin(0.5 * length(side_b - side_a)))
+            sin_angle = torch.sin(angle)
+            e1e2 = e1_len * e2_len
+            # contrib is 0 when e1e2 is 0
+            contrib = torch.where(e1e2.reshape(-1, 1).expand(-1, 3) > 0,
+                n * (sin_angle / e1e2).reshape(-1, 1).expand(-1, 3),
+                torch.zeros(n.shape, dtype = torch.float32, device = vertices.device))
+            index = indices[:, i].long().reshape(-1, 1).expand(-1, 3)
+            normals.scatter_add_(0, index, contrib)
+        # Assign 0, 0, 1 to degenerate faces
+        degenerate_normals = torch.zeros(normals.shape, dtype = torch.float32, device = vertices.device)
+        degenerate_normals[:, 2] = 1.0
+        normals = torch.where(length(normals).reshape(-1, 1).expand(-1, 3) > 0,
+            normals / torch.reshape(length(normals), [-1, 1]),
+            degenerate_normals)
+    elif weighting_scheme == 'cotangent':
+        # Cotangent weighting generates 0-length normal when
+        # the local surface is planar. Prepare weighted average normal
+        # computed using Nelson Max's algorithm for those cases.
+        max_normal = compute_vertex_normal(vertices, indices, 'max')
+        for i in range(3):
+            # Loop over each pair of edges sharing the same vertex,
+            # compute the cotangent and contribute to the third edge.
+            v0 = v[i]
+            v1 = v[(i + 1) % 3]
+            v2 = v[(i + 2) % 3]
+            e1 = v1 - v0
+            e2 = v2 - v0
+            e1_len = length(e1)
+            e2_len = length(e2)
+            side_a = e1 / torch.reshape(e1_len, [-1, 1])
+            side_b = e2 / torch.reshape(e2_len, [-1, 1])
+            if i == 0:
+                n = torch.cross(side_a, side_b)
+                n = torch.where(length(n).reshape(-1, 1).expand(-1, 3) > 0,
+                    n / torch.reshape(length(n), [-1, 1]),
+                    torch.zeros(n.shape, dtype=n.dtype, device=n.device))
+            # numerically stable angle between two unit direction vectors
+            # http://www.plunk.org/~hatch/rightway.php
+            angle = torch.where(dot(side_a, side_b) < 0, 
+                math.pi - 2.0 * safe_asin(0.5 * length(side_a + side_b)),
+                2.0 * safe_asin(0.5 * length(side_b - side_a)))
+            cotangent = 1.0 / torch.tan(angle)
+            v1_index = indices[:, (i + 1) % 3].long().reshape(-1, 1).expand(-1, 3)
+            v2_index = indices[:, (i + 2) % 3].long().reshape(-1, 1).expand(-1, 3)
+            contrib = (v2 - v1) * cotangent.reshape([-1, 1])
+            normals.scatter_add_(0, v1_index, contrib)
+            normals.scatter_add_(0, v2_index, -contrib)
+        # Make sure the normals are pointing at the right direction
+        normals = torch.where(dot(normals, max_normal).reshape(-1, 1).expand(-1, 3) > 0, normals, -normals)
+        normals = torch.where(length(normals).reshape(-1, 1).expand(-1, 3) > 0.05,
+            normals / torch.reshape(length(normals), [-1, 1]),
+            max_normal)
+    else:
+        assert(False, 'Unknown weighting scheme {}'.format(weighting_scheme))
 
-    # Assign 0, 0, 1 to degenerate faces
-    degenerate_normals = torch.zeros(normals.shape, dtype = torch.float32, device = vertices.device)
-    degenerate_normals[:, 2] = 1.0
-    normals = torch.where(length(normals).reshape(-1, 1).expand(-1, 3) > 0,
-        normals / torch.reshape(length(normals), [-1, 1]),
-        degenerate_normals)
     assert(torch.isfinite(normals).all())
     return normals.contiguous()
 
