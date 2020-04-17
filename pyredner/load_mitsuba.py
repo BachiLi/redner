@@ -34,10 +34,10 @@ def parse_transform(node):
             value = transform.gen_scale_matrix(torch.tensor([x, y, z]))
             ret = value @ ret
         elif child.tag == 'rotate':
-            x = child.attrib['x'] if 'x' in child.attrib else 0.0
-            y = child.attrib['y'] if 'y' in child.attrib else 0.0
-            z = child.attrib['z'] if 'z' in child.attrib else 0.0
-            angle = transform.radians(child.attrib['angle'])
+            x = float(child.attrib['x']) if 'x' in child.attrib else 0.0
+            y = float(child.attrib['y']) if 'y' in child.attrib else 0.0
+            z = float(child.attrib['z']) if 'z' in child.attrib else 0.0
+            angle = transform.radians(float(child.attrib['angle']))
             axis = np.array([x, y, z])
             axis = axis / np.norm(axis)
             cos_theta = cos(angle)
