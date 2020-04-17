@@ -183,23 +183,18 @@ def load_obj(filename: str,
                         diffuse_reflectance = torch.tensor(m.Kd,
                             dtype = torch.float32, device = device)
                     else:
-                        diffuse_reflectance = pyredner.imread(m.map_Kd)
-                        if pyredner.get_use_gpu():
-                            diffuse_reflectance = diffuse_reflectance.cuda(device = device)
+                        diffuse_reflectance = pyredner.imread(m.map_Kd).to(device)
                     if m.map_Ks is None:
                         specular_reflectance = torch.tensor(m.Ks,
                             dtype = torch.float32, device = device)
                     else:
-                        specular_reflectance = pyredner.imread(m.map_Ks)
-                        if pyredner.get_use_gpu():
-                            specular_reflectance = specular_reflectance.cuda(device = device)
+                        specular_reflectance = pyredner.imread(m.map_Ks).to(device)
                     if m.map_Ns is None:
                         roughness = torch.tensor([2.0 / (m.Ns + 2.0)],
                             dtype = torch.float32, device = device)
                     else:
                         roughness = 2.0 / (pyredner.imread(m.map_Ks) + 2.0)
-                        if pyredner.get_use_gpu():
-                            roughness = roughness.cuda(device = device)
+                        roughness = roughness.to(device)
                     if m.Ke != (0.0, 0.0, 0.0):
                         light_map[mtl_name] = torch.tensor(m.Ke, dtype = torch.float32)
                     material_map[mtl_name] = pyredner.Material(\
