@@ -33,7 +33,7 @@ def parse_transform(node):
             z = float(child.attrib['z']) if 'z' in child.attrib else 0.0
             angle = transform.radians(float(child.attrib['angle']))
             axis = np.array([x, y, z])
-            axis = axis / np.norm(axis)
+            axis = axis / np.linalg.norm(axis)
             cos_theta = cos(angle)
             sin_theta = sin(angle)
             mat = np.zeros([4, 4], dtype = np.float32)
