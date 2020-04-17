@@ -9,7 +9,6 @@ def compute_vertex_normal(vertices: torch.Tensor,
                           weighting_scheme: str = 'max'):
     """
         Compute vertex normal by weighted average of nearby face normals.
-
         Args
         ====
         vertices: torch.Tensor
@@ -25,10 +24,9 @@ def compute_vertex_normal(vertices: torch.Tensor,
             (see `Weights for Computing Vertex Normals from Facet Vectors <https://escholarship.org/content/qt7657d8h3/qt7657d8h3.pdf?t=ptt283>`_),
             'cotangent' corresponds to weights derived through a discretization of the gradient of triangle area
             (see, e.g., "Implicit Fairing of Irregular Meshes using Diffusion and Curvature Flow" from Desbrun et al.)
-
         Returns
         =======
-        tf.Tensor
+        torch.Tensor
             float32 Tensor with size num_vertices x 3 representing vertex normal
     """
 
@@ -66,15 +64,15 @@ def compute_vertex_normal(vertices: torch.Tensor,
                     torch.zeros(n.shape, dtype=n.dtype, device=n.device))
             # numerically stable angle between two unit direction vectors
             # http://www.plunk.org/~hatch/rightway.php
-            angle = torch.where(dot(side_a, side_b) < 0, 
-                math.pi - 2.0 * safe_asin(0.5 * length(side_a + side_b)),
+            angle = torch.where(dot(side_a, side_b) < 0,
+                torch.tensor(math.pi) - 2.0 * safe_asin(0.5 * length(side_a + side_b)),
                 2.0 * safe_asin(0.5 * length(side_b - side_a)))
             sin_angle = torch.sin(angle)
             e1e2 = e1_len * e2_len
             # contrib is 0 when e1e2 is 0
             contrib = torch.where(e1e2.reshape(-1, 1).expand(-1, 3) > 0,
                 n * (sin_angle / e1e2).reshape(-1, 1).expand(-1, 3),
-                torch.zeros(n.shape, dtype = torch.float32, device = vertices.device))
+                torch.zeros(n.shape, dtype=torch.float32, device=vertices.device))
             index = indices[:, i].long().reshape(-1, 1).expand(-1, 3)
             normals.scatter_add_(0, index, contrib)
         # Assign 0, 0, 1 to degenerate faces
@@ -107,10 +105,10 @@ def compute_vertex_normal(vertices: torch.Tensor,
                     torch.zeros(n.shape, dtype=n.dtype, device=n.device))
             # numerically stable angle between two unit direction vectors
             # http://www.plunk.org/~hatch/rightway.php
-            angle = torch.where(dot(side_a, side_b) < 0, 
-                math.pi - 2.0 * safe_asin(0.5 * length(side_a + side_b)),
+            angle = torch.where(dot(side_a, side_b) < 0,
+                torch.tensor(math.pi) - 2.0 * safe_asin(0.5 * length(side_a + side_b)),
                 2.0 * safe_asin(0.5 * length(side_b - side_a)))
-            cotangent = 1.0 / torch.tan(angle)
+            cotangent = torch.tensor(1.0) / angle
             v1_index = indices[:, (i + 1) % 3].long().reshape(-1, 1).expand(-1, 3)
             v2_index = indices[:, (i + 2) % 3].long().reshape(-1, 1).expand(-1, 3)
             contrib = (v2 - v1) * cotangent.reshape([-1, 1])
@@ -122,10 +120,160 @@ def compute_vertex_normal(vertices: torch.Tensor,
             normals / torch.reshape(length(normals), [-1, 1]),
             max_normal)
     else:
-        assert(False, 'Unknown weighting scheme {}'.format(weighting_scheme))
+        assert False, 'Unknown weighting scheme: {}'.format(weighting_scheme)
 
     assert(torch.isfinite(normals).all())
     return normals.contiguous()
+
+
+def bound_vertices(vertices: torch.Tensor, indices: torch.Tensor):
+    """
+        Calculate the indices of boundary vertices of a mesh
+        and express it in Tensor form.
+
+        Args
+        ====
+        vertices: torch.Tensor
+            3D position of vertices.
+            float32 tensor with size num_vertices x 3
+        indices: torch.Tensor
+            Vertex indices of triangle faces.
+            int32 tensor with size num_triangles x 3
+
+        Returns
+        =======
+        bound: torch.Tensor
+            float32 Tensor with size num_vertices representing vertex normal
+            bound[i] = 0. if i-th vertices is on boundary of mesh; else 1.
+    """
+    neighbor_sum = torch.zeros(vertices.size(0), device=vertices.device)
+    for i in range(3):
+        contrib = indices[:, (i + 2) % 3] - indices[:, (i + 1) % 3]
+        index = indices[:, i].long()
+        neighbor_sum.scatter_add_(0, index, contrib.float())
+        # neighbor_sum[index[i]] += contrib[i]
+    return torch.where(neighbor_sum == 0,
+                       torch.ones(vertices.size(0), device=vertices.device),
+                       torch.zeros(vertices.size(0), device=vertices.device))
+
+def smooth(vertices: torch.Tensor,
+                     indices: torch.Tensor,
+                     lmd: torch.float32,
+                     weighting_scheme: str = 'reciprocal',
+                     control: torch.Tensor = None):
+    """
+        Update positions of vertices in a mesh. The shift amount of a vertex equals
+        to lmd times weight sum of all edges to neighbors.
+
+        $v_i += lmd * \frac {\sum_{j \in neighbors(i)} w_{ij}(v_j - v_i)} {\sum_{j \in neighbors(i)} w_{ij}}$
+
+        Args
+        ====
+        vertices: torch.Tensor
+            3D position of vertices.
+            float32 tensor with size num_vertices x 3
+        indices: torch.Tensor
+            Vertex indices of triangle faces.
+            int32 tensor with size num_triangles x 3
+        lmd: torch.float32
+            step length coefficient
+        weighting_scheme: str = 'reciprocal'
+            Different weighting schemes:
+                'reciprocal': (default)
+                    w[i][j] = 1 / len(v[j] - v[i])
+                'uniform':
+                    w[i][j] = 1
+                'cotangent':
+                    w[i][j] = cot(angle(i-m-j)) + cot(angle(i-n-j))
+                    m and n are vertices that form triangles with i and j
+        control: torch.Tensor
+            extra coefficient deciding which vertices to be update.
+            In default case, do not update boundary vertices of the mesh
+                control (default) = bound_vertices(vertices, indices)
+            type help(pyredner.bound_vertices)
+    """
+    if control is None:
+        control = bound_vertices(vertices, indices)
+    else:
+        assert control.numel() == vertices.size(0), 'Size of control tensor inconsistent with number of vertices'
+
+    def dot(v1, v2):
+        return torch.sum(v1 * v2, dim=1)
+
+    def squared_length(v):
+        return torch.sum(v * v, dim=1)
+
+    def length(v):
+        return torch.sqrt(squared_length(v))
+
+    def safe_asin(v):
+        # Hack: asin(1)' is infinite, so we want to clamp the contribution
+        return torch.asin(v.clamp(0, 1 - 1e-6))
+
+
+    total_contrib = torch.zeros(vertices.shape, dtype=torch.float32, device=vertices.device)
+    total_weight_contrib = torch.zeros(vertices.shape, dtype=torch.float32, device=vertices.device)
+
+    v = [vertices[indices[:, 0].long(), :],
+         vertices[indices[:, 1].long(), :],
+         vertices[indices[:, 2].long(), :]]
+    for i in range(3):
+        v0 = v[i]
+        v1 = v[(i + 1) % 3]
+        v2 = v[(i + 2) % 3]
+        e1 = v1 - v0
+        e2 = v2 - v0
+        e1_len = length(e1)
+        e2_len = length(e2)
+
+        # XXX: Inefficient but it's PyTorch's limitation
+        e1e2 = e1_len * e2_len
+        # contrib is 0 when e1e2 is 0
+
+        if weighting_scheme == 'reciprocal':
+            contrib = torch.where(e1e2.reshape(-1, 1).expand(-1, 3) > 0,
+                                  e1 / e1_len.reshape(-1, 1).expand(-1, 3) +
+                                  e2 / e2_len.reshape(-1, 1).expand(-1, 3),
+                                  torch.zeros(v0.shape, dtype=torch.float32, device=vertices.device))
+            weight_contrib = torch.where(e1e2.reshape(-1, 1).expand(-1, 3) > 0,
+                                         torch.tensor(1.) / e1_len.reshape(-1, 1).expand(-1, 3) +
+                                         torch.tensor(1.) / e2_len.reshape(-1, 1).expand(-1, 3),
+                                         torch.zeros(v0.shape, dtype=torch.float32, device=vertices.device))
+            index = indices[:, i].long().reshape(-1, 1).expand(-1, 3)
+            total_contrib.scatter_add_(0, index, contrib)
+            total_weight_contrib.scatter_add_(0, index, weight_contrib)
+        elif weighting_scheme == 'uniform':
+            contrib = torch.where(e1e2.reshape(-1, 1).expand(-1, 3) > 0,
+                                  e1 + e2,
+                                  torch.zeros(v0.shape, dtype=torch.float32, device=vertices.device))
+            weight_contrib = torch.where(e1e2.reshape(-1, 1).expand(-1, 3) > 0,
+                                         2 * torch.ones(v0.shape, dtype=torch.float32, device=vertices.device),
+                                         torch.zeros(v0.shape, dtype=torch.float32, device=vertices.device))
+            index = indices[:, i].long().reshape(-1, 1).expand(-1, 3)
+            total_contrib.scatter_add_(0, index, contrib)
+            total_weight_contrib.scatter_add_(0, index, weight_contrib)
+        elif weighting_scheme == 'cotangent':
+            pass
+            side_a = e1 / torch.reshape(e1_len, [-1, 1])
+            side_b = e2 / torch.reshape(e2_len, [-1, 1])
+            angle = torch.where(dot(side_a, side_b) < 0,
+                                torch.tensor(math.pi) - 2.0 * safe_asin(0.5 * length(side_a + side_b)),
+                                2.0 * safe_asin(0.5 * length(side_b - side_a)))
+            cotangent = torch.tensor(1.0) / angle
+            v1_index = indices[:, (i + 1) % 3].long().reshape(-1, 1).expand(-1, 3)
+            v2_index = indices[:, (i + 2) % 3].long().reshape(-1, 1).expand(-1, 3)
+            contrib = (v2 - v1) * cotangent.reshape([-1, 1])
+            weight_contrib = cotangent.reshape([-1, 1]).expand(-1, 3)
+            total_contrib.scatter_add_(0, v1_index, contrib)
+            total_contrib.scatter_add_(0, v2_index, -contrib)
+            total_weight_contrib.scatter_add_(0, v1_index, weight_contrib)
+            total_weight_contrib.scatter_add_(0, v2_index, weight_contrib)
+        else:
+            assert False, 'Unknown weighting_scheme: {}'.format(weighting_scheme)
+
+    shift = total_contrib / total_weight_contrib * control.reshape(-1, 1)
+    vertices.data += shift * lmd
+    return
 
 def compute_uvs(vertices, indices, print_progress = True):
     """
@@ -148,7 +296,6 @@ def compute_uvs(vertices, indices, print_progress = True):
         torch.Tensor
             uv indices, int32 Tensor with size num_triangles x 3
     """
-    device = vertices.device
     vertices = vertices.cpu()
     indices = indices.cpu()
 
@@ -171,10 +318,10 @@ def compute_uvs(vertices, indices, print_progress = True):
 
     redner.copy_texture_atlas(atlas, [uv_trimesh])
 
-    vertices = vertices.to(device)
-    indices = indices.to(device)
-    uvs = uvs.to(device)
-    uv_indices = uv_indices.to(device)
+    vertices = vertices.to(pyredner.get_device())
+    indices = indices.to(pyredner.get_device())
+    uvs = uvs.to(pyredner.get_device())
+    uv_indices = uv_indices.to(pyredner.get_device())
     return uvs, uv_indices
 
 class Shape:
