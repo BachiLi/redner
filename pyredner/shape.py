@@ -279,7 +279,6 @@ def compute_uvs(vertices, indices, print_progress = True):
     """
         Compute UV coordinates of a given mesh using a charting algorithm
         with least square conformal mapping. This calls the `xatlas <https://github.com/jpcy/xatlas>`_ library.
-
         Args
         ====
         vertices: torch.Tensor
@@ -288,7 +287,6 @@ def compute_uvs(vertices, indices, print_progress = True):
         indices: torch.Tensor
             vertex indices of triangle faces.
             int32 tensor with size num_triangles x 3
-
         Returns
         =======
         torch.Tensor
@@ -296,6 +294,7 @@ def compute_uvs(vertices, indices, print_progress = True):
         torch.Tensor
             uv indices, int32 Tensor with size num_triangles x 3
     """
+    device = vertices.device
     vertices = vertices.cpu()
     indices = indices.cpu()
 
@@ -318,10 +317,10 @@ def compute_uvs(vertices, indices, print_progress = True):
 
     redner.copy_texture_atlas(atlas, [uv_trimesh])
 
-    vertices = vertices.to(pyredner.get_device())
-    indices = indices.to(pyredner.get_device())
-    uvs = uvs.to(pyredner.get_device())
-    uv_indices = uv_indices.to(pyredner.get_device())
+    vertices = vertices.to(device)
+    indices = indices.to(device)
+    uvs = uvs.to(device)
+    uv_indices = uv_indices.to(device)
     return uvs, uv_indices
 
 class Shape:
@@ -332,7 +331,6 @@ class Shape:
         coordinates, because UV mapping creates seams and need to duplicate
         vertices. In this can we can use an additional "uv_indices" array
         to access the uv pool.
-
         Args
         ====
         vertices: torch.Tensor
