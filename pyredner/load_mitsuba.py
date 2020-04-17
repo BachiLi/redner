@@ -437,7 +437,7 @@ def parse_scene(node, device):
                 if child_s.tag == 'shape':
                     shape_group_dict[child.attrib['id']] = parse_shape(child_s, material_dict, None)[0]
         elif child.tag == 'shape':
-            shape, light = parse_shape(child, material_dict, len(shapes), shape_group_dict if child.attrib['type'] == 'instance' else None)
+            shape, light = parse_shape(child, material_dict, len(shapes), device, shape_group_dict if child.attrib['type'] == 'instance' else None)
             shapes.append(shape)
             if light is not None:
                 lights.append(light)
