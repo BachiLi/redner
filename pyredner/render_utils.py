@@ -169,8 +169,11 @@ def render_deferred(scene: Union[pyredner.Scene, List[pyredner.Scene]],
         # We do full-screen anti-aliasing: increase the rendering resolution
         # and downsample it after lighting
         org_res = scene.camera.resolution
+        org_viewport = scene.camera.viewport
         scene.camera.resolution = (org_res[0] * aa_samples,
                                    org_res[1] * aa_samples)
+        if org_viewport is not None:
+            scene.camera.viewport = [i * aa_samples for i in org_viewport]
         scene_args = pyredner.RenderFunction.serialize_scene(\
             scene = scene,
             num_samples = (1, 1),
@@ -182,6 +185,7 @@ def render_deferred(scene: Union[pyredner.Scene, List[pyredner.Scene]],
             device = device)
         # Need to revert the resolution back
         scene.camera.resolution = org_res
+        scene.camera.viewport = org_viewport
         g_buffer = pyredner.RenderFunction.apply(seed, *scene_args)
         pos = g_buffer[:, :, :3]
         normal = g_buffer[:, :, 3:6]
@@ -196,7 +200,11 @@ def render_deferred(scene: Union[pyredner.Scene, List[pyredner.Scene]],
             # Downsample
             img = img.permute(2, 0, 1) # HWC -> CHW
             img = img.unsqueeze(0) # CHW -> NCHW
-            img = torch.nn.functional.interpolate(img, size = org_res, mode = 'area')
+            if org_viewport is not None:
+                org_size = org_viewport[2] - org_viewport[0], org_viewport[3] - org_viewport[1]
+            else:
+                org_size = org_res
+            img = torch.nn.functional.interpolate(img, size = org_size, mode = 'area')
             img = img.squeeze(dim = 0) # NCHW -> CHW
             img = img.permute(1, 2, 0)
         return img
@@ -216,8 +224,11 @@ def render_deferred(scene: Union[pyredner.Scene, List[pyredner.Scene]],
                 # We do full-screen anti-aliasing: increase the rendering resolution
                 # and downsample it after lighting
                 org_res = sc.camera.resolution
+                org_viewport = sc.camera.viewport
                 sc.camera.resolution = (org_res[0] * aa_samples,
                                         org_res[1] * aa_samples)
+                if org_viewport is not None:
+                    sc.camera.viewport = [i * aa_samples for i in org_viewport]
                 scene_args = pyredner.RenderFunction.serialize_scene(\
                     scene = sc,
                     num_samples = (1, 1),
@@ -229,6 +240,7 @@ def render_deferred(scene: Union[pyredner.Scene, List[pyredner.Scene]],
                     device = device)
                 # Need to revert the resolution back
                 sc.camera.resolution = org_res
+                sc.camera.viewport = org_viewport
                 g_buffers.append(pyredner.RenderFunction.apply(se, *scene_args))
             g_buffers = torch.stack(g_buffers)
             pos = g_buffers[:, :, :, :3]
@@ -251,8 +263,11 @@ def render_deferred(scene: Union[pyredner.Scene, List[pyredner.Scene]],
                 # We do full-screen anti-aliasing: increase the rendering resolution
                 # and downsample it after lighting
                 org_res = sc.camera.resolution
+                org_viewport = sc.camera.viewport
                 sc.camera.resolution = (org_res[0] * aa_samples,
                                         org_res[1] * aa_samples)
+                if org_viewport is not None:
+                    sc.camera.viewport = [i * aa_samples for i in org_viewport]
                 scene_args = pyredner.RenderFunction.serialize_scene(\
                     scene = sc,
                     num_samples = (1, 1),
@@ -264,6 +279,7 @@ def render_deferred(scene: Union[pyredner.Scene, List[pyredner.Scene]],
                     device = device)
                 # Need to revert the resolution back
                 sc.camera.resolution = org_res
+                sc.camera.viewport = org_viewport
                 g_buffer = pyredner.RenderFunction.apply(se, *scene_args)
                 pos = g_buffer[:, :, :3]
                 normal = g_buffer[:, :, 3:6]
@@ -282,7 +298,11 @@ def render_deferred(scene: Union[pyredner.Scene, List[pyredner.Scene]],
         if aa_samples > 1:
             # Downsample
             imgs = imgs.permute(0, 3, 1, 2) # NHWC -> NCHW
-            imgs = torch.nn.functional.interpolate(imgs, size = org_res, mode = 'area')
+            if org_viewport is not None:
+                org_size = org_viewport[2] - org_viewport[0], org_viewport[3] - org_viewport[1]
+            else:
+                org_size = org_res
+            imgs = torch.nn.functional.interpolate(imgs, size = org_size, mode = 'area')
             imgs = imgs.permute(0, 2, 3, 1) # NCHW -> NHWC
         return imgs
 
