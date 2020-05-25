@@ -199,11 +199,11 @@ class Shape:
         uvs: Optional[tf.Tensor]:
             optional texture coordinates.
             float32 tensor with size num_uvs x 2
-            doesn't need to be the same size with vertices if uv_indices is None
+            doesn't need to be the same size with vertices if uv_indices is not None
         normals: Optional[tf.Tensor]
             shading normal
             float32 tensor with size num_normals x 3
-            doesn't need to be the same size with vertices if normal_indices is None
+            doesn't need to be the same size with vertices if normal_indices is not None
         uv_indices: Optional[tf.Tensor]
             overrides indices when accessing uv coordinates
             int32 tensor with size num_uvs x 2
