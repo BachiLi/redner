@@ -24,6 +24,7 @@ def compute_vertex_normal(vertices: torch.Tensor,
             (see `Weights for Computing Vertex Normals from Facet Vectors <https://escholarship.org/content/qt7657d8h3/qt7657d8h3.pdf?t=ptt283>`_),
             'cotangent' corresponds to weights derived through a discretization of the gradient of triangle area
             (see, e.g., "Implicit Fairing of Irregular Meshes using Diffusion and Curvature Flow" from Desbrun et al.)
+
         Returns
         =======
         torch.Tensor
