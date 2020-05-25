@@ -164,8 +164,11 @@ def render_deferred(scene: Union[pyredner.Scene, List[pyredner.Scene]],
         # We do full-screen anti-aliasing: increase the rendering resolution
         # and downsample it after lighting
         org_res = scene.camera.resolution
+        org_viewport = scene.camera.viewport
         scene.camera.resolution = (org_res[0] * aa_samples,
                                    org_res[1] * aa_samples)
+        if org_viewport is not None:
+            scene.camera.viewport = [i * aa_samples for i in org_viewport]
         scene_args = pyredner.serialize_scene(\
             scene = scene,
             num_samples = (1, 1),
@@ -177,6 +180,7 @@ def render_deferred(scene: Union[pyredner.Scene, List[pyredner.Scene]],
             device_name = device_name)
         # Need to revert the resolution back
         scene.camera.resolution = org_res
+        scene.camera.viewport = org_viewport
         g_buffer = pyredner.render(seed, *scene_args)
         pos = g_buffer[:, :, :3]
         normal = g_buffer[:, :, 3:6]
@@ -190,8 +194,12 @@ def render_deferred(scene: Union[pyredner.Scene, List[pyredner.Scene]],
         if aa_samples > 1:
             # Downsample
             img = tf.expand_dims(img, 0) # HWC -> NHWC
+            if org_viewport is not None:
+                org_size = org_viewport[2] - org_viewport[0], org_viewport[3] - org_viewport[1]
+            else:
+                org_size = org_res
             # TODO: switch to method = 'area' when tensorflow implements the gradients...
-            img = tf.image.resize(img, size = org_res, method = 'bilinear', antialias = True)
+            img = tf.image.resize(img, size = org_size, method = 'bilinear', antialias = True)
             img = tf.squeeze(img, axis = 0) # NHWC -> HWC
         return img
     else:
@@ -210,8 +218,11 @@ def render_deferred(scene: Union[pyredner.Scene, List[pyredner.Scene]],
                 # We do full-screen anti-aliasing: increase the rendering resolution
                 # and downsample it after lighting
                 org_res = sc.camera.resolution
+                org_viewport = sc.camera.viewport
                 sc.camera.resolution = (org_res[0] * aa_samples,
                                         org_res[1] * aa_samples)
+                if org_viewport is not None:
+                    sc.camera.viewport = [i * aa_samples for i in org_viewport]
                 scene_args = pyredner.serialize_scene(\
                     scene = sc,
                     num_samples = (1, 1),
@@ -223,6 +234,7 @@ def render_deferred(scene: Union[pyredner.Scene, List[pyredner.Scene]],
                     device_name = device_name)
                 # Need to revert the resolution back
                 sc.camera.resolution = org_res
+                sc.camera.viewport = org_viewport
                 g_buffers.append(pyredner.render(se, *scene_args))
             g_buffers = tf.stack(g_buffers)
             pos = g_buffers[:, :, :, :3]
@@ -244,8 +256,11 @@ def render_deferred(scene: Union[pyredner.Scene, List[pyredner.Scene]],
                 # We do full-screen anti-aliasing: increase the rendering resolution
                 # and downsample it after lighting
                 org_res = sc.camera.resolution
+                org_viewport = sc.camera.viewport
                 sc.camera.resolution = (org_res[0] * aa_samples,
                                         org_res[1] * aa_samples)
+                if org_viewport is not None:
+                    sc.camera.viewport = [i * aa_samples for i in org_viewport]
                 scene_args = pyredner.serialize_scene(\
                     scene = sc,
                     num_samples = (1, 1),
@@ -257,6 +272,7 @@ def render_deferred(scene: Union[pyredner.Scene, List[pyredner.Scene]],
                     device_name = device_name)
                 # Need to revert the resolution back
                 sc.camera.resolution = org_res
+                sc.camera.viewport = org_viewport
                 g_buffer = pyredner.render(se, *scene_args)
                 pos = g_buffer[:, :, :3]
                 normal = g_buffer[:, :, 3:6]
@@ -272,9 +288,13 @@ def render_deferred(scene: Union[pyredner.Scene, List[pyredner.Scene]],
                 imgs.append(img)
             imgs = tf.stack(imgs)
         if aa_samples > 1:
+            if org_viewport is not None:
+                org_size = org_viewport[2] - org_viewport[0], org_viewport[3] - org_viewport[1]
+            else:
+                org_size = org_res
             # Downsample
             # TODO: switch to method = 'area' when tensorflow implements the gradients...
-            imgs = tf.image.resize(imgs, size = org_res, method = 'bilinear', antialias = True)
+            imgs = tf.image.resize(imgs, size = org_size, method = 'bilinear', antialias = True)
         return imgs
 
 def render_generic(scene: pyredner.Scene,
