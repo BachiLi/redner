@@ -1,5 +1,6 @@
 import pyredner
 from typing import Union
+import os
 
 def save_obj(shape: Union[pyredner.Object, pyredner.Shape],
              filename: str,
@@ -16,6 +17,10 @@ def save_obj(shape: Union[pyredner.Object, pyredner.Shape],
         flip_tex_coords: bool
             flip the v coordinate of uv by applying v' = 1 - v
     """
+    directory = os.path.dirname(filename)
+    if directory != '' and not os.path.exists(directory):
+        os.makedirs(directory)
+        
     with open(filename, 'w') as f:
         vertices = shape.vertices.data.cpu().numpy()
         uvs = shape.uvs.cpu().numpy() if shape.uvs is not None else None
