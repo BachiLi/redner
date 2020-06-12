@@ -63,8 +63,8 @@ RUN conda create -n py38 python=3.8 \
     && conda run -n py38 conda install -y \
         pytorch-cpu \
         pybind11 \
-        tensorflow \
         scikit-image \
+    && conda run -n py38 pip install tensorflow
     && conda clean -ya
 
 #-----------------------------------------------------
