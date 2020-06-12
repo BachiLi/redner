@@ -44,7 +44,7 @@ RUN conda create -n py36 python=3.6 \
         pytorch \
         pybind11 \
         tensorflow-gpu \
-        scikit-image \
+        -c pytorch \
     && conda clean -ya
 
 #-----------------------------------------------------
@@ -63,8 +63,8 @@ RUN conda create -n py38 python=3.8 \
     && conda run -n py38 conda install -y \
         pytorch \
         pybind11 \
-        scikit-image
-    && conda run -n py38 pip install tensorflow-gpu
+        -c pytorch \
+    && conda run -n py38 pip install tensorflow-gpu \
     && conda clean -ya
 
 #-----------------------------------------------------

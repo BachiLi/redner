@@ -42,9 +42,8 @@ RUN if [ -d "build" ]; then rm -rf build; fi \
 RUN conda create -n py36 python=3.6 \
     && conda run -n py36 conda install -y \
         pytorch-cpu \
-        pybind11 \
         tensorflow \
-        scikit-image \
+        pybind11 \
     && conda clean -ya
 
 #-----------------------------------------------------
@@ -61,10 +60,9 @@ RUN if [ -d "build" ]; then rm -rf build; fi \
 # Create a Python 3.8 environment
 RUN conda create -n py38 python=3.8 \
     && conda run -n py38 conda install -y \
-        pytorch-cpu \
-        pybind11 \
-        scikit-image \
-    && conda run -n py38 pip install tensorflow
+        pytorch \
+        pybind11 -c pytorch \
+    && conda run -n py38 pip install tensorflow \
     && conda clean -ya
 
 #-----------------------------------------------------
