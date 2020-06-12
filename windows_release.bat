@@ -29,5 +29,16 @@ call conda run -n redner-gpu-py37 conda env config vars set REDNER_CUDA=1
 call conda run -n redner-gpu-py37 conda env config vars set PROJECT_NAME=redner-gpu
 call conda run -n redner-gpu-py37 pip wheel -w dist --verbose .
 
+call conda create -y -n redner-py38 python=3.8
+call conda run -n redner-py37 conda install -y pytorch pybind11 -c pytorch
+call conda run -n redner-py37 conda env config vars set REDNER_CUDA=0
+call conda run -n redner-py37 pip wheel -w dist --verbose .
+
+call conda create -y -n redner-gpu-py38 python=3.8
+call conda run -n redner-gpu-py37 conda install -y pytorch pybind11 -c pytorch
+call conda run -n redner-gpu-py37 conda env config vars set REDNER_CUDA=1
+call conda run -n redner-gpu-py37 conda env config vars set PROJECT_NAME=redner-gpu
+call conda run -n redner-gpu-py37 pip wheel -w dist --verbose .
+
 call pip install twine
 call twine upload dist/redner*.whl

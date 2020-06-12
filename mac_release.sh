@@ -21,5 +21,13 @@ conda run -n redner-py37 conda install -y \
         -c pytorch
 conda run -n redner-py37 pip wheel -w dist --verbose .
 
+conda create -y -n redner-py38 python=3.8
+conda run -n redner-py38 conda install -y \
+        pytorch \
+        pybind11 \
+        tensorflow \
+        -c pytorch
+conda run -n redner-py38 pip wheel -w dist --verbose .
+
 pip install twine
 twine upload dist/redner*.whl
