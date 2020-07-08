@@ -12,9 +12,10 @@ from .render_pytorch import *
 from .image import *
 from .load_obj import load_obj
 from .save_obj import save_obj
-from .utils import *
+from .save_mtl import save_mtl
 from .load_mitsuba import load_mitsuba
 from .transform import *
+from .utils import *
 from .channels import channels
 from .sampler_type import sampler_type
 from .render_utils import *
