@@ -107,6 +107,7 @@ def render_deferred(scene: Union[pyredner.Scene, List[pyredner.Scene]],
                     aa_samples: int = 2,
                     seed: Optional[Union[int, List[int]]] = None,
                     sample_pixel_center: bool = False,
+                    use_primary_edge_sampling: bool = True,
                     device: Optional[torch.device] = None):
     """
         Render the scenes using `deferred rendering <https://en.wikipedia.org/wiki/Deferred_shading>`_.
@@ -143,6 +144,8 @@ def render_deferred(scene: Union[pyredner.Scene, List[pyredner.Scene]],
             If this option is activated, the rendering becomes non-differentiable
             (since there is no antialiasing integral),
             and redner's edge sampling becomes an approximation to the gradients of the aliased rendering.
+        use_primary_edge_sampling: bool
+            debug option
         device: Optional[torch.device]
             Which device should we store the data in.
             If set to None, use the device from pyredner.get_device().
@@ -180,6 +183,7 @@ def render_deferred(scene: Union[pyredner.Scene, List[pyredner.Scene]],
             max_bounces = 0,
             sampler_type = redner.SamplerType.sobol,
             channels = channels,
+            use_primary_edge_sampling = use_primary_edge_sampling,
             use_secondary_edge_sampling = False,
             sample_pixel_center = sample_pixel_center,
             device = device)
@@ -235,6 +239,7 @@ def render_deferred(scene: Union[pyredner.Scene, List[pyredner.Scene]],
                     max_bounces = 0,
                     sampler_type = redner.SamplerType.sobol,
                     channels = channels,
+                    use_primary_edge_sampling = use_primary_edge_sampling,
                     use_secondary_edge_sampling = False,
                     sample_pixel_center = sample_pixel_center,
                     device = device)
@@ -274,6 +279,7 @@ def render_deferred(scene: Union[pyredner.Scene, List[pyredner.Scene]],
                     max_bounces = 0,
                     sampler_type = redner.SamplerType.sobol,
                     channels = channels,
+                    use_primary_edge_sampling = use_primary_edge_sampling,
                     use_secondary_edge_sampling = False,
                     sample_pixel_center = sample_pixel_center,
                     device = device)
@@ -313,6 +319,8 @@ def render_generic(scene: pyredner.Scene,
                    num_samples: Union[int, Tuple[int, int]] = (4, 4),
                    seed: Optional[int] = None,
                    sample_pixel_center: bool = False,
+                   use_primary_edge_sampling: bool = True,
+                   use_secondary_edge_sampling: bool = True,
                    device: Optional[torch.device] = None):
     """
         A generic rendering function that can be either pathtracing or
@@ -326,6 +334,7 @@ def render_generic(scene: pyredner.Scene,
             For batch rendering all scenes need to have the same resolution.
         channels: List[pyredner.channels]
             | A list of the following channels\:
+            | pyredner.channels.radiance,
             | pyredner.channels.alpha
             | pyredner.channels.depth
             | pyredner.channels.position
@@ -363,6 +372,10 @@ def render_generic(scene: pyredner.Scene,
             If this option is activated, the rendering becomes non-differentiable
             (since there is no antialiasing integral),
             and redner's edge sampling becomes an approximation to the gradients of the aliased rendering.
+        use_primary_edge_sampling: bool
+            debug option
+        use_secondary_edge_sampling: bool
+            debug option
         device: Optional[torch.device]
             Which device should we store the data in.
             If set to None, use the device from pyredner.get_device().
@@ -386,6 +399,8 @@ def render_generic(scene: pyredner.Scene,
             sampler_type = sampler_type,
             channels = channels,
             sample_pixel_center = sample_pixel_center,
+            use_primary_edge_sampling = use_primary_edge_sampling,
+            use_secondary_edge_sampling = use_secondary_edge_sampling,
             device = device)
         return pyredner.RenderFunction.apply(seed, *scene_args)
     else:
@@ -406,6 +421,8 @@ def render_generic(scene: pyredner.Scene,
                 sampler_type = sampler_type,
                 channels = channels,
                 sample_pixel_center = sample_pixel_center,
+                use_primary_edge_sampling = use_primary_edge_sampling,
+                use_secondary_edge_sampling = use_secondary_edge_sampling,
                 device = device)
             imgs.append(pyredner.RenderFunction.apply(se, *scene_args))
         imgs = torch.stack(imgs)
@@ -416,6 +433,8 @@ def render_g_buffer(scene: Union[pyredner.Scene, List[pyredner.Scene]],
                     num_samples: Union[int, Tuple[int, int]] = (1, 1),
                     seed: Optional[Union[int, List[int]]] = None,
                     sample_pixel_center: bool = False,
+                    use_primary_edge_sampling: bool = True,
+                    use_secondary_edge_sampling: bool = True,
                     device: Optional[torch.device] = None):
     """
         Render G buffers from the scene.
@@ -428,6 +447,7 @@ def render_g_buffer(scene: Union[pyredner.Scene, List[pyredner.Scene]],
             For batch rendering all scenes need to have the same resolution.
         channels: List[pyredner.channels]
             | A list of the following channels\:
+            | pyredner.channels.radiance,
             | pyredner.channels.alpha
             | pyredner.channels.depth
             | pyredner.channels.position
@@ -457,6 +477,10 @@ def render_g_buffer(scene: Union[pyredner.Scene, List[pyredner.Scene]],
             If this option is activated, the rendering becomes non-differentiable
             (since there is no antialiasing integral),
             and redner's edge sampling becomes an approximation to the gradients of the aliased rendering.
+        use_primary_edge_sampling: bool
+            debug option
+        use_secondary_edge_sampling: bool
+            debug option
         device: Optional[torch.device]
             Which device should we store the data in.
             If set to None, use the device from pyredner.get_device().
@@ -474,6 +498,8 @@ def render_g_buffer(scene: Union[pyredner.Scene, List[pyredner.Scene]],
                           num_samples = num_samples,
                           seed = seed,
                           sample_pixel_center = sample_pixel_center,
+                          use_primary_edge_sampling = use_primary_edge_sampling,
+                          use_secondary_edge_sampling = use_secondary_edge_sampling,
                           device = device)
 
 def render_pathtracing(scene: Union[pyredner.Scene, List[pyredner.Scene]],
@@ -483,6 +509,8 @@ def render_pathtracing(scene: Union[pyredner.Scene, List[pyredner.Scene]],
                        num_samples: Union[int, Tuple[int, int]] = (4, 4),
                        seed: Optional[Union[int, List[int]]] = None,
                        sample_pixel_center: bool = False,
+                       use_primary_edge_sampling: bool = True,
+                       use_secondary_edge_sampling: bool = True,
                        device: Optional[torch.device] = None):
     """
         Render a pyredner scene using pathtracing.
@@ -515,6 +543,10 @@ def render_pathtracing(scene: Union[pyredner.Scene, List[pyredner.Scene]],
             If this option is activated, the rendering becomes non-differentiable
             (since there is no antialiasing integral),
             and redner's edge sampling becomes an approximation to the gradients of the aliased rendering.
+        use_primary_edge_sampling: bool
+            debug option
+        use_secondary_edge_sampling: bool
+            debug option
         device: Optional[torch.device]
             Which device should we store the data in.
             If set to None, use the device from pyredner.get_device().
@@ -537,6 +569,8 @@ def render_pathtracing(scene: Union[pyredner.Scene, List[pyredner.Scene]],
                           num_samples = num_samples,
                           seed = seed,
                           sample_pixel_center = sample_pixel_center,
+                          use_primary_edge_sampling = use_primary_edge_sampling,
+                          use_secondary_edge_sampling = use_secondary_edge_sampling,
                           device = device)
 
 def render_albedo(scene: Union[pyredner.Scene, List[pyredner.Scene]],
@@ -544,6 +578,7 @@ def render_albedo(scene: Union[pyredner.Scene, List[pyredner.Scene]],
                   num_samples: Union[int, Tuple[int, int]] = (16, 4),
                   seed: Optional[Union[int, List[int]]] = None,
                   sample_pixel_center: bool = False,
+                  use_primary_edge_sampling: bool = True,
                   device: Optional[torch.device] = None):
     """
         Render the diffuse albedo colors of the scenes.
@@ -592,4 +627,5 @@ def render_albedo(scene: Union[pyredner.Scene, List[pyredner.Scene]],
                            num_samples = num_samples,
                            seed = seed,
                            sample_pixel_center = sample_pixel_center,
+                           use_primary_edge_sampling = use_primary_edge_sampling,
                            device = device)
