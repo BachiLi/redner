@@ -105,7 +105,7 @@ def render_deferred(scene: Union[pyredner.Scene, List[pyredner.Scene]],
                     lights: Union[List[DeferredLight], List[List[DeferredLight]]],
                     alpha: bool = False,
                     aa_samples: int = 2,
-                    seed: Optional[Union[int, List[int]]] = None,
+                    seed: Optional[Union[int, List[int], Tuple[int, int], List[Tuple[int, int]]]] = None,
                     sample_pixel_center: bool = False,
                     use_primary_edge_sampling: bool = True,
                     device: Optional[torch.device] = None):
@@ -134,7 +134,7 @@ def render_deferred(scene: Union[pyredner.Scene, List[pyredner.Scene]],
         aa_samples: int
             Number of samples used for anti-aliasing at both x, y dimensions
             (e.g. if aa_samples=2, 4 samples are used).
-        seed: Optional[Union[int, List[int]]]
+        seed: Optional[Union[int, List[int], Tuple[int, int], List[Tuple[int, int]]]]
             Random seed used for sampling. Randomly assigned if set to None.
             For batch render, if seed it not None, need to provide a list
             of seeds.
@@ -317,7 +317,7 @@ def render_generic(scene: pyredner.Scene,
                    max_bounces: int = 1,
                    sampler_type = pyredner.sampler_type.sobol,
                    num_samples: Union[int, Tuple[int, int]] = (4, 4),
-                   seed: Optional[int] = None,
+                   seed: Optional[Union[int, List[int], Tuple[int, int], List[Tuple[int, int]]]] = None,
                    sample_pixel_center: bool = False,
                    use_primary_edge_sampling: bool = True,
                    use_secondary_edge_sampling: bool = True,
@@ -362,7 +362,7 @@ def render_generic(scene: pyredner.Scene,
         num_samples: int
             Number of samples per pixel for forward and backward passes.
             Can be an integer or a tuple of 2 integers.
-        seed: Optional[Union[int, List[int]]]
+        seed: Optional[Union[int, List[int], Tuple[int, int], List[Tuple[int, int]]]]
             Random seed used for sampling. Randomly assigned if set to None.
             For batch render, if seed it not None, need to provide a list
             of seeds.
@@ -431,7 +431,7 @@ def render_generic(scene: pyredner.Scene,
 def render_g_buffer(scene: Union[pyredner.Scene, List[pyredner.Scene]],
                     channels: List,
                     num_samples: Union[int, Tuple[int, int]] = (1, 1),
-                    seed: Optional[Union[int, List[int]]] = None,
+                    seed: Optional[Union[int, List[int], Tuple[int, int], List[Tuple[int, int]]]] = None,
                     sample_pixel_center: bool = False,
                     use_primary_edge_sampling: bool = True,
                     use_secondary_edge_sampling: bool = True,
@@ -467,7 +467,7 @@ def render_g_buffer(scene: Union[pyredner.Scene, List[pyredner.Scene]],
             Number of samples for forward and backward passes, respectively.
             If a single integer is provided, use the same number of samples
             for both.
-        seed: Optional[Union[int, List[int]]]
+        seed: Optional[Union[int, List[int], Tuple[int, int], List[Tuple[int, int]]]]
             Random seed used for sampling. Randomly assigned if set to None.
             For batch render, if seed it not None, need to provide a list
             of seeds.
@@ -507,7 +507,7 @@ def render_pathtracing(scene: Union[pyredner.Scene, List[pyredner.Scene]],
                        max_bounces: int = 1,
                        sampler_type = pyredner.sampler_type.sobol,
                        num_samples: Union[int, Tuple[int, int]] = (4, 4),
-                       seed: Optional[Union[int, List[int]]] = None,
+                       seed: Optional[Union[int, List[int], Tuple[int, int], List[Tuple[int, int]]]] = None,
                        sample_pixel_center: bool = False,
                        use_primary_edge_sampling: bool = True,
                        use_secondary_edge_sampling: bool = True,
@@ -533,7 +533,7 @@ def render_pathtracing(scene: Union[pyredner.Scene, List[pyredner.Scene]],
         num_samples: int
             Number of samples per pixel for forward and backward passes.
             Can be an integer or a tuple of 2 integers.
-        seed: Optional[Union[int, List[int]]]
+        seed: Optional[Union[int, List[int], Tuple[int, int], List[Tuple[int, int]]]]
             Random seed used for sampling. Randomly assigned if set to None.
             For batch render, if seed it not None, need to provide a list
             of seeds.
@@ -576,7 +576,7 @@ def render_pathtracing(scene: Union[pyredner.Scene, List[pyredner.Scene]],
 def render_albedo(scene: Union[pyredner.Scene, List[pyredner.Scene]],
                   alpha: bool = False,
                   num_samples: Union[int, Tuple[int, int]] = (16, 4),
-                  seed: Optional[Union[int, List[int]]] = None,
+                  seed: Optional[Union[int, List[int], Tuple[int, int], List[Tuple[int, int]]]] = None,
                   sample_pixel_center: bool = False,
                   use_primary_edge_sampling: bool = True,
                   device: Optional[torch.device] = None):
