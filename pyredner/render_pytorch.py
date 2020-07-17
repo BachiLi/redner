@@ -278,6 +278,13 @@ class RenderFunction(torch.autograd.Function):
             all information into a Context.
         """
 
+        assert(isinstance(seed, tuple) or isinstance(seed, int))
+        if not isinstance(seed, tuple):
+            if not get_use_correlated_random_number():
+                # Decouple the forward/backward random numbers by adding a big prime number
+                backward_seed = seed + 1000003
+            seed = (seed, backward_seed)
+
         current_index = 0
         num_shapes = args[current_index]
         current_index += 1
@@ -623,7 +630,7 @@ class RenderFunction(torch.autograd.Function):
         if isinstance(num_samples, int):
             num_samples = (num_samples, num_samples)
 
-        options = redner.RenderOptions(seed,
+        options = redner.RenderOptions(seed[0],
                                        num_samples[0],
                                        max_bounces,
                                        channels,
@@ -631,6 +638,7 @@ class RenderFunction(torch.autograd.Function):
                                        sample_pixel_center)
 
         ctx = Context()
+        ctx.seed = seed
         ctx.channels = channels
         ctx.options = options
         ctx.resolution = resolution
@@ -1052,10 +1060,7 @@ class RenderFunction(torch.autograd.Function):
 
         buffers = RenderFunction.create_gradient_buffers(ctx)
 
-        if not get_use_correlated_random_number():
-            # Decouple the forward/backward random numbers by adding a big prime number
-            options.seed += 1000003
-
+        options.seed = ctx.seed[1]
         options.num_samples = ctx.num_samples[1]
         start = time.time()
         redner.render(scene, options,
