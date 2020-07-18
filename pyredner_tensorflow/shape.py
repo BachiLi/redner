@@ -66,7 +66,7 @@ def compute_vertex_normal(vertices: tf.Tensor,
                 n = tf.where(\
                     tf.broadcast_to(tf.reshape(length(n) > 0, (-1, 1)), tf.shape(n)),
                     n / tf.reshape(length(n), (-1, 1)),
-                    tf.zeros(tf.shape(n), dtype=n.dtype))
+                    tf.zeros(tf.shape(n), dtype = n.dtype))
 
             # numerically stable angle between two unit direction vectors
             # http://www.plunk.org/~hatch/rightway.php
@@ -78,7 +78,7 @@ def compute_vertex_normal(vertices: tf.Tensor,
             e1e2 = e1_len * e2_len
             # contrib is 0 when e1e2 is 0
             contrib = tf.reshape(\
-                tf.where(e1e2 > 0, sin_angle / e1e2, tf.zeros(tf.shape(e1e2), dtype=e1e2.dtype)), (-1, 1))
+                tf.where(e1e2 > 0, sin_angle / e1e2, tf.zeros(tf.shape(e1e2), dtype = e1e2.dtype)), (-1, 1))
             contrib = n * tf.broadcast_to(contrib, [tf.shape(contrib)[0],3]) # In torch, `expand(-1, 3)`
             normals += tf.scatter_nd(tf.reshape(indices[:, i], [-1, 1]), contrib, shape = tf.shape(normals))
 
@@ -107,7 +107,7 @@ def compute_vertex_normal(vertices: tf.Tensor,
                 n = tf.where(\
                     tf.broadcast_to(tf.reshape(length(n) > 0, (-1, 1)), tf.shape(n)),
                     n / tf.reshape(length(n), (-1, 1)),
-                    tf.zeros(tf.shape(n), dtype=n.dtype))
+                    tf.zeros(tf.shape(n), dtype = n.dtype))
 
             # numerically stable angle between two unit direction vectors
             # http://www.plunk.org/~hatch/rightway.php
@@ -199,11 +199,11 @@ class Shape:
         uvs: Optional[tf.Tensor]:
             optional texture coordinates.
             float32 tensor with size num_uvs x 2
-            doesn't need to be the same size with vertices if uv_indices is None
+            doesn't need to be the same size with vertices if uv_indices is not None
         normals: Optional[tf.Tensor]
             shading normal
             float32 tensor with size num_normals x 3
-            doesn't need to be the same size with vertices if normal_indices is None
+            doesn't need to be the same size with vertices if normal_indices is not None
         uv_indices: Optional[tf.Tensor]
             overrides indices when accessing uv coordinates
             int32 tensor with size num_uvs x 2

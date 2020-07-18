@@ -24,6 +24,7 @@ def compute_vertex_normal(vertices: torch.Tensor,
             (see `Weights for Computing Vertex Normals from Facet Vectors <https://escholarship.org/content/qt7657d8h3/qt7657d8h3.pdf?t=ptt283>`_),
             'cotangent' corresponds to weights derived through a discretization of the gradient of triangle area
             (see, e.g., "Implicit Fairing of Irregular Meshes using Diffusion and Curvature Flow" from Desbrun et al.)
+
         Returns
         =======
         torch.Tensor
@@ -342,11 +343,11 @@ class Shape:
         uvs: Optional[torch.Tensor]:
             optional texture coordinates.
             float32 tensor with size num_uvs x 2
-            doesn't need to be the same size with vertices if uv_indices is None
+            doesn't need to be the same size with vertices if uv_indices is not None
         normals: Optional[torch.Tensor]
             shading normal
             float32 tensor with size num_normals x 3
-            doesn't need to be the same size with vertices if normal_indices is None
+            doesn't need to be the same size with vertices if normal_indices is not None
         uv_indices: Optional[torch.Tensor]
             overrides indices when accessing uv coordinates
             int32 tensor with size num_uvs x 2

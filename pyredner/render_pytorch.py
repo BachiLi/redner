@@ -623,7 +623,7 @@ class RenderFunction(torch.autograd.Function):
         if isinstance(num_samples, int):
             num_samples = (num_samples, num_samples)
 
-        options = redner.RenderOptions(seed,
+        options = redner.RenderOptions(seed[0],
                                        num_samples[0],
                                        max_bounces,
                                        channels,
@@ -655,6 +655,12 @@ class RenderFunction(torch.autograd.Function):
         """
             Forward rendering pass: given a serialized scene and output an image.
         """
+        assert(isinstance(seed, tuple) or isinstance(seed, int))
+        if not isinstance(seed, tuple):
+            if not get_use_correlated_random_number():
+                # Decouple the forward/backward random numbers by adding a big prime number
+                backward_seed = seed + 1000003
+            seed = (seed, backward_seed)
 
         args_ctx = RenderFunction.unpack_args(seed, args)
         area_lights = args_ctx.area_lights
@@ -687,6 +693,7 @@ class RenderFunction(torch.autograd.Function):
         if get_print_timing():
             print('Forward pass, time: %.5f s' % time_elapsed)
 
+        ctx.seed = seed
         ctx.camera = camera
         ctx.shapes = shapes
         ctx.materials = materials
@@ -1052,10 +1059,7 @@ class RenderFunction(torch.autograd.Function):
 
         buffers = RenderFunction.create_gradient_buffers(ctx)
 
-        if not get_use_correlated_random_number():
-            # Decouple the forward/backward random numbers by adding a big prime number
-            options.seed += 1000003
-
+        options.seed = ctx.seed[1]
         options.num_samples = ctx.num_samples[1]
         start = time.time()
         redner.render(scene, options,
