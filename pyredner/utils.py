@@ -42,12 +42,12 @@ def SH(l, m, theta, phi):
             torch.sin(-m * phi) * associated_legendre_polynomial(l, -m, torch.cos(theta))
 
 def SH_reconstruct(coeffs, res):
-    uv = np.mgrid[0:res[1], 0:res[0]].astype(np.float32)
-    theta = torch.from_numpy((math.pi / res[1]) * (uv[1, :, :] + 0.5))
-    phi = torch.from_numpy((2 * math.pi / res[0]) * (uv[0, :, :] + 0.5))
+    uv = np.mgrid[0:res[0], 0:res[1]].astype(np.float32)
+    theta = torch.from_numpy((math.pi / res[0]) * (uv[0, :, :] + 0.5))
+    phi = torch.from_numpy((2 * math.pi / res[1]) * (uv[1, :, :] + 0.5))
     theta = theta.to(coeffs.device)
     phi = phi.to(coeffs.device)
-    result = torch.zeros(res[1], res[0], coeffs.shape[0], device = coeffs.device)
+    result = torch.zeros(res[0], res[1], coeffs.shape[0], device = coeffs.device)
     num_order = int(math.sqrt(coeffs.shape[1]))
     i = 0
     for l in range(num_order):
