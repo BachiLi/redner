@@ -108,7 +108,7 @@ class Camera:
         if intrinsic_mat is None:
             if camera_type == redner.CameraType.perspective:
                 fov_factor = 1.0 / torch.tan(transform.radians(0.5 * fov))
-                o = torch.ones([1], dtype=torch.float32)
+                o = torch.ones([1], dtype=torch.float32, device = fov_factor.device)
                 diag = torch.cat([fov_factor, fov_factor, o], 0)
                 self._intrinsic_mat = torch.diag(diag).contiguous()
             else:
@@ -132,7 +132,7 @@ class Camera:
     def fov(self, value):
         self._fov = value
         fov_factor = 1.0 / torch.tan(transform.radians(0.5 * self._fov))
-        o = torch.ones([1], dtype=torch.float32)
+        o = torch.ones([1], dtype=torch.float32, device = fov_factor.device)
         diag = torch.cat([fov_factor, fov_factor, o], 0)
         self._intrinsic_mat = torch.diag(diag).contiguous()
         self.intrinsic_mat_inv = torch.inverse(self._intrinsic_mat).contiguous()
