@@ -40,10 +40,10 @@ class Object:
             doesn't need to be the same size with vertices if normal_indices is None
         uv_indices: Optional[tf.Tensor]
             overrides indices when accessing uv coordinates
-            int32 tensor with size num_uvs x 2
+            int32 tensor with size num_uvs x 3
         normal_indices: Optional[tf.Tensor]
             overrides indices when accessing shading normals
-            int32 tensor with size num_normals x 2
+            int32 tensor with size num_normals x 3
         colors: Optional[tf.Tensor]
             optional per-vertex color
             float32 tensor with size num_vertices x 3
