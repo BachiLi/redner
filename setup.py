@@ -136,7 +136,7 @@ project_name = 'redner'
 if 'PROJECT_NAME' in os.environ:
     project_name = os.environ['PROJECT_NAME']
 setup(name = project_name,
-      version = '0.4.27',
+      version = '0.4.28',
       description = 'Differentiable rendering without approximation.',
       long_description = """redner is a differentiable renderer that can take the
                             derivatives of rendering output with respect to arbitrary
@@ -161,6 +161,7 @@ setup(name = project_name,
         'Programming Language :: C++',
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
+        'Programming Language :: Python :: 3.8',
         'Operating System :: MacOS',
         'Operating System :: POSIX :: Linux',
         'Topic :: Multimedia :: Graphics :: 3D Rendering',
