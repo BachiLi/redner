@@ -206,10 +206,10 @@ class Shape:
             doesn't need to be the same size with vertices if normal_indices is not None
         uv_indices: Optional[tf.Tensor]
             overrides indices when accessing uv coordinates
-            int32 tensor with size num_uvs x 2
+            int32 tensor with size num_uvs x 3
         normal_indices: Optional[tf.Tensor]
             overrides indices when accessing shading normals
-            int32 tensor with size num_normals x 2
+            int32 tensor with size num_normals x 3
     """
     def __init__(self,
                  vertices: tf.Tensor,
