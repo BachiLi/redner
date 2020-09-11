@@ -1004,7 +1004,6 @@ class RenderFunction(torch.autograd.Function):
                 seed for the Monte Carlo random samplers
             See serialize_scene for the explanation of the rest of the arguments.
         """
-
         args = RenderFunction.serialize_scene(\
             scene = scene,
             num_samples = num_samples,
@@ -1013,12 +1012,13 @@ class RenderFunction(torch.autograd.Function):
             channels = channels,
             sample_pixel_center = sample_pixel_center)
         args_ctx = RenderFunction.unpack_args(\
-            seed, args, use_primary_edge_sampling, use_secondary_edge_sampling)
+            (seed, seed), args, use_primary_edge_sampling, use_secondary_edge_sampling)
         channels = args_ctx.channels
         options = args_ctx.options
         resolution = args_ctx.resolution
         viewport = args_ctx.viewport
         scene = args_ctx.scene
+        device = args_ctx.device
 
         buffers = RenderFunction.create_gradient_buffers(args_ctx)
         num_channels = redner.compute_num_channels(channels,

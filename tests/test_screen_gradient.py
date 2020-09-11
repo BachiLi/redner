@@ -16,7 +16,7 @@ objects = pyredner.load_obj('scenes/teapot.obj', return_objects=True)
 camera = pyredner.automatic_camera_placement(objects, resolution=(512, 512))
 scene = pyredner.Scene(camera = camera, objects = objects)
 screen_gradient_img = pyredner.RenderFunction.visualize_screen_gradient(
-	grad_img = None,
+    grad_img = None,
     seed = 0,
     scene = scene,
     num_samples = 4,

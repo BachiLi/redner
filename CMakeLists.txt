@@ -6,10 +6,10 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/")
 
 if(WIN32)
     find_package(Python 3.6 COMPONENTS Development REQUIRED)
-    add_subdirectory(pybind11)
 else()
     find_package(Python 3.6 COMPONENTS Development REQUIRED)
 endif()
+add_subdirectory(pybind11)
 
 option(REDNER_CUDA "Build redner with GPU code path?" OFF)
 
@@ -34,6 +34,7 @@ find_package(Embree REQUIRED)
 
 include_directories(${PYTHON_INCLUDE_PATH})
 include_directories(${EMBREE_INCLUDE_PATH})
+include_directories(pybind11/include)
 if(REDNER_CUDA)
     include_directories(${OptiX_INCLUDE})
     link_directories(${CUDA_LIBRARIES})
