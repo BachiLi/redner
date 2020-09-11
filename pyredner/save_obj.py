@@ -1,27 +1,35 @@
 import pyredner
 from typing import Union
 import os
+import torch
 
 def save_obj(shape: Union[pyredner.Object, pyredner.Shape],
              filename: str,
              flip_tex_coords = True):
     """
         Save to a Wavefront obj file from an Object or a Shape.
-
         Args
         ====
         shape: Union[pyredner.Object, pyredner.Shape]
-
         filename: str
-
         flip_tex_coords: bool
             flip the v coordinate of uv by applying v' = 1 - v
     """
+
+    if filename[-4:] != '.obj':
+        filename = filename + '.obj'
+    path = os.path.dirname(filename)
+    name = os.path.basename(filename)[:-4]
+
+    pyredner.save_mtl(m=shape.material, filename=filename[:-4])
+
     directory = os.path.dirname(filename)
     if directory != '' and not os.path.exists(directory):
         os.makedirs(directory)
-        
+
     with open(filename, 'w') as f:
+        f.write('mtllib {}.mtl\n'.format(name))
+
         vertices = shape.vertices.data.cpu().numpy()
         uvs = shape.uvs.cpu().numpy() if shape.uvs is not None else None
         normals = shape.normals.data.cpu().numpy() if shape.normals is not None else None
@@ -36,6 +44,9 @@ def save_obj(shape: Union[pyredner.Object, pyredner.Shape],
         if normals is not None:
             for i in range(normals.shape[0]):
                 f.write('vn {} {} {}\n'.format(normals[i, 0], normals[i, 1], normals[i, 2]))
+
+        f.write('usemtl mtl_1\n')
+
         indices = shape.indices.data.cpu().numpy() + 1
         uv_indices = shape.uv_indices.data.cpu().numpy() + 1 if shape.uv_indices is not None else None
         normal_indices = shape.normal_indices.data.cpu().numpy() + 1 if shape.normal_indices is not None else None
