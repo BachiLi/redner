@@ -74,7 +74,7 @@ def deringing(coeffs, window):
         coeffs[:, 9:9 + 7] * math.pow(math.sin(math.pi * 3.0 / window) / (math.pi * 3.0 / window), 4.0)
     return deringed_coeffs
 deringed_coeffs = deringing(coeffs, 6.0)
-res = (256, 128)
+res = (128, 128)
 # We call the utility function SH_reconstruct to rasterize the coefficients into an envmap
 envmap = pyredner.SH_reconstruct(deringed_coeffs, res)
 # Save the target envmap
