@@ -165,9 +165,9 @@ class Camera:
 
     def state_dict(self):
         return {
-            'position': self._position,
-            'look_at': self._look_at,
-            'up': self._up,
+            'position': self.position,
+            'look_at': self.look_at,
+            'up': self.up,
             'fov': self._fov,
             'cam_to_world': self._cam_to_world,
             'intrinsic_mat': self._intrinsic_mat,
@@ -179,9 +179,9 @@ class Camera:
     @classmethod
     def load_state_dict(cls, state_dict):
         out = cls.__new__(Camera)
-        out._position = state_dict['position']
-        out._look_at = state_dict['look_at']
-        out._up = state_dict['up']
+        out.position = state_dict['position']
+        out.look_at = state_dict['look_at']
+        out.up = state_dict['up']
         out._fov = state_dict['fov']
         out.cam_to_world = state_dict['cam_to_world']
         out.intrinsic_mat = state_dict['intrinsic_mat']
