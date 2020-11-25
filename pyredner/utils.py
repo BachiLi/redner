@@ -159,7 +159,8 @@ def generate_sphere(theta_steps: int,
 def generate_quad_light(position: torch.Tensor,
                         look_at: torch.Tensor,
                         size: torch.Tensor,
-                        intensity: torch.Tensor):
+                        intensity: torch.Tensor,
+                        directly_visible: Optional[bool] = None):
     """
         Generate a pyredner.Object that is a quad light source.
 
@@ -173,6 +174,8 @@ def generate_quad_light(position: torch.Tensor,
             1-d tensor of size 2
         intensity: torch.Tensor
             1-d tensor of size 3
+        directly_visible: Optional[bool]
+            Can the camera see the light source directly?
 
         Returns
         =======
@@ -202,7 +205,8 @@ def generate_quad_light(position: torch.Tensor,
     return pyredner.Object(vertices = vertices,
                            indices = indices,
                            material = m,
-                           light_intensity = intensity)
+                           light_intensity = intensity,
+                           directly_visible = directly_visible)
 
 def linear_to_srgb(x):
     return torch.where(x <= 0.0031308, 12.92 * x, 1.055 * torch.pow(x, 1.0 / 2.4) - 0.055)
