@@ -47,6 +47,9 @@ class Object:
         colors: Optional[torch.Tensor]
             optional per-vertex color
             float32 tensor with size num_vertices x 3
+        directly_visible: Optional[bool]
+            optional setting to see if object is visible to camera
+            during rendering.
     """
     def __init__(self,
                  vertices: torch.Tensor,
@@ -58,7 +61,8 @@ class Object:
                  normals: Optional[torch.Tensor] = None,
                  uv_indices: Optional[torch.Tensor] = None,
                  normal_indices: Optional[torch.Tensor] = None,
-                 colors: Optional[torch.Tensor] = None):
+                 colors: Optional[torch.Tensor] = None,
+                 directly_visible: Optional[bool] = None):
         self.vertices = vertices
         self.indices = indices
         self.uvs = uvs
@@ -69,3 +73,4 @@ class Object:
         self.material = material
         self.light_intensity = light_intensity
         self.light_two_sided = light_two_sided
+        self.directly_visible = directly_visible

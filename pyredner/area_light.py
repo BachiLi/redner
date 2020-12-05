@@ -13,7 +13,7 @@ class AreaLight:
         two_sided: bool
             Is the light emitting light from the two sides of the faces?
         directly_visible: bool
-            Can the camera sees the light source directly?
+            Can the camera see the light source directly?
     """
 
     def __init__(self,
