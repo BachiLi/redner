@@ -49,7 +49,8 @@ class Scene:
                     current_shape_id = len(shapes)
                     area_light = pyredner.AreaLight(shape_id = current_shape_id,
                                                     intensity = obj.light_intensity,
-                                                    two_sided = obj.light_two_sided)
+                                                    two_sided = obj.light_two_sided,
+                                                    directly_visible = obj.light_directly_visible)
                     area_lights.append(area_light)
                 shape = pyredner.Shape(vertices = obj.vertices,
                                        indices = obj.indices,

@@ -30,6 +30,8 @@ class Object:
             float32 tensor with size 3
         light_two_sided: boolean
             Does the light emit from two sides of the shape?
+        light_directly_visible: boolean
+            Can the camera see the light source directly?
         uvs: Optional[tf.Tensor]:
             optional texture coordinates.
             float32 tensor with size num_uvs x 2
@@ -54,6 +56,7 @@ class Object:
                  material: pyredner.Material,
                  light_intensity: Optional[tf.Tensor] = None,
                  light_two_sided: bool = False,
+                 light_directly_visible: bool = True,
                  uvs: Optional[tf.Tensor] = None,
                  normals: Optional[tf.Tensor] = None,
                  uv_indices: Optional[tf.Tensor] = None,
@@ -82,3 +85,4 @@ class Object:
         self.material = material
         self.light_intensity = light_intensity
         self.light_two_sided = light_two_sided
+        self.light_directly_visible = light_directly_visible
