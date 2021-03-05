@@ -183,7 +183,7 @@ def load_obj(filename: str,
                         roughness = tf.constant([2.0 / (m.Ns + 2.0)],
                             dtype = tf.float32)
                     else:
-                        roughness = 2.0 / (pyredner.imread(m.map_Ks) + 2.0)
+                        roughness = 2.0 / (pyredner.imread(m.map_Ns) + 2.0)
                     if m.Ke != (0.0, 0.0, 0.0):
                         light_map[mtl_name] = tf.constant(m.Ke, dtype = tf.float32)
                     material_map[mtl_name] = pyredner.Material(
