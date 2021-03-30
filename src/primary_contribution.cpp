@@ -27,7 +27,11 @@ struct primary_contribs_accumulator {
                 auto dir = incoming_rays[pixel_id].dir;
                 emission = envmap_eval(*(scene.envmap), dir, incoming_ray_differentials[pixel_id]);
             }
+        } else if (scene.vmflight != nullptr) {
+            auto dir = incoming_rays[pixel_id].dir;
+            emission = vmf_eval(*(scene.vmflight), dir, incoming_ray_differentials[pixel_id]);
         }
+
         auto contrib = weight * throughput * emission;
         if (rendered_image != nullptr) {
             auto nc = channel_info.num_channels;
@@ -253,6 +257,7 @@ struct primary_contribs_accumulator {
                 }
             }
         }
+
         if (edge_contribs != nullptr) {
             auto nc = channel_info.num_channels;
             auto nd = channel_info.num_total_dimensions;
@@ -418,6 +423,160 @@ struct primary_contribs_accumulator {
                 }
             }
         }
+
+
+        if (path_contribs != nullptr) {
+            auto nc = channel_info.num_channels;
+            auto nd = channel_info.num_total_dimensions;
+            auto d = 0;
+            for (int c = 0; c < nc; c++) {
+                switch (channel_info.channels[c]) {
+                    case Channels::radiance: {
+                        path_contribs[pixel_id] += throughput * emission;
+                        d += 3;
+                    } break;
+                    case Channels::alpha: {
+                        if (shading_isect.valid()) {
+                            auto alpha = Real(1.0f);
+                            path_contribs[pixel_id] += Vector3d(alpha, alpha, alpha);
+                        }
+                        d++;
+                    } break;
+                    case Channels::depth: {
+                        if (shading_isect.valid()) {
+                            const auto &shading_point = shading_points[pixel_id];
+                            auto depth = distance(incoming_ray.org,
+                                                  shading_point.position);
+                            path_contribs[pixel_id] += Vector3d(depth, depth, depth);
+                        }
+                        d++;
+                    } break;
+                    case Channels::position: {
+                        if (shading_isect.valid()) {
+                            const auto &shading_point = shading_points[pixel_id];
+                            auto position = shading_point.position;
+                            path_contribs[pixel_id] += position;
+                        }
+                        d += 3;
+                    } break;
+                    case Channels::geometry_normal: {
+                        if (shading_isect.valid()) {
+                            const auto &shading_point = shading_points[pixel_id];
+                            auto geom_normal = shading_point.geom_normal;
+                            path_contribs[pixel_id] += geom_normal;
+                        }
+                        d += 3;
+                    } break;
+                    case Channels::shading_normal: {
+                        if (shading_isect.valid()) {
+                            const auto &shading_point = shading_points[pixel_id];
+                            auto shading_normal = shading_point.shading_frame[2];
+                            path_contribs[pixel_id] += shading_normal;
+                        }
+                        d += 3;
+                    } break;
+                    case Channels::uv: {
+                        if (shading_isect.valid()) {
+                            const auto &shading_point = shading_points[pixel_id];
+                            auto uv = shading_point.uv;
+                            path_contribs[pixel_id] += Vector3d(uv.x, uv.y, Real(0.f));
+                        }
+                        d += 2;
+                    } break;
+                    case Channels::barycentric_coordinates: {
+                        if (shading_isect.valid()) {
+                            const auto &shading_point = shading_points[pixel_id];
+                            auto b = shading_point.barycentric_coordinates;
+                            path_contribs[pixel_id] += Vector3d(b[0], b[1], Real(0.f));
+                        }
+                        d += 2;
+                    } break;
+                    case Channels::diffuse_reflectance: {
+                        if(pixel_id == 127415) {
+                            printf("channel_multipliers: %d\n",
+                                channel_multipliers);
+                            printf("channel: %d %d\n",
+                                channel_info.num_channels,
+                                channel_info.num_total_dimensions);
+                        }
+                        if (shading_isect.valid()) {
+                            const auto &shading_point = shading_points[pixel_id];
+                            const auto &shading_shape = scene.shapes[shading_isect.shape_id];
+                            const auto &material = scene.materials[shading_shape.material_id];
+                            auto refl = material.use_vertex_color ?
+                                shading_point.color : get_diffuse_reflectance(material, shading_point);
+                            // refl *= weight;
+                            path_contribs[pixel_id] += refl;
+                        }
+                        d += 3;
+                    } break;
+                    case Channels::specular_reflectance: {
+                        if (shading_isect.valid()) {
+                            const auto &shading_point = shading_points[pixel_id];
+                            const auto &shading_shape = scene.shapes[shading_isect.shape_id];
+                            const auto &material = scene.materials[shading_shape.material_id];
+                            auto refl =
+                                get_specular_reflectance(material, shading_point);
+                            path_contribs[pixel_id] += refl;
+                        }
+                        d += 3;
+                    } break;
+                    case Channels::roughness: {
+                        if (shading_isect.valid()) {
+                            const auto &shading_point = shading_points[pixel_id];
+                            const auto &shading_shape = scene.shapes[shading_isect.shape_id];
+                            const auto &material = scene.materials[shading_shape.material_id];
+                            auto r = get_roughness(material, shading_point) * weight;
+                            path_contribs[pixel_id] += Vector3d(r, r, r);
+                        }
+                        d++;
+                    } break;
+                    case Channels::generic_texture: {
+                        if (shading_isect.valid()) {
+                            const auto &shading_point = shading_points[pixel_id];
+                            const auto &shading_shape = scene.shapes[shading_isect.shape_id];
+                            const auto &material = scene.materials[shading_shape.material_id];
+                            Real *buffer = &generic_texture_buffer[
+                                scene.max_generic_texture_dimension * pixel_id];
+                            get_generic_texture(material, shading_point, buffer);
+                            for (int i = 0; i < material.generic_texture.channels; i++) {
+                                auto gt = buffer[i];
+                                // gt *= weight;
+                                path_contribs[pixel_id] += Vector3d(gt, gt, gt);
+                            }
+                        }
+                        d += scene.max_generic_texture_dimension;
+                    } break;
+                    case Channels::vertex_color: {
+                        if (shading_isect.valid()) {
+                            const auto &shading_point = shading_points[pixel_id];
+                            auto refl = shading_point.color;
+                            path_contribs[pixel_id] += refl;
+                        }
+                        d += 3;
+                    } break;
+                    // ids are not differentiable
+                    case Channels::shape_id: {
+                        d++;
+                    } break;
+                    case Channels::triangle_id: {
+                        d++;
+                    } break;
+                    case Channels::material_id: {
+                        d++;
+                    } break;
+                    default: {
+                        assert(false);
+                    }
+                }
+            }
+            if(pixel_id == 127415) {
+                printf("primary_contrib: %f, %f, %f\n",
+                        path_contribs[pixel_id].x,
+                        path_contribs[pixel_id].y,
+                        path_contribs[pixel_id].z);
+            }
+        }
     }
 
     const FlattenScene scene;
@@ -432,6 +591,7 @@ struct primary_contribs_accumulator {
     const ChannelInfo channel_info;
     float *rendered_image;
     Real *edge_contribs;
+    Vector3 *path_contribs;
     Real *generic_texture_buffer;
 };
 
@@ -480,7 +640,21 @@ struct d_primary_contribs_accumulator {
                                           *d_envmap,
                                           d_incoming_rays[pixel_id].dir,
                                           d_incoming_ray_differentials[pixel_id]);
+                            d_incoming_ray_dirs[pixel_id] = d_incoming_rays[pixel_id].dir;
+                        } else {
+                            d_incoming_ray_dirs[pixel_id] = Vector3(0.f, 0.f, 0.f);
                         }
+                    } else if (scene.vmflight != nullptr) {
+                        // Von-Mises Fisher lights
+                        auto dir = incoming_rays[pixel_id].dir;
+                        d_vmf_eval(*(scene.vmflight),
+                                      dir,
+                                      incoming_ray_differentials[pixel_id],
+                                      d_emission,
+                                      *d_vmf_light,
+                                      d_incoming_rays[pixel_id].dir,
+                                      d_incoming_ray_differentials[pixel_id]);
+                        d_incoming_ray_dirs[pixel_id] = d_incoming_rays[pixel_id].dir;
                     }
                     d += 3;
                 } break;
@@ -706,10 +880,12 @@ struct d_primary_contribs_accumulator {
     Real *generic_texture_buffer;
     DAreaLight *d_area_lights;
     DEnvironmentMap *d_envmap;
+    DVonMisesFisherLight *d_vmf_light;
     DMaterial *d_materials;
     DRay *d_incoming_rays;
     RayDifferential *d_incoming_ray_differentials;
     SurfacePoint *d_shading_points;
+    Vector3 *d_incoming_ray_dirs; 
 };
 
 void accumulate_primary_contribs(
@@ -725,6 +901,7 @@ void accumulate_primary_contribs(
         const ChannelInfo &channel_info,
         float *rendered_image,
         BufferView<Real> edge_contribs,
+        BufferView<Vector3> path_contribs,
         BufferView<Real> generic_texture_buffer) {
     parallel_for(primary_contribs_accumulator{
         get_flatten_scene(scene),
@@ -739,6 +916,7 @@ void accumulate_primary_contribs(
         channel_info,
         rendered_image,
         edge_contribs.begin(),
+        path_contribs.begin(),
         generic_texture_buffer.begin()
     }, active_pixels.size(), scene.use_gpu);
 }
@@ -759,7 +937,8 @@ void d_accumulate_primary_contribs(
         DScene *d_scene,
         BufferView<DRay> d_incoming_rays,
         BufferView<RayDifferential> d_incoming_ray_differentials,
-        BufferView<SurfacePoint> d_shading_points) {
+        BufferView<SurfacePoint> d_shading_points,
+        BufferView<Vector3> d_incoming_ray_dirs) {
     parallel_for(d_primary_contribs_accumulator{
         get_flatten_scene(scene),
         active_pixels.begin(),
@@ -775,9 +954,11 @@ void d_accumulate_primary_contribs(
         generic_texture_buffer.begin(),
         d_scene->area_lights.data,
         d_scene->envmap,
+        d_scene->vmflight,
         d_scene->materials.data,
         d_incoming_rays.begin(),
         d_incoming_ray_differentials.begin(),
-        d_shading_points.begin()
+        d_shading_points.begin(),
+        d_incoming_ray_dirs.begin()
     }, active_pixels.size(), scene.use_gpu);
 }

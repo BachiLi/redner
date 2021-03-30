@@ -13,6 +13,19 @@ struct d_primary_intersector {
         };
         auto d_ray = d_rays[pixel_idx];
 
+        Vector2 local_pos{0,0};
+        Vector2 screen_pos{0,0};
+        sample_to_local_pos(camera, samples[pixel_idx].xy, local_pos);
+        local_to_screen_pos(camera, pixel_idx, local_pos, screen_pos);
+
+        Vector2 jacobian;
+        Real filter_value;
+        screen_filter_grad(camera, 
+                pixel_idx, 
+                local_pos, 
+                jacobian,
+                filter_value);
+
         if (isect.valid()) {
             auto shape_id = isect.shape_id;
             auto tri_id = isect.tri_id;
@@ -38,6 +51,12 @@ struct d_primary_intersector {
                               d_v_n,
                               d_v_uv,
                               d_v_c);
+
+            // TODO: Debug image.
+            //if (shape_id == SHAPE_SELECT && debug_image != nullptr)
+            if (debug_image != nullptr)
+                debug_image[pixel_idx] += (d_v_p[0][0] + d_v_p[1][0] + d_v_p[2][0]);
+
             atomic_add(&d_shapes[shape_id].vertices[3 * ind[0]], d_v_p[0]);
             atomic_add(&d_shapes[shape_id].vertices[3 * ind[1]], d_v_p[1]);
             atomic_add(&d_shapes[shape_id].vertices[3 * ind[2]], d_v_p[2]);
@@ -66,17 +85,6 @@ struct d_primary_intersector {
             }
         }
 
-        // Compute pixel coordinate based on index and camera viewport
-        auto viewport_width =
-            camera.viewport_end.x - camera.viewport_beg.x;
-        auto pixel_x = pixel_idx % viewport_width + camera.viewport_beg.x;
-        auto pixel_y = pixel_idx / viewport_width + camera.viewport_beg.y;
-        auto sample = samples[pixel_idx].xy;
-        auto screen_pos = Vector2{
-            (pixel_x + sample[0]) / Real(camera.width),
-            (pixel_y + sample[1]) / Real(camera.height)
-        };
-
         // Ray differential computation
         auto delta = Real(1e-3);
         auto screen_pos_dx = screen_pos + Vector2{delta, Real(0)};
@@ -101,12 +109,16 @@ struct d_primary_intersector {
 
         auto d_screen_pos = Vector2{0, 0};
         Vector2 *d_screen_pos_ptr = nullptr;
-        if (screen_gradient_image != nullptr) {
-            d_screen_pos_ptr = &d_screen_pos;
-        }
+        d_screen_pos_ptr = &d_screen_pos;
         d_sample_primary_ray(camera, screen_pos, d_ray, d_camera, d_screen_pos_ptr);
         d_sample_primary_ray(camera, screen_pos_dx, d_ray_dx, d_camera, d_screen_pos_ptr);
         d_sample_primary_ray(camera, screen_pos_dy, d_ray_dy, d_camera, d_screen_pos_ptr);
+
+        if(d_local_pos != nullptr) {
+            Vector2 d_local(0, 0);
+            d_local_to_screen_pos(camera, pixel_idx, d_screen_pos, d_local);
+            d_local_pos[pixel_idx] = d_local;
+        }
 
         if (screen_gradient_image != nullptr) {
             screen_gradient_image[2 * pixel_idx + 0] += (float)d_screen_pos[0];
@@ -126,6 +138,8 @@ struct d_primary_intersector {
     const SurfacePoint *d_points;
     DShape *d_shapes;
     DCamera d_camera;
+    Vector2 *d_local_pos;
+    float *debug_image; 
     float *screen_gradient_image;
 };
 
@@ -139,6 +153,8 @@ void d_primary_intersection(const Scene &scene,
                             const BufferView<RayDifferential> &d_ray_differentials,
                             const BufferView<SurfacePoint> &d_surface_points,
                             DScene *d_scene,
+                            BufferView<Vector2> &d_local_pos,
+                            float *debug_image,
                             float *screen_gradient_image) {
     parallel_for(d_primary_intersector{
         scene.camera,
@@ -153,5 +169,7 @@ void d_primary_intersection(const Scene &scene,
         d_surface_points.begin(),
         d_scene->shapes.data,
         d_scene->camera,
+        d_local_pos.begin(),
+        debug_image,
         screen_gradient_image}, active_pixels.size(), scene.use_gpu);
 }

@@ -24,9 +24,11 @@ class Scene:
                  materials: List[pyredner.Material] = [],
                  area_lights: List[pyredner.AreaLight] = [],
                  objects: Optional[List[pyredner.Object]] = None,
-                 envmap: Optional[pyredner.EnvironmentMap] = None):
+                 envmap: Optional[pyredner.EnvironmentMap] = None,
+                 vmflight: Optional[pyredner.VonMisesFisherLight] = None):
         self.camera = camera
         self.envmap = envmap
+        self.vmflight = vmflight
         if objects is None:
             self.shapes = shapes
             self.materials = materials
@@ -73,15 +75,18 @@ class Scene:
             'shapes': [s.state_dict() for s in self.shapes],
             'materials': [m.state_dict() for m in self.materials],
             'area_lights': [l.state_dict() for l in self.area_lights],
-            'envmap': self.envmap.state_dict() if self.envmap is not None else None
+            'envmap': self.envmap.state_dict() if self.envmap is not None else None,
+            'vmflight': self.vmflight.state_dict() if self.vmflight is not None else None
         }
 
     @classmethod
     def load_state_dict(cls, state_dict):
         envmap_dict = state_dict['envmap']
+        vmflight_dict = state_dict['vmflight']
         return cls(
             pyredner.Camera.load_state_dict(state_dict['camera']),
             [pyredner.Shape.load_state_dict(s) for s in state_dict['shapes']],
             [pyredner.Material.load_state_dict(m) for m in state_dict['materials']],
             [pyredner.AreaLight.load_state_dict(l) for l in state_dict['area_lights']],
-            pyredner.EnvironmentMap.load_state_dict(envmap_dict) if envmap_dict is not None else None)
+            pyredner.EnvironmentMap.load_state_dict(envmap_dict) if envmap_dict is not None else None,
+            pyredner.VonMisesFisherLight.load_state_dict(vmflight_dict) if vmflight_dict is not None else None)

@@ -21,4 +21,6 @@ void d_primary_intersection(const Scene &scene,
                             const BufferView<RayDifferential> &d_ray_differentials,
                             const BufferView<SurfacePoint> &d_surface_points,
                             DScene *d_scene,
+                            BufferView<Vector2> &d_camera_samples,
+                            float *debug_image,
                             float *screen_gradient_image);

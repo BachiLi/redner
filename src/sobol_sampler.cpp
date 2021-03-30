@@ -169,6 +169,46 @@ void SobolSampler::next_bsdf_samples(BufferView<TBSDFSample<double>> samples) {
     current_dimension += 3;
 }
 
+void SobolSampler::next_aux_samples(BufferView<TAuxSample<float>> samples) {
+    parallel_for(sobol_sampler<2, float>{
+        current_sample_id,
+        current_dimension,
+        sobol_matrices,
+        sobol_scramble.begin(),
+        (float*)samples.begin()}, samples.size(), use_gpu);
+    current_dimension += 2;
+}
+
+void SobolSampler::next_aux_samples(BufferView<TAuxSample<double>> samples) {
+    parallel_for(sobol_sampler<2, double>{
+        current_sample_id,
+        current_dimension,
+        sobol_matrices,
+        sobol_scramble.begin(),
+        (double*)samples.begin()}, samples.size(), use_gpu);
+    current_dimension += 2;
+}
+
+void SobolSampler::next_aux_count_samples(BufferView<TAuxCountSample<float>> samples) {
+    parallel_for(sobol_sampler<1, float>{
+        current_sample_id,
+        current_dimension,
+        sobol_matrices,
+        sobol_scramble.begin(),
+        (float*)samples.begin()}, samples.size(), use_gpu);
+    current_dimension += 1;
+}
+
+void SobolSampler::next_aux_count_samples(BufferView<TAuxCountSample<double>> samples) {
+    parallel_for(sobol_sampler<1, double>{
+        current_sample_id,
+        current_dimension,
+        sobol_matrices,
+        sobol_scramble.begin(),
+        (double*)samples.begin()}, samples.size(), use_gpu);
+    current_dimension += 1;
+}
+
 void SobolSampler::next_primary_edge_samples(
         BufferView<TPrimaryEdgeSample<float>> samples) {
     parallel_for(sobol_sampler<2, float>{

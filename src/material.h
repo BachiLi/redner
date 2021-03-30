@@ -701,6 +701,17 @@ Vector3 cos_hemisphere(const Vector2 &sample) {
 
 DEVICE
 inline
+Vector2 inv_cos_hemisphere(const Vector3 &vec) {
+    auto phi = atan2(vec.y, vec.x);
+    auto u = phi / (2.f * float(M_PI));
+    auto v = (vec.z * vec.z);
+
+    return Vector2{u,v};
+}
+
+
+DEVICE
+inline
 Vector3 bsdf_sample(const Material &material,
                     const SurfacePoint &shading_point,
                     const Vector3 &wi,

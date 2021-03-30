@@ -65,13 +65,10 @@ Scene::Scene(const Camera &camera,
              const std::vector<const Material*> &materials,
              const std::vector<const AreaLight*> &area_lights,
              const std::shared_ptr<const EnvironmentMap> &envmap,
+             const std::shared_ptr<const VonMisesFisherLight> &vmflight,
              bool use_gpu,
-             int gpu_index,
-             bool use_primary_edge_sampling,
-             bool use_secondary_edge_sampling)
-        : camera(camera), use_gpu(use_gpu), gpu_index(gpu_index),
-          use_primary_edge_sampling(use_primary_edge_sampling),
-          use_secondary_edge_sampling(use_secondary_edge_sampling) {
+             int gpu_index)
+        : camera(camera), use_gpu(use_gpu), gpu_index(gpu_index){
 #ifdef __NVCC__
     int old_device_id = -1;
 #endif
@@ -194,9 +191,12 @@ Scene::Scene(const Camera &camera,
         bsphere.radius = 0;
     }
 
-    if (area_lights.size() > 0 || envmap.get() != nullptr) {
+    // Can only use either an environment map or a vMF light, but not both.
+    assert(envmap.get() == nullptr || vmflight.get() == nullptr);
+
+    if (area_lights.size() > 0 || envmap.get() != nullptr || vmflight.get() != nullptr) {
         auto num_lights = (int)area_lights.size();
-        if (envmap.get() != nullptr) {
+        if (envmap.get() != nullptr || vmflight.get() != nullptr) {
             num_lights++;
         }
         auto envmap_id = (int)area_lights.size();
@@ -233,6 +233,16 @@ Scene::Scene(const Camera &camera,
             auto surface_area = 4 * Real(M_PI) * square(bsphere.radius);
             if (surface_area > 0) {
                 light_pmf[envmap_id] = surface_area / envmap->pdf_norm;
+                total_importance += light_pmf[envmap_id];
+            } else {
+                light_pmf[envmap_id] = 1;
+                total_importance += 1;
+            }
+        }
+        if (vmflight.get() != nullptr) {
+            auto surface_area = 4 * Real(M_PI) * square(bsphere.radius);
+            if (surface_area > 0) {
+                light_pmf[envmap_id] = surface_area / vmflight->pdf_norm;
                 total_importance += light_pmf[envmap_id];
             } else {
                 light_pmf[envmap_id] = 1;
@@ -297,7 +307,22 @@ Scene::Scene(const Camera &camera,
         }
     }
 
-    edge_sampler = EdgeSampler(shapes, *this);
+    if (vmflight.get() != nullptr) {
+        if (use_gpu) {
+#ifdef __NVCC__
+            checkCuda(cudaMallocManaged(&this->vmflight, sizeof(VonMisesFisherLight)));
+#else
+            assert(false);
+#endif
+        } else {
+            this->vmflight = new VonMisesFisherLight;
+        }
+        *(this->vmflight) = *vmflight;
+    } else {
+        this->vmflight = nullptr;
+    }
+
+    // edge_sampler = EdgeSampler(shapes, *this);
 
 #ifdef __NVCC__
     if (old_device_id != -1) {
@@ -311,6 +336,7 @@ Scene::~Scene() {
         rtcReleaseScene(embree_scene);
         rtcReleaseDevice(embree_device);
         delete envmap;
+        delete vmflight;
     } else {
 #ifdef __NVCC__
         int old_device_id = -1;
@@ -319,12 +345,17 @@ Scene::~Scene() {
             checkCuda(cudaSetDevice(gpu_index));
         }
         checkCuda(cudaFree(envmap));
+        checkCuda(cudaFree(vmflight));
         checkCuda(cudaSetDevice(old_device_id));
 #else
         assert(false);
 #endif
     }
+}
 
+void Scene::make_edge_sampler(bool use_primary_edge_sampling,
+                              bool use_secondary_edge_sampling) {
+    edge_sampler = EdgeSampler(*this, use_primary_edge_sampling, use_secondary_edge_sampling);
 }
 
 DScene::DScene(const DCamera &camera,
@@ -332,6 +363,7 @@ DScene::DScene(const DCamera &camera,
                const std::vector<DMaterial*> &materials,
                const std::vector<DAreaLight*> &area_lights,
                const std::shared_ptr<DEnvironmentMap> &envmap,
+               const std::shared_ptr<DVonMisesFisherLight> &vmflight,
                bool use_gpu,
                int gpu_index) : use_gpu(use_gpu), gpu_index(gpu_index) {
 #ifdef __NVCC__
@@ -381,6 +413,22 @@ DScene::DScene(const DCamera &camera,
     } else {
         this->envmap = nullptr;
     }
+
+    if (vmflight.get() != nullptr) {
+        if (use_gpu) {
+#ifdef __NVCC__
+            checkCuda(cudaMallocManaged(&this->vmflight, sizeof(DVonMisesFisherLight)));
+#else
+            assert(false);
+#endif
+        } else {
+            this->vmflight = new DVonMisesFisherLight;
+        }
+        *(this->vmflight) = *vmflight;
+    } else {
+        this->vmflight = nullptr;
+    }
+
 #ifdef __NVCC__
     if (old_device_id != -1) {
         checkCuda(cudaSetDevice(old_device_id));
@@ -392,6 +440,7 @@ DScene::DScene(const DCamera &camera,
 DScene::~DScene() {
     if (!use_gpu) {
         delete envmap;
+        delete vmflight;
     } else {
 #ifdef __NVCC__
         int old_device_id = -1;
@@ -400,6 +449,7 @@ DScene::~DScene() {
             checkCuda(cudaSetDevice(gpu_index));
         }
         checkCuda(cudaFree(envmap));
+        checkCuda(cudaFree(vmflight));
         checkCuda(cudaSetDevice(old_device_id));
 #else
         assert(false);
@@ -411,7 +461,8 @@ FlattenScene get_flatten_scene(const Scene &scene) {
     return FlattenScene{scene.shapes.data,
                         scene.materials.data,
                         scene.area_lights.data,
-                        scene.envmap != nullptr ?
+                        (scene.envmap != nullptr || 
+                         scene.vmflight != nullptr) ?
                             (int)scene.area_lights.size() + 1 :
                             (int)scene.area_lights.size(),
                         scene.light_pmf.data,
@@ -419,6 +470,7 @@ FlattenScene get_flatten_scene(const Scene &scene) {
                         scene.light_areas.data,
                         scene.area_cdfs.data,
                         scene.envmap,
+                        scene.vmflight,
                         scene.max_generic_texture_dimension};
 }
 
@@ -709,6 +761,15 @@ struct light_point_sampler {
             shadow_rays[pixel_id].dir = envmap_sample(*(scene.envmap), sample.uv);
             shadow_rays[pixel_id].tmin = 1e-3f;
             shadow_rays[pixel_id].tmax = infinity<Real>();
+        } else if (scene.vmflight != nullptr && light_id == scene.num_lights - 1) {
+            // vMF Light.
+            light_isects[pixel_id].shape_id = -1;
+            light_isects[pixel_id].tri_id = -1;
+            light_points[pixel_id] = SurfacePoint::zero();
+            shadow_rays[pixel_id].org = shading_points[pixel_id].position;
+            shadow_rays[pixel_id].dir = vmf_sample(*(scene.vmflight), sample.uv);
+            shadow_rays[pixel_id].tmin = 1e-3f;
+            shadow_rays[pixel_id].tmax = infinity<Real>();
         } else {
             // Area light
             const auto &light = scene.area_lights[light_id];
@@ -809,9 +870,10 @@ void test_scene_intersect(bool use_gpu) {
         nullptr, // distortion_params
         1e-2f,
         CameraType::Perspective,
+        FilterType::Box,
         Vector2i{0, 0},
         Vector2i{1, 1}};
-    Scene scene{camera, {&triangle}, {}, {}, {}, use_gpu, 0, false, false};
+    Scene scene{camera, {&triangle}, {}, {}, {}, {}, use_gpu, 0};
     parallel_init();
 
     Buffer<int> active_pixels(use_gpu, 2);
@@ -927,9 +989,10 @@ void test_sample_point_on_light(bool use_gpu) {
         nullptr, // distortion_params
         1e-2f,
         CameraType::Perspective,
+        FilterType::Box,
         Vector2i{0, 0},
         Vector2i{1, 1}};
-    Scene scene{camera, {&shape0, &shape1}, {}, {&light0, &light1}, {}, use_gpu, 0, false, false};
+    Scene scene{camera, {&shape0, &shape1}, {}, {&light0, &light1}, {}, {}, use_gpu, 0};
     cuda_synchronize();
     // Power of the first light source: 1.5
     // Power of the second light source: 2

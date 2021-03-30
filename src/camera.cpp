@@ -8,7 +8,7 @@
 struct primary_ray_sampler {
     DEVICE void operator()(int idx) {
         // Compute pixel coordinate based on index and camera viewport
-        auto viewport_width =
+        /*auto viewport_width =
             camera.viewport_end.x - camera.viewport_beg.x;
         auto pixel_x = idx % viewport_width + camera.viewport_beg.x;
         auto pixel_y = idx / viewport_width + camera.viewport_beg.y;
@@ -17,7 +17,22 @@ struct primary_ray_sampler {
         auto screen_pos = Vector2{
             (pixel_x + sample[0]) / Real(camera.width),
             (pixel_y + sample[1]) / Real(camera.height)
-        };
+        };*/
+
+        Vector2 local_pos{0, 0};
+        sample_to_local_pos(camera, samples[idx].xy, local_pos);
+        Vector2 screen_pos{0, 0};
+        local_to_screen_pos(camera, idx, local_pos, screen_pos);
+
+        /*
+        if(idx == 127415) {
+            printf("primary_local_pos %f, %f\n",
+                    samples[idx].xy.x,
+                    samples[idx].xy.y);
+            printf("primary_screen_pos %f, %f\n",
+                    screen_pos.x,
+                    screen_pos.y);
+        }*/
 
         auto ray = sample_primary(camera, screen_pos);
         rays[idx] = ray;
@@ -42,6 +57,40 @@ struct primary_ray_sampler {
     RayDifferential *ray_differentials;
 };
 
+
+struct primary_ray_sampler_filtered {
+    DEVICE void operator()(int idx) {
+
+        auto pixel_size_x = Real(0.5) / camera.width;
+        auto pixel_size_y = Real(0.5) / camera.height;
+
+        Vector2 local_pos, screen_pos;
+        sample_to_local_pos(camera, samples[idx], local_pos);
+        local_to_screen_pos(camera, idx_override != -1 ? idx_override : idx, local_pos, screen_pos);
+
+        auto ray = sample_primary(camera, screen_pos);
+        rays[idx] = ray;
+        // Ray differential computation
+        auto delta = Real(1e-3);
+        auto screen_pos_dx = screen_pos + Vector2{delta, Real(0)};
+        auto ray_dx = sample_primary(camera, screen_pos_dx);
+        auto screen_pos_dy = screen_pos + Vector2{Real(0), delta};
+        auto ray_dy = sample_primary(camera, screen_pos_dy);
+        auto org_dx = pixel_size_x * (ray_dx.org - ray.org) / delta;
+        auto org_dy = pixel_size_y * (ray_dy.org - ray.org) / delta;
+        auto dir_dx = pixel_size_x * (ray_dx.dir - ray.dir) / delta;
+        auto dir_dy = pixel_size_y * (ray_dy.dir - ray.dir) / delta;
+        ray_differentials[idx] = RayDifferential{org_dx, org_dy, dir_dx, dir_dy};
+    }
+
+    const Camera camera;
+    const CameraSample *samples;
+    const int idx_override;
+    Ray *rays;
+    RayDifferential *ray_differentials;
+};
+
+
 void sample_primary_rays(const Camera &camera,
                          const BufferView<CameraSample> &samples,
                          BufferView<Ray> rays,
@@ -51,6 +100,72 @@ void sample_primary_rays(const Camera &camera,
         camera, samples.begin(), rays.begin(), ray_differentials.begin()},
         samples.size(), use_gpu);
 }
+
+
+struct correlated_pair_generator_gaussian {
+    DEVICE void operator()(int idx) {
+        // For gaussian filter, this transformation produce the 'anti'-sample
+        // for a given camera sample.
+        samples_target[idx] = CameraSample{
+            Vector2(samples[idx].xy[0], 
+                (
+                    samples[idx].xy[1] + 0.5) > 1 ?
+                    samples[idx].xy[1] - 0.5 :
+                    samples[idx].xy[1] + 0.5
+                )
+        };
+    }
+
+    const Camera camera;
+    const CameraSample *samples;
+    CameraSample *samples_target;
+};
+
+void generate_correlated_pairs(const Camera &camera,
+                               BufferView<CameraSample> &samples,
+                               bool use_gpu) {
+    // Turn off correlated pair sampling if filter type is not gaussian 
+    assert(camera.filter_type == FilterType::Gaussian);
+    // Select an even number for sample count.
+    assert(samples.size() % 2 == 0);
+
+    if(camera.filter_type == FilterType::Gaussian) {
+        parallel_for(correlated_pair_generator_gaussian{
+            camera, samples.begin(), samples.begin() + samples.size()/2},
+            samples.size()/2, use_gpu);
+    }
+}
+
+struct inverted_copier_gaussian {
+    DEVICE void operator()(int idx) {
+        // For gaussian filter, this transformation produce the antithetic sample
+        // for a given camera sample.
+        samples[idx] = CameraSample{
+            Vector2(
+                samples[idx].xy[0], 
+                    (samples[idx].xy[1] + 0.5) > 1 ?
+                    (samples[idx].xy[1] - 0.5) :
+                    (samples[idx].xy[1] + 0.5)
+            )
+        };
+    }
+
+    const Camera camera;
+    CameraSample *samples;
+};
+
+void invert_copy_camera_samples(const Camera &camera,
+                               BufferView<CameraSample> &samples,
+                               bool use_gpu) {
+    // Turn off correlated pair sampling if filter type is not gaussian 
+    assert(camera.filter_type == FilterType::Gaussian);
+    if(camera.filter_type == FilterType::Gaussian) {
+        parallel_for(inverted_copier_gaussian{
+            camera, samples.begin()},
+            samples.size(), use_gpu);
+    }
+}
+
 
 void test_sample_primary_rays(bool use_gpu) {
     // Let's have a perspective camera with 1x1 pixel, 
@@ -72,6 +187,7 @@ void test_sample_primary_rays(bool use_gpu) {
         nullptr, // distortion_params
         1e-2f,
         CameraType::Perspective,
+        FilterType::Box,
         Vector2i{0, 0},
         Vector2i{1, 1}};
     parallel_init();
@@ -112,6 +228,7 @@ void test_d_sample_primary_rays() {
         nullptr, // distortion_params
         1e-2f,
         CameraType::Perspective,
+        FilterType::Box,
         Vector2i{0, 0},
         Vector2i{1, 1}};
     auto d_pos = Vector3f{0, 0, 0};
@@ -150,6 +267,7 @@ void test_d_sample_primary_rays() {
             nullptr, // distortion_params
             1e-2f,
             CameraType::Perspective,
+            FilterType::Box,
             Vector2i{0, 0},
             Vector2i{1, 1}};
         auto positive_ray =
@@ -167,6 +285,7 @@ void test_d_sample_primary_rays() {
             nullptr, // distortion_params
             1e-2f,
             CameraType::Perspective,
+            FilterType::Box,
             Vector2i{0, 0},
             Vector2i{1, 1}};
         auto negative_ray =
@@ -191,6 +310,7 @@ void test_d_sample_primary_rays() {
             nullptr, // distortion_params
             1e-2f,
             CameraType::Perspective,
+            FilterType::Box,
             Vector2i{0, 0},
             Vector2i{1, 1}};
         auto positive_ray =
@@ -208,6 +328,7 @@ void test_d_sample_primary_rays() {
             nullptr, // distortion_params
             1e-2f,
             CameraType::Perspective,
+            FilterType::Box,
             Vector2i{0, 0},
             Vector2i{1, 1}};
         auto negative_ray =
@@ -232,6 +353,7 @@ void test_d_sample_primary_rays() {
             nullptr, // distortion_params
             1e-2f,
             CameraType::Perspective,
+            FilterType::Box,
             Vector2i{0, 0},
             Vector2i{1, 1}};
         auto positive_ray =
@@ -249,6 +371,7 @@ void test_d_sample_primary_rays() {
             nullptr, // distortion_params
             1e-2f,
             CameraType::Perspective,
+            FilterType::Box,
             Vector2i{0, 0},
             Vector2i{1, 1}};
         auto negative_ray =
@@ -292,6 +415,7 @@ void test_d_camera_to_screen() {
         nullptr, // distortion_params
         1e-2f,
         CameraType::Perspective,
+        FilterType::Box,
         Vector2i{0, 0},
         Vector2i{1, 1}};
     auto pt = Vector3{0.5, 0.5, 1.0};
@@ -329,6 +453,7 @@ void test_d_camera_to_screen() {
             nullptr, // distortion_params
             1e-2f,
             CameraType::Perspective,
+            FilterType::Box,
             Vector2i{0, 0},
             Vector2i{1, 1}};
         auto pxy = camera_to_screen(delta_camera, pt);
@@ -345,6 +470,7 @@ void test_d_camera_to_screen() {
             nullptr, // distortion_params
             1e-2f,
             CameraType::Perspective,
+            FilterType::Box,
             Vector2i{0, 0},
             Vector2i{1, 1}};
         auto nxy = camera_to_screen(delta_camera, pt);
@@ -366,6 +492,7 @@ void test_d_camera_to_screen() {
             nullptr, // distortion_params
             1e-2f,
             CameraType::Perspective,
+            FilterType::Box,
             Vector2i{0, 0},
             Vector2i{1, 1}};
         auto pxy = camera_to_screen(delta_camera, pt);
@@ -382,6 +509,7 @@ void test_d_camera_to_screen() {
             nullptr, // distortion_params
             1e-2f,
             CameraType::Perspective,
+            FilterType::Box,
             Vector2i{0, 0},
             Vector2i{1, 1}};
         auto nxy = camera_to_screen(delta_camera, pt);
@@ -403,6 +531,7 @@ void test_d_camera_to_screen() {
             nullptr, // distortion_params
             1e-2f,
             CameraType::Perspective,
+            FilterType::Box,
             Vector2i{0, 0},
             Vector2i{1, 1}};
         auto pxy = camera_to_screen(delta_camera, pt);
@@ -419,6 +548,7 @@ void test_d_camera_to_screen() {
             nullptr, // distortion_params
             1e-2f,
             CameraType::Perspective,
+            FilterType::Box,
             Vector2i{0, 0},
             Vector2i{1, 1}};
         auto nxy = camera_to_screen(delta_camera, pt);
@@ -455,6 +585,7 @@ void test_d_screen_to_camera() {
         nullptr, // distortion_params
         1e-2f,
         CameraType::Perspective,
+        FilterType::Box,
         Vector2i{0, 0},
         Vector2i{1, 1}};
     auto pt = Vector2{0.2, 0.8};

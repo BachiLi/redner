@@ -57,6 +57,8 @@ class Camera:
             for more details.
         camera_type: render.camera_type
             the type of the camera (perspective, orthographic, fisheye, or panorama)
+        filter_type: render.filter_type
+            the reconstruction filter used by the camera (pyredner.FilterType.box, pyredner.FilterType.gaussian)
         fisheye: bool
             whether the camera is a fisheye camera
             (legacy parameter just to ensure compatibility).
@@ -73,6 +75,7 @@ class Camera:
                  intrinsic_mat: Optional[torch.Tensor] = None,
                  distortion_params: Optional[torch.Tensor] = None,
                  camera_type = pyredner.camera_type.perspective,
+                 filter_type = pyredner.filter_type.gaussian,
                  fisheye: bool = False):
         if position is not None:
             assert(position.dtype == torch.float32)
@@ -121,6 +124,7 @@ class Camera:
         self.resolution = resolution
         self.viewport = viewport
         self.camera_type = camera_type
+        self.filter_type = filter_type
         if fisheye:
             self.camera_type = pyredner.camera_type.fisheye
 
@@ -173,7 +177,8 @@ class Camera:
             'intrinsic_mat': self._intrinsic_mat,
             'clip_near': self.clip_near,
             'resolution': self.resolution,
-            'camera_type': self.camera_type
+            'camera_type': self.camera_type,
+            'filter_type': self.filter_type
         }
 
     @classmethod
@@ -188,6 +193,7 @@ class Camera:
         out.clip_near = state_dict['clip_near']
         out.resolution = state_dict['resolution']
         out.camera_type = state_dict['camera_type']
+        out.filter_type = state_dict['filter_type']
         return out
 
 def automatic_camera_placement(shapes: List,

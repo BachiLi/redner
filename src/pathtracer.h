@@ -13,19 +13,24 @@ enum class SamplerType {
 	sobol
 };
 
-struct RenderOptions {
-    uint64_t seed;
-    int num_samples;
-    int max_bounces;
-    std::vector<Channels> channels;
-    SamplerType sampler_type;
-    bool sample_pixel_center;
-};
+namespace edge_sampling {
+    struct RenderOptions {
+        uint64_t seed;
+        int num_samples;
+        int max_bounces;
+        std::vector<Channels> channels;
+        SamplerType sampler_type;
+        bool sample_pixel_center;
+        bool use_primary_edge_sampling;
+        bool use_secondary_edge_sampling;
+    };
 
-void render(const Scene &scene,
-            const RenderOptions &options,
-            ptr<float> rendered_image,
-            ptr<float> d_rendered_image,
-            std::shared_ptr<DScene> d_scene,
-            ptr<float> screen_gradient_image,
-            ptr<float> debug_image);
+    void render(Scene &scene,
+                const RenderOptions &options,
+                ptr<float> rendered_image,
+                ptr<float> d_rendered_image,
+                std::shared_ptr<DScene> d_scene,
+                ptr<float> screen_gradient_image,
+                ptr<float> debug_image);
+
+}

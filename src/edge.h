@@ -59,8 +59,9 @@ struct TSecondaryEdgeSample {
 
 struct EdgeSampler {
     EdgeSampler() {}
-    EdgeSampler(const std::vector<const Shape*> &shapes,
-                const Scene &scene);
+    EdgeSampler(const Scene &scene,
+                bool use_primary_edge_sampling,
+                bool use_secondary_edge_sampling);
 
     Buffer<Edge> edges;
     Buffer<Real> primary_edges_pmf;
@@ -264,6 +265,7 @@ void compute_primary_edge_derivatives(const Scene &scene,
                                       const BufferView<Real> &edge_contribs,
                                       BufferView<DShape> d_shapes,
                                       DCamera d_camera,
+                                      float *debug_image,
                                       float *screen_gradient_image);
 
 void sample_secondary_edges(const Scene &scene,

@@ -81,6 +81,9 @@ PCGSampler::PCGSampler(bool use_gpu,
         rng_states.size(), use_gpu);
 }
 
+PCGSampler::~PCGSampler() {
+}
+
 void PCGSampler::next_camera_samples(BufferView<TCameraSample<float>> samples, bool sample_pixel_center) {
     if (sample_pixel_center) {
         DISPATCH(use_gpu, thrust::fill,
@@ -118,6 +121,26 @@ void PCGSampler::next_bsdf_samples(BufferView<TBSDFSample<float>> samples) {
 
 void PCGSampler::next_bsdf_samples(BufferView<TBSDFSample<double>> samples) {
     parallel_for(pcg_sampler_double<3>{rng_states.begin(),
+        (double*)samples.begin()}, samples.size(), use_gpu);
+}
+
+void PCGSampler::next_aux_samples(BufferView<TAuxSample<float>> samples) {
+    parallel_for(pcg_sampler_float<2>{rng_states.begin(),
+        (float*)samples.begin()}, samples.size(), use_gpu);
+}
+
+void PCGSampler::next_aux_samples(BufferView<TAuxSample<double>> samples) {
+    parallel_for(pcg_sampler_double<2>{rng_states.begin(),
+        (double*)samples.begin()}, samples.size(), use_gpu);
+}
+
+void PCGSampler::next_aux_count_samples(BufferView<TAuxCountSample<float>> samples) {
+    parallel_for(pcg_sampler_float<1>{rng_states.begin(),
+        (float*)samples.begin()}, samples.size(), use_gpu);
+}
+
+void PCGSampler::next_aux_count_samples(BufferView<TAuxCountSample<double>> samples) {
+    parallel_for(pcg_sampler_double<1>{rng_states.begin(),
         (double*)samples.begin()}, samples.size(), use_gpu);
 }
 

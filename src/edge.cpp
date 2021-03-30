@@ -230,17 +230,21 @@ struct secondary_edge_weighter {
     Real *secondary_edge_weights;
 };
 
-EdgeSampler::EdgeSampler(const std::vector<const Shape*> &shapes,
-                         const Scene &scene) {
-    if (!scene.use_primary_edge_sampling && !scene.use_secondary_edge_sampling) {
+EdgeSampler::EdgeSampler(const Scene &scene,
+                         bool use_primary_edge_sampling,
+                         bool use_secondary_edge_sampling) {
+    if (!use_primary_edge_sampling && !use_secondary_edge_sampling) {
         // No need to collect edges
         return;
     }
-    auto shapes_buffer = scene.shapes.view(0, (int)shapes.size());
+    //auto shapes_buffer = scene.shapes.view(0, (int)shapes.size());
+    auto shapes_buffer = scene.shapes.view(0, (int)scene.shapes.count);
+
     // Conservatively allocate a big buffer for all edges
     auto num_total_triangles = 0;
-    for (int shape_id = 0; shape_id < (int)shapes.size(); shape_id++) {
-        num_total_triangles += shapes[shape_id]->num_triangles;
+    for (int shape_id = 0; shape_id < (int)scene.shapes.count; shape_id++) {
+        //num_total_triangles += shapes[shape_id]->num_triangles;
+        num_total_triangles += shapes_buffer[shape_id].num_triangles;
     }
     // Collect the edges
     // TODO: this assumes each edge is only associated with two triangles
@@ -250,22 +254,22 @@ EdgeSampler::EdgeSampler(const std::vector<const Shape*> &shapes,
     edges = Buffer<Edge>(scene.use_gpu, 3 * num_total_triangles);
     auto edges_buffer = Buffer<Edge>(scene.use_gpu, 3 * num_total_triangles);
     auto current_num_edges = 0;
-    for (int shape_id = 0; shape_id < (int)shapes.size(); shape_id++) {
+    for (int shape_id = 0; shape_id < (int)scene.shapes.count; shape_id++) {
         parallel_for(edge_collector{
             shape_id,
             shapes_buffer.begin() + shape_id,
             edges.data + current_num_edges
-        }, 3 * shapes[shape_id]->num_triangles, scene.use_gpu);
+        }, 3 * shapes_buffer[shape_id].num_triangles, scene.use_gpu);
         // Merge the edges
         auto edges_begin = edges.data + current_num_edges;
         DISPATCH(scene.use_gpu, thrust::sort,
                  edges_begin,
-                 edges_begin + 3 * shapes[shape_id]->num_triangles,
+                 edges_begin + 3 * shapes_buffer[shape_id].num_triangles,
                  edge_less_comparer{});
         auto edges_buffer_begin = edges_buffer.data;
         auto new_end = DISPATCH(scene.use_gpu, thrust::reduce_by_key,
             edges_begin, // input keys
-            edges_begin + 3 * shapes[shape_id]->num_triangles,
+            edges_begin + 3 * shapes_buffer[shape_id].num_triangles,
             edges_begin, // input values
             edges_buffer_begin, // output keys
             edges_buffer_begin, // output values
@@ -452,11 +456,66 @@ struct primary_edge_sampler {
             auto d_color = Vector3{0, 0, 0};
             if (rd != -1) {
                 auto viewport_width = camera.viewport_end.x - camera.viewport_beg.x;
+                auto viewport_height = camera.viewport_end.y - camera.viewport_beg.y;
                 d_color = Vector3{
                     d_rendered_image[nd * (yi * viewport_width + xi) + rd + 0],
                     d_rendered_image[nd * (yi * viewport_width + xi) + rd + 1],
                     d_rendered_image[nd * (yi * viewport_width + xi) + rd + 2]
                 };
+
+                if(camera.filter_type == FilterType::Box) {
+                    d_color = Vector3{
+                        d_rendered_image[nd * (yi * viewport_width + xi) + rd + 0],
+                        d_rendered_image[nd * (yi * viewport_width + xi) + rd + 1],
+                        d_rendered_image[nd * (yi * viewport_width + xi) + rd + 2]
+                    };
+                } else if (camera.filter_type == FilterType::Gaussian) {
+                    // Aggregate weighted sum of nearest 
+                    auto normalization = Real(0);
+                    for(int _kx = -3; _kx <= 3; _kx++)
+                        for(int _ky = -3; _ky <= 3; _ky++) {
+                            auto kx = xi + _kx;
+                            auto ky = yi + _ky;
+
+                            if (kx < 0 || kx >= viewport_width)
+                                continue;
+
+                            if (ky < 0 || ky >= viewport_height)
+                                continue;
+                            
+                            // Get pixel center.
+                            Vector2 pixel_center;
+                            local_to_screen_pos(camera, 
+                                        (ky * viewport_width + kx),
+                                        Vector2{0, 0},
+                                        pixel_center);
+                            
+                            auto local_pos = Vector2{
+                                (edge_pt[0] - pixel_center[0]) * viewport_width,
+                                (edge_pt[1] - pixel_center[1]) * viewport_height
+                            };
+
+                            Vector2 jacobian;
+                            Real value;
+                            screen_filter_grad(camera, 
+                                                idx,
+                                                local_pos,
+                                                jacobian,
+                                                value);
+
+                            d_color += value * Vector3{
+                                d_rendered_image[nd * (ky * viewport_width + kx) + rd + 0],
+                                d_rendered_image[nd * (ky * viewport_width + kx) + rd + 1],
+                                d_rendered_image[nd * (ky * viewport_width + kx) + rd + 2]
+                            };
+
+                            normalization += value;
+                        }
+
+                    if (normalization > Real(1e-15))
+                        d_color /= normalization;
+
+                }
             }
             // The weight is the length of edge divided by the probability
             // of selecting this edge, divided by the length of gradients
@@ -483,6 +542,9 @@ struct primary_edge_sampler {
             assert(camera.camera_type == CameraType::Fisheye ||
                    camera.camera_type == CameraType::Panorama ||
                    camera.distortion_params.defined);
+            // No support for Gaussian filter for non-persective lens.
+            assert(camera.filter_type == FilterType::Box);
+
             // Fisheye or Panorama
 
             // In paper we focused on linear projection model.
@@ -760,6 +822,7 @@ struct primary_edge_derivatives_computer {
             d_v0_ss.x, d_v0_ss.y,
             d_v1_ss.x, d_v1_ss.y,
             d_camera, d_v0, d_v1);
+
         atomic_add(&d_shapes[edge_record.edge.shape_id].vertices[3 * edge_record.edge.v0], d_v0);
         atomic_add(&d_shapes[edge_record.edge.shape_id].vertices[3 * edge_record.edge.v1], d_v1);
         if (screen_gradient_image != nullptr) {
@@ -771,6 +834,84 @@ struct primary_edge_derivatives_computer {
             atomic_add(&screen_gradient_image[2 * pixel_idx + 0], d_edge_pt[0]);
             atomic_add(&screen_gradient_image[2 * pixel_idx + 1], d_edge_pt[1]);
         }
+
+        // TODO: DEBUGGING Code. Remove on release.
+        if (debug_image != nullptr) {
+            auto xi = clamp(int(edge_pt[0] * camera.width - camera.viewport_beg.x),
+                            0, camera.viewport_end.x - camera.viewport_beg.x);
+            auto yi = clamp(int(edge_pt[1] * camera.height - camera.viewport_beg.y),
+                            0, camera.viewport_end.y - camera.viewport_beg.y);
+            // Aggregate weighted sum of nearest 
+            auto normalization = Real(0);
+            for(int _kx = -3; _kx <= 3; _kx++)
+                for(int _ky = -3; _ky <= 3; _ky++) {
+                    auto kx = xi + _kx;
+                    auto ky = yi + _ky;
+
+                    if (kx < 0 || kx >= camera.width)
+                        continue;
+
+                    if (ky < 0 || ky >= camera.height)
+                        continue;
+                    
+                    // Get pixel center.
+                    Vector2 pixel_center;
+                    local_to_screen_pos(camera, 
+                                (ky * camera.width + kx),
+                                Vector2{0, 0},
+                                pixel_center);
+                    
+                    auto local_pos = Vector2{
+                        (edge_pt[0] - pixel_center[0]) * camera.width,
+                        (edge_pt[1] - pixel_center[1]) * camera.height
+                    };
+
+                    Vector2 jacobian;
+                    Real value;
+                    screen_filter_grad(camera, 
+                                        idx,
+                                        local_pos,
+                                        jacobian,
+                                        value);
+
+                    normalization += value;
+                }
+
+            for(int _kx = -3; _kx <= 3; _kx++)
+                for(int _ky = -3; _ky <= 3; _ky++) {
+                    auto kx = xi + _kx;
+                    auto ky = yi + _ky;
+
+                    if (kx < 0 || kx >= camera.width)
+                        continue;
+
+                    if (ky < 0 || ky >= camera.height)
+                        continue;
+                    
+                    // Get pixel center.
+                    Vector2 pixel_center;
+                    local_to_screen_pos(camera, 
+                                (ky * camera.width + kx),
+                                Vector2{0, 0},
+                                pixel_center);
+                    
+                    auto local_pos = Vector2{
+                        (edge_pt[0] - pixel_center[0]) * camera.width,
+                        (edge_pt[1] - pixel_center[1]) * camera.height
+                    };
+
+                    Vector2 jacobian;
+                    Real value;
+                    screen_filter_grad(camera, 
+                                        idx,
+                                        local_pos,
+                                        jacobian,
+                                        value);
+                    
+                    debug_image[ky * camera.width + kx] += (d_v0.x + d_v1.x) * (value / normalization);
+                }
+        }
+
     }
 
     const Camera camera;
@@ -779,6 +920,7 @@ struct primary_edge_derivatives_computer {
     const Real *edge_contribs;
     DShape *d_shapes;
     DCamera d_camera;
+    float *debug_image;
     float *screen_gradient_image;
 };
 
@@ -787,6 +929,7 @@ void compute_primary_edge_derivatives(const Scene &scene,
                                       const BufferView<Real> &edge_contribs,
                                       BufferView<DShape> d_shapes,
                                       DCamera d_camera,
+                                      float *debug_image,
                                       float *screen_gradient_image) {
     parallel_for(primary_edge_derivatives_computer{
         scene.camera,
@@ -795,6 +938,7 @@ void compute_primary_edge_derivatives(const Scene &scene,
         edge_contribs.begin(),
         d_shapes.begin(),
         d_camera,
+        debug_image,
         screen_gradient_image
     }, edge_records.size(), scene.use_gpu);
 }
@@ -1347,9 +1491,12 @@ struct secondary_edge_sampler {
             auto light_area = scene.light_areas[light_shape.light_id];
             pdf_nee = light_pmf / light_area;
         } else {
-            // Environment map sampling
+            // Environment light sampling
             isect_jac = 1 / distance_squared(isect_pt, nee_ray.org);
-            pdf_nee = envmap_pdf(*scene.envmap, nee_ray.dir);
+            if (scene.envmap == nullptr)
+                pdf_nee = envmap_pdf(*scene.envmap, nee_ray.dir);
+            else
+                pdf_nee = vmf_pdf(*scene.vmflight, nee_ray.dir);
         }
         if (pmf <= 0 || isect_jac <= 0 || pdf_nee <= 0) {
             return -1;
@@ -1906,6 +2053,19 @@ struct secondary_edge_weights_updater {
             auto d1 = v1 - p;
             auto dirac_jacobian = length(cross(d0, d1)); // Eq. 16 in the paper
             // TODO: check the correctness of this
+            auto line_jacobian = 1 / length_squared(edge_record.edge_pt - p);
+            auto w = line_jacobian / dirac_jacobian;
+
+            edge_throughput *= w;
+        } else if (scene.vmflight != nullptr) {
+            // Hit the vMF light.
+            auto p = shading_point.position;
+            auto v0 = Vector3{get_v0(scene.shapes, edge_record.edge)};
+            auto v1 = Vector3{get_v1(scene.shapes, edge_record.edge)};
+            auto d0 = v0 - p;
+            auto d1 = v1 - p;
+            auto dirac_jacobian = length(cross(d0, d1)); // Eq. 16 in the paper
+
             auto line_jacobian = 1 / length_squared(edge_record.edge_pt - p);
             auto w = line_jacobian / dirac_jacobian;
 

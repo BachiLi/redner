@@ -97,6 +97,7 @@ packages = []
 build_with_cuda = False
 if torch_spec is not None:
     packages.append('pyredner')
+    packages.append('pyredner.integrators')
     import torch
     if torch.cuda.is_available():
         build_with_cuda = True

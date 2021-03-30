@@ -32,16 +32,6 @@ endif()
 
 find_package(Embree REQUIRED)
 
-include_directories(${PYTHON_INCLUDE_PATH})
-include_directories(${EMBREE_INCLUDE_PATH})
-include_directories(pybind11/include)
-if(REDNER_CUDA)
-    include_directories(${OptiX_INCLUDE})
-    link_directories(${CUDA_LIBRARIES})
-else()
-    include_directories(${THRUST_INCLUDE_DIR})
-endif()
-
 if(NOT MSVC)
   # These compile definitions are not meaningful for MSVC
   add_compile_options(-Wall -g -O3 -fvisibility=hidden -Wno-unknown-pragmas)
@@ -79,6 +69,7 @@ set(SRCS src/aabb.h
          src/parallel.h
          src/path_contribution.h
          src/pathtracer.h
+         src/pathtracer_was.h
          src/pcg_sampler.h
          src/primary_contribution.h
          src/primary_intersection.h
@@ -89,13 +80,17 @@ set(SRCS src/aabb.h
          src/sampler.h
          src/scene.h
          src/shape.h
+         src/shape_adjacency.h
          src/sobol.inc
          src/sobol_sampler.h
          src/test_utils.h
          src/texture.h
          src/transform.h
          src/vector.h
+         src/warp_field.h
          xatlas/xatlas.h
+         src/vmf.h
+
          src/aabb.cpp
          src/active_pixels.cpp
          src/atomic.cpp
@@ -112,6 +107,7 @@ set(SRCS src/aabb.h
          src/parallel.cpp
          src/path_contribution.cpp
          src/pathtracer.cpp
+         src/pathtracer_was.cpp
          src/pcg_sampler.cpp
          src/primary_contribution.cpp
          src/primary_intersection.cpp
@@ -119,7 +115,10 @@ set(SRCS src/aabb.h
          src/redner.cpp
          src/scene.cpp
          src/shape.cpp
+         src/shape_adjacency.cpp
          src/sobol_sampler.cpp
+         src/vmf.cpp
+         src/warp_field.cpp
          xatlas/xatlas.cpp)
 
 if(REDNER_CUDA)
@@ -136,6 +135,8 @@ if(REDNER_CUDA)
         src/parallel.cpp
         src/path_contribution.cpp
         src/pathtracer.cpp
+        src/pathtracer_was.cpp
+        src/shape_adjacency.cpp
         src/pcg_sampler.cpp
         src/primary_contribution.cpp
         src/primary_intersection.cpp
@@ -148,6 +149,17 @@ if(REDNER_CUDA)
     target_link_libraries(redner ${optix_prime_LIBRARY})
 else()
     add_library(redner MODULE ${SRCS})
+endif()
+
+target_include_directories(redner PUBLIC ${PYTHON_INCLUDE_DIRS})
+target_include_directories(redner PUBLIC ${EMBREE_INCLUDE_PATH})
+target_include_directories(redner PUBLIC pybind11/include)
+
+if(REDNER_CUDA)
+    include_directories(${OptiX_INCLUDE})
+    link_directories(${CUDA_LIBRARIES})
+else()
+    include_directories(${THRUST_INCLUDE_DIR})
 endif()
 
 if(APPLE)

@@ -1,5 +1,6 @@
 from .device import *
 from .camera_type import camera_type
+from .filter_type import filter_type
 from .camera import *
 from .shape import *
 from .texture import *
@@ -7,6 +8,7 @@ from .material import *
 from .area_light import *
 from .object import *
 from .envmap import *
+from .vmflight import *
 from .scene import *
 from .render_pytorch import *
 from .image import *

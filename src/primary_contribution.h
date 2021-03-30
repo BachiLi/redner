@@ -29,6 +29,7 @@ void accumulate_primary_contribs(
         const ChannelInfo &channel_info,
         float *rendered_image,
         BufferView<Real> edge_contribs,
+        BufferView<Vector3> path_contribs,
         BufferView<Real> generic_texture_buffer);
 
 /// Backprop version of the function above.
@@ -48,4 +49,5 @@ void d_accumulate_primary_contribs(
         DScene *d_scene,
         BufferView<DRay> d_incoming_rays,
         BufferView<RayDifferential> d_incoming_ray_differentials,
-        BufferView<SurfacePoint> d_shading_points);
+        BufferView<SurfacePoint> d_shading_points,
+        BufferView<Vector3> d_incoming_ray_dirs);

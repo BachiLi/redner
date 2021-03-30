@@ -10,6 +10,7 @@
 #include "shape.h"
 #include "material.h"
 #include "envmap.h"
+#include "vmf.h"
 #include "edge.h"
 #include <vector>
 #include <memory>
@@ -25,11 +26,12 @@ struct Scene {
           const std::vector<const Material*> &materials,
           const std::vector<const AreaLight*> &area_lights,
           const std::shared_ptr<const EnvironmentMap> &envmap,
+          const std::shared_ptr<const VonMisesFisherLight> &vmflight,
           bool use_gpu,
-          int gpu_index,
-          bool use_primary_edge_sampling,
-          bool use_secondary_edge_sampling);
+          int gpu_index);
     ~Scene();
+    void make_edge_sampler(bool use_primary_edge_sampling,
+                           bool use_secondary_edge_sampling);
 
     // Flatten arrays of scene content
     Camera camera;
@@ -37,6 +39,7 @@ struct Scene {
     Buffer<Material> materials;
     Buffer<AreaLight> area_lights;
     EnvironmentMap *envmap;
+    VonMisesFisherLight *vmflight;
 
     // Is the scene stored in GPU or CPU
     bool use_gpu;
@@ -73,7 +76,7 @@ struct Scene {
 
 inline
 bool has_lights(const Scene &scene) {
-    return scene.area_lights.size() > 0 || scene.envmap != nullptr;
+    return scene.area_lights.size() > 0 || scene.envmap != nullptr || scene.vmflight != nullptr;
 }
 
 struct FlattenScene {
@@ -86,6 +89,7 @@ struct FlattenScene {
     Real *light_areas;
     Real **area_cdfs;
     EnvironmentMap *envmap;
+    VonMisesFisherLight *vmflight;
     // For G-buffer rendering with textures of arbitrary number of channels.
     int max_generic_texture_dimension;
 };
@@ -98,6 +102,7 @@ struct DScene {
            const std::vector<DMaterial*> &materials,
            const std::vector<DAreaLight*> &lights,
            const std::shared_ptr<DEnvironmentMap> &envmap,
+           const std::shared_ptr<DVonMisesFisherLight> &vmflight,
            bool use_gpu,
            int gpu_index);
     ~DScene();
@@ -107,6 +112,7 @@ struct DScene {
     Buffer<DMaterial> materials;
     Buffer<DAreaLight> area_lights;
     DEnvironmentMap *envmap;
+    DVonMisesFisherLight *vmflight;
     bool use_gpu;
     int gpu_index;
 };

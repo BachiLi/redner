@@ -65,6 +65,23 @@ struct path_contribs_accumulator {
                     auto mis_weight = Real(1 / (1 + square((double)pdf_bsdf / (double)pdf_nee)));
                     nee_contrib = (mis_weight / pdf_nee) * bsdf_val * light_contrib;
                 }
+            } else if (scene.vmflight != nullptr) {
+                // vMF Light.
+                auto wo = light_ray.dir;
+                auto envmap_id = scene.num_lights - 1;
+                auto light_pmf = scene.light_pmf[envmap_id];
+                auto pdf_nee = vmf_pdf(*scene.vmflight, wo) * light_pmf;
+                if (pdf_nee > 0) {
+                    auto bsdf_val = bsdf(material, shading_point, wi, wo, min_rough);
+                    // XXX: For now we don't use ray differentials for envmap
+                    //      A proper approach might be to use a filter radius based on sampling density?
+                    RayDifferential ray_diff{Vector3{0, 0, 0}, Vector3{0, 0, 0},
+                                             Vector3{0, 0, 0}, Vector3{0, 0, 0}};
+                    auto light_contrib = vmf_eval(*scene.vmflight, wo, ray_diff);
+                    auto pdf_bsdf = bsdf_pdf(material, shading_point, wi, wo, min_rough);
+                    auto mis_weight = Real(1 / (1 + square((double)pdf_bsdf / (double)pdf_nee)));
+                    nee_contrib = (mis_weight / pdf_nee) * bsdf_val * light_contrib;
+                }
             }
         }
         // BSDF importance sampling
@@ -116,6 +133,26 @@ struct path_contribs_accumulator {
             } else {
                 next_throughput = Vector3{0, 0, 0};
             }
+        } else if (scene.vmflight != nullptr) {
+            // Hit vMF light.
+            auto wo = bsdf_ray.dir;
+            auto pdf_bsdf = bsdf_pdf(material, shading_point, wi, wo, min_rough);
+            // wo can be zero when bsdf_sample failed
+            if (length_squared(wo) > 0 && pdf_bsdf > 1e-20f) {
+                // XXX: For now we don't use ray differentials for envmap
+                //      A proper approach might be to use a filter radius based on sampling density?
+                RayDifferential ray_diff{Vector3{0, 0, 0}, Vector3{0, 0, 0},
+                                         Vector3{0, 0, 0}, Vector3{0, 0, 0}};
+                auto bsdf_val = bsdf(material, shading_point, wi, wo, min_rough);
+                auto light_contrib = vmf_eval(*scene.vmflight, wo, ray_diff);
+                auto envmap_id = scene.num_lights - 1;
+                auto light_pmf = scene.light_pmf[envmap_id];
+                auto pdf_nee = vmf_pdf(*scene.vmflight, wo) * light_pmf;
+                auto mis_weight = Real(1 / (1 + square((double)pdf_nee / (double)pdf_bsdf)));
+                scatter_contrib = (mis_weight / pdf_bsdf) * bsdf_val * light_contrib;
+            } else {
+                next_throughput = Vector3{0, 0, 0};
+            }
         }
 
         auto path_contrib = throughput * (nee_contrib + scatter_contrib);
@@ -128,8 +165,19 @@ struct path_contribs_accumulator {
             rendered_image[nd * pixel_id + d + 1] += float(weight * path_contrib[1]);
             rendered_image[nd * pixel_id + d + 2] += float(weight * path_contrib[2]);
         }
+
         if (edge_contribs != nullptr) {
-            edge_contribs[pixel_id] += sum(weight * path_contrib);
+            edge_contribs[pixel_id] += sum((weight * path_contrib));
+        }
+
+        if (path_contribs != nullptr) {
+            path_contribs[pixel_id] = path_contrib;
+        }
+
+        // Separately record nee_contrib * throughput (at EACH depth). This component is requried
+        // to correctly compute the warp derivative w.r.t nee_ray.
+        if (nee_contribs != nullptr) {
+            nee_contribs[pixel_id] = nee_contrib * throughput;
         }
     }
 
@@ -151,6 +199,8 @@ struct path_contribs_accumulator {
     Vector3 *next_throughputs;
     float *rendered_image;
     Real *edge_contribs;
+    Vector3 *path_contribs;
+    Vector3 *nee_contribs;
 };
 
 struct d_path_contribs_accumulator {
@@ -170,7 +220,13 @@ struct d_path_contribs_accumulator {
         auto &d_incoming_ray = d_incoming_rays[pixel_id];
         auto &d_incoming_ray_differential = d_incoming_ray_differentials[pixel_id];
         auto &d_shading_point = d_shading_points[pixel_id];
-    
+        auto &d_bsdf_wo = d_bsdf_wos[pixel_id];
+        auto &d_light_wo = d_light_wos[pixel_id];
+
+        // Reset d_bsdf_wo and d_light_wo
+        d_bsdf_wo = Vector3{0,0,0};
+        d_light_wo = Vector3{0,0,0};
+
         auto wi = -incoming_ray.dir;
         auto p = shading_point.position;
         const auto &shading_shape = scene.shapes[shading_isect.shape_id];
@@ -258,17 +314,17 @@ struct d_path_contribs_accumulator {
                             d_geometry_term / dist_sq : -d_geometry_term / dist_sq;
                         auto d_dist_sq = -d_geometry_term * geometry_term / dist_sq;
                         // cos_light = dot(wo, light_point.geom_normal)
-                        auto d_wo = d_cos_light * light_point.geom_normal;
+                        d_light_wo = d_cos_light * light_point.geom_normal;
                         auto d_light_point = SurfacePoint::zero();
                         d_light_point.geom_normal = d_cos_light * wo;
                         // bsdf_val = bsdf(material, shading_point, wi, wo)
                         auto d_wi = Vector3{0, 0, 0};
                         d_bsdf(material, shading_point, wi, wo, min_rough, d_bsdf_val,
-                               d_material, d_shading_point, d_wi, d_wo);
+                               d_material, d_shading_point, d_wi, d_light_wo);
                         // wo = dir / sqrt(dist_sq)
-                        auto d_dir = d_wo / sqrt(dist_sq);
+                        auto d_dir = d_light_wo / sqrt(dist_sq);
                         // sqrt(dist_sq)
-                        auto d_sqrt_dist_sq = -sum(d_wo * dir) / dist_sq;
+                        auto d_sqrt_dist_sq = -sum(d_light_wo * dir) / dist_sq;
                         d_dist_sq += (0.5f * d_sqrt_dist_sq / sqrt(dist_sq));
                         // dist_sq = length_squared(dir)
                         d_dir += d_length_squared(dir, d_dist_sq);
@@ -319,17 +375,58 @@ struct d_path_contribs_accumulator {
                     // Ignore derivatives of MIS weight & pdf
                     auto d_bsdf_val = weight * d_nee_contrib * light_contrib;
                     auto d_light_contrib = weight * d_nee_contrib * bsdf_val;
-                    auto d_wo = Vector3{0, 0, 0};
+                    d_light_wo = Vector3{0, 0, 0};
                     auto d_ray_diff = RayDifferential{
                         Vector3{0, 0, 0}, Vector3{0, 0, 0},
                         Vector3{0, 0, 0}, Vector3{0, 0, 0}};
                     // light_contrib = eval_envmap(*scene.envmap, wo, ray_diff)
                     d_envmap_eval(*scene.envmap, wo, ray_diff, d_light_contrib,
-                        *d_envmap, d_wo, d_ray_diff);
+                        *d_envmap, d_light_wo, d_ray_diff);
                     // bsdf_val = bsdf(material, shading_point, wi, wo, min_rough)
                     auto d_wi = Vector3{0, 0, 0};
                     d_bsdf(material, shading_point, wi, wo, min_rough, d_bsdf_val,
-                        d_material, d_shading_point, d_wi, d_wo);
+                        d_material, d_shading_point, d_wi, d_light_wo);
+                    // wi = -incoming_ray.dir
+                    d_incoming_ray.dir -= d_wi;
+                } 
+            } else if (scene.vmflight != nullptr) {
+                // Von-Mises Fisher light
+                auto wo = light_ray.dir;
+                auto envmap_id = scene.num_lights - 1;
+                auto light_pmf = scene.light_pmf[envmap_id];
+                auto pdf_nee = vmf_pdf(*scene.vmflight, wo) * light_pmf;
+                if (pdf_nee > 0) {
+                    auto bsdf_val = bsdf(material, shading_point, wi, wo, min_rough);
+                    // XXX: For now we don't use ray differentials for next event estimation.
+                    //      A proper approach might be to use a filter radius based on sampling density?
+                    auto ray_diff = RayDifferential{
+                        Vector3{0, 0, 0}, Vector3{0, 0, 0},
+                        Vector3{0, 0, 0}, Vector3{0, 0, 0}};
+                    auto light_contrib = vmf_eval(*scene.vmflight, wo, ray_diff);
+                    auto pdf_bsdf = bsdf_pdf(material, shading_point, wi, wo, min_rough);
+                    auto mis_weight = Real(1 / (1 + square((double)pdf_bsdf / (double)pdf_nee)));
+                    auto nee_contrib = (mis_weight / pdf_nee) * bsdf_val * light_contrib;
+
+                    // path_contrib = throughput * (nee_contrib + scatter_contrib)
+                    auto d_nee_contrib = d_path_contrib * throughput;
+                    d_throughput += d_path_contrib * nee_contrib;
+
+                    auto weight = mis_weight / pdf_nee;
+                    // nee_contrib = weight * bsdf_val * light_contrib
+                    // Ignore derivatives of MIS weight & pdf
+                    auto d_bsdf_val = weight * d_nee_contrib * light_contrib;
+                    auto d_light_contrib = weight * d_nee_contrib * bsdf_val;
+                    d_light_wo = Vector3{0, 0, 0};
+                    auto d_ray_diff = RayDifferential{
+                        Vector3{0, 0, 0}, Vector3{0, 0, 0},
+                        Vector3{0, 0, 0}, Vector3{0, 0, 0}};
+                    // light_contrib = eval_envmap(*scene.envmap, wo, ray_diff)
+                    d_vmf_eval(*scene.vmflight, wo, ray_diff, d_light_contrib,
+                        *d_vmf_light, d_light_wo, d_ray_diff);
+                    // bsdf_val = bsdf(material, shading_point, wi, wo, min_rough)
+                    auto d_wi = Vector3{0, 0, 0};
+                    d_bsdf(material, shading_point, wi, wo, min_rough, d_bsdf_val,
+                        d_material, d_shading_point, d_wi, d_light_wo);
                     // wi = -incoming_ray.dir
                     d_incoming_ray.dir -= d_wi;
                 }
@@ -406,17 +503,17 @@ struct d_path_contribs_accumulator {
                 }
 
                 auto d_wi = Vector3{0, 0, 0};
-                auto d_wo = d_next_ray.dir;
+                d_bsdf_wo = d_next_ray.dir;
                 // pdf_bsdf = bsdf_pdf(material, shading_point, wi, wo, min_rough)
                 // d_bsdf_pdf(material, shading_point, wi, wo, min_rough, d_pdf_bsdf,
                 //            d_roughness_tex, d_shading_point, d_wi, d_wo);
                 // bsdf_val = bsdf(material, shading_point, wi, wo)
                 d_bsdf(material, shading_point, wi, wo, min_rough, d_bsdf_val,
-                       d_material, d_shading_point, d_wi, d_wo);
+                       d_material, d_shading_point, d_wi, d_bsdf_wo);
 
                 // wo = dir / sqrt(dist_sq)
-                auto d_dir = d_wo / sqrt(dist_sq);
-                auto d_sqrt_dist_sq = -sum(d_wo * dir) / dist_sq;
+                auto d_dir = d_bsdf_wo / sqrt(dist_sq);
+                auto d_sqrt_dist_sq = -sum(d_bsdf_wo * dir) / dist_sq;
                 auto d_dist_sq = 0.5f * d_sqrt_dist_sq / sqrt(dist_sq);
                 // dist_sq = length_squared(dir)
                 d_dir += d_length_squared(dir, d_dist_sq);
@@ -453,7 +550,7 @@ struct d_path_contribs_accumulator {
                     d_shading_point.position -= d_dir;
                     d_shading_point.position += d_ray.org;
                 }
-                d_wo += d_ray.dir;
+                d_bsdf_wo = -d_ray.dir;
 
                 // We ignore backpropagation to bsdf importance sampling
                 // This is still correct given that we ignore the PDFs.
@@ -588,6 +685,47 @@ struct d_path_contribs_accumulator {
                 // wi = -incoming_ray.dir
                 d_incoming_ray.dir -= d_wi;
             }
+        } else if (scene.vmflight != nullptr) {
+            // vMF light
+            auto wo = light_ray.dir;
+            auto envmap_id = scene.num_lights - 1;
+            auto light_pmf = scene.light_pmf[envmap_id];
+            auto pdf_nee = vmf_pdf(*scene.vmflight, wo) * light_pmf;
+            if (pdf_nee > 0) {
+                auto bsdf_val = bsdf(material, shading_point, wi, wo, min_rough);
+                // XXX: For now we don't use ray differentials for next event estimation.
+                //      A proper approach might be to use a filter radius based on sampling density?
+                auto ray_diff = RayDifferential{
+                    Vector3{0, 0, 0}, Vector3{0, 0, 0},
+                    Vector3{0, 0, 0}, Vector3{0, 0, 0}};
+                auto light_contrib = vmf_eval(*scene.vmflight, wo, ray_diff);
+                auto pdf_bsdf = bsdf_pdf(material, shading_point, wi, wo, min_rough);
+                auto mis_weight = Real(1 / (1 + square((double)pdf_bsdf / (double)pdf_nee)));
+                auto nee_contrib = (mis_weight / pdf_nee) * bsdf_val * light_contrib;
+
+                // path_contrib = throughput * (nee_contrib + scatter_contrib)
+                auto d_nee_contrib = d_path_contrib * throughput;
+                d_throughput += d_path_contrib * nee_contrib;
+
+                auto weight = mis_weight / pdf_nee;
+                // nee_contrib = weight * bsdf_val * light_contrib
+                // Ignore derivatives of MIS weight & pdf
+                auto d_bsdf_val = weight * d_nee_contrib * light_contrib;
+                auto d_light_contrib = weight * d_nee_contrib * bsdf_val;
+                d_light_wo = Vector3{0, 0, 0};
+                auto d_ray_diff = RayDifferential{
+                    Vector3{0, 0, 0}, Vector3{0, 0, 0},
+                    Vector3{0, 0, 0}, Vector3{0, 0, 0}};
+                // light_contrib = eval_envmap(*scene.envmap, wo, ray_diff)
+                d_vmf_eval(*scene.vmflight, wo, ray_diff, d_light_contrib,
+                    *d_vmf_light, d_light_wo, d_ray_diff);
+                // bsdf_val = bsdf(material, shading_point, wi, wo, min_rough)
+                auto d_wi = Vector3{0, 0, 0};
+                d_bsdf(material, shading_point, wi, wo, min_rough, d_bsdf_val,
+                    d_material, d_shading_point, d_wi, d_light_wo);
+                // wi = -incoming_ray.dir
+                d_incoming_ray.dir -= d_wi;
+            }
         }
     }
 
@@ -619,10 +757,13 @@ struct d_path_contribs_accumulator {
     DMaterial *d_materials;
     DAreaLight *d_area_lights;
     DEnvironmentMap *d_envmap;
+    DVonMisesFisherLight *d_vmf_light;
     Vector3 *d_throughputs;
     DRay *d_incoming_rays;
     RayDifferential *d_incoming_ray_differentials;
     SurfacePoint *d_shading_points;
+    Vector3* d_bsdf_wos;
+    Vector3* d_light_wos;
 };
 
 void accumulate_path_contribs(const Scene &scene,
@@ -642,7 +783,9 @@ void accumulate_path_contribs(const Scene &scene,
                               const ChannelInfo &channel_info,
                               BufferView<Vector3> next_throughputs,
                               float *rendered_image,
-                              BufferView<Real> edge_contribs) {
+                              BufferView<Real> edge_contribs,
+                              BufferView<Vector3> path_contribs,
+                              BufferView<Vector3> nee_contribs) {
     parallel_for(path_contribs_accumulator{
         get_flatten_scene(scene),
         active_pixels.begin(),
@@ -661,7 +804,9 @@ void accumulate_path_contribs(const Scene &scene,
         channel_info,
         next_throughputs.begin(),
         rendered_image,
-        edge_contribs.begin()}, active_pixels.size(), scene.use_gpu);
+        edge_contribs.begin(),
+        path_contribs.begin(),
+        nee_contribs.begin()}, active_pixels.size(), scene.use_gpu);
 }
 
 void d_accumulate_path_contribs(const Scene &scene,
@@ -692,7 +837,9 @@ void d_accumulate_path_contribs(const Scene &scene,
                                 BufferView<Vector3> d_throughputs,
                                 BufferView<DRay> d_incoming_rays,
                                 BufferView<RayDifferential> d_incoming_ray_differentials,
-                                BufferView<SurfacePoint> d_shading_points) {
+                                BufferView<SurfacePoint> d_shading_points,
+                                BufferView<Vector3> d_bsdf_wos,
+                                BufferView<Vector3> d_light_wos) {
     parallel_for(d_path_contribs_accumulator{
         get_flatten_scene(scene),
         active_pixels.begin(),
@@ -722,9 +869,12 @@ void d_accumulate_path_contribs(const Scene &scene,
         d_scene->materials.data,
         d_scene->area_lights.data,
         d_scene->envmap,
+        d_scene->vmflight,
         d_throughputs.begin(),
         d_incoming_rays.begin(),
         d_incoming_ray_differentials.begin(),
-        d_shading_points.begin()},
+        d_shading_points.begin(),
+        d_bsdf_wos.begin(),
+        d_light_wos.begin()},
         active_pixels.size(), scene.use_gpu);
 }

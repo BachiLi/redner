@@ -6,6 +6,7 @@
 #include "area_light.h"
 #include "material.h"
 #include "edge.h"
+#include "warp_field.h"
 
 struct Sampler {
     virtual ~Sampler() {}
@@ -17,6 +18,10 @@ struct Sampler {
     virtual void next_light_samples(BufferView<TLightSample<double>> samples) = 0;
     virtual void next_bsdf_samples(BufferView<TBSDFSample<float>> samples) = 0;
     virtual void next_bsdf_samples(BufferView<TBSDFSample<double>> samples) = 0;
+    virtual void next_aux_samples(BufferView<TAuxSample<float>> samples) = 0;
+    virtual void next_aux_samples(BufferView<TAuxSample<double>> samples) = 0;
+    virtual void next_aux_count_samples(BufferView<TAuxCountSample<float>> samples) = 0;
+    virtual void next_aux_count_samples(BufferView<TAuxCountSample<double>> samples) = 0;
     virtual void next_primary_edge_samples(BufferView<TPrimaryEdgeSample<float>> samples) = 0;
     virtual void next_primary_edge_samples(BufferView<TPrimaryEdgeSample<double>> samples) = 0;
     virtual void next_secondary_edge_samples(BufferView<TSecondaryEdgeSample<float>> samples) = 0;

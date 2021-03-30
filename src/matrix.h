@@ -71,6 +71,26 @@ struct TMatrix3x3 {
         return m;
     }
 
+    DEVICE
+    static TMatrix3x3<T> zeros() {
+        TMatrix3x3<T> m(0, 0, 0,
+                        0, 0, 0,
+                        0, 0, 0);
+        return m;
+    }
+
+    DEVICE
+    TVector3<T> row(int i) {
+        TVector3<T> v(data[i][0], data[i][1], data[i][2]);
+        return v;
+    }
+
+    DEVICE
+    TVector3<T> col(int j) {
+        TVector3<T> v(data[0][j], data[1][j], data[2][j]);
+        return v;
+    }
+
     T data[3][3];
 };
 
@@ -220,6 +240,32 @@ inline TVector3<T> operator*(const TMatrix3x3<T> &m, const TVector3<T> &v) {
     return ret;
 }
 
+template <typename T0, typename T1>
+DEVICE
+inline auto operator*(const TMatrix3x3<T0> &m0, const T1 &s) 
+        -> TMatrix3x3<decltype(m0(0, 0) * s)> {
+    TMatrix3x3<decltype(m0(0, 0) * s)> m;
+    for (int i = 0; i < 3; i++) {
+        for (int j = 0; j < 3; j++) {
+            m(i, j) = m0(i, j) * s;
+        }
+    }
+    return m;
+}
+
+template <typename T0, typename T1>
+DEVICE
+inline auto operator/(const TMatrix3x3<T0> &m0, const T1 &s) 
+        -> TMatrix3x3<decltype(m0(0, 0) * s)> {
+    TMatrix3x3<decltype(m0(0, 0) * s)> m;
+    for (int i = 0; i < 3; i++) {
+        for (int j = 0; j < 3; j++) {
+            m(i, j) = m0(i, j) / s;
+        }
+    }
+    return m;
+}
+
 template <typename T>
 DEVICE
 inline TMatrix3x3<T> inverse(const TMatrix3x3<T> &m) {
@@ -241,6 +287,48 @@ inline TMatrix3x3<T> inverse(const TMatrix3x3<T> &m) {
     m_inv(2, 1) = (m(2, 0) * m(0, 1) - m(0, 0) * m(2, 1)) * invdet;
     m_inv(2, 2) = (m(0, 0) * m(1, 1) - m(1, 0) * m(0, 1)) * invdet;
     return m_inv;
+}
+
+template <typename T>
+DEVICE
+inline auto hadamard_product(const TMatrix3x3<T> &a, const TMatrix3x3<T> &b) 
+        -> TMatrix3x3<T> {
+    // Computes the element-wise product.
+
+    auto c = TMatrix3x3<T>{};
+    c(0, 0) = a(0, 0) * b(0, 0);
+    c(0, 1) = a(0, 1) * b(0, 1);
+    c(0, 2) = a(0, 2) * b(0, 2);
+
+    c(1, 0) = a(1, 0) * b(1, 0);
+    c(1, 1) = a(1, 1) * b(1, 1);
+    c(1, 2) = a(1, 2) * b(1, 2);
+
+    c(2, 0) = a(2, 0) * b(2, 0);
+    c(2, 1) = a(2, 1) * b(2, 1);
+    c(2, 2) = a(2, 2) * b(2, 2);
+
+    return c;
+}
+
+template <typename T>
+DEVICE
+inline auto collapse(const TMatrix3x3<T> &m) 
+        -> T {
+    // Computes sum of all elements.
+
+    return m(0, 0) +
+            m(0, 1) +
+            m(0, 2) +
+
+            m(1, 0) +
+            m(1, 1) +
+            m(1, 2) +
+
+            m(2, 0) + 
+            m(2, 1) +
+            m(2, 2);
+
 }
 
 template <typename T>
@@ -271,6 +359,31 @@ TMatrix4x4<T> transpose(const TMatrix4x4<T> &m) {
                          m(0, 1), m(1, 1), m(2, 1), m(3, 1),
                          m(0, 2), m(1, 2), m(2, 2), m(3, 2),
                          m(0, 3), m(1, 3), m(2, 3), m(3, 3));
+}
+
+template <typename T>
+DEVICE
+inline T trace(const TMatrix4x4<T> &m) {
+    return m(0, 0) + m(1, 1) + m(2, 2) + m(3, 3);
+}
+
+template <typename T>
+DEVICE
+inline T trace(const TMatrix3x3<T> &m) {
+    return m(0, 0) + m(1, 1) + m(2, 2);
+}
+
+
+template <typename T0, typename T1>
+DEVICE
+inline auto outer_product(const TVector3<T0> &v0, const TVector3<T1> &v1)
+    -> TMatrix3x3<decltype(v0[1] * v1[2] - v0[2] * v1[1])> {
+    auto mat = TMatrix3x3<decltype(v0[1] * v1[2] - v0[2] * v1[1])>();
+    for(int i = 0; i < 3; i++)
+        for(int j = 0; j < 3; j++) {
+            mat(i, j) = v0[i] * v1[j];
+        }
+    return mat;
 }
 
 template <typename T>

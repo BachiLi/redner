@@ -13,6 +13,10 @@ struct SobolSampler : public Sampler {
     void next_light_samples(BufferView<TLightSample<double>> samples) override;
     void next_bsdf_samples(BufferView<TBSDFSample<float>> samples) override;
     void next_bsdf_samples(BufferView<TBSDFSample<double>> samples) override;
+    void next_aux_samples(BufferView<TAuxSample<float>> samples) override;
+    void next_aux_samples(BufferView<TAuxSample<double>> samples) override;
+    void next_aux_count_samples(BufferView<TAuxCountSample<float>> samples) override;
+    void next_aux_count_samples(BufferView<TAuxCountSample<double>> samples) override;
     void next_primary_edge_samples(BufferView<TPrimaryEdgeSample<float>> samples) override;
     void next_primary_edge_samples(BufferView<TPrimaryEdgeSample<double>> samples) override;
     void next_secondary_edge_samples(BufferView<TSecondaryEdgeSample<float>> samples) override;

@@ -31,7 +31,9 @@ void accumulate_path_contribs(const Scene &scene,
                               const ChannelInfo &channel_info,
                               BufferView<Vector3> next_throughputs,
                               float *rendered_image,
-                              BufferView<Real> edge_contribs);
+                              BufferView<Real> edge_contribs,
+                              BufferView<Vector3> path_contribs,
+                              BufferView<Vector3> nee_contribs);
 
 /// The backward version of the function above.
 void d_accumulate_path_contribs(const Scene &scene,
@@ -62,4 +64,6 @@ void d_accumulate_path_contribs(const Scene &scene,
                                 BufferView<Vector3> d_throughputs,
                                 BufferView<DRay> d_incoming_rays,
                                 BufferView<RayDifferential> d_incoming_ray_differentials,
-                                BufferView<SurfacePoint> d_shading_points);
+                                BufferView<SurfacePoint> d_shading_points,
+                                BufferView<Vector3> d_bsdf_wos,
+                                BufferView<Vector3> d_light_wos);

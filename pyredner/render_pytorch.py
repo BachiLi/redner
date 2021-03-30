@@ -2,6 +2,7 @@ import torch
 import numpy as np
 import redner
 import pyredner
+import pyredner.integrators
 import time
 import skimage.io
 from typing import List, Union, Tuple, Optional
@@ -63,8 +64,18 @@ class RenderFunction(torch.autograd.Function):
     """
         The PyTorch interface of C++ redner.
     """
+    """
+    TODO: Remove
+    num_samples: Union[int, Tuple[int, int]],
+                        max_bounces: int,
+                        channels: List = [redner.channels.radiance],
+                        sampler_type = redner.SamplerType.independent,
+                        use_primary_edge_sampling: bool = True,
+                        use_secondary_edge_sampling: bool = True,
+                        sample_pixel_center: bool = False,
+                        device: Optional[torch.device] = None
+    """
 
-    @staticmethod
     def serialize_scene(scene: pyredner.Scene,
                         num_samples: Union[int, Tuple[int, int]],
                         max_bounces: int,
@@ -74,6 +85,24 @@ class RenderFunction(torch.autograd.Function):
                         use_secondary_edge_sampling: bool = True,
                         sample_pixel_center: bool = False,
                         device: Optional[torch.device] = None):
+        return RenderFunction.serialize_scene_class(
+                    scene,
+                    integrator=pyredner.integrators.EdgeSamplingIntegrator(
+                        num_samples=num_samples,
+                        max_bounces=max_bounces,
+                        channels=channels,
+                        sampler_type=sampler_type,
+                        use_primary_edge_sampling=use_primary_edge_sampling,
+                        use_secondary_edge_sampling=use_secondary_edge_sampling,
+                        sample_pixel_center=sample_pixel_center
+                    ),
+                    device=device
+            )
+
+    @staticmethod
+    def serialize_scene_class(scene: pyredner.Scene,
+                              integrator: pyredner.integrators.Integrator = pyredner.integrators.EdgeSamplingIntegrator(),
+                              device: Optional[torch.device] = None):
         """
             Given a pyredner scene & rendering options, convert them to a linear list of argument,
             so that we can use it in PyTorch.
@@ -147,8 +176,8 @@ class RenderFunction(torch.autograd.Function):
         for light_id, light in enumerate(scene.area_lights):
             scene.shapes[light.shape_id].light_id = light_id
 
-        if max_bounces == 0:
-            use_secondary_edge_sampling = False
+        # if max_bounces == 0:
+        #    use_secondary_edge_sampling = False
 
         args = []
         args.append(num_shapes)
@@ -202,6 +231,7 @@ class RenderFunction(torch.autograd.Function):
                     min(viewport[3], cam.resolution[1]))
         args.append(viewport)
         args.append(cam.camera_type)
+        args.append(cam.filter_type)
         for shape in scene.shapes:
             assert(torch.isfinite(shape.vertices).all())
             if (shape.uvs is not None):
@@ -251,20 +281,38 @@ class RenderFunction(torch.autograd.Function):
             args.append(scene.envmap.directly_visible)
         else:
             args.append(None)
-
-        args.append(num_samples)
-        args.append(max_bounces)
-        args.append(channels)
-        args.append(sampler_type)
-        if requires_visibility_grad:
-            args.append(use_primary_edge_sampling)
-            args.append(use_secondary_edge_sampling)
+        if scene.vmflight is not None:
+            assert(torch.isfinite(scene.vmflight.kappa).all())
+            assert(torch.isfinite(scene.vmflight.intensity).all())
+            assert(torch.isfinite(scene.vmflight.env_to_world).all())
+            assert(torch.isfinite(scene.vmflight.world_to_env).all())
+            args.append(scene.vmflight.kappa)
+            args.append(scene.vmflight.intensity)
+            args.append(scene.vmflight.env_to_world)
+            args.append(scene.vmflight.world_to_env)
+            args.append(scene.vmflight.pdf_norm)
         else:
+            args.append(None)
+            args.append(None)
+            args.append(None)
+            args.append(None)
+            args.append(None)
+
+        #args.append(num_samples)
+        #args.append(max_bounces)
+        #args.append(channels)
+        #args.append(sampler_type)
+        #if requires_visibility_grad:
+        #    args.append(use_primary_edge_sampling)
+        #    args.append(use_secondary_edge_sampling)
+        #else:
             # Don't need to do edge sampling if we don't require spatial derivatives
-            args.append(False)
-            args.append(False)
-        args.append(sample_pixel_center)
+        #    args.append(False)
+        #    args.append(False)
+        #args.append(sample_pixel_center)
+        args.append(integrator)
         args.append(device)
+
 
         return args
 
@@ -310,6 +358,8 @@ class RenderFunction(torch.autograd.Function):
         current_index += 1
         camera_type = args[current_index]
         current_index += 1
+        filter_type = args[current_index] # NEW
+        current_index += 1 # NEW
         if cam_to_world is None:
             camera = redner.Camera(resolution[1],
                                    resolution[0],
@@ -323,6 +373,7 @@ class RenderFunction(torch.autograd.Function):
                                    redner.float_ptr(distortion_params.data_ptr() if distortion_params is not None else 0),
                                    clip_near,
                                    camera_type,
+                                   filter_type,
                                    redner.Vector2i(viewport[1], viewport[0]),
                                    redner.Vector2i(viewport[3], viewport[2]))
         else:
@@ -338,6 +389,7 @@ class RenderFunction(torch.autograd.Function):
                                    redner.float_ptr(distortion_params.data_ptr() if distortion_params is not None else 0),
                                    clip_near,
                                    camera_type,
+                                   filter_type,
                                    redner.Vector2i(viewport[1], viewport[0]),
                                    redner.Vector2i(viewport[3], viewport[2]))
         shapes = []
@@ -580,6 +632,8 @@ class RenderFunction(torch.autograd.Function):
             current_index += 1
 
         # Options
+        """
+        TODO: Remove
         num_samples = args[current_index]
         current_index += 1
         max_bounces = args[current_index]
@@ -594,13 +648,43 @@ class RenderFunction(torch.autograd.Function):
         current_index += 1
         sample_pixel_center = args[current_index]
         current_index += 1
+        """
+
+        vmflight = None
+        if args[current_index] is not None:
+            kappa = args[current_index]
+            current_index += 1
+            intensity = args[current_index]
+            current_index += 1
+            env_to_world = args[current_index]
+            current_index += 1
+            world_to_env = args[current_index]
+            current_index += 1
+            pdf_norm = args[current_index]
+            current_index += 1
+
+            vmflight = redner.VonMisesFisherLight(\
+                kappa.data[0],
+                redner.float_ptr(intensity.data_ptr()),
+                redner.float_ptr(env_to_world.data_ptr()),
+                redner.float_ptr(world_to_env.data_ptr()),
+                pdf_norm)
+        else:
+            current_index += 5
+
+        # Options
+        integrator = args[current_index]
+        current_index += 1
+
         device = args[current_index]
         current_index += 1
 
+        """
         if use_primary_edge_sampling is None:
-            use_primary_edge_sampling = use_primary_edge_sampling_
+            use_primary_edge_sampling = integrator.use_primary_edge_sampling
         if use_secondary_edge_sampling is None:
-            use_secondary_edge_sampling = use_secondary_edge_sampling_
+            use_secondary_edge_sampling = integrator.use_secondary_edge_sampling
+        """
 
         device_index = device.index
         if device.index is None:
@@ -611,28 +695,32 @@ class RenderFunction(torch.autograd.Function):
                              materials,
                              area_lights,
                              envmap,
+                             vmflight,
                              device.type == 'cuda',
-                             device_index,
-                             use_primary_edge_sampling,
-                             use_secondary_edge_sampling)
+                             device_index) # TODO: Remove
+                             #use_primary_edge_sampling,
+                             #use_secondary_edge_sampling)
         time_elapsed = time.time() - start
         if get_print_timing():
             print('Scene construction, time: %.5f s' % time_elapsed)
 
         # check that num_samples is a tuple
-        if isinstance(num_samples, int):
-            num_samples = (num_samples, num_samples)
+        # if isinstance(num_samples, int):
+        #     num_samples = (num_samples, num_samples)
 
+        """
+        TODO: Remove.
         options = redner.RenderOptions(seed[0],
                                        num_samples[0],
                                        max_bounces,
                                        channels,
                                        sampler_type,
                                        sample_pixel_center)
+        """
 
         ctx = Context()
-        ctx.channels = channels
-        ctx.options = options
+        # ctx.channels = channels
+        # ctx.options = options
         ctx.resolution = resolution
         ctx.viewport = viewport
         ctx.scene = scene
@@ -641,9 +729,11 @@ class RenderFunction(torch.autograd.Function):
         ctx.materials = materials
         ctx.area_lights = area_lights
         ctx.envmap = envmap
+        ctx.vmflight = vmflight
         ctx.scene = scene
-        ctx.options = options
-        ctx.num_samples = num_samples
+        #ctx.options = options TODO: Remove
+        #ctx.num_samples = num_samples TODO: Remove
+        ctx.integrator = integrator
         ctx.device = device
 
         return ctx
@@ -665,30 +755,30 @@ class RenderFunction(torch.autograd.Function):
         args_ctx = RenderFunction.unpack_args(seed, args)
         area_lights = args_ctx.area_lights
         camera = args_ctx.camera
-        channels = args_ctx.channels
+        # channels = args_ctx.channels
         envmap = args_ctx.envmap
+        vmflight = args_ctx.vmflight
         materials = args_ctx.materials
-        num_samples = args_ctx.num_samples
-        options = args_ctx.options
+        # num_samples = args_ctx.num_samples TODO: Remove
+        # options = args_ctx.options TODO: Remove
+        integrator = args_ctx.integrator
         resolution = args_ctx.resolution
         viewport = args_ctx.viewport
         scene = args_ctx.scene
         shapes = args_ctx.shapes
         device = args_ctx.device
 
-        num_channels = redner.compute_num_channels(channels,
+        num_channels = redner.compute_num_channels(integrator.channels,
                                                    scene.max_generic_texture_dimension)
         img_height = viewport[2] - viewport[0]
         img_width = viewport[3] - viewport[1]
         rendered_image = torch.zeros(img_height, img_width, num_channels, device = device)
         start = time.time()
-        redner.render(scene,
-                      options,
-                      redner.float_ptr(rendered_image.data_ptr()),
-                      redner.float_ptr(0), # d_rendered_image
-                      None, # d_scene
-                      redner.float_ptr(0), # translational_gradient_image
-                      redner.float_ptr(0)) # debug_image
+
+        integrator.render_image(seed, scene,
+                                redner.float_ptr(rendered_image.data_ptr())
+                               )
+
         time_elapsed = time.time() - start
         if get_print_timing():
             print('Forward pass, time: %.5f s' % time_elapsed)
@@ -699,9 +789,10 @@ class RenderFunction(torch.autograd.Function):
         ctx.materials = materials
         ctx.area_lights = area_lights
         ctx.envmap = envmap
+        ctx.vmflight = vmflight
         ctx.scene = scene
-        ctx.options = options
-        ctx.num_samples = num_samples
+        ctx.integrator = integrator
+        # ctx.num_samples = integrator.num_samples
         ctx.device = device
         ctx.args = args # Important to prevent GC from deallocating the tensors
         return rendered_image
@@ -709,7 +800,7 @@ class RenderFunction(torch.autograd.Function):
     @staticmethod
     def create_gradient_buffers(ctx):
         scene = ctx.scene
-        options = ctx.options
+        # options = ctx.options
         camera = ctx.camera
         device = ctx.device
 
@@ -967,6 +1058,21 @@ class RenderFunction(torch.autograd.Function):
                 d_envmap_tex,
                 redner.float_ptr(buffers.d_world_to_env.data_ptr()))
 
+        buffers.d_vmflight = None
+        if ctx.vmflight is not None:
+            vmflight = ctx.vmflight
+
+            buffers.d_vmflight_kappa = torch.zeros(1, device = pyredner.get_device())
+            buffers.d_vmflight_intensity = torch.zeros(3, device = pyredner.get_device())
+            d_vmflight_kappa_ptr = redner.float_ptr(buffers.d_vmflight_kappa.data_ptr())
+            d_vmflight_intensity_ptr = redner.float_ptr(buffers.d_vmflight_intensity.data_ptr())
+
+            buffers.d_world_to_env = torch.zeros(4, 4, device = pyredner.get_device())
+            d_world_to_env_ptr = redner.float_ptr(buffers.d_world_to_env.data_ptr())
+
+            d_vmflight = redner.DVonMisesFisherLight(
+                d_vmflight_kappa_ptr, d_vmflight_intensity_ptr, d_world_to_env_ptr)
+
         device_index = device.index
         if device.index is None:
             device_index = torch.cuda.current_device() if torch.cuda.is_available() else 0
@@ -975,6 +1081,7 @@ class RenderFunction(torch.autograd.Function):
                                         buffers.d_materials,
                                         buffers.d_area_lights,
                                         buffers.d_envmap,
+                                        buffers.d_vmflight,
                                         device.type == 'cuda',
                                         device_index)
         return buffers
@@ -1004,24 +1111,58 @@ class RenderFunction(torch.autograd.Function):
                 seed for the Monte Carlo random samplers
             See serialize_scene for the explanation of the rest of the arguments.
         """
-        args = RenderFunction.serialize_scene(\
+        return RenderFunction.visualize_screen_gradient_class(
+                    grad_img,
+                    seed,
+                    scene,
+                    integrator=pyredner.integrators.EdgeSamplingIntegrator(
+                        num_samples=num_samples,
+                        max_bounces=max_bounces,
+                        channels=channels,
+                        sampler_type=sampler_type,
+                        use_primary_edge_sampling=use_primary_edge_sampling,
+                        use_secondary_edge_sampling=use_secondary_edge_sampling,
+                        sample_pixel_center=sample_pixel_center
+                    )
+               )
+
+    @staticmethod
+    def visualize_screen_gradient_class(grad_img: torch.Tensor,
+                                  seed: int,
+                                  scene: pyredner.Scene,
+                                  integrator: pyredner.integrators.Integrator = pyredner.integrators.EdgeSamplingIntegrator()):
+        """
+            Given a serialized scene and output an 2-channel image,
+            which visualizes the derivatives of pixel color with respect to 
+            the screen space coordinates.
+
+            Args
+            ====
+            grad_img: Optional[torch.Tensor]
+                The "adjoint" of the backpropagation gradient. If you don't know
+                what this means just give None
+            seed: int
+                seed for the Monte Carlo random samplers
+            See serialize_scene for the explanation of the rest of the arguments.
+        """
+
+        args = RenderFunction.serialize_scene_class(\
             scene = scene,
-            num_samples = num_samples,
-            max_bounces = max_bounces,
-            sampler_type = sampler_type,
-            channels = channels,
-            sample_pixel_center = sample_pixel_center)
+            integrator = integrator
+            )
+
         args_ctx = RenderFunction.unpack_args(\
-            (seed, seed), args, use_primary_edge_sampling, use_secondary_edge_sampling)
-        channels = args_ctx.channels
-        options = args_ctx.options
+            (seed, seed), args)
+
+        # channels = args_ctx.channels
+        # options = args_ctx.options
         resolution = args_ctx.resolution
         viewport = args_ctx.viewport
         scene = args_ctx.scene
         device = args_ctx.device
 
         buffers = RenderFunction.create_gradient_buffers(args_ctx)
-        num_channels = redner.compute_num_channels(channels,
+        num_channels = redner.compute_num_channels(integrator.channels,
                                                    scene.max_generic_texture_dimension)
         img_height = viewport[2] - viewport[0]
         img_width = viewport[3] - viewport[1]
@@ -1034,18 +1175,76 @@ class RenderFunction(torch.autograd.Function):
         else:
             grad_img = torch.ones(img_height, img_width, num_channels, device = device)
         start = time.time()
-        redner.render(scene,
-                      options,
-                      redner.float_ptr(0), # rendered_image
-                      redner.float_ptr(grad_img.data_ptr()), # d_rendered_image
-                      buffers.d_scene,
-                      redner.float_ptr(screen_gradient_image.data_ptr()),
-                      redner.float_ptr(0)) # debug_image
+        integrator.render_screen_gradient(seed, scene,
+                                          redner.float_ptr(grad_img.data_ptr()),
+                                          buffers.d_scene,
+                                          redner.float_ptr(screen_gradient_image.data_ptr())
+                                         )
         time_elapsed = time.time() - start
         if get_print_timing():
             print('Visualize gradient, time: %.5f s' % time_elapsed)
 
         return screen_gradient_image
+
+    @staticmethod
+    def visualize_debug_image(grad_img: torch.Tensor,
+                              seed: int,
+                              scene: pyredner.Scene,
+                              integrator: pyredner.integrators.Integrator = pyredner.integrators.EdgeSamplingIntegrator()):
+        """
+            Given a serialized scene and output an 2-channel image,
+            which visualizes the derivatives of pixel color with respect to 
+            the screen space coordinates.
+
+            Args
+            ====
+            grad_img: Optional[torch.Tensor]
+                The "adjoint" of the backpropagation gradient. If you don't know
+                what this means just give None
+            seed: int
+                seed for the Monte Carlo random samplers
+            See serialize_scene for the explanation of the rest of the arguments.
+        """
+
+        args = RenderFunction.serialize_scene_class(\
+            scene = scene,
+            integrator = integrator
+            )
+
+        args_ctx = RenderFunction.unpack_args(\
+            (seed, seed), args)
+
+        # channels = args_ctx.channels
+        # options = args_ctx.options
+        resolution = args_ctx.resolution
+        viewport = args_ctx.viewport
+        scene = args_ctx.scene
+        device = args_ctx.device
+
+        buffers = RenderFunction.create_gradient_buffers(args_ctx)
+        num_channels = redner.compute_num_channels(integrator.channels,
+                                                   scene.max_generic_texture_dimension)
+        img_height = viewport[2] - viewport[0]
+        img_width = viewport[3] - viewport[1]
+        debug_image = torch.zeros(\
+            img_height, img_width, device = device)
+        if grad_img is not None:
+            assert(grad_img.shape[0] == img_height)
+            assert(grad_img.shape[1] == img_width)
+            assert(grad_img.shape[2] == num_channels)
+        else:
+            grad_img = torch.ones(img_height, img_width, num_channels, device = device)
+        start = time.time()
+        integrator.render_debug_image(seed, scene,
+                                          redner.float_ptr(grad_img.data_ptr()),
+                                          buffers.d_scene,
+                                          redner.float_ptr(debug_image.data_ptr())
+                                         )
+        time_elapsed = time.time() - start
+        if get_print_timing():
+            print('Visualize debug gradient, time: %.5f s' % time_elapsed)
+
+        return debug_image
 
     @staticmethod
     def backward(ctx,
@@ -1054,20 +1253,29 @@ class RenderFunction(torch.autograd.Function):
             grad_img = grad_img.contiguous()
         assert(torch.isfinite(grad_img).all())
         scene = ctx.scene
-        options = ctx.options
+        # options = ctx.options
         camera = ctx.camera
+        integrator = ctx.integrator
 
         buffers = RenderFunction.create_gradient_buffers(ctx)
 
-        options.seed = ctx.seed[1]
-        options.num_samples = ctx.num_samples[1]
+        # options.seed = ctx.seed[1]
+        # options.num_samples = ctx.num_samples[1]
         start = time.time()
-        redner.render(scene, options,
+        """
+        integrator.render(seed, scene,
                       redner.float_ptr(0), # rendered_image
                       redner.float_ptr(grad_img.data_ptr()),
                       buffers.d_scene,
                       redner.float_ptr(0), # translational_gradient_image
                       redner.float_ptr(0)) # debug_image
+        """
+
+        integrator.render_derivs(ctx.seed, scene,
+                                 redner.float_ptr(grad_img.data_ptr()),
+                                 buffers.d_scene
+                                )
+
         time_elapsed = time.time() - start
         if get_print_timing():
             print('Backward pass, time: %.5f s' % time_elapsed)
@@ -1099,6 +1307,7 @@ class RenderFunction(torch.autograd.Function):
         ret_list.append(None) # resolution
         ret_list.append(None) # viewport
         ret_list.append(None) # camera_type
+        ret_list.append(None) # filter_type
 
         num_shapes = len(ctx.shapes)
         for i in range(num_shapes):
@@ -1164,14 +1373,29 @@ class RenderFunction(torch.autograd.Function):
             ret_list.append(None) # directly_visible
         else:
             ret_list.append(None)
+        
+        if ctx.vmflight is not None:
+            ret_list.append(buffers.d_vmflight_kappa)
+            ret_list.append(buffers.d_vmflight_intensity)
+            ret_list.append(None) # env_to_world
+            ret_list.append(buffers.d_world_to_env.cpu())
+            ret_list.append(None) # pdf_norm
+        else:
+            ret_list.append(None)
+            ret_list.append(None)
+            ret_list.append(None)
+            ret_list.append(None)
+            ret_list.append(None)
 
-        ret_list.append(None) # num samples
-        ret_list.append(None) # num bounces
-        ret_list.append(None) # channels
-        ret_list.append(None) # sampler type
-        ret_list.append(None) # use_primary_edge_sampling
-        ret_list.append(None) # use_secondary_edge_sampling
-        ret_list.append(None) # sample_pixel_center
+        # TODO: Remove.
+        #ret_list.append(None) # num samples
+        #ret_list.append(None) # num bounces
+        #ret_list.append(None) # channels
+        #ret_list.append(None) # sampler type
+        #ret_list.append(None) # use_primary_edge_sampling
+        #ret_list.append(None) # use_secondary_edge_sampling
+        #ret_list.append(None) # sample_pixel_center
+        ret_list.append(None) # integrator
         ret_list.append(None) # device
 
         return tuple(ret_list)

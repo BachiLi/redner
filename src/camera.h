@@ -16,6 +16,14 @@ enum class CameraType {
     Panorama
 };
 
+enum class FilterType {
+    Gaussian,
+    Box
+};
+
+// TODO: Move
+#define SCREEN_FILTER_VARIANCE 0.25
+
 struct Camera {
     Camera() {}
 
@@ -31,6 +39,7 @@ struct Camera {
            ptr<float> distortion_params_,
            float clip_near,
            CameraType camera_type,
+           FilterType filter_type,
            Vector2i viewport_beg,
            Vector2i viewport_end)
         : width(width),
@@ -39,6 +48,7 @@ struct Camera {
           intrinsic_mat(intrinsic_mat.get()),
           clip_near(clip_near),
           camera_type(camera_type),
+          filter_type(filter_type),
           viewport_beg(viewport_beg),
           viewport_end(viewport_end) {
         if (cam_to_world_.get() != nullptr) {
@@ -79,6 +89,7 @@ struct Camera {
     DistortionParameters distortion_params;
     float clip_near;
     CameraType camera_type;
+    FilterType filter_type;
     Vector2i viewport_beg, viewport_end;
 };
 
@@ -101,6 +112,12 @@ struct DCamera {
           intrinsic_mat(intrinsic_mat.get()),
           distortion_params(DDistortionParameters{distortion_params.get()}) {}
 
+    DEVICE
+    static DCamera null() {
+        return DCamera(nullptr, nullptr, nullptr, nullptr, 
+                       nullptr, nullptr, nullptr, nullptr);
+    }
+
     float *position;
     float *look;
     float *up;
@@ -117,6 +134,66 @@ struct TCameraSample {
 };
 
 using CameraSample = TCameraSample<Real>;
+
+DEVICE
+inline void local_to_screen_pos(const Camera &camera,
+                                const int &pixel_id,
+                                const Vector2 &local_pos,
+                                Vector2& screen_pos) {
+    
+    auto viewport_width =
+            camera.viewport_end.x - camera.viewport_beg.x;
+    auto viewport_height =
+            camera.viewport_end.y - camera.viewport_beg.y;
+
+    auto pixel_size_x = Real(0.5) / viewport_width;
+    auto pixel_size_y = Real(0.5) / viewport_height;
+    
+    auto pixel_x = pixel_id % viewport_width + camera.viewport_beg.x;
+    auto pixel_y = pixel_id / viewport_width + camera.viewport_beg.y;
+
+    // Xform random sample around pixel center.
+    auto pixel_center_x = pixel_x + pixel_size_x;
+    auto pixel_center_y = pixel_y + pixel_size_y;
+
+    auto sample = local_pos;
+    screen_pos = Vector2{
+            (pixel_center_x + sample[0]) / Real(viewport_width),
+            (pixel_center_y + sample[1]) / Real(viewport_height)
+        };
+
+}
+
+DEVICE
+inline void d_local_to_screen_pos(const Camera &camera,
+                                  const int &pixel_id,
+                                  const Vector2& d_screen_pos,
+                                  Vector2& d_local_pos) {
+
+    auto viewport_width =
+            camera.viewport_end.x - camera.viewport_beg.x;
+    auto viewport_height =
+            camera.viewport_end.y - camera.viewport_beg.y;
+
+    d_local_pos = Vector2{d_screen_pos.x / Real(viewport_width), 
+                          d_screen_pos.y / Real(viewport_height)};
+}
+
+DEVICE
+inline void d_screen_to_local_pos(const Camera &camera,
+                                  const int &pixel_id,
+                                  const Vector2& d_local_pos,
+                                  Vector2& d_screen_pos) {
+
+    auto viewport_width =
+            camera.viewport_end.x - camera.viewport_beg.x;
+    auto viewport_height =
+            camera.viewport_end.y - camera.viewport_beg.y;
+
+    d_screen_pos = Vector2{d_local_pos.x * Real(viewport_width), 
+                           d_local_pos.y * Real(viewport_height)};
+}
+
 
 DEVICE
 inline
@@ -197,6 +274,127 @@ Ray sample_primary(const Camera &camera,
 }
 
 DEVICE
+inline void screen_dir_jacobian_(const Camera &camera,
+                                const int idx,
+                                const Vector2 &sample,
+                                Matrix3x3 &jacobian) {
+    Vector2 screen_pos;
+    local_to_screen_pos(camera, idx, sample, screen_pos);
+
+    auto aspect_ratio = Real(camera.width) / Real(camera.height);
+    auto distorted_screen_pos =
+        inverse_distort(camera.distortion_params, screen_pos);
+
+    if(camera.camera_type == CameraType::Perspective) {
+        auto tx = Matrix3x3 {2,                 0,               -1,
+                             0, -2.0/aspect_ratio, 1.0/aspect_ratio,
+                             0,                 0,                1};
+
+        auto dxy_dsp = Matrix3x3 { Real(camera.width),  0, 0,
+                                   0, Real(camera.height), 0,
+                                   0,                    0, 0};
+
+        auto pt = Vector3{(screen_pos[0] - 0.5f) * 2.f,
+                          (screen_pos[1] - 0.5f) * (-2.f) / aspect_ratio,
+                          Real(1)};
+
+        // Assume film at z=1, thus w=tan(fov), h=tan(fov) / aspect_ratio
+        auto dir = camera.intrinsic_mat_inv * pt; // z=1 plane dir vector.
+        auto n_dir = normalize(dir); // wo_local vector
+
+        // TODO: Replace this with something simpler.
+        auto mat = camera.cam_to_world;
+        auto cam_to_world_3x3 = Matrix3x3 { 
+            mat(0, 0), mat(0, 1), mat(0, 2),
+            mat(1, 0), mat(1, 1), mat(1, 2),
+            mat(2, 0), mat(2, 1), mat(2, 2)
+        };
+
+        auto wo = xfm_vector(camera.cam_to_world, n_dir);
+        
+        // 3x2
+        auto d_dir_d_n_dir = Matrix3x3{
+            1/n_dir.z,          0,     0,
+            0,          1/n_dir.z,     0,
+            -n_dir.x/(n_dir.z * n_dir.z), -n_dir.y/(n_dir.z * n_dir.z), 0
+        };
+
+        auto d_n_dir_d_wo = inverse(cam_to_world_3x3);
+
+        auto d_dir_d_wo = d_dir_d_n_dir * d_n_dir_d_wo;
+
+        auto dndc_dw = camera.intrinsic_mat * d_dir_d_wo;
+        auto dsp_dw = inverse(tx) * dndc_dw;
+        jacobian = dxy_dsp * dsp_dw;
+    } else if(camera.camera_type == CameraType::Orthographic) {
+        // Orthographic camera direction is independent of (x,y)
+        jacobian = Matrix3x3::zeros();
+    } else {
+        jacobian = Matrix3x3::identity();
+    }
+
+}
+
+
+DEVICE
+inline void screen_org_jacobian(const Camera &camera,
+                                const int idx,
+                                const Vector2 &sample,
+                                Matrix3x3 &jacobian) {
+    if(camera.camera_type == CameraType::Perspective) {
+        // origin and screen coordinates are independent.
+        jacobian = Matrix3x3::zeros();
+    } else if (camera.camera_type == CameraType::Orthographic) {
+        // o = cam.org + MxP..
+        jacobian = Matrix3x3::identity();
+    }
+}
+
+DEVICE
+inline void sample_to_local_pos(const Camera &camera,
+                                 const Vector2 &sample, // 2D uniform sample.
+                                 Vector2 &local_pos // Pixel-centered space sample point.
+                               ) {
+    if (camera.filter_type == FilterType::Gaussian) {
+        auto normal_sample_x = sqrt(-2 * log(sample[0]) * SCREEN_FILTER_VARIANCE) * sin(M_PI * 2 * sample[1]);
+        auto normal_sample_y = sqrt(-2 * log(sample[0]) * SCREEN_FILTER_VARIANCE) * cos(M_PI * 2 * sample[1]);
+        local_pos = Vector2{normal_sample_x, normal_sample_y};
+    } else if (camera.filter_type == FilterType::Box) { 
+        local_pos = Vector2{sample[0] - 0.5, sample[1] - 0.5};
+    }
+
+}
+
+DEVICE
+inline void sample_to_local_pos(const Camera &camera,
+                                 const CameraSample &sample, // 2D uniform sample.
+                                 Vector2 &local_pos // Pixel-centered space sample point.
+                               ) {
+    return sample_to_local_pos(camera, sample.xy, local_pos);
+}
+
+DEVICE
+inline void screen_filter_grad(const Camera &camera,
+                                   const int idx,
+                                   const Vector2 &local_pos,
+                                   Vector2 &jacobian,
+                                   Real &value) {
+
+    if(camera.filter_type == FilterType::Gaussian) {
+        constexpr Real normalizer = 1.0/(M_PI * 2.0 * SCREEN_FILTER_VARIANCE);
+        value = normalizer * exp(-0.5 * (length_squared(local_pos) / SCREEN_FILTER_VARIANCE));
+        if ( length_squared(local_pos) > 16 * SCREEN_FILTER_VARIANCE )
+            value = 0.0; // Cutoff after 4 stddevs.
+
+        jacobian = -value * (local_pos / SCREEN_FILTER_VARIANCE);
+    } else if (camera.filter_type == FilterType::Box) {
+        // Constant unit filter, no derivative.
+        value = 1.0;
+        jacobian = Vector2{0.0, 0.0};
+    }
+}
+
+DEVICE
 inline void d_sample_primary_ray(const Camera &camera,
                                  const Vector2 &screen_pos,
                                  const DRay &d_ray,
@@ -241,7 +439,8 @@ inline void d_sample_primary_ray(const Camera &camera,
             d_intrinsic_mat_inv(2, 0) += d_dir[2] * pt[0];
             d_intrinsic_mat_inv(2, 1) += d_dir[2] * pt[1];
             d_intrinsic_mat_inv(2, 2) += d_dir[2] * pt[2];
-            atomic_add(d_camera.intrinsic_mat_inv, d_intrinsic_mat_inv);
+            if (d_camera.intrinsic_mat_inv)
+                atomic_add(d_camera.intrinsic_mat_inv, d_intrinsic_mat_inv);
             // org = xfm_point(camera.cam_to_world, Vector3{0, 0, 0})
             auto d_cam_org = Vector3{0, 0, 0};
             d_xfm_point(camera.cam_to_world, Vector3{0, 0, 0}, d_org,
@@ -252,11 +451,16 @@ inline void d_sample_primary_ray(const Camera &camera,
                 auto d_up = Vector3{0, 0, 0};
                 d_look_at_matrix(camera.position, camera.look, camera.up,
                     d_cam_to_world, d_p, d_l, d_up);
-                atomic_add(d_camera.position, d_p);
-                atomic_add(d_camera.look, d_l);
-                atomic_add(d_camera.up, d_up);
+
+                if (d_camera.position)
+                    atomic_add(d_camera.position, d_p);
+                if (d_camera.look)
+                    atomic_add(d_camera.look, d_l);
+                if (d_camera.up)
+                    atomic_add(d_camera.up, d_up);
             } else {
-                atomic_add(d_camera.cam_to_world, d_cam_to_world);
+                if (d_camera.cam_to_world)
+                    atomic_add(d_camera.cam_to_world, d_cam_to_world);
             }
 
             if (camera.distortion_params.defined || d_screen_pos != nullptr) {
@@ -309,18 +513,24 @@ inline void d_sample_primary_ray(const Camera &camera,
             d_intrinsic_mat_inv(2, 0) += d_local_org[2] * pt[0];
             d_intrinsic_mat_inv(2, 1) += d_local_org[2] * pt[1];
             d_intrinsic_mat_inv(2, 2) += d_local_org[2] * pt[2];
-            atomic_add(d_camera.intrinsic_mat_inv, d_intrinsic_mat_inv);
+            if (d_camera.intrinsic_mat_inv)
+                atomic_add(d_camera.intrinsic_mat_inv, d_intrinsic_mat_inv);
             if (camera.use_look_at) {
                 auto d_p = Vector3{0, 0, 0};
                 auto d_l = Vector3{0, 0, 0};
                 auto d_up = Vector3{0, 0, 0};
                 d_look_at_matrix(camera.position, camera.look, camera.up,
                     d_cam_to_world, d_p, d_l, d_up);
-                atomic_add(d_camera.position, d_p);
-                atomic_add(d_camera.look, d_l);
-                atomic_add(d_camera.up, d_up);
+                
+                if (d_camera.position)
+                    atomic_add(d_camera.position, d_p);
+                if (d_camera.look)
+                    atomic_add(d_camera.look, d_l);
+                if (d_camera.up)
+                    atomic_add(d_camera.up, d_up);
             } else {
-                atomic_add(d_camera.cam_to_world, d_cam_to_world);
+                if (d_camera.cam_to_world)
+                    atomic_add(d_camera.cam_to_world, d_cam_to_world);
             }
 
             if (camera.distortion_params.defined || d_screen_pos != nullptr) {
@@ -382,11 +592,15 @@ inline void d_sample_primary_ray(const Camera &camera,
                 auto d_up = Vector3{0, 0, 0};
                 d_look_at_matrix(camera.position, camera.look, camera.up,
                     d_cam_to_world, d_p, d_l, d_up);
-                atomic_add(d_camera.position, d_p);
-                atomic_add(d_camera.look, d_l);
-                atomic_add(d_camera.up, d_up);
+                if (d_camera.position)
+                    atomic_add(d_camera.position, d_p);
+                if (d_camera.look)
+                    atomic_add(d_camera.look, d_l);
+                if (d_camera.up)
+                    atomic_add(d_camera.up, d_up);
             } else {
-                atomic_add(d_camera.cam_to_world, d_cam_to_world);
+                if (d_camera.cam_to_world)
+                    atomic_add(d_camera.cam_to_world, d_cam_to_world);
             }
 
             if (camera.distortion_params.defined || d_screen_pos != nullptr) {
@@ -458,11 +672,15 @@ inline void d_sample_primary_ray(const Camera &camera,
                 auto d_up = Vector3{0, 0, 0};
                 d_look_at_matrix(camera.position, camera.look, camera.up,
                     d_cam_to_world, d_p, d_l, d_up);
-                atomic_add(d_camera.position, d_p);
-                atomic_add(d_camera.look, d_l);
-                atomic_add(d_camera.up, d_up);
+                if (d_camera.position)
+                    atomic_add(d_camera.position, d_p);
+                if (d_camera.look)
+                    atomic_add(d_camera.look, d_l);
+                if (d_camera.up)
+                    atomic_add(d_camera.up, d_up);
             } else {
-                atomic_add(d_camera.cam_to_world, d_cam_to_world);
+                if (d_camera.cam_to_world)
+                    atomic_add(d_camera.cam_to_world, d_cam_to_world);
             }
 
             if (camera.distortion_params.defined || d_screen_pos != nullptr) {
@@ -498,6 +716,14 @@ inline void d_sample_primary_ray(const Camera &camera,
         }
     }
 }
+
+void generate_correlated_pairs(const Camera &cam,
+                               BufferView<CameraSample> &samples,
+                               bool use_gpu);
+
+void invert_copy_camera_samples(const Camera &cam,
+                               BufferView<CameraSample> &samples,
+                               bool use_gpu);
 
 void sample_primary_rays(const Camera &cam,
                          const BufferView<CameraSample> &samples,
@@ -627,7 +853,8 @@ inline void d_camera_to_screen(const Camera &camera,
             d_intrinsic_mat(2, 0) += d_Ipt3[2] * pt[0];
             d_intrinsic_mat(2, 1) += d_Ipt3[2] * pt[1];
             d_intrinsic_mat(2, 2) += d_Ipt3[2] * pt[2];
-            atomic_add(d_camera.intrinsic_mat, d_intrinsic_mat);
+            if (d_camera.intrinsic_mat)
+                atomic_add(d_camera.intrinsic_mat, d_intrinsic_mat);
             d_pt[0] += d_Ipt3[0] * camera.intrinsic_mat(0, 0) +
                        d_Ipt3[1] * camera.intrinsic_mat(1, 0) +
                        d_Ipt3[2] * camera.intrinsic_mat(2, 0);
@@ -658,7 +885,8 @@ inline void d_camera_to_screen(const Camera &camera,
             d_intrinsic_mat(1, 0) += d_Ipt[1] * pt[0];
             d_intrinsic_mat(1, 1) += d_Ipt[1] * pt[1];
             d_intrinsic_mat(1, 2) += d_Ipt[1] * pt[2];
-            atomic_add(d_camera.intrinsic_mat, d_intrinsic_mat);
+            if (d_camera.intrinsic_mat)
+                atomic_add(d_camera.intrinsic_mat, d_intrinsic_mat);
             d_pt[0] += d_Ipt[0] * camera.intrinsic_mat(0, 0) +
                        d_Ipt[1] * camera.intrinsic_mat(1, 0);
             d_pt[1] += d_Ipt[0] * camera.intrinsic_mat(0, 1) +
@@ -727,6 +955,24 @@ inline void d_camera_to_screen(const Camera &camera,
         }
     }
 }
+
+
+DEVICE
+inline void d_project(const Camera &camera,
+                      const Vector3 &n_dir,
+                      const Vector2 &d_sp,
+                      DCamera &d_camera,
+                      Vector3 &d_n_dir) {
+    auto dir_local = xfm_vector(camera.world_to_cam, n_dir);
+    Vector2 sp = camera_to_screen(camera, dir_local);
+
+    Vector3 d_dir_local(0, 0, 0);
+    d_camera_to_screen(camera, dir_local, d_sp.x, d_sp.y, d_camera, d_dir_local);
+
+    auto d_world_to_cam = Matrix4x4();
+    d_xfm_vector(camera.world_to_cam, n_dir, d_dir_local, d_world_to_cam, d_n_dir);
+}
+
 
 DEVICE
 inline void d_project(const Camera &camera,
@@ -821,13 +1067,44 @@ inline void d_project(const Camera &camera,
         auto d_up = Vector3{0, 0, 0};
         d_look_at_matrix(camera.position, camera.look, camera.up,
             d_cam_to_world, d_p, d_l, d_up);
-        atomic_add(d_camera.position, d_p);
-        atomic_add(d_camera.look, d_l);
-        atomic_add(d_camera.up, d_up);
+        if (d_camera.position)
+            atomic_add(d_camera.position, d_p);
+        if (d_camera.look)
+            atomic_add(d_camera.look, d_l);
+        if (d_camera.up)
+            atomic_add(d_camera.up, d_up);
     } else {
-        atomic_add(d_camera.cam_to_world, d_cam_to_world);
+        if (d_camera.cam_to_world)
+            atomic_add(d_camera.cam_to_world, d_cam_to_world);
     }
 }
+
+
+DEVICE
+inline void screen_dir_jacobian(const Camera &camera,
+                                const int pixel_id,
+                                const Vector2 &local_pos,
+                                Matrix3x3 &jacobian) {
+    DCamera null_camera(nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr);
+    Vector2 screen_pos{0, 0};
+    local_to_screen_pos(camera, pixel_id, local_pos, screen_pos);
+    auto ray = sample_primary(camera, screen_pos);
+    
+    Vector3 d_x_d_dir(0, 0, 0);
+    Vector2 d_local_x(0, 0);
+    d_screen_to_local_pos(camera, pixel_id, Vector2(1, 0), d_local_x);
+    d_project(camera, ray.dir, d_local_x, null_camera, d_x_d_dir);
+
+    Vector3 d_y_d_dir(0, 0, 0);
+    Vector2 d_local_y(0, 0);
+    d_screen_to_local_pos(camera, pixel_id, Vector2(0, 1), d_local_y);
+    d_project(camera, ray.dir, d_local_y, null_camera, d_y_d_dir);
+    
+    jacobian = Matrix3x3{d_x_d_dir.x, d_x_d_dir.y, d_x_d_dir.z,
+                         d_y_d_dir.x, d_y_d_dir.y, d_y_d_dir.z,
+                         Real(0.0),    Real(0.0),    Real(0.0)};
+}
+
 
 template <typename T>
 DEVICE

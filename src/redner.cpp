@@ -5,9 +5,11 @@
 #include "camera.h"
 #include "camera_distortion.h"
 #include "envmap.h"
+#include "vmf.h"
 #include "load_serialized.h"
 #include "material.h"
 #include "pathtracer.h"
+#include "pathtracer_was.h"
 #include "ptr.h"
 #include "scene.h"
 #include "shape.h"
@@ -31,6 +33,10 @@ PYBIND11_MODULE(redner, m) {
         .value("fisheye", CameraType::Fisheye)
         .value("panorama", CameraType::Panorama);
 
+    py::enum_<FilterType>(m, "FilterType")
+        .value("box", FilterType::Box)
+        .value("gaussian", FilterType::Gaussian);
+
     py::class_<Camera>(m, "Camera")
         .def(py::init<int,
                       int,
@@ -44,6 +50,7 @@ PYBIND11_MODULE(redner, m) {
                       ptr<float>, // distortion_params
                       float, // clip_near
                       CameraType,
+                      FilterType,
                       Vector2i, // viewport_beg
                       Vector2i>()) // viewport_end
         .def_readonly("use_look_at", &Camera::use_look_at)
@@ -65,10 +72,9 @@ PYBIND11_MODULE(redner, m) {
                       const std::vector<const Material*> &,
                       const std::vector<const AreaLight*> &,
                       const std::shared_ptr<const EnvironmentMap> &,
+                      const std::shared_ptr<const VonMisesFisherLight> &,
                       bool,
-                      int,
-                      bool,
-                      bool>())
+                      int>())
         .def_readonly("max_generic_texture_dimension",
             &Scene::max_generic_texture_dimension);
 
@@ -78,6 +84,7 @@ PYBIND11_MODULE(redner, m) {
                       const std::vector<DMaterial*> &,
                       const std::vector<DAreaLight*> &,
                       const std::shared_ptr<DEnvironmentMap> &,
+                      const std::shared_ptr<DVonMisesFisherLight> &,
                       bool,
                       int>());
 
@@ -180,6 +187,17 @@ PYBIND11_MODULE(redner, m) {
         .def(py::init<Texture3,       // values
                       ptr<float>>()); // world_to_env
 
+    py::class_<VonMisesFisherLight, std::shared_ptr<VonMisesFisherLight>>(m, "VonMisesFisherLight")
+        .def(py::init<Real,   // kappa
+                      ptr<float>, // intensity_data
+                      ptr<float>, // env_to_world
+                      ptr<float>, // world_to_env
+                      Real>());
+    py::class_<DVonMisesFisherLight, std::shared_ptr<DVonMisesFisherLight>>(m, "DVonMisesFisherLight")
+        .def(py::init<ptr<float>,       // kappa
+                      ptr<float>,       // intensity
+                      ptr<float>>()); // world_to_env
+
     py::enum_<Channels>(m, "channels")
         .value("radiance", Channels::radiance)
         .value("alpha", Channels::alpha)
@@ -204,16 +222,63 @@ PYBIND11_MODULE(redner, m) {
         .value("independent", SamplerType::independent)
         .value("sobol", SamplerType::sobol);
 
-    py::class_<RenderOptions>(m, "RenderOptions")
+    py::class_<edge_sampling::RenderOptions>(m, "RenderOptions")
         .def(py::init<uint64_t,
                       int, // num_samples
                       int, // max_bounces
                       std::vector<Channels>,
                       SamplerType,
-                      bool // sample_pixel_center
+                      bool, // sample_pixel_center
+                      bool, // use_primary_edge_sampling
+                      bool  // use_secondary_edge_sampling
                       >())
-        .def_readwrite("seed", &RenderOptions::seed)
-        .def_readwrite("num_samples", &RenderOptions::num_samples);
+        .def_readwrite("seed", &edge_sampling::RenderOptions::seed)
+        .def_readwrite("num_samples", &edge_sampling::RenderOptions::num_samples);
+
+    py::enum_<vfield::ImportanceSampling>(m, "ImportanceSamplingVField")
+        .value("cosine_hemisphere", vfield::ImportanceSampling::cosine_hemisphere);
+
+    py::enum_<vfield::VarianceReduction>(m, "VarianceReductionVField")
+        .value("none", vfield::VarianceReduction::none)
+        .value("antithetic_variate", vfield::VarianceReduction::antithetic_variate);
+
+    py::class_<vfield::VarianceReductionSettings>(m, "VarianceReductionSettings")
+        .def(py::init<bool,
+                      bool,
+                      bool,
+                      bool,
+                      bool,
+                      int>());
+
+    py::class_<vfield::RenderOptions>(m, "RenderOptionsVField")
+        .def(py::init<uint64_t,
+                      int,
+                      int,
+                      std::vector<Channels>,
+                      SamplerType,
+                      SamplerType,
+                      vfield::VarianceReductionSettings,
+                      vfield::ImportanceSampling,
+                      bool,
+                      KernelParameters,
+                      bool>())
+        .def_readwrite("seed", &vfield::RenderOptions::seed)
+        .def_readwrite("num_samples", &vfield::RenderOptions::num_samples);
+
+    py::class_<KernelParameters>(m, "KernelParameters")
+        .def(py::init<Real,
+                      Real,
+                      Real,
+                      Real,
+                      Real,
+                      Real,
+                      int,
+                      Real,
+                      int,
+                      bool,
+                      Real,
+                      int,
+                      bool>());
 
     py::class_<Vector2i>(m, "Vector2i")
         .def(py::init<int, int>())
@@ -221,10 +286,12 @@ PYBIND11_MODULE(redner, m) {
         .def_readwrite("y", &Vector2i::y);
 
     py::class_<Vector2f>(m, "Vector2f")
+        .def(py::init<float, float>())
         .def_readwrite("x", &Vector2f::x)
         .def_readwrite("y", &Vector2f::y);
 
     py::class_<Vector3f>(m, "Vector3f")
+        .def(py::init<float, float, float>())
         .def_readwrite("x", &Vector3f::x)
         .def_readwrite("y", &Vector3f::y)
         .def_readwrite("z", &Vector3f::z);
@@ -254,7 +321,8 @@ PYBIND11_MODULE(redner, m) {
     m.def("automatic_uv_map", &automatic_uv_map, "");
     m.def("copy_texture_atlas", &copy_texture_atlas, "");
 
-    m.def("render", &render, "");
+    m.def("render", &edge_sampling::render, "");
+    m.def("render_warped", &vfield::render, "");
 
     /// Tests
     m.def("test_sample_primary_rays", &test_sample_primary_rays, "");
