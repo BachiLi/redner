@@ -353,7 +353,6 @@ inline void d_sample_primary_ray(const Camera &camera,
             auto dir = camera.intrinsic_mat_inv * pt;
             auto n_dir = normalize(dir);
             auto world_dir = xfm_vector(camera.cam_to_world, n_dir);
-            // auto n_world_dir = normalize(world_dir);
 
             // ray = Ray{org, n_world_dir};
             auto d_org = d_ray.org;

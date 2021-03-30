@@ -590,11 +590,13 @@ namespace edge_sampling {
                             edge_contribs,
                             BufferView<Vector3>(),
                             generic_texture_buffer);
+
                         // Stream compaction: remove invalid intersections
                         update_active_pixels(edge_active_pixels,
                                             edge_shading_isects,
                                             edge_active_pixels,
                                             scene.use_gpu);
+
                         auto num_active_edge_samples = edge_active_pixels.size();
                         // Record the hit points for derivatives computation later
                         auto edge_surface_points =

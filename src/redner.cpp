@@ -259,15 +259,15 @@ PYBIND11_MODULE(redner, m) {
                       SamplerType,
                       vfield::VarianceReductionSettings,
                       vfield::ImportanceSampling,
-                      bool,
                       KernelParameters,
+                      bool,
+                      bool,
                       bool>())
         .def_readwrite("seed", &vfield::RenderOptions::seed)
         .def_readwrite("num_samples", &vfield::RenderOptions::num_samples);
 
     py::class_<KernelParameters>(m, "KernelParameters")
         .def(py::init<Real,
-                      Real,
                       Real,
                       Real,
                       Real,
