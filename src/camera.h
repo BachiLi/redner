@@ -273,68 +273,6 @@ Ray sample_primary(const Camera &camera,
     }
 }
 
-DEVICE
-inline void screen_dir_jacobian_(const Camera &camera,
-                                const int idx,
-                                const Vector2 &sample,
-                                Matrix3x3 &jacobian) {
-    Vector2 screen_pos;
-    local_to_screen_pos(camera, idx, sample, screen_pos);
-
-    auto aspect_ratio = Real(camera.width) / Real(camera.height);
-    auto distorted_screen_pos =
-        inverse_distort(camera.distortion_params, screen_pos);
-
-    if(camera.camera_type == CameraType::Perspective) {
-        auto tx = Matrix3x3 {2,                 0,               -1,
-                             0, -2.0/aspect_ratio, 1.0/aspect_ratio,
-                             0,                 0,                1};
-
-        auto dxy_dsp = Matrix3x3 { Real(camera.width),  0, 0,
-                                   0, Real(camera.height), 0,
-                                   0,                    0, 0};
-
-        auto pt = Vector3{(screen_pos[0] - 0.5f) * 2.f,
-                          (screen_pos[1] - 0.5f) * (-2.f) / aspect_ratio,
-                          Real(1)};
-
-        // Assume film at z=1, thus w=tan(fov), h=tan(fov) / aspect_ratio
-        auto dir = camera.intrinsic_mat_inv * pt; // z=1 plane dir vector.
-        auto n_dir = normalize(dir); // wo_local vector
-
-        // TODO: Replace this with something simpler.
-        auto mat = camera.cam_to_world;
-        auto cam_to_world_3x3 = Matrix3x3 { 
-            mat(0, 0), mat(0, 1), mat(0, 2),
-            mat(1, 0), mat(1, 1), mat(1, 2),
-            mat(2, 0), mat(2, 1), mat(2, 2)
-        };
-
-        auto wo = xfm_vector(camera.cam_to_world, n_dir);
-        
-        // 3x2
-        auto d_dir_d_n_dir = Matrix3x3{
-            1/n_dir.z,          0,     0,
-            0,          1/n_dir.z,     0,
-            -n_dir.x/(n_dir.z * n_dir.z), -n_dir.y/(n_dir.z * n_dir.z), 0
-        };
-
-        auto d_n_dir_d_wo = inverse(cam_to_world_3x3);
-
-        auto d_dir_d_wo = d_dir_d_n_dir * d_n_dir_d_wo;
-
-        auto dndc_dw = camera.intrinsic_mat * d_dir_d_wo;
-        auto dsp_dw = inverse(tx) * dndc_dw;
-        jacobian = dxy_dsp * dsp_dw;
-    } else if(camera.camera_type == CameraType::Orthographic) {
-        // Orthographic camera direction is independent of (x,y)
-        jacobian = Matrix3x3::zeros();
-    } else {
-        jacobian = Matrix3x3::identity();
-    }
-
-}
-
 
 DEVICE
 inline void screen_org_jacobian(const Camera &camera,
