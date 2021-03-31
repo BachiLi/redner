@@ -52,10 +52,9 @@ struct d_primary_intersector {
                               d_v_uv,
                               d_v_c);
 
-            // TODO: Debug image.
-            //if (shape_id == SHAPE_SELECT && debug_image != nullptr)
-            if (debug_image != nullptr)
-                debug_image[pixel_idx] += (d_v_p[0][0] + d_v_p[1][0] + d_v_p[2][0]);
+            /* TODO: Debug image. */
+            if (shape_id == SHAPE_SELECT && debug_image != nullptr)
+                debug_image[pixel_idx] += (d_v_p[0][DIM_SELECT] + d_v_p[1][DIM_SELECT] + d_v_p[2][DIM_SELECT]);
 
             atomic_add(&d_shapes[shape_id].vertices[3 * ind[0]], d_v_p[0]);
             atomic_add(&d_shapes[shape_id].vertices[3 * ind[1]], d_v_p[1]);

@@ -570,12 +570,7 @@ struct primary_contribs_accumulator {
                     }
                 }
             }
-            if(pixel_id == 127415) {
-                printf("primary_contrib: %f, %f, %f\n",
-                        path_contribs[pixel_id].x,
-                        path_contribs[pixel_id].y,
-                        path_contribs[pixel_id].z);
-            }
+
         }
     }
 

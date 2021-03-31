@@ -835,8 +835,8 @@ struct primary_edge_derivatives_computer {
             atomic_add(&screen_gradient_image[2 * pixel_idx + 1], d_edge_pt[1]);
         }
 
-        // TODO: DEBUGGING Code. Remove on release.
-        if (debug_image != nullptr) {
+        /* TODO: DEBUGGING Code. Remove on release. */
+        if (debug_image != nullptr && edge_record.edge.shape_id == SHAPE_SELECT) {
             auto xi = clamp(int(edge_pt[0] * camera.width - camera.viewport_beg.x),
                             0, camera.viewport_end.x - camera.viewport_beg.x);
             auto yi = clamp(int(edge_pt[1] * camera.height - camera.viewport_beg.y),
