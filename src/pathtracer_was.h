@@ -35,14 +35,14 @@ namespace vfield {
     };
 
     struct VarianceReductionSettings {
-        bool primary_antithetic_variates;// = true;
-        bool aux_antithetic_variates;// = true;
-        bool primary_control_variates;// = false;
-        bool aux_control_variates;//= false;
+        bool primary_antithetic_variates;
+        bool aux_antithetic_variates;
+        bool primary_control_variates;
+        bool aux_control_variates;
 
-        bool secondary_antithetic_variates;// = false;
+        bool secondary_antithetic_variates;
 
-        int num_control_samples;// = 0;
+        int num_control_samples;
     };
 
     struct SamplingDebugSettings {

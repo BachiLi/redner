@@ -291,7 +291,7 @@ inline TMatrix3x3<T> inverse(const TMatrix3x3<T> &m) {
 
 template <typename T>
 DEVICE
-inline auto hadamard_product(const TMatrix3x3<T> &a, const TMatrix3x3<T> &b) 
+inline auto element_wise_product(const TMatrix3x3<T> &a, const TMatrix3x3<T> &b) 
         -> TMatrix3x3<T> {
     // Computes the element-wise product.
 
@@ -313,7 +313,7 @@ inline auto hadamard_product(const TMatrix3x3<T> &a, const TMatrix3x3<T> &b)
 
 template <typename T>
 DEVICE
-inline auto collapse(const TMatrix3x3<T> &m) 
+inline auto reduce_sum(const TMatrix3x3<T> &m) 
         -> T {
     // Computes sum of all elements.
 

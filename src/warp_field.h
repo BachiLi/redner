@@ -15,6 +15,10 @@ struct Scene;
 #include "thrust_utils.h"
 #include "ltc.inc"
 #include "shape_adjacency.h"
+
+#include "aux.h"
+#include "warp_cv.h"
+
 #include <memory>
 
 #include <thrust/iterator/constant_iterator.h>
@@ -24,80 +28,6 @@ struct Scene;
 #include <thrust/binary_search.h>
 #include <thrust/remove.h>
 
-template <typename T>
-struct TKernelParameters {
-    // Concentration of the von Mises-Fisher distribution used 
-    // to sample the auxillary rays.
-    T vMFConcentration;
-
-    T auxPrimaryGaussianStddev;
-    T auxPdfEpsilonRegularizer;
-
-    // Std-dev of the inverse gaussian used when computing the
-    // asymptotic weights.
-    T asymptoteInvGaussSigma;
-
-    // Temperature of the boundary term.
-    T asymptoteBoundaryTemp;
-
-    // Gamma power for the weight term.
-    // This changes if the number of dimensions change.
-    int asymptoteGamma;
-
-    // Weight multiplier for pixel boundaries
-    T pixelBoundaryMultiplier;
-
-    // Maximum number of auxillary rays to trace.
-    int numAuxillaryRays;
-
-    // RR options. 
-    bool rr_enabled;
-    T rr_geometric_p;
-    // Average runtime equivalent is (batch_size / p)
-    int batch_size;
-
-    // If this flag is true, use a simple gaussian kernel.
-    bool isBasicNormal;
-
-    TKernelParameters(
-        T vMFConcentration,
-        T auxPrimaryGaussianStddev,
-        T auxPdfEpsilonRegularizer,
-        T asymptoteInvGaussSigma,
-        T asymptoteBoundaryTemp,
-        int asymptoteGamma,
-        T pixelBoundaryMultiplier,
-        int numAuxillaryRays,
-        bool rr_enabled,
-        T rr_geometric_p,
-        int batch_size,
-        bool isBasicNormal) : vMFConcentration(vMFConcentration),
-                            auxPrimaryGaussianStddev(auxPrimaryGaussianStddev),
-                            auxPdfEpsilonRegularizer(auxPdfEpsilonRegularizer),
-                            asymptoteInvGaussSigma(asymptoteInvGaussSigma),
-                            asymptoteBoundaryTemp(asymptoteBoundaryTemp),
-                            asymptoteGamma(asymptoteGamma),
-                            pixelBoundaryMultiplier(pixelBoundaryMultiplier),
-                            numAuxillaryRays(numAuxillaryRays),
-                            rr_enabled(rr_enabled),
-                            rr_geometric_p(rr_geometric_p),
-                            batch_size(batch_size),
-                            isBasicNormal(isBasicNormal) { }
-};
-
-template <typename T>
-struct TAuxSample {
-    TVector2<T> uv;
-};
-
-template <typename T>
-struct TAuxCountSample {
-    T u;
-};
-
-using AuxSample = TAuxSample<Real>;
-using AuxCountSample = TAuxCountSample<Real>;
-using KernelParameters = TKernelParameters<Real>;
 
 /*
  * Samples a stopping count 'N' for the 
@@ -111,86 +41,6 @@ void aux_sample_sample_counts( const KernelParameters& kernel_parameters,
                     const BufferView<AuxCountSample> &aux_count_samples,
                     BufferView<uint> &aux_sample_counts);
 
-/*
- * Computes the horizon weight for a given edge.
- */
-DEVICE
-inline
-Real warp_horizon_term(const KernelParameters &kernel_parameters,
-                    const Shape *shapes,
-                    const ShapeAdjacency *shape_adjacencies,
-                    const SurfacePoint &shading_point,
-                    const SurfacePoint &aux_point,
-                    const Intersection &aux_isect,
-                    int edge_idx);
-
-
-/*
- * Computes a perturbed ray around wo by transforming aux_sample using the
- * von Mises-Fisher distribution.
- */
-DEVICE
-inline
-Ray aux_sample(const KernelParameters &kernel_parameters,
-                    const Material &material,
-                    const SurfacePoint &shading_point,
-                    const Vector3 &wi,
-                    const Vector3 &wo,
-                    const AuxSample &aux_sample,
-                    bool debug);
-
-DEVICE
-inline
-Ray aux_sample_primary( const KernelParameters &kernel_parameters,
-                    const Camera &camera,
-                    const int idx,
-                    const CameraSample& sample,
-                    const AuxSample &aux_sample,
-                    bool debug);
-
-/*
- * Paralell version of aux_sample that works with ray buffers.
- */
-void aux_bundle_sample( const KernelParameters &kernel_parameters,
-                    const Scene& scene,
-                    const BufferView<int> &active_pixels,
-                    const BufferView<SurfacePoint> &shading_points,
-                    const BufferView<Ray> &incoming_rays,
-                    const BufferView<Intersection> &incoming_isects,
-                    const BufferView<Ray> &primary_rays,
-                    const BufferView<uint> &aux_sample_counts,
-                    const BufferView<AuxSample> &aux_samples,
-                    BufferView<Ray> aux_rays); // TODO: Maybe replace this with an enum for later..
-
-/*
- * Paralell version of aux_sample that works with ray buffers.
- */
-void aux_bundle_sample_primary( const KernelParameters &kernel_parameters,
-                    const Scene& scene,
-                    const BufferView<int> &active_pixels,
-                    const BufferView<uint> &aux_sample_counts,
-                    const BufferView<Ray> &primary_rays,
-                    const BufferView<CameraSample> &camera_samples,
-                    const BufferView<AuxSample> &aux_samples,
-                    BufferView<Ray> aux_rays); // TODO: Maybe replace this with an enum for later..
-
-/*
- * Transforms a set of samples to reduce variance.
- */
-void aux_generate_correlated_pairs( const KernelParameters& kernel_parameters,
-                    const BufferView<int> &active_pixels,
-                    BufferView<AuxSample> &aux_samples,
-                    bool use_gpu);
-
-/*
- * Computes the pdf of the von Mises-Fisher distribution.
- */
-DEVICE
-inline
-Real aux_pdf( const KernelParameters &kernel_parameters,
-              const Ray &wo,
-              const Ray &aux,
-              bool debug);
 
 /*
  * Computes the boundary term for the auxillary ray weight.
@@ -288,9 +138,9 @@ void accumulate_warp_derivatives(const Scene &scene,
                                  DScene* d_scene,
                                  float* debug_image,
                                  float* screen_gradient_image,
-                                 BufferView<Vector3> control_mean_grad_contrib,
-                                 BufferView<Real> control_mean_contrib,
-                                 BufferView<Matrix3x3> control_sample_covariance);
+                                 BufferView<Vector3> mean_grad_contrib,
+                                 BufferView<Real> mean_contrib,
+                                 BufferView<Matrix3x3> sample_covariance);
 
 
 void accumulate_control_variates(const Scene& scene,

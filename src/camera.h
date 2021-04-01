@@ -21,7 +21,7 @@ enum class FilterType {
     Box
 };
 
-// TODO: Move
+// TODO: Turn into a parameter.
 #define SCREEN_FILTER_VARIANCE 0.25
 
 struct Camera {

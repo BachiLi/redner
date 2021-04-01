@@ -87,9 +87,13 @@ set(SRCS src/aabb.h
          src/texture.h
          src/transform.h
          src/vector.h
-         src/warp_field.h
-         xatlas/xatlas.h
          src/vmf.h
+         src/warp_common.h
+         src/warp_field.h
+         src/warp_cv.h
+         src/aux.h
+         xatlas/xatlas.h
+         
 
          src/aabb.cpp
          src/active_pixels.cpp
@@ -119,6 +123,8 @@ set(SRCS src/aabb.h
          src/sobol_sampler.cpp
          src/vmf.cpp
          src/warp_field.cpp
+         src/warp_cv.cpp
+         src/aux.cpp
          xatlas/xatlas.cpp)
 
 if(REDNER_CUDA)

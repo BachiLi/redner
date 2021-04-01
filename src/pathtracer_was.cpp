@@ -866,13 +866,13 @@ namespace vfield {
 
                         if (options.variance_reduction_mode.aux_antithetic_variates) {
                             // Overwrite one half of the samples with the inverse of the other half.
-                            aux_generate_correlated_pairs(kernel_parameters, 
+                            aux_generate_antithetic_pairs(kernel_parameters, 
                                 active_pixels, aux_bsdf_samples, scene.use_gpu);
-                            aux_generate_correlated_pairs(kernel_parameters,
+                            aux_generate_antithetic_pairs(kernel_parameters,
                                 active_pixels, aux_nee_samples, scene.use_gpu);
                         }
 
-                        if ( kernel_parameters.rr_enabled ) {
+                        if (kernel_parameters.rr_enabled) {
                             // Sample the number of samples for Russian roulette.
                             // More info on the generalized Russian roulette de-biasing method here:
                             // https://arxiv.org/abs/1005.2228
@@ -1065,8 +1065,6 @@ namespace vfield {
                             prev_primary_contribs.begin()}, // A + B
                             prev_active_pixels.size(), scene.use_gpu);
 
-                        // Problem with regions outside active-pixels..
-
                     }
     
                     // Previous become next
@@ -1154,7 +1152,7 @@ namespace vfield {
                         aux_sampler->next_aux_samples(aux_bsdf_samples);
                         if (options.variance_reduction_mode.aux_antithetic_variates) {
                             // Overwrite one half of the samples with the inverse of the other half.
-                            aux_generate_correlated_pairs(kernel_parameters,
+                            aux_generate_antithetic_pairs(kernel_parameters,
                                 primary_active_pixels, aux_bsdf_samples, scene.use_gpu);
                         }
 
@@ -1236,7 +1234,7 @@ namespace vfield {
                                 channel_info,
                                 kernel_parameters,
                                 d_rendered_image.get(), // per-pixel loss weights.
-                                options.variance_reduction_mode.aux_control_variates, // TODO: This seems incorrect. primary_control_variates?
+                                options.variance_reduction_mode.aux_control_variates,
                                 BufferView<SurfacePoint>(), // d_in (out) [No points for primary isect.]
                                 d_scene->shapes.view(0, d_scene->shapes.size()), // d_in (out)
 
