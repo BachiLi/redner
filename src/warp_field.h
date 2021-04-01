@@ -143,7 +143,7 @@ void accumulate_warp_derivatives(const Scene &scene,
                                  BufferView<Matrix3x3> sample_covariance);
 
 
-void accumulate_control_variates(const Scene& scene,
+void accumulate_primary_control_variates(const Scene& scene,
                     const KernelParameters& kernel_parameters,
                     const BufferView<int>& active_pixels,
                     const BufferView<SurfacePoint>& control_points,

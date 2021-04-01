@@ -24,6 +24,24 @@ struct Scene;
 #include <thrust/remove.h>
 
 
+DEVICE
+inline
+Vector2 aux_primary_local_pos( const KernelParameters& kernel_parameters,
+                              const Camera &camera,
+                              const Vector2& sample_local_pos,
+                              const AuxSample &aux_sample) {
+                                  
+    const auto aux_s = aux_sample.uv;
+    const auto auxPrimaryGaussianStddev = kernel_parameters.auxPrimaryGaussianStddev;
+
+    auto normal_sample_x = (sqrt(-2 * log(aux_s[0])) * sin(M_PI * 2 * aux_s[1])) * auxPrimaryGaussianStddev;
+    auto normal_sample_y = (sqrt(-2 * log(aux_s[0])) * cos(M_PI * 2 * aux_s[1])) * auxPrimaryGaussianStddev;
+    
+    auto local_pos = Vector2{normal_sample_x + sample_local_pos[0], normal_sample_y + sample_local_pos[1]};
+
+    return local_pos;
+}
+
 /*
  * Computes a perturbed ray around wo by transforming aux_sample using the
  * von Mises-Fisher distribution.
@@ -95,24 +113,6 @@ Ray aux_sample(const KernelParameters &kernel_parameters,
 
 DEVICE
 inline
-Vector2 aux_primary_local_pos( const KernelParameters& kernel_parameters,
-                              const Camera &camera,
-                              const Vector2& sample_local_pos,
-                              const AuxSample &aux_sample) {
-                                  
-    const auto aux_s = aux_sample.uv;
-    const auto auxPrimaryGaussianStddev = kernel_parameters.auxPrimaryGaussianStddev;
-
-    auto normal_sample_x = (sqrt(-2 * log(aux_s[0])) * sin(M_PI * 2 * aux_s[1])) * auxPrimaryGaussianStddev;
-    auto normal_sample_y = (sqrt(-2 * log(aux_s[0])) * cos(M_PI * 2 * aux_s[1])) * auxPrimaryGaussianStddev;
-    
-    auto local_pos = Vector2{normal_sample_x + sample_local_pos[0], normal_sample_y + sample_local_pos[1]};
-
-    return local_pos;
-}
-
-DEVICE
-inline
 Ray aux_sample_primary( const KernelParameters &kernel_parameters,
                     const Camera &camera,
                     const int idx,
@@ -130,9 +130,6 @@ Ray aux_sample_primary( const KernelParameters &kernel_parameters,
 
     Vector2 aux_screen_pos;
     local_to_screen_pos(camera, idx, aux_local_pos, aux_screen_pos);
-
-    Vector2 screen_pos;
-    local_to_screen_pos(camera, idx, local_pos, screen_pos);
 
     // Generate new ray
     return sample_primary(camera, aux_screen_pos);
@@ -188,7 +185,7 @@ Real aux_primary_pdf( const KernelParameters& kernel_parameters,
 }
 
 /*
- * Paralell version of aux_sample that works with ray buffers.
+ * Parallel version of aux_sample that works with ray buffers.
  */
 void aux_bundle_sample( const KernelParameters &kernel_parameters,
                     const Scene& scene,
@@ -199,10 +196,10 @@ void aux_bundle_sample( const KernelParameters &kernel_parameters,
                     const BufferView<Ray> &primary_rays,
                     const BufferView<uint> &aux_sample_counts,
                     const BufferView<AuxSample> &aux_samples,
-                    BufferView<Ray> aux_rays); // TODO: Maybe replace this with an enum for later..
+                    BufferView<Ray> aux_rays);
 
 /*
- * Paralell version of aux_sample that works with ray buffers.
+ * Parallel version of aux_sample that works with ray buffers.
  */
 void aux_bundle_sample_primary( const KernelParameters &kernel_parameters,
                     const Scene& scene,
@@ -211,7 +208,7 @@ void aux_bundle_sample_primary( const KernelParameters &kernel_parameters,
                     const BufferView<Ray> &primary_rays,
                     const BufferView<CameraSample> &camera_samples,
                     const BufferView<AuxSample> &aux_samples,
-                    BufferView<Ray> aux_rays); // TODO: Maybe replace this with an enum for later..
+                    BufferView<Ray> aux_rays);
 
 /*
  * Transforms a set of samples to reduce variance.

@@ -253,7 +253,7 @@ struct control_variates_accumulator{
 };
 
 
-void accumulate_control_variates(const Scene& scene,
+void accumulate_primary_control_variates(const Scene& scene,
                     const KernelParameters& kernel_parameters,
                     const BufferView<int>& active_pixels,
 

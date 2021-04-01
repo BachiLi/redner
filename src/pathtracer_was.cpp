@@ -1293,7 +1293,7 @@ namespace vfield {
                         optix_rays,
                         optix_hits);
 
-                accumulate_control_variates(scene,
+                accumulate_primary_control_variates(scene,
                     options.kernel_parameters,
                     primary_active_pixels,
                     control_points,
