@@ -73,18 +73,6 @@ args = pyredner.RenderFunction.serialize_scene(\
     num_samples = 256,
     max_bounces = 1)
 
-
-# DEBUG
-debug_image_was = pyredner.RenderFunction.visualize_debug_image(
-    grad_img = None,
-    seed = 0,
-    scene = scene,
-    integrator = integrator
-    )
-np.save('results/test_shadow_blocker_was/dx.npy', debug_image_was.numpy())
-# ----
-sys.exit()
-
 # Alias of the render function
 render = pyredner.RenderFunction.apply
 # Render our target

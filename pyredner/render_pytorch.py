@@ -1067,7 +1067,7 @@ class RenderFunction(torch.autograd.Function):
             buffers.d_world_to_env = torch.zeros(4, 4, device = pyredner.get_device())
             d_world_to_env_ptr = redner.float_ptr(buffers.d_world_to_env.data_ptr())
 
-            d_vmflight = redner.DVonMisesFisherLight(
+            buffers.d_vmflight = redner.DVonMisesFisherLight(
                 d_vmflight_kappa_ptr, d_vmflight_intensity_ptr, d_world_to_env_ptr)
 
         device_index = device.index

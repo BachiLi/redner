@@ -123,17 +123,6 @@ pyredner.imwrite(img.cpu(), 'results/test_single_triangle/init.png')
 diff = torch.abs(target - img)
 pyredner.imwrite(diff.cpu(), 'results/test_single_triangle/init_diff.png')
 
-"""
-screen_gradient_img_es = pyredner.RenderFunction.visualize_screen_gradient_class(
-    grad_img = None,
-    seed = 0,
-    scene = scene,
-    integrator = pyredner.integrators.EdgeSamplingIntegrator( num_samples = 8, max_bounces = 1)
-    )
-np.save('results/test_single_triangle/dx.npy', screen_gradient_img_es[:, :, 0].cpu().numpy())
-sys.exit(0)
-"""
-
 # Optimize for triangle vertices.
 optimizer = torch.optim.Adam([shape_triangle.vertices], lr=5e-2)
 # Run 200 Adam iterations.

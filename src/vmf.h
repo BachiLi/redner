@@ -38,12 +38,6 @@ struct VonMisesFisherLight {
               intensity[2] = intensity_data[2];
           }
 
-    /*inline std::tuple<int, int, int> get_size() const {
-        return std::make_tuple(values.width,
-                values.height,
-                values.num_levels);
-    }*/
-
     Vector3 intensity;
     Real kappa;
     Matrix4x4 env_to_world;
@@ -90,7 +84,7 @@ inline void d_get_vmf_value(const VonMisesFisherLight &vmf,
     // exp(k * (uv.v - 1)) / norm_const;
     d_uv.y = (k * exp(k * (uv.y - 1)) / norm_const) * dot(vmf.intensity, d_output);
 
-    // TODO: Compute this later..  we don't need this derivative right now.
+    // TODO: Kappa derivative is not implemented right now!
     d_kappa = Real(0.f);
 
     d_intensity = d_output * (exp(k * (uv.y - 1)) / norm_const);

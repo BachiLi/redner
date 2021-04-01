@@ -136,27 +136,6 @@ pyredner.imwrite(img.cpu(), 'results/test_single_triangle_was/init.png')
 diff = torch.abs(target - img)
 pyredner.imwrite(diff.cpu(), 'results/test_single_triangle_was/init_diff.png')
 
-"""
-screen_gradient_img_warp = pyredner.RenderFunction.visualize_screen_gradient_class(
-    grad_img = None,
-    seed = 0,
-    scene = scene,
-    integrator = pyredner.integrators.WarpFieldIntegrator(
-                num_samples = 16,
-                max_bounces = 1,
-                channels = [pyredner.channels.radiance],
-                #use_warp_fields=True,
-                kernel_parameters = pyredner.integrators.KernelParameters(
-                                    vMFConcentration=10000,
-                                    auxPrimaryGaussianStddev=0.01,
-                                    numAuxillaryRays=8
-                                )
-             )
-    )
-np.save('results/test_single_triangle_was/dx.npy', screen_gradient_img_warp[:, :, 0])
-sys.exit(0)
-"""
-
 # Optimize for triangle vertices.
 optimizer = torch.optim.Adam([shape_triangle.vertices], lr=5e-2)
 # Run 200 Adam iterations.
