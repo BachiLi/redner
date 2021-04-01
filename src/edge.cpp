@@ -2198,6 +2198,9 @@ struct secondary_edge_derivatives_accumulator {
         assert(isfinite(dcolor_dp));
 
         d_points[pixel_id].position += dcolor_dp;
+        if(edge_record.edge.shape_id == SHAPE_SELECT && debug_image != nullptr) {
+            debug_image[pixel_id] += (dcolor_dv0[DIM_SELECT] + dcolor_dv1[DIM_SELECT]);
+        }
         atomic_add(&(d_shapes[edge_record.edge.shape_id].vertices[3 * edge_record.edge.v0]), dcolor_dv0);
         atomic_add(&(d_shapes[edge_record.edge.shape_id].vertices[3 * edge_record.edge.v1]), dcolor_dv1);
     }
@@ -2210,6 +2213,7 @@ struct secondary_edge_derivatives_accumulator {
     const Real *edge_contribs;
     SurfacePoint *d_points;
     DShape *d_shapes;
+    float* debug_image;
 };
 
 void accumulate_secondary_edge_derivatives(const Scene &scene,
@@ -2219,7 +2223,8 @@ void accumulate_secondary_edge_derivatives(const Scene &scene,
                                            const BufferView<Vector3> &edge_surface_points,
                                            const BufferView<Real> &edge_contribs,
                                            BufferView<SurfacePoint> d_points,
-                                           BufferView<DShape> d_shapes) {
+                                           BufferView<DShape> d_shapes,
+                                           float* debug_image) {
     parallel_for(secondary_edge_derivatives_accumulator{
         scene.shapes.data,
         active_pixels.begin(),
@@ -2228,6 +2233,7 @@ void accumulate_secondary_edge_derivatives(const Scene &scene,
         edge_surface_points.begin(),
         edge_contribs.begin(),
         d_points.begin(),
-        d_shapes.begin()
+        d_shapes.begin(),
+        debug_image
     }, active_pixels.size(), scene.use_gpu);
 }

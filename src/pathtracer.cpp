@@ -722,7 +722,8 @@ namespace edge_sampling {
                                                             edge_surface_points,
                                                             edge_contribs,
                                                             d_points,
-                                                            d_scene->shapes.view(0, d_scene->shapes.size()));
+                                                            d_scene->shapes.view(0, d_scene->shapes.size()),
+                                                            debug_image.get());
                         ////////////////////////////////////////////////////////////////////////////////
                     }
 

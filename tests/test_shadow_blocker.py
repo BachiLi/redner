@@ -58,6 +58,16 @@ args = pyredner.RenderFunction.serialize_scene(\
     num_samples = 256,
     max_bounces = 1)
 
+# Debugging.
+debug_image_es = pyredner.RenderFunction.visualize_debug_image(
+    grad_img = None,
+    seed = 0,
+    scene = scene,
+    integrator = pyredner.integrators.EdgeSamplingIntegrator(num_samples = 8, max_bounces = 2)
+    )
+np.save('results/test_shadow_blocker/dx.npy', debug_image_es.cpu().numpy())
+# ----
+
 # Alias of the render function
 render = pyredner.RenderFunction.apply
 # Render our target
@@ -108,6 +118,9 @@ args = pyredner.RenderFunction.serialize_scene(\
     scene = scene,
     num_samples = 256,
     max_bounces = 1)
+
+
+
 img = render(202, *args)
 pyredner.imwrite(img.cpu(), 'results/test_shadow_blocker/final.exr')
 pyredner.imwrite(img.cpu(), 'results/test_shadow_blocker/final.png')

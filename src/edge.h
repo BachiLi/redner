@@ -303,4 +303,5 @@ void accumulate_secondary_edge_derivatives(const Scene &scene,
                                            const BufferView<Vector3> &edge_surface_points,
                                            const BufferView<Real> &edge_contribs,
                                            BufferView<SurfacePoint> d_points,
-                                           BufferView<DShape> d_shapes);
+                                           BufferView<DShape> d_shapes,
+                                           float* debug_image);

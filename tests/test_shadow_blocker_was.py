@@ -1,6 +1,7 @@
 import pyredner
 import numpy as np
 import torch
+import sys
 
 # Optimize four vertices of a shadow blocker
 
@@ -30,21 +31,23 @@ mat_black = pyredner.Material(\
     device = pyredner.get_device()))
 materials = [mat_grey, mat_black]
 
-floor_vertices = torch.tensor([[-2.0,0.0,-2.0],[-2.0,0.0,2.0],[2.0,0.0,-2.0],[2.0,0.0,2.0]],
+floor_vertices = torch.tensor([[-2.0,0.0,-2.0],[-2.0,0.0,2.0],[2.0,0.0,-2.0],[2.0,0.0,2.0],[0.0,0.0,0.0]],
     device = pyredner.get_device())
-floor_indices = torch.tensor([[0,1,2], [1,3,2]],
+floor_indices = torch.tensor([[0,1,4], [1,3,4], [3,2,4], [2,0,4]],
     device = pyredner.get_device(), dtype = torch.int32)
 shape_floor = pyredner.Shape(floor_vertices, floor_indices, 0)
 blocker_vertices = torch.tensor(\
-    [[-0.5,3.0,-0.5],[-0.5,3.0,0.5],[0.5,3.0,-0.5],[0.5,3.0,0.5]],
+    [[-0.5,3.0,-0.5],[-0.5,3.0,0.5],[0.5,3.0,-0.5],[0.5,3.0,0.5],[0.0,3.0,0.0]],
     device = pyredner.get_device())
-blocker_indices = torch.tensor([[0,1,2], [1,3,2]],
+#blocker_indices = torch.tensor([[0,1,2], [1,3,2]],
+blocker_indices = torch.tensor([[0,1,4], [1,3,4], [3,2,4], [2,0,4]],
     device = pyredner.get_device(), dtype = torch.int32)
 shape_blocker = pyredner.Shape(blocker_vertices, blocker_indices, 0)
 light_vertices = torch.tensor(\
-    [[-0.1,5,-0.1],[-0.1,5,0.1],[0.1,5,-0.1],[0.1,5,0.1]],
+    [[-0.1,5,-0.1],[-0.1,5,0.1],[0.1,5,-0.1],[0.1,5,0.1],[0,5,0]],
     device = pyredner.get_device())
-light_indices = torch.tensor([[0,2,1], [1,2,3]],
+#light_indices = torch.tensor([[0,2,1], [1,2,3]],
+light_indices = torch.tensor([[0,2,4], [2,3,4], [3,1,4], [1,0,4]],
     device = pyredner.get_device(), dtype = torch.int32)
 shape_light = pyredner.Shape(light_vertices, light_indices, 1)
 shapes = [shape_floor, shape_blocker, shape_light]
@@ -69,6 +72,18 @@ args = pyredner.RenderFunction.serialize_scene(\
     scene = scene,
     num_samples = 256,
     max_bounces = 1)
+
+
+# DEBUG
+debug_image_was = pyredner.RenderFunction.visualize_debug_image(
+    grad_img = None,
+    seed = 0,
+    scene = scene,
+    integrator = integrator
+    )
+np.save('results/test_shadow_blocker_was/dx.npy', debug_image_was.numpy())
+# ----
+sys.exit()
 
 # Alias of the render function
 render = pyredner.RenderFunction.apply
@@ -95,6 +110,7 @@ pyredner.imwrite(img.cpu(), 'results/test_shadow_blocker_was/init.png')
 diff = torch.abs(target - img)
 pyredner.imwrite(diff.cpu(), 'results/test_shadow_blocker_was/init_diff.png')
 
+
 # Optimize for blocker vertices
 optimizer = torch.optim.Adam([shape_blocker.vertices], lr=1e-2)
 for t in range(200):
@@ -119,6 +135,9 @@ args = pyredner.RenderFunction.serialize_scene(\
     scene = scene,
     num_samples = 256,
     max_bounces = 1)
+
+
+
 img = render(202, *args)
 pyredner.imwrite(img.cpu(), 'results/test_shadow_blocker_was/final.exr')
 pyredner.imwrite(img.cpu(), 'results/test_shadow_blocker_was/final.png')
