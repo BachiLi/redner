@@ -60,15 +60,24 @@ struct warp_derivatives_accumulator {
     DEVICE void operator()(int idx) {
         auto pixel_id = active_pixels[idx];
 
+        /* 
+            Number of auxiliary rays for this specific primary ray.
+            If using Russian roulette, this may be different from max_aux_rays.
+        */
         const auto num_aux_rays = aux_sample_counts[pixel_id];
+
+        /* 
+            If using Russian roulette, this is the truncation point used
+            to allocate a safe amount of memory.
+         */
         const auto max_aux_rays = kernel_parameters.numAuxillaryRays;
 
         /* 
          * Flag to indicate if we're handling primary or secondary bounce.
          * We use pixel space coordinates for primary rays and 
-         * hemispherical coordinates for the secondary bounces.
-         * The fundamanetal mathematical technique remains the same. 
-         * However, the computation of weights, jacobians, require different functions to be used.
+         * spherical unit vector coordinates for the secondary bounces.
+         * The fundamental mathematical technique remains the same. 
+         * However, the computation of weights & jacobians require different functions to be used.
          */
         bool is_first_bounce = (camera_samples != nullptr);
 
@@ -124,13 +133,13 @@ struct warp_derivatives_accumulator {
         std::vector<Real> v_aux_weights(num_aux_rays, 0);
         std::vector<Vector3> v_aux_div_weights(num_aux_rays, Vector3(0.0, 0.0, 0.0));
 
-        // TODO: Buffers for debugging.
+        // NOTE: Buffers for debugging (not used in computation)
         std::vector<Real> v_aux_boundary_terms(num_aux_rays, 0);
         std::vector<Real> v_aux_horizon_terms(num_aux_rays, 0);
 
         for(uint i = 0; i < num_aux_rays; i++) {
             
-            /* Filter degenerate rays */
+            /* Discard degenerate aux rays */
             if(shading_isects != nullptr) {
                 auto shading_isect = shading_isects[pixel_id];
                 auto aux_isect = v_aux_isects.at(i);
@@ -139,7 +148,7 @@ struct warp_derivatives_accumulator {
                 }
             }
 
-            /* Compute weights w(x,x') */
+            /* Compute aux weights w(x,x') and their gradient grad_x'(w(x,x')) */
             if (is_first_bounce) {
                 auto aux_local_pos = aux_primary_local_pos(kernel_parameters,
                                                                   *camera, 
@@ -206,10 +215,11 @@ struct warp_derivatives_accumulator {
             }
         }
  
-        // Compute aux pdfs.
+        /* 
+            Compute PDF of aux-rays.
+         */
         std::vector<Real> v_aux_pdfs(num_aux_rays, 0);
         for(uint i = 0; i < num_aux_rays; i++) {
-            // TODO: Make this more readable.
             if (!is_first_bounce)
                 // Computes von Mises-Fisher pdf.
                 v_aux_pdfs.at(i) = aux_pdf(kernel_parameters, v_aux_rays.at(i), primary_ray);
@@ -223,29 +233,35 @@ struct warp_derivatives_accumulator {
 
         Real normalization = 0;
         Vector3 div_normalization(0, 0, 0);
-        // Compute the normalizers Z(x) and div.Z(x) (independent of parameter)
+        /*
+            Compute the normalization terms Z(x) and grad.Z(x) (independent of parameter)
+        */
         for(uint i = 0; i < num_aux_rays; i++) {
             normalization += v_aux_weights.at(i) / v_aux_pdfs.at(i);
             div_normalization += v_aux_div_weights.at(i) / v_aux_pdfs.at(i);
         }
 
-        // Compute the inverse normalization. This is the main source of bias.
-        // To handle this we provide two modes simple monte carlo (biased) and 
-        // RR (Russian Roulette) (unbiased but higher variance)
+        /* 
+         * Compute the inverse normalization. This is the main source of bias.
+         * To handle this we provide two modes simple monte carlo (biased) and 
+         * RR (Russian Roulette) (unbiased but higher variance)
+         */
 
         std::vector<Real> inv_normalization(num_aux_rays, 0);
         std::vector<Vector3> grad_inv_normalization(num_aux_rays, Vector3{0.0, 0.0, 0.0});
 
         if(kernel_parameters.isBasicNormal){
-            // Normalization is 1 (known distribution) if the distribution is standard normal.
+            // Normalization is 1 (per ray) if the distribution is standard normal.
             normalization = kernel_parameters.numAuxillaryRays;
             div_normalization = Vector3{0, 0, 0};
         }
 
-        // Russian roulette estimation.
-        // Estimates quantites using Russian roulette that are otherwise biased:
-        // (i) 'inv_normalization' := reciprocal of the weight integral (normalization) 1/\int_{x'}(w(x, x'))
-        // (ii) 'grad_inv_normalization' := derivative of this reciprocal (\int{x'}grad_w(x, x'))/\int_{x'}(w^2(x, x'))
+        /* 
+         * Russian roulette estimation.
+         * Estimates quantites using Russian roulette that are otherwise biased:
+         * (i) 'inv_normalization' := reciprocal of the weight integral (normalization) 1/\int_{x'}(w(x, x'))
+         * (ii) 'grad_inv_normalization' := derivative of this reciprocal (\int{x'}grad_w(x, x'))/\int_{x'}(w^2(x, x'))
+         */
         if (kernel_parameters.rr_enabled) {
             std::vector<Real> _acc_wt_sum = std::vector<Real>(num_aux_rays, 0.0);
             std::vector<Vector3> _acc_grad_wt_sum = std::vector<Vector3>(num_aux_rays, Vector3{0.0, 0.0, 0.0});
@@ -296,12 +312,14 @@ struct warp_derivatives_accumulator {
                 d_rendered_image[nd * pixel_id + d + 1],
                 d_rendered_image[nd * pixel_id + d + 2]};
 
+        // This is the quantity 'f' in the paper, in the context of back-propagation.
+        Real f = sum(df_d_path_contrib * path_contrib);
+
         // Compute control variates (if enabled) for denoising the aux-kernel.
         // This section is only for variance reduction and does not affect the bias of the esimator
         // The current implementation is only for primary rays.
         if(enable_aux_control_variates && is_first_bounce && primary_isect.valid() ) {
             accumulate_aux_control_variate(
-                scene,
                 kernel_parameters,
                 pixel_id,
                 camera_samples[pixel_id],
@@ -312,7 +330,7 @@ struct warp_derivatives_accumulator {
                 camera,
                 v_aux_samples,
                 num_aux_rays,
-                sum(df_d_path_contrib * path_contrib),
+                f,
                 d_shapes,
                 debug_image
             )
@@ -338,7 +356,6 @@ struct warp_derivatives_accumulator {
             df_dw = Vector3{0,0,0};
         }
 
-        // -----------------
         /*
             Accumulate aggregate values.
             These are used by accumulate_primary_control_variates() to compute its contribution.
@@ -348,20 +365,22 @@ struct warp_derivatives_accumulator {
             sample_covariance[pixel_id] = 
                 sample_covariance[pixel_id] + outer_product(w_i, w_i);
             mean_contrib[pixel_id] = 
-                mean_contrib[pixel_id] + sum(df_d_path_contrib * path_contrib);
+                mean_contrib[pixel_id] + f;
             mean_grad_contrib[pixel_id] = 
                 mean_grad_contrib[pixel_id] + df_dw;
         }
-        // ----------------------------
         
-        Vector3 kernel_score(0,0,0);
-        Real filter_weight;
-        Vector3 F_gradK(0, 0, 0);
+        Vector3 f_gradK(0, 0, 0);
         if(is_first_bounce) {
-            // For primary samples..
-            // An additional term shows up in the derivative
-            // of contrib w.r.t local pos, due to the recon
-            // filter.
+            /* 
+             * For first bounce rays,
+             * An additional term shows up in the derivative
+             * of contrib w.r.t local pos, due to the reconstruction
+             * filter.
+             */
+            Vector3 kernel_score(0,0,0);
+            Real filter_weight = 0;
+
             Vector2 local_pos;
             sample_to_local_pos(*camera, camera_samples[pixel_id], local_pos);
 
@@ -374,14 +393,8 @@ struct warp_derivatives_accumulator {
 
             // Add the filter gradient score function to the computation.
             if (filter_weight != 0) {
-                kernel_score =
-                     (Vector3{d_filter_d_local_pos[0], d_filter_d_local_pos[1], 0.0}
-                       / filter_weight);
-                F_gradK = sum(path_contrib *
-                     df_d_path_contrib) *
-                     kernel_score;
-            } else {
-                kernel_score = Vector3(0.f, 0.f, 0.f);
+                kernel_score = (vec2_as_vec3(d_filter_d_local_pos) / filter_weight);
+                f_gradK = f * kernel_score;
             }
         }
 
@@ -459,22 +472,21 @@ struct warp_derivatives_accumulator {
             auto divV_org = divVMultiplier * dw_dorg;
 
             // Gradient w.r.t intersection point (world space).
-            auto gradF_dot_V_xg = df_dw * V_xg + F_gradK * V_xg; // gradF.K.V + F.gradK.V
-            auto F_mul_div_V_xg = sum(df_d_path_contrib * path_contrib) * divV_xg; // F.K.divV
+            auto gradF_dot_V_xg = df_dw * V_xg + f_gradK * V_xg; // gradF.K.V + F.gradK.V
+            auto F_mul_div_V_xg = f * divV_xg; // F.K.divV
             
             // Gradient w.r.t ray direction.
-            auto gradF_dot_V_dir = df_dw * V_dir + F_gradK * V_dir; // gradF.K.V + F.gradK.V
-            auto F_mul_div_V_dir = sum(df_d_path_contrib * path_contrib) * divV_dir; // F.K.divV
+            auto gradF_dot_V_dir = df_dw * V_dir + f_gradK * V_dir; // gradF.K.V + F.gradK.V
+            auto F_mul_div_V_dir = f * divV_dir; // F.K.divV
 
             // Gradient w.r.t ray origin.
-            auto gradF_dot_V_org = df_dw * V_org + F_gradK * V_org; // gradF.K.V + F.gradK.V
-            auto F_mul_div_V_org = sum(df_d_path_contrib * path_contrib) * divV_org; // F.K.divV
+            auto gradF_dot_V_org = df_dw * V_org + f_gradK * V_org; // gradF.K.V + F.gradK.V
+            auto F_mul_div_V_org = f * divV_org; // F.K.divV
 
             // Compute final gradients.
             auto grad_xg = gradF_dot_V_xg + F_mul_div_V_xg;
             auto grad_org = gradF_dot_V_org + F_mul_div_V_org;
             auto grad_dir = gradF_dot_V_dir + F_mul_div_V_dir;
-            // ---
 
             if(is_first_bounce) {
                 Vector2 screen_pos;
@@ -507,13 +519,11 @@ struct warp_derivatives_accumulator {
                 (d_shading_points != nullptr))
             ) {
                 Vector3 d_aux_v_p[3] = {Vector3{0, 0, 0}, Vector3{0, 0, 0}, Vector3{0, 0, 0}};
-                Vector3 ignore_d_aux_v_n[3] = {Vector3{0, 0, 0}, Vector3{0, 0, 0}, Vector3{0, 0, 0}};
-                Vector2 ignore_d_aux_v_uv[3] = {Vector2{0, 0}, Vector2{0, 0}};
 
                 // TODO: Ray differential is not properly handled.
-                RayDifferential zero_d_ray_differential{
+                RayDifferential zero_ray_differential{
                     Vector3{0, 0, 0}, Vector3{0, 0, 0},
-                  Vector3{0, 0, 0}, Vector3{0, 0, 0}};
+                    Vector3{0, 0, 0}, Vector3{0, 0, 0}};
 
                 // Instead of using d_intersect_shape (which differentiates only 't' directly),
                 // we're going about this in a slightly more straightforward manner.
@@ -526,7 +536,7 @@ struct warp_derivatives_accumulator {
                 auto u_dxy = Vector2{0,0};
                 auto v_dxy = Vector2{0,0};
                 auto t_dxy = Vector2{0,0};
-                auto uvt = intersect(v0, v1, v2, ray, zero_d_ray_differential, u_dxy, v_dxy, t_dxy);
+                auto uvt = intersect(v0, v1, v2, ray, zero_ray_differential, u_dxy, v_dxy, t_dxy);
 
                 // Propagate the xg derivative through to points manually.
                 // For this we assume (falsely, but without consequence) that

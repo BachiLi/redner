@@ -33,7 +33,6 @@ void accumulate_primary_control_variates(const Scene& scene,
 DEVICE
 inline
 void accumulate_aux_control_variate(
-        const Scene& scene,
         const KernelParameters& kernel_parameters,
         const int& pixel_id,
 
