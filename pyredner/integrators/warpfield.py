@@ -80,6 +80,10 @@ class VarianceReductionSettings:
 
 
 class WarpFieldIntegrator(Integrator):
+    """
+        Interface for the Warped-area sampling method for differentiable rendering based
+        on the SIGGRAPH Asia 2020 paper of the same name: https://www.saipraveenb.com/projects/was-2020/
+    """
     def __init__( self,
                   num_samples = 64,
                   max_bounces = 2,
@@ -89,11 +93,11 @@ class WarpFieldIntegrator(Integrator):
                   sampler_type = redner.SamplerType.independent,
                   aux_sampler_type = redner.SamplerType.independent,
                   kernel_parameters = KernelParameters(),
-                  enable_primary_warp_field = True,
-                  enable_secondary_warp_field = True,
+                  use_primary_warp_field = True,
+                  use_secondary_warp_field = True,
                   clear_loss = False,
                   sample_pixel_center = False
-                ): # Use to limit the number of active pixels. (For debugging)
+                ):
 
         if isinstance(num_samples, int):
             num_samples = (num_samples, num_samples)
@@ -107,6 +111,9 @@ class WarpFieldIntegrator(Integrator):
         self.variance_reduction = variance_reduction
         self.importance_sampling = importance_sampling
         self.aux_sampler_type = aux_sampler_type
+
+        self.enable_primary_warp_field = use_primary_warp_field
+        self.enable_secondary_warp_field = use_secondary_warp_field
 
         self.clear_loss = clear_loss
         self.sample_pixel_center = sample_pixel_center
@@ -162,14 +169,14 @@ class WarpFieldIntegrator(Integrator):
 
     def render_image(self, seed, scene, img):
         num_samples = self.num_samples[0]
-        return self.render(seed=seed,
+        return self.render(seed=seed[0] if hasattr(seed, '__iter__') else seed,
                            scene=scene,
                            img=img,
                            num_samples=num_samples)
 
     def render_derivs(self, seed, scene, d_img, d_scene):
         num_samples = self.num_samples[1]
-        return self.render(seed=seed,
+        return self.render(seed=seed[1] if hasattr(seed, '__iter__') else seed,
                            scene=scene,
                            d_img=d_img,
                            d_scene=d_scene,
@@ -178,7 +185,7 @@ class WarpFieldIntegrator(Integrator):
 
     def render_screen_gradient(self, seed, scene, d_img, d_scene, screen_grad):
         num_samples = self.num_samples[1]
-        return self.render(seed=seed,
+        return self.render(seed=seed[1] if hasattr(seed, '__iter__') else seed,
                            scene=scene,
                            d_img=d_img,
                            d_scene=d_scene,
@@ -187,7 +194,7 @@ class WarpFieldIntegrator(Integrator):
 
     def render_debug_image(self, seed, scene, d_img, d_scene, debug_img):
         num_samples = self.num_samples[1]
-        return self.render(seed=seed,
+        return self.render(seed=seed[1] if hasattr(seed, '__iter__') else seed,
                            scene=scene,
                            d_img=d_img,
                            d_scene=d_scene,
@@ -206,7 +213,7 @@ class WarpFieldIntegrator(Integrator):
         assert not get_use_gpu(), f'Scene.use_gpu is True. WarpFieldIntegrator cannot use the gpu'
 
         options = redner.RenderOptionsVField(
-                        seed[0] if hasattr(seed, '__iter__') else seed, 
+                        seed,
                         self.num_samples if not num_samples else num_samples,
                         self.max_bounces,
                         self.channels,

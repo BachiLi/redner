@@ -19,9 +19,8 @@ camera = pyredner.automatic_camera_placement(objects, resolution=(512, 512))
 print(camera.position)
 print(camera.look_at)
 print(camera.up)
-#sys.exit(1)
-scene = pyredner.Scene(camera = camera, objects = objects)
 
+scene = pyredner.Scene(camera = camera, objects = objects)
 
 screen_gradient_img = pyredner.RenderFunction.visualize_screen_gradient(
     grad_img = None,

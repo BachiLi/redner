@@ -8,6 +8,10 @@ import time
 from .base import Integrator
 
 class EdgeSamplingIntegrator(Integrator):
+    """
+        Interface for the Edge-sampling method for differentiable rendering based
+        on the SIGGRAPH Asia 2018 paper: https://people.csail.mit.edu/tzumao/diffrt/
+    """
     def __init__( self,
                   num_samples = 64,
                   max_bounces = 2,

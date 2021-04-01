@@ -1236,7 +1236,7 @@ namespace vfield {
                                 channel_info,
                                 kernel_parameters,
                                 d_rendered_image.get(), // per-pixel loss weights.
-                                options.variance_reduction_mode.aux_control_variates,
+                                options.variance_reduction_mode.aux_control_variates, // TODO: This seems incorrect. primary_control_variates?
                                 BufferView<SurfacePoint>(), // d_in (out) [No points for primary isect.]
                                 d_scene->shapes.view(0, d_scene->shapes.size()), // d_in (out)
 
@@ -1273,10 +1273,10 @@ namespace vfield {
                 } else {
                     // Single sample mode.
                     DISPATCH(scene.use_gpu, 
-                            thrust::fill, 
-                            control_samples.begin(), 
-                            control_samples.end(), 
-                            CameraSample{Vector2{1.0, 0.0}});
+                             thrust::fill, 
+                             control_samples.begin(), 
+                             control_samples.end(), 
+                             CameraSample{Vector2{1.0, 0.0}});
                 }
 
                 sample_primary_rays(camera, control_samples, control_rays, primary_differentials, scene.use_gpu);
@@ -1301,6 +1301,7 @@ namespace vfield {
                     control_points,
                     control_isects,
                     control_rays,
+                    primary_differentials,
                     control_samples,
 
                     control_mean_grad_contrib,

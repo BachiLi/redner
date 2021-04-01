@@ -64,17 +64,6 @@ class RenderFunction(torch.autograd.Function):
     """
         The PyTorch interface of C++ redner.
     """
-    """
-    TODO: Remove
-    num_samples: Union[int, Tuple[int, int]],
-                        max_bounces: int,
-                        channels: List = [redner.channels.radiance],
-                        sampler_type = redner.SamplerType.independent,
-                        use_primary_edge_sampling: bool = True,
-                        use_secondary_edge_sampling: bool = True,
-                        sample_pixel_center: bool = False,
-                        device: Optional[torch.device] = None
-    """
 
     def serialize_scene(scene: pyredner.Scene,
                         num_samples: Union[int, Tuple[int, int]],
@@ -85,6 +74,18 @@ class RenderFunction(torch.autograd.Function):
                         use_secondary_edge_sampling: bool = True,
                         sample_pixel_center: bool = False,
                         device: Optional[torch.device] = None):
+        """
+            Legacy method that invokes EdgeSamplingIntegrator by default, for backwards compatibility.
+            scene: pyredner.Scene
+            num_samples: Union[int, Tuple[int, int]],
+            max_bounces: int,
+            channels: List = [redner.channels.radiance],
+            sampler_type = redner.SamplerType.independent,
+            use_primary_edge_sampling: bool = True,
+            use_secondary_edge_sampling: bool = True,
+            sample_pixel_center: bool = False,
+            device: Optional[torch.device] = None
+        """
         return RenderFunction.serialize_scene_class(
                     scene,
                     integrator=pyredner.integrators.EdgeSamplingIntegrator(
@@ -110,14 +111,10 @@ class RenderFunction(torch.autograd.Function):
             Args
             ====
             scene: pyredner.Scene
-            num_samples: int
-                Number of samples per pixel for forward and backward passes.
-                Can be an integer or a tuple of 2 integers.
-                If a single integer is provided, use the same number of samples
-                for both.
-            max_bounces: int
-                Number of bounces for global illumination,
-                1 means direct lighting only.
+            integrator: pyredner.integrators.Integrator
+                | Redner supports two integrators capable of edge-aware differentiable rendering. Use 
+                | pyredner.integrators.EdgeSamplingIntegrator for the edge-sampling method and
+                | pyredner.integrators.WarpFieldIntegrator for the warped-area sampling technique
             channels: List[redner.channels]
                 | A list of channels that should present in the output image
                 | following channels are supported\:

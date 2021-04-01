@@ -40,7 +40,7 @@ int _aux_sample_sample_counts(KernelParameters kernel_parameters,
         return max_val;
 
     // Clamp to maximum allocated space.
-    // NOTE: Does not account for truncation bias! (This should be implemented in the future)
+    // NOTE: Does not account for truncation bias. (This should be fixed in a future commit)
     return std::max(g, std::min(k * g, max_val));
 }
 
@@ -376,7 +376,7 @@ Real aux_primary_pdf( const KernelParameters& kernel_parameters,
     sample_to_local_pos(camera, sample, local_sample);
 
     // TODO: Split aux_sampler and the distribution into modules...
-    // Current structure is very messy and entangled
+    // Current structure is very entangled
     // Preferably move into a different file.
     auto local_aux_sample = aux_sample_primary_local_pos(kernel_parameters,
                                             camera, 
@@ -437,7 +437,7 @@ Real warp_horizon_term(
         auto a2 = v3(&shapes[aux_isect.shape_id].vertices[3 * vidxs[2]]);
 
         auto an = normalize(cross(a0 - a1, a1 - a2));
-        
+
         total_inner_product += dot(an, w);
 
         // If a single adjacent face point away from the source, then
@@ -472,7 +472,6 @@ Real warp_boundary_term( const KernelParameters& kernel_parameters,
         horizon_term = 0.0;
         boundary_term = exp(-abs(dot(shading_point.geom_normal, auxillary.dir)) / kernel_parameters.asymptoteBoundaryTemp);
     } else if (aux_isect.valid()) {
-
         // Hit a valid surface (and isn't beyond horizon)
         auto vidxs = get_indices(shapes[aux_isect.shape_id], aux_isect.tri_id);
     
@@ -516,7 +515,6 @@ Real warp_boundary_term( const KernelParameters& kernel_parameters,
         horizon_term = 1.0 / interpolated_inv_horiz_term;
         assert(boundary_term <= 1.f);
         assert(boundary_term >= 0.f);
-        
     } else {
         // Hit environment map. No sharp boundaries..
         horizon_term = 0.0;
@@ -559,9 +557,6 @@ Real warp_weight( const KernelParameters& kernel_parameters,
                  aux_point,
                  shading_point,
                  horizon_term);
-
-    // Compute the inverse gaussian term.
-    //auto inv_gauss = exp(square(1 - dot(primary.dir, auxillary.dir)) / float(kernel_parameters.asymptoteInvGaussSigma));
     
     const auto gamma = kernel_parameters.asymptoteGamma;
     const auto k = kernel_parameters.vMFConcentration / gamma;
@@ -842,7 +837,7 @@ void warp_jacobian_primary(const KernelParameters& kernel_parameters,
 
 
 /*
- * (Utility method for control variates)
+ * (Utility method for variance reduction)
  * Computes the spatial derivatives of the warp_jacobian.
  * This is used for a control variate with linear assumptions to sharply reduce the variance.
  */
@@ -863,16 +858,16 @@ void warp_gradient_tensor( const KernelParameters& kernel_parameters,
     auto vidxs = get_indices(shapes[isect.shape_id], isect.tri_id);
 
     // Find the triangle vertices and compute alpha, beta and gamma.
-    TVector3<double> p0 = TVector3<double>(v3(&shapes[isect.shape_id].vertices[3 * vidxs[0]]));
-    TVector3<double> p1 = TVector3<double>(v3(&shapes[isect.shape_id].vertices[3 * vidxs[1]]));
-    TVector3<double> p2 = TVector3<double>(v3(&shapes[isect.shape_id].vertices[3 * vidxs[2]]));
+    TVector3<Real> p0 = TVector3<Real>(v3(&shapes[isect.shape_id].vertices[3 * vidxs[0]]));
+    TVector3<Real> p1 = TVector3<Real>(v3(&shapes[isect.shape_id].vertices[3 * vidxs[1]]));
+    TVector3<Real> p2 = TVector3<Real>(v3(&shapes[isect.shape_id].vertices[3 * vidxs[2]]));
 
     auto u_dxy = Vector2{0,0};
     auto v_dxy = Vector2{0,0};
     auto t_dxy = Vector2{0,0};
-    TRayDifferential<double> zero_d_ray_differential{
-                    TVector3<double>{Real(0), Real(0), Real(0)}, TVector3<double>{Real(0), Real(0), Real(0)},
-                  TVector3<double>{Real(0), Real(0), Real(0)}, TVector3<double>{Real(0), Real(0), Real(0)}};
+    TRayDifferential<Real> zero_d_ray_differential{
+                    TVector3<Real>{Real(0), Real(0), Real(0)}, TVector3<Real>{Real(0), Real(0), Real(0)},
+                  TVector3<Real>{Real(0), Real(0), Real(0)}, TVector3<Real>{Real(0), Real(0), Real(0)}};
     auto uvt = intersect(p0, p1, p2, ray, zero_d_ray_differential, u_dxy, v_dxy, t_dxy);
 
     barycentrics = Vector3{(1 - (uvt[0] + uvt[1])), uvt[0], uvt[1]};
@@ -930,10 +925,9 @@ struct warp_derivatives_accumulator {
     DEVICE void operator()(int idx) {
         auto pixel_id = active_pixels[idx];
 
-        //const auto numAuxillaryRays = kernel_parameters.numAuxillaryRays;
         const auto numAuxillaryRays = aux_sample_counts[pixel_id];
-
         const auto maxAuxillaryRays = kernel_parameters.numAuxillaryRays;
+
         // Load 'origin' surface point.
         const auto &shading_point = (shading_points != nullptr) ? 
                                     shading_points[pixel_id] :
@@ -993,7 +987,7 @@ struct warp_derivatives_accumulator {
         std::vector<Real> v_aux_weights(totalAuxWeights, 0);
         std::vector<Vector3> v_aux_div_weights(totalAuxWeights, Vector3(0.0, 0.0, 0.0));
 
-        // TODO : For debugging. remove later.
+        // TODO: Buffers for debugging.
         std::vector<Real> v_aux_boundary_terms(totalAuxWeights, 0);
         std::vector<Real> v_aux_horizon_terms(totalAuxWeights, 0);
 
@@ -1074,11 +1068,11 @@ struct warp_derivatives_accumulator {
                 v_aux_horizon_terms.at(i) = horizon_term;
             }
         }
-
+ 
         // Compute aux pdfs.
         std::vector<Real> v_aux_pdfs(totalAuxWeights, 0);
-        
         for(uint i = 0; i < sampledAuxWeights; i++) {
+            // TODO: Make this more readable.
             if (camera_samples == nullptr)
                 // Computes von Mises-Fisher pdf.
                 v_aux_pdfs.at(i) = aux_pdf( kernel_parameters, v_aux_rays.at(i), primary_ray );
@@ -1191,7 +1185,7 @@ struct warp_derivatives_accumulator {
             TVector3<double> d_v0{Real(0), Real(0), Real(0)};
             TVector3<double> d_v1{Real(0), Real(0), Real(0)};
             TVector3<double> d_v2{Real(0), Real(0), Real(0)};
-            DTRay<double> d_ray_du{
+            DTRay<double> du_d_ray{
                 TVector3<double>{Real(0), Real(0), Real(0)},
                 TVector3<double>{Real(0), Real(0), Real(0)}
             };
@@ -1209,11 +1203,11 @@ struct warp_derivatives_accumulator {
                     TVector2<double>{Real(0), Real(0)},
                     TVector2<double>{Real(0), Real(0)},
                     d_v1, d_v1, d_v2,
-                    d_ray_du,
+                    du_d_ray,
                     zero_d_ray_differential
                 );
 
-            DTRay<double> d_ray_dv{
+            DTRay<double> dv_d_ray{
                 TVector3<double>{Real(0), Real(0), Real(0)},
                 TVector3<double>{Real(0), Real(0), Real(0)}
             };
@@ -1224,15 +1218,15 @@ struct warp_derivatives_accumulator {
                     TVector2<double>{Real(0), Real(0)},
                     TVector2<double>{Real(0), Real(0)},
                     d_v1, d_v1, d_v2,
-                    d_ray_dv,
+                    dv_d_ray,
                     zero_d_ray_differential
                 );
 
             DCamera d_camera(nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr);
             Vector2 du_d_screen_pos;
-            d_sample_primary_ray(*camera, screen_pos, d_ray_du, d_camera, &du_d_screen_pos);
+            d_sample_primary_ray(*camera, screen_pos, du_d_ray, d_camera, &du_d_screen_pos);
             Vector2 dv_d_screen_pos;
-            d_sample_primary_ray(*camera, screen_pos, d_ray_dv, d_camera, &dv_d_screen_pos);
+            d_sample_primary_ray(*camera, screen_pos, dv_d_ray, d_camera, &dv_d_screen_pos);
 
             dv_d_local_pos = expand(dv_d_screen_pos * (Real(1.0) / Vector2{camera->width, camera->height}));
             du_d_local_pos = expand(du_d_screen_pos * (Real(1.0) / Vector2{camera->width, camera->height}));
@@ -1354,15 +1348,14 @@ struct warp_derivatives_accumulator {
             atomic_add(&d_shapes[primary_isect.shape_id].vertices[3 * vidxs[2]],
                     -d_primary_v_p[2]);
             
-            /* TODO: DEBUG IMAGE */
+            /* TODO: DEBUG IMAGE 
             if (primary_isect.shape_id == SHAPE_SELECT && debug_image != nullptr)
                 debug_image[pixel_id] += -(d_primary_v_p[0][DIM_SELECT] +
                                            d_primary_v_p[1][DIM_SELECT] +
                                            d_primary_v_p[2][DIM_SELECT]);
+            */
 
         }
-
-        std::vector<SurfacePoint> d_aux_points(sampledAuxWeights, SurfacePoint());
 
         auto primary_vec = primary_point.position - primary_ray.org;
         auto dist = length(primary_vec);
@@ -1588,7 +1581,7 @@ struct warp_derivatives_accumulator {
                 Vector3 ignore_d_aux_v_n[3] = {Vector3{0, 0, 0}, Vector3{0, 0, 0}, Vector3{0, 0, 0}};
                 Vector2 ignore_d_aux_v_uv[3] = {Vector2{0, 0}, Vector2{0, 0}};
 
-                // TODO: Ray differential is not handled. Figure out.
+                // TODO: Ray differential is not properly handled.
                 RayDifferential zero_d_ray_differential{
                     Vector3{0, 0, 0}, Vector3{0, 0, 0},
                   Vector3{0, 0, 0}, Vector3{0, 0, 0}};
@@ -1761,6 +1754,7 @@ struct control_variates_accumulator{
         auto control_point = control_points[pixel_id];
         auto control_isect = control_isects[pixel_id];
         auto control_ray = control_rays[pixel_id];
+        auto control_ray_differential = control_ray_differentials[pixel_id];
 
         if (!control_isect.valid()) {
             // No intersection. PCV is 0.
@@ -1770,48 +1764,52 @@ struct control_variates_accumulator{
         // Grab the primary isect and it's vertices.
         auto vidxs = get_indices(scene.shapes[control_isect.shape_id], control_isect.tri_id);
 
-        TVector3<double> p0 = TVector3<double>(v3(&scene.shapes[control_isect.shape_id].vertices[3 * vidxs[0]]));
-        TVector3<double> p1 = TVector3<double>(v3(&scene.shapes[control_isect.shape_id].vertices[3 * vidxs[1]]));
-        TVector3<double> p2 = TVector3<double>(v3(&scene.shapes[control_isect.shape_id].vertices[3 * vidxs[2]]));
+        TVector3<Real> p0 = TVector3<Real>(v3(&scene.shapes[control_isect.shape_id].vertices[3 * vidxs[0]]));
+        TVector3<Real> p1 = TVector3<Real>(v3(&scene.shapes[control_isect.shape_id].vertices[3 * vidxs[1]]));
+        TVector3<Real> p2 = TVector3<Real>(v3(&scene.shapes[control_isect.shape_id].vertices[3 * vidxs[2]]));
 
-        TVector3<double> d_v0{Real(0), Real(0), Real(0)};
-        TVector3<double> d_v1{Real(0), Real(0), Real(0)};
-        TVector3<double> d_v2{Real(0), Real(0), Real(0)};
-        DTRay<double> d_ray_du{
-            TVector3<double>{Real(0), Real(0), Real(0)},
-            TVector3<double>{Real(0), Real(0), Real(0)}
+        TVector3<Real> d_v0{Real(0), Real(0), Real(0)};
+        TVector3<Real> d_v1{Real(0), Real(0), Real(0)};
+        TVector3<Real> d_v2{Real(0), Real(0), Real(0)};
+        DTRay<Real> du_d_ray{
+            TVector3<Real>{Real(0), Real(0), Real(0)},
+            TVector3<Real>{Real(0), Real(0), Real(0)}
         };
 
-        TRayDifferential<double> zero_d_ray_differential{
-                TVector3<double>{Real(0), Real(0), Real(0)}, TVector3<double>{Real(0), Real(0), Real(0)},
-                TVector3<double>{Real(0), Real(0), Real(0)}, TVector3<double>{Real(0), Real(0), Real(0)}};
+        TRayDifferential<Real> zero_d_ray_differential{
+                TVector3<Real>{Real(0), Real(0), Real(0)}, TVector3<Real>{Real(0), Real(0), Real(0)},
+                TVector3<Real>{Real(0), Real(0), Real(0)}, TVector3<Real>{Real(0), Real(0), Real(0)}};
+
+        TRayDifferential<Real> zero_d_ray_differential2{
+                TVector3<Real>{Real(0), Real(0), Real(0)}, TVector3<Real>{Real(0), Real(0), Real(0)},
+                TVector3<Real>{Real(0), Real(0), Real(0)}, TVector3<Real>{Real(0), Real(0), Real(0)}};
 
         // Compute the first term in A, i.e. the change in the local velocity if the jacobian remains constant.
 
         d_intersect(p0, p1, p2, 
-                control_ray, zero_d_ray_differential, 
-                TVector3<double>{Real(1.0), Real(0), Real(0)}, 
-                TVector2<double>{Real(0), Real(0)},
-                TVector2<double>{Real(0), Real(0)},
-                TVector2<double>{Real(0), Real(0)},
+                control_ray, control_ray_differential, 
+                TVector3<Real>{Real(1.0), Real(0), Real(0)}, 
+                TVector2<Real>{Real(0), Real(0)},
+                TVector2<Real>{Real(0), Real(0)},
+                TVector2<Real>{Real(0), Real(0)},
                 d_v1, d_v1, d_v2,
-                d_ray_du,
+                du_d_ray,
                 zero_d_ray_differential
             );
 
-        DTRay<double> d_ray_dv{
-            TVector3<double>{Real(0), Real(0), Real(0)},
-            TVector3<double>{Real(0), Real(0), Real(0)}
+        DTRay<Real> dv_d_ray{
+            TVector3<Real>{Real(0), Real(0), Real(0)},
+            TVector3<Real>{Real(0), Real(0), Real(0)}
         };
         d_intersect(p0, p1, p2, 
-                control_ray, zero_d_ray_differential, 
-                TVector3<double>{Real(0), Real(1.0), Real(0)}, 
-                TVector2<double>{Real(0), Real(0)},
-                TVector2<double>{Real(0), Real(0)},
-                TVector2<double>{Real(0), Real(0)},
+                control_ray, control_ray_differential, 
+                TVector3<Real>{Real(0), Real(1.0), Real(0)}, 
+                TVector2<Real>{Real(0), Real(0)},
+                TVector2<Real>{Real(0), Real(0)},
+                TVector2<Real>{Real(0), Real(0)},
                 d_v1, d_v1, d_v2,
-                d_ray_dv,
-                zero_d_ray_differential
+                dv_d_ray,
+                zero_d_ray_differential2
             );
 
         Vector2 local_pos;
@@ -1822,13 +1820,11 @@ struct control_variates_accumulator{
                             local_pos, screen_pos);
 
         DCamera d_camera(nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr);
-        Vector2 du_d_screen_pos;
-        d_sample_primary_ray(scene.camera, screen_pos, d_ray_du, d_camera, &du_d_screen_pos);
-        Vector2 dv_d_screen_pos;
-        d_sample_primary_ray(scene.camera, screen_pos, d_ray_dv, d_camera, &dv_d_screen_pos);
+        Vector2 du_d_screen_pos(0.0, 0.0);
+        d_sample_primary_ray(scene.camera, screen_pos, du_d_ray, d_camera, &du_d_screen_pos);
+        Vector2 dv_d_screen_pos(0.0, 0.0);
+        d_sample_primary_ray(scene.camera, screen_pos, dv_d_ray, d_camera, &dv_d_screen_pos);
 
-        
-        // TODO: rewrite using d_local_to_screen_pos
         Vector2 _du_d_local_pos;
         d_local_to_screen_pos(scene.camera, pixel_id, du_d_screen_pos, _du_d_local_pos);
         Vector2 _dv_d_local_pos;
@@ -1893,7 +1889,7 @@ struct control_variates_accumulator{
                                     dw_ddir,
                                     dw_dorg);
 
-        // Compute the second term, i.e change in the jacobian if the constant velocity remains constant.
+        // Compute the second term, i.e change in the jacobian if the velocity remains constant.
 
         Matrix3x3 d_jacobian_d_barycentrics[3];
         d_jacobian_d_barycentrics[0] = Matrix3x3::zeros();
@@ -1917,6 +1913,7 @@ struct control_variates_accumulator{
         Vector3 control_grad_contrib = control_mean_grad_contrib[pixel_id];
 
         // Compute intermediate matrix.
+        /*
         auto t2_A_x = //outer_product(d_jacobian_d_barycentrics[0].col(0), dw_d_local_pos) + 
                         outer_product(d_jacobian_d_barycentrics[1].col(0), du_d_local_pos) + 
                         outer_product(d_jacobian_d_barycentrics[2].col(0), dv_d_local_pos);
@@ -1928,6 +1925,7 @@ struct control_variates_accumulator{
         auto t2_A_z = //outer_product(d_jacobian_d_barycentrics[0].col(2), dw_d_local_pos) + 
                         outer_product(d_jacobian_d_barycentrics[1].col(2), du_d_local_pos) + 
                         outer_product(d_jacobian_d_barycentrics[2].col(2), dv_d_local_pos);
+        */
 
         // Scatter the contributions to the three vertices of the triangle.
         auto B_u_x = outer_product(dw_dxg_1.col(0), du_d_local_pos);
@@ -1959,6 +1957,7 @@ struct control_variates_accumulator{
         constexpr auto sigma = sqrt(SCREEN_FILTER_VARIANCE);
         sample_covariance = (sample_covariance / (sigma * sigma)) * weight;
 
+        // TODO: Change 'hadamard' to 'element_wise' and 'collapse' to 'sum'
         Vector3 control_variate_p0 = Vector3{
             collapse(hadamard_product(A_w_x, sample_covariance)),
             collapse(hadamard_product(A_w_y, sample_covariance)),
@@ -2012,6 +2011,7 @@ struct control_variates_accumulator{
     const SurfacePoint* control_points;
     const Intersection* control_isects;
     const Ray* control_rays;
+    const RayDifferential* control_ray_differentials;
     const CameraSample* control_samples;
 
     const Vector3* control_mean_grad_contrib;
@@ -2033,6 +2033,7 @@ void accumulate_control_variates(const Scene& scene,
                     const BufferView<SurfacePoint>& control_points,
                     const BufferView<Intersection>& control_isects,
                     const BufferView<Ray>& control_rays,
+                    const BufferView<RayDifferential>& control_ray_differentials,
                     const BufferView<CameraSample>& control_samples,
 
                     const BufferView<Vector3>& control_mean_grad_contrib,
@@ -2051,6 +2052,7 @@ void accumulate_control_variates(const Scene& scene,
         control_points.begin(),
         control_isects.begin(),
         control_rays.begin(),
+        control_ray_differentials.begin(),
         control_samples.begin(),
 
         control_mean_grad_contrib.begin(),
@@ -2058,8 +2060,8 @@ void accumulate_control_variates(const Scene& scene,
         control_sample_covariance.begin(),
 
         d_shapes.begin(),
-
         weight,
+
         debug_image
     }, active_pixels.size(), scene.use_gpu);
 }

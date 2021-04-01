@@ -908,7 +908,7 @@ struct primary_edge_derivatives_computer {
                                         jacobian,
                                         value);
                     
-                    debug_image[ky * camera.width + kx] += (d_v0.x + d_v1.x) * (value / normalization);
+                    debug_image[ky * camera.width + kx] += (d_v0[DIM_SELECT] + d_v1[DIM_SELECT]) * (value / normalization);
                 }
         }
 
