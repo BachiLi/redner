@@ -1223,9 +1223,9 @@ struct warp_derivatives_accumulator {
                 );
 
             DCamera d_camera(nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr);
-            Vector2 du_d_screen_pos;
+            Vector2 du_d_screen_pos(0, 0);
             d_sample_primary_ray(*camera, screen_pos, du_d_ray, d_camera, &du_d_screen_pos);
-            Vector2 dv_d_screen_pos;
+            Vector2 dv_d_screen_pos(0, 0);
             d_sample_primary_ray(*camera, screen_pos, dv_d_ray, d_camera, &dv_d_screen_pos);
 
             dv_d_local_pos = expand(dv_d_screen_pos * (Real(1.0) / Vector2{camera->width, camera->height}));
@@ -1348,13 +1348,11 @@ struct warp_derivatives_accumulator {
             atomic_add(&d_shapes[primary_isect.shape_id].vertices[3 * vidxs[2]],
                     -d_primary_v_p[2]);
             
-            /* TODO: DEBUG IMAGE 
+            /* TODO: DEBUG IMAGE */
             if (primary_isect.shape_id == SHAPE_SELECT && debug_image != nullptr)
                 debug_image[pixel_id] += -(d_primary_v_p[0][DIM_SELECT] +
                                            d_primary_v_p[1][DIM_SELECT] +
                                            d_primary_v_p[2][DIM_SELECT]);
-            */
-
         }
 
         auto primary_vec = primary_point.position - primary_ray.org;
