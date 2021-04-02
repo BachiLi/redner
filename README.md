@@ -10,8 +10,7 @@ take a look at following papers:
 ## Edge-sampling
 ![](https://people.csail.mit.edu/tzumao/diffrt/teaser.jpg)
 [Differentiable Monte Carlo Ray Tracing through Edge Sampling](https://people.csail.mit.edu/tzumao/diffrt/), Tzu-Mao Li, Miika Aittala, Fredo Durand, Jaakko Lehtinen.
-Since the submission we have improved the renderer quite a bit. In particular we implemented a CUDA backend and accelerated
-the continuous derivatives significantly by replacing automatic differentiation with manually-derived derivatives. See Tzu-Mao Li's [thesis](https://people.csail.mit.edu/tzumao/phdthesis/phdthesis.pdf) for even more details. Also see the "News" section below for the changelog.
+See Tzu-Mao Li's [thesis](https://people.csail.mit.edu/tzumao/phdthesis/phdthesis.pdf) for even more details.
 
 ## Warped-area sampling (WAS)
 ![](https://www.saipraveenb.com/projects/was-2020/teaser.png)
@@ -25,6 +24,8 @@ Clone this repository and run:
 ```
 python setup.py install
 ```
+
+It is generally advisable to use a new environment to avoid overwriting an existing version of redner.
 
 ## Documentation
 
