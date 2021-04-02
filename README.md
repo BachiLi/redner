@@ -39,7 +39,7 @@ The new tests `tests/test_single_triangle_was.py` and `tests/test_shadow_blocker
 
 ## News
 
-04/01/2021 - Now supports both differentiable rendering methods. Swap between `integrator=pyredner.integrators.EdgeSamplingIntegrator` `integrator=pyredner.integrators.WarpedAreaSampling` to quickly try the different methods.
+04/01/2021 - Now supports both differentiable rendering methods. Swap between `integrator=pyredner.integrators.EdgeSamplingIntegrator` `integrator=pyredner.integrators.WarpFieldIntegrator` to quickly try the different methods.
 
 ## Dependencies
 
