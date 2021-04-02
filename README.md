@@ -15,7 +15,23 @@ See Tzu-Mao Li's [thesis](https://people.csail.mit.edu/tzumao/phdthesis/phdthesi
 ## Warped-area sampling (WAS)
 ![](https://www.saipraveenb.com/projects/was-2020/teaser.png)
 [Unbiased Warped-area Sampling for Differentiable Rendering](https://www.saipraveenb.com/projects/was-2020/), Sai Praveen Bangaru, Tzu-Mao Li, Fredo Durand.
+The following files contain the implementation of the paper:
 
+ - `pathtracer_was.h` WAS pathtracer code.
+ - `warp_common.h` Weight, gradient of weight and Jacobian computation.
+ - `warp_aux.h` Auxiliary ray sampling and PDF computation.
+ - `warp_cv.h` Control variates computation (primary and aux).
+ - `warp_rr.h` Russian roulette computation.
+
+Additional features:
+ - `vmf.h` von-Mises Fisher lights (soft, differentiable directional lighting)
+
+### Performance & Stability considerations
+ - Meshes must contain atleast 1 interior vertex for the boundary term to work. For example, for a flat square, use 4 faces with a vertex at the center rather than 2 faces.
+ - `pyredner.integrators.WarpFieldIntegrator()` is currently CPU-only and can be much slower than the GPU-based `pyredner.integrators.EdgeSamplingIntegrator()`, especially for simple scenes. Refer to the paper to understand scenarios where `pyredner.integrators.WarpFieldIntegrator()` provides better results than `pyredner.integrators.EdgeSamplingIntegrator()`, and vice-versa.
+
+The following comparison between edge-sampling and warped-area sampling demonstrates the relative strengths of the two techniques.
+![image](https://user-images.githubusercontent.com/31557731/113451243-99a25c80-93cf-11eb-913b-828bc0c0258f.png)
 
 ## Installation
 This experimental branch must be compiled from source.
@@ -39,7 +55,7 @@ The new tests `tests/test_single_triangle_was.py` and `tests/test_shadow_blocker
 
 ## News
 
-04/01/2021 - Now supports both differentiable rendering methods. Swap between `integrator=pyredner.integrators.EdgeSamplingIntegrator` `integrator=pyredner.integrators.WarpFieldIntegrator` to quickly try the different methods.
+04/01/2021 - Now supports both differentiable rendering methods. Swap between `integrator=pyredner.integrators.EdgeSamplingIntegrator()` and `integrator=pyredner.integrators.WarpFieldIntegrator()` to quickly try the different methods.
 
 ## Dependencies
 
@@ -95,5 +111,6 @@ Please cite one or both of these papers, if you use this repository.
   publisher = {ACM},
 }
 ```
+
 
 If you have any questions/comments/bug reports, feel free to open a github issue or e-mail to the authors Tzu-Mao Li (tzumao@mit.edu) and Sai Bangaru (sbangaru@mit.edu)
