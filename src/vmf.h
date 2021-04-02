@@ -158,12 +158,10 @@ inline void d_vmf_eval(const VonMisesFisherLight &vmf_light,
     auto dv_dxy = Vector2{dv_dlocal_dir_y * local_dir_dx.y,
                           dv_dlocal_dir_y * local_dir_dy.y};
 
-    // val = get_texture_value(vmf_light.values, uv, du_dxy, dv_dxy)
     auto d_uv = Vector2{0, 0};
     auto d_du_dxy = Vector2{0, 0};
     auto d_dv_dxy = Vector2{0, 0};
-    /*d_get_texture_value(vmf_light.values, uv, du_dxy, dv_dxy, d_output,
-        d_vmf_light.values, d_uv, d_du_dxy, d_dv_dxy);*/
+
     Real d_kappa = Real(0.f);
     Vector3 d_intensity = Vector3(0.f, 0.f, 0.f);
 

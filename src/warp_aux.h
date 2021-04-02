@@ -166,9 +166,6 @@ Real aux_primary_pdf( const KernelParameters& kernel_parameters,
     Vector2 local_sample;
     sample_to_local_pos(camera, sample, local_sample);
 
-    // TODO: Split aux_sampler and the distribution into modules...
-    // Current structure is very entangled
-    // Preferably move into a different file.
     auto local_aux_sample = aux_primary_local_pos(kernel_parameters,
                                                 camera, 
                                                 local_sample, 
@@ -177,9 +174,7 @@ Real aux_primary_pdf( const KernelParameters& kernel_parameters,
     auto logpdf = Real(0.5) * ((length_squared(local_sample - local_aux_sample)) / square(auxPrimaryGaussianStddev));
     auto pdf = exp(-logpdf);
 
-    // We ever so slightly adjust the pdf to avoid infinities. 
-    // Theoretically it can be proven that the error caused by
-    // this regularizer decreases (atleast) linearly in epsilon.
+    // We ever so slightly adjust the pdf to avoid infinities.
     auto adjustedPdf = (pdf * normalizer) + kernel_parameters.auxPdfEpsilonRegularizer;
     return adjustedPdf;
 }

@@ -1176,7 +1176,6 @@ namespace vfield {
                         }
 
                         // Compute perturbed ray bundle around the bsdf ray
-                        // TODO: Add an option for partial sampling..
                         aux_bundle_sample_primary(kernel_parameters,
                                     scene,
                                     primary_active_pixels,

@@ -489,7 +489,7 @@ struct warp_derivatives_accumulator {
                 d_aux_v_p[1] = (grad_xg) * uvt[0];
                 d_aux_v_p[2] = (grad_xg) * uvt[1];
 
-                /* TODO: DEBUG IMAGE */
+                /* TODO: Debug code */
                 if (t_aux_isect.shape_id == SHAPE_SELECT && debug_image != nullptr)
                     debug_image[pixel_id] += grad_xg[DIM_SELECT];
 

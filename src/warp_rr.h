@@ -74,7 +74,14 @@ Real _aux_sample_sample_counts_pdf(KernelParameters kernel_parameters,
     return pow(1 - p, k - 1);
 }
 
-// TODO: Add comments and citation link.
+/* 
+ * This method implements the Russian roulette debiasing technique to convert
+ * a consistent estimator into an unbiased one. This estimator works by first
+ * sampling a number of rays from a geometric distribution and weighting it appropriately.
+ * 
+ * More info on the generalized Russian roulette de-biasing method here:
+ * https://arxiv.org/abs/1005.2228
+ */ 
 DEVICE
 inline
 void compute_rr_debiased_normalization(

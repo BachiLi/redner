@@ -628,25 +628,6 @@ class RenderFunction(torch.autograd.Function):
         else:
             current_index += 1
 
-        # Options
-        """
-        TODO: Remove
-        num_samples = args[current_index]
-        current_index += 1
-        max_bounces = args[current_index]
-        current_index += 1
-        channels = args[current_index]
-        current_index += 1
-        sampler_type = args[current_index]
-        current_index += 1
-        use_primary_edge_sampling_ = args[current_index]
-        current_index += 1
-        use_secondary_edge_sampling_ = args[current_index]
-        current_index += 1
-        sample_pixel_center = args[current_index]
-        current_index += 1
-        """
-
         vmflight = None
         if args[current_index] is not None:
             kappa = args[current_index]
@@ -694,26 +675,10 @@ class RenderFunction(torch.autograd.Function):
                              envmap,
                              vmflight,
                              device.type == 'cuda',
-                             device_index) # TODO: Remove
-                             #use_primary_edge_sampling,
-                             #use_secondary_edge_sampling)
+                             device_index)
         time_elapsed = time.time() - start
         if get_print_timing():
             print('Scene construction, time: %.5f s' % time_elapsed)
-
-        # check that num_samples is a tuple
-        # if isinstance(num_samples, int):
-        #     num_samples = (num_samples, num_samples)
-
-        """
-        TODO: Remove.
-        options = redner.RenderOptions(seed[0],
-                                       num_samples[0],
-                                       max_bounces,
-                                       channels,
-                                       sampler_type,
-                                       sample_pixel_center)
-        """
 
         ctx = Context()
         # ctx.channels = channels
@@ -728,8 +693,6 @@ class RenderFunction(torch.autograd.Function):
         ctx.envmap = envmap
         ctx.vmflight = vmflight
         ctx.scene = scene
-        #ctx.options = options TODO: Remove
-        #ctx.num_samples = num_samples TODO: Remove
         ctx.integrator = integrator
         ctx.device = device
 
@@ -756,8 +719,6 @@ class RenderFunction(torch.autograd.Function):
         envmap = args_ctx.envmap
         vmflight = args_ctx.vmflight
         materials = args_ctx.materials
-        # num_samples = args_ctx.num_samples TODO: Remove
-        # options = args_ctx.options TODO: Remove
         integrator = args_ctx.integrator
         resolution = args_ctx.resolution
         viewport = args_ctx.viewport
@@ -1384,14 +1345,6 @@ class RenderFunction(torch.autograd.Function):
             ret_list.append(None)
             ret_list.append(None)
 
-        # TODO: Remove.
-        #ret_list.append(None) # num samples
-        #ret_list.append(None) # num bounces
-        #ret_list.append(None) # channels
-        #ret_list.append(None) # sampler type
-        #ret_list.append(None) # use_primary_edge_sampling
-        #ret_list.append(None) # use_secondary_edge_sampling
-        #ret_list.append(None) # sample_pixel_center
         ret_list.append(None) # integrator
         ret_list.append(None) # device
 
