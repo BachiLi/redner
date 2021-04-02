@@ -12,7 +12,7 @@ struct Scene;
 #include "ltc.inc"
 
 #include "warp_common.h"
-
+#include "warp_aux.h"
 
 void accumulate_primary_control_variates(const Scene& scene,
                                  const KernelParameters& kernel_parameters,
@@ -36,15 +36,18 @@ void accumulate_aux_control_variate(
         const KernelParameters& kernel_parameters,
         const int& pixel_id,
 
+        const Shape* shapes,
         const CameraSample& camera_sample,
-        const Intersection& primary_point,
+        const SurfacePoint& primary_point,
         const Intersection& primary_isect,
         const Ray& primary_ray,
         const Real weight,
         const Camera* camera,
         const std::vector<AuxSample>& v_aux_samples,
         const int& num_aux_rays,
+
         const Real loss_contrib,
+        const Real inv_normalization,
 
         DShape* d_shapes,
         float* debug_image
@@ -53,15 +56,14 @@ void accumulate_aux_control_variate(
 
     Vector2 local_pos;
     Vector2 screen_pos;
-    if (is_first_bounce) {
-        sample_to_local_pos(*camera,
-                            camera_sample,
-                            local_pos);
+    sample_to_local_pos(*camera,
+                        camera_sample,
+                        local_pos);
 
-        local_to_screen_pos(*camera,
-                            pixel_id,
-                            local_pos, screen_pos);
-    }
+    local_to_screen_pos(*camera,
+                        pixel_id,
+                        local_pos, screen_pos);
+    
 
     // Grab the primary intersection and it's triangle vertices.
     auto vidxs = get_indices(shapes[primary_isect.shape_id], primary_isect.tri_id);
@@ -216,17 +218,17 @@ void accumulate_aux_control_variate(
         Vector3 control_mean_p2 = Vector3{ trace(A_v_x), trace(A_v_y), trace(A_v_z) };
 
         d_primary_v_p[0] += (control_p0 - control_mean_p0) * 
-                            inv_normalization.at(num_aux_rays - 1) * 
+                            inv_normalization * 
                             Real(M_PI) * 2 * sigma * sigma * 
                             loss_contrib;
 
         d_primary_v_p[1] += (control_p1 - control_mean_p1) * 
-                            inv_normalization.at(num_aux_rays - 1) * 
+                            inv_normalization * 
                             Real(M_PI) * 2 * sigma * sigma * 
                             loss_contrib;
 
         d_primary_v_p[2] += (control_p2 - control_mean_p2) * 
-                            inv_normalization.at(num_aux_rays - 1) * 
+                            inv_normalization * 
                             Real(M_PI) * 2 * sigma * sigma * 
                             loss_contrib;
     }

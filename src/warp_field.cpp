@@ -22,39 +22,8 @@ struct Scene;
 #include <thrust/binary_search.h>
 #include <thrust/remove.h>
 
-
-struct aux_sample_count_sampler {
-    DEVICE void operator()(int idx) {
-        const auto &pixel_id = active_pixels[idx];
-        const auto num_samples = _aux_sample_sample_counts(
-                                    kernel_parameters, aux_count_samples[pixel_id]);
-        aux_sample_counts[pixel_id] = static_cast<uint>(num_samples);
-    }
-
-    const int* active_pixels;
-    const KernelParameters kernel_parameters;
-    const AuxCountSample* aux_count_samples;
-    uint* aux_sample_counts;
-
-};
-
-void aux_sample_sample_counts( const KernelParameters& kernel_parameters,
-                    const Scene& scene,
-                    const BufferView<int> &active_pixels,
-                    const BufferView<AuxCountSample> &aux_count_samples,
-                    BufferView<uint> &aux_sample_counts) {
-    parallel_for(aux_sample_count_sampler{
-        active_pixels.begin(),
-        kernel_parameters,
-        aux_count_samples.begin(),
-        aux_sample_counts.begin()
-    }, active_pixels.size(), scene.use_gpu);
-}
-
 /*
- * This accumulator is intended to be called AFTER path_contribution.
- * It relies on d_bsdf_wos and d_light_wos
- * which are computed in the d_path_contribution pass. 
+ * TODO: Comment. 
  */
 struct warp_derivatives_accumulator {
     DEVICE void operator()(int idx) {
@@ -117,7 +86,7 @@ struct warp_derivatives_accumulator {
                                 local_pos, screen_pos);
         }
 
-        // Load auxillary ray data.
+        // Load aux ray data.
         std::vector<Ray> v_aux_rays;
         std::vector<Intersection> v_aux_isects;
         std::vector<SurfacePoint> v_aux_points;
@@ -129,7 +98,7 @@ struct warp_derivatives_accumulator {
             v_aux_samples.assign(&aux_samples[max_aux_rays * pixel_id], &aux_samples[max_aux_rays * pixel_id + (max_aux_rays)]);
         }
 
-        // Compute auxillary ray properties.
+        // Buffers for aux ray properties.
         std::vector<Real> v_aux_weights(num_aux_rays, 0);
         std::vector<Vector3> v_aux_div_weights(num_aux_rays, Vector3(0.0, 0.0, 0.0));
 
@@ -242,61 +211,34 @@ struct warp_derivatives_accumulator {
         }
 
         /* 
-         * Compute the inverse normalization. This is the main source of bias.
+         * Compute the normalization terms: 
+         * (i) 'inv_normalization' := reciprocal of the weight integral (normalization) 1/\int_{x'}(w(x, x'))
+         * (ii) 'grad_inv_normalization' := derivative of this reciprocal (\int{x'}grad_w(x, x'))/\int_{x'}(w^2(x, x'))
+         *
+         * This is the main source of bias.
          * To handle this we provide two modes simple monte carlo (biased) and 
          * RR (Russian Roulette) (unbiased but higher variance)
          */
 
         std::vector<Real> inv_normalization(num_aux_rays, 0);
         std::vector<Vector3> grad_inv_normalization(num_aux_rays, Vector3{0.0, 0.0, 0.0});
-
         if(kernel_parameters.isBasicNormal){
             // Normalization is 1 (per ray) if the distribution is standard normal.
-            normalization = kernel_parameters.numAuxillaryRays;
+            normalization = num_aux_rays * 1;
             div_normalization = Vector3{0, 0, 0};
         }
 
-        /* 
-         * Russian roulette estimation.
-         * Estimates quantites using Russian roulette that are otherwise biased:
-         * (i) 'inv_normalization' := reciprocal of the weight integral (normalization) 1/\int_{x'}(w(x, x'))
-         * (ii) 'grad_inv_normalization' := derivative of this reciprocal (\int{x'}grad_w(x, x'))/\int_{x'}(w^2(x, x'))
-         */
         if (kernel_parameters.rr_enabled) {
-            std::vector<Real> _acc_wt_sum = std::vector<Real>(num_aux_rays, 0.0);
-            std::vector<Vector3> _acc_grad_wt_sum = std::vector<Vector3>(num_aux_rays, Vector3{0.0, 0.0, 0.0});
-            for(int i = 0; i < num_aux_rays; i++) {
-                _acc_wt_sum.at(i) = ((i != 0) ? _acc_wt_sum.at(i - 1) : 0) + (v_aux_weights.at(i) / v_aux_pdfs.at(i));
-                _acc_grad_wt_sum.at(i) = ((i != 0) ? _acc_grad_wt_sum.at(i - 1) : Vector3{0.0, 0.0, 0.0}) + (v_aux_div_weights.at(i) / v_aux_pdfs.at(i));
-            }
-
-            Real Z = 0.0;
-            Vector3 grad_Z = Vector3{0.0, 0.0, 0.0};
-            int batchsz = kernel_parameters.batch_size;
-            for(int k = num_aux_rays - 1; k >= 0; k--) {
-                // Compute the estimator values cumulatively for each batch.
-                if (k % batchsz == 0) {
-                    // Compute the harmonic difference of the pdfs of DeltaX_i and DeltaX_i+1.
-                    Real pdf_i = _aux_sample_sample_counts_pdf(kernel_parameters, k + batchsz);
-                    Real pdf_next_i = _aux_sample_sample_counts_pdf(kernel_parameters, k + 2 * batchsz);
-                    Real effective_pdf = (pdf_i * pdf_next_i) / (pdf_next_i - pdf_i);
-
-                    // The last element in the sequence occurs only once. The effective pdf is the same as the pdf.
-                    if (k == num_aux_rays - batchsz)
-                        effective_pdf = pdf_i;
-
-                    int kidx = k + batchsz - 1;
-                    Z = Z + (1.0 / (_acc_wt_sum.at(kidx))) / effective_pdf;
-                    grad_Z = grad_Z + ( (_acc_grad_wt_sum.at(kidx)) / ((_acc_wt_sum.at(kidx)) * (_acc_wt_sum.at(kidx))) ) / effective_pdf;
-
-                    for(int offset = 0; offset < batchsz; offset++){
-                        inv_normalization.at(k + offset) = Z;
-                        grad_inv_normalization.at(k + offset) = grad_Z;
-                    }
-                }
-            }
-
+            // Russian roulette debiased estimator. Slower and higher variance, but unbiased.
+            compute_rr_debiased_normalization(kernel_parameters,
+                        num_aux_rays,
+                        v_aux_weights,
+                        v_aux_pdfs,
+                        v_aux_div_weights,
+                        inv_normalization,
+                        grad_inv_normalization);
         } else {
+            // Consistent estimator. Robust and bias low enough for most applications.
             for(int i = 0; i < num_aux_rays; i++){
                 inv_normalization.at(i) =  1.0 / normalization;
                 grad_inv_normalization.at(i) = div_normalization * (1.0 / normalization) * (1.0 / normalization);
@@ -322,6 +264,7 @@ struct warp_derivatives_accumulator {
             accumulate_aux_control_variate(
                 kernel_parameters,
                 pixel_id,
+                shapes,
                 camera_samples[pixel_id],
                 primary_point,
                 primary_isect,
@@ -331,9 +274,10 @@ struct warp_derivatives_accumulator {
                 v_aux_samples,
                 num_aux_rays,
                 f,
+                inv_normalization.at(num_aux_rays - 1),
                 d_shapes,
                 debug_image
-            )
+            );
         }
 
         // This is the derivative of the contribution w.r.t 

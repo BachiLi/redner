@@ -89,9 +89,10 @@ set(SRCS src/aabb.h
          src/vector.h
          src/vmf.h
          src/warp_common.h
-         src/warp_field.h
+         src/warp_aux.h
          src/warp_cv.h
-         src/aux.h
+         src/warp_field.h
+         src/warp_rr.h
          xatlas/xatlas.h
          
 
@@ -122,9 +123,10 @@ set(SRCS src/aabb.h
          src/shape_adjacency.cpp
          src/sobol_sampler.cpp
          src/vmf.cpp
-         src/warp_field.cpp
+         src/warp_aux.cpp
          src/warp_cv.cpp
-         src/aux.cpp
+         src/warp_field.cpp
+         src/warp_rr.cpp
          xatlas/xatlas.cpp)
 
 if(REDNER_CUDA)

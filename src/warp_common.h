@@ -91,7 +91,9 @@ using AuxCountSample = TAuxCountSample<Real>;
 using KernelParameters = TKernelParameters<Real>;
 
 
-/* Vector3 helpers */
+/* 
+    Vector3 helpers
+*/
 
 template <typename T>
 DEVICE
@@ -109,40 +111,6 @@ inline TVector3<T> vec2_as_vec3(const TVector2<T> v2) {
 /* 
     Utility functions to help with estimating warp quantities
 */
-
-
-DEVICE
-inline
-int _aux_sample_sample_counts(KernelParameters kernel_parameters,
-                                AuxCountSample sample) {
-    // Sample N according to some distribution.
-    int g = kernel_parameters.batch_size; // granularity.
-    Real p = kernel_parameters.rr_geometric_p; // Geometric distribution probability
-
-    int max_val = kernel_parameters.numAuxillaryRays;
-    
-    auto k = static_cast<int>(floor(log(1 - sample.u) / log(1 - p))) + 1;
-
-    if(!isfinite(k)) // Handle numerical infs and nans..
-        return max_val;
-
-    // Clamp to maximum allocated space.
-    // NOTE: Does not account for truncation bias. (This should be fixed in a future commit)
-    return std::max(g, std::min(k * g, max_val));
-}
-
-DEVICE
-inline
-Real _aux_sample_sample_counts_pdf(KernelParameters kernel_parameters, 
-                                    int num_samples) {
-    // Return pdf of the distribution.
-    int g = kernel_parameters.batch_size; // granularity.
-    Real p = kernel_parameters.rr_geometric_p; // Geometric distribution probability
-
-    int k = (num_samples) / g;
-
-    return pow(1 - p, k - 1);
-}
 
 DEVICE
 inline

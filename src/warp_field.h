@@ -16,8 +16,9 @@ struct Scene;
 #include "ltc.inc"
 #include "shape_adjacency.h"
 
-#include "aux.h"
+#include "warp_aux.h"
 #include "warp_cv.h"
+#include "warp_rr.h"
 
 #include <memory>
 
@@ -27,19 +28,6 @@ struct Scene;
 #include <thrust/transform_scan.h>
 #include <thrust/binary_search.h>
 #include <thrust/remove.h>
-
-
-/*
- * Samples a stopping count 'N' for the 
- * number of auxillary rays to process.
- * This process is part of the Russian Roulette debiasing method.
- */
-
-void aux_sample_sample_counts( const KernelParameters& kernel_parameters,
-                    const Scene& scene,
-                    const BufferView<int> &active_pixels,
-                    const BufferView<AuxCountSample> &aux_count_samples,
-                    BufferView<uint> &aux_sample_counts);
 
 
 /*
