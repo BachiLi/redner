@@ -1,66 +1,44 @@
-# redner: Differentiable rendering without approximation
+# redner-experimental: Unbiased differentiable rendering
 
-![](https://people.csail.mit.edu/tzumao/diffrt/teaser.jpg)
+This is an experimental branch of redner that supports two different techniques for differentiable rendering.
 
 redner is a differentiable renderer that can take the derivatives of rendering outputs with respect to arbitrary scene parameters, that is, you can backpropagate from the image to your 3D scene. One of the major usages of redner is inverse rendering (hence the name redner) through gradient descent. What sets redner apart are: 1) it computes correct rendering gradients stochastically without any approximation by properly considering the discontinuities, and 2) it has a physically-based mode -- which means it can simulate photons and produce realistic lighting phenomena, such as shadow and global illumination, and it handles the derivatives of these features correctly. You can also use redner in a [fast deferred rendering mode](https://colab.research.google.com/github/BachiLi/redner/blob/master/tutorials/fast_local_shading.ipynb) for local shading: in this mode it still has correct gradient estimation and more elaborate material models compared to most differentiable renderers out there.
 
-For more details on the renderer, what it can do, and the techniques it use for computing the derivatives, please
-take a look at the paper:
+For more details on the rendering methods, what they can do, and the techniques they use for computing the derivatives, please
+take a look at following papers:
+
+## Edge-sampling
+![](https://people.csail.mit.edu/tzumao/diffrt/teaser.jpg)
 [Differentiable Monte Carlo Ray Tracing through Edge Sampling](https://people.csail.mit.edu/tzumao/diffrt/), Tzu-Mao Li, Miika Aittala, Fredo Durand, Jaakko Lehtinen.
 Since the submission we have improved the renderer quite a bit. In particular we implemented a CUDA backend and accelerated
 the continuous derivatives significantly by replacing automatic differentiation with manually-derived derivatives. See Tzu-Mao Li's [thesis](https://people.csail.mit.edu/tzumao/phdthesis/phdthesis.pdf) for even more details. Also see the "News" section below for the changelog.
 
+## Warped-area sampling (WAS)
+![](https://www.saipraveenb.com/projects/was-2020/teaser.png)
+[Unbiased Warped-area Sampling for Differentiable Rendering](https://www.saipraveenb.com/projects/was-2020/), Sai Praveen Bangaru, Tzu-Mao Li, Fredo Durand.
+
+
 ## Installation
+This experimental branch must be compiled from source.
+Clone this repository and run:
 
-With either [PyTorch](https://pytorch.org/) (any version >= 1.0) or [TensorFlow](https://www.tensorflow.org/) (version >= 2.0) installed in your current Python environment. For GPU accelerated version (Linux and Windows, CUDA version >= 10.0):
 ```
-pip install redner-gpu
+python setup.py install
 ```
-otherwise (Windows, Linux and OS X): 
-```
-pip install redner
-```
-Windows version only supports PyTorch and not TensorFlow at the moment.
-
-You can also build from source. See the [wiki](https://github.com/BachiLi/redner/wiki/Installation) for building instructions.
 
 ## Documentation
 
 A good starting point to learn how to use redner is to look at the [wiki](https://github.com/BachiLi/redner/wiki). The API documetation is [here](https://redner.readthedocs.io/en/latest/).
 You can also take a look at the tests directories ([PyTorch](tests) and [TensorFlow](tests_tensorflow)) to have some ideas.
 
+This branch differs slightly from the master, although the same API is supported for backwards compatibility.
+To use the new renderer use the `serialize_scene_class(scene, integrator)` method instead of `serialize_scene(scene, *args)` to specify your choice of integrator (and its parameters).
+
+The new tests `tests/test_single_triangle_was.py` and `tests/test_shadow_blocker_was.py` demonstrate this new feature.
+
 ## News
 
-06/12/2020 - Python 3.8 support.  
-04/01/2020 - Added a camera distortion model.  
-03/17/2020 - Pip package for Windows! Currently only with PyTorch support. TensorFlow support is pending with some compilation issues.  
-02/27/2020 - Fixed a bug in BRDF derivatives. This affects normal mapping the most. Thanks [Markus Worchel](https://github.com/mworchel) again for reporting this.  
-02/02/2020 - Fixed a serious bug for G-buffer rendering (https://github.com/BachiLi/redner/issues/93). Thanks [Markus Worchel](https://github.com/mworchel) for reporting this.  
-02/01/2020 - Preliminary Windows support for GPU is available thanks to [Markus Worchel](https://github.com/mworchel) again.  
-01/08/2020 - Significantly improves the memory usage of mipmapping. Now you can use large textures (say 4096x4096) relatively safely.  
-12/15/2019 - Fixed a GC-related bug on the PyTorch rendering code in 0.1.30. Please update.  
-12/12/2019 - Preliminary Windows support (CPU-only) is available thanks to the contribution of [Markus Worchel](https://github.com/mworchel).  
-12/09/2019 - Added many tutorials in wiki using Google colab. Added a sphinx-generated documentation.  
-12/09/2019 - Fixed a bug in the Wavefront obj loader. Thanks Dejan Azinović for reporting!  
-12/01/2019 - Redo the build systems and setup Python wheel installation. Redner is now on PyPI ([https://pypi.org/project/redner-gpu/](https://pypi.org/project/redner-gpu/) and [https://pypi.org/project/redner/](https://pypi.org/project/redner/)).  
-11/04/2019 - Added a "generic texture" field in the material which can have arbitrary number of channels. This can be useful for deep learning application where the texture is generated by a network, and the output is fed into another network for further processing. See [test_multichannels.py](https://github.com/BachiLi/redner/blob/master/tests/test_multichannels.py) for usages. Thanks [François Ruty](https://github.com/francoisruty) for the suggestion and the help on implementation.   
-11/04/2019 - Fixed several bugs in the OBJ/Mitsuba loaders introduced by the `uv_indices` and `normal_indices` change.  
-10/19/2019 - Added vertex color support. See [test_vertex_color.py](https://github.com/BachiLi/redner/blob/master/tests/test_vertex_color.py).  
-10/08/2019 - Added automatic uv computation through the [xatlas](https://github.com/jpcy/xatlas) library. See the `compute_uvs` function in shape.py and test_compute_uvs.py.  
-10/08/2019 - Slightly changed the Shape class interface. The constructor order is different and it now takes extra 'uv_indices' and 'normal_indices' arguments for dealing with seams in UV mapping and obj loading. See pyredner/shape.py and tutorial 2.  
-09/22/2019 - We now handle inconsistencies between shading normals and geometry normals more gracefully (instead of just return zero in most cases). This helps with rendering models in the wild, say, models in ShapeNet.  
-09/21/2019 - Fixed a serious buffer overrun bug in the deferred rendering code when there is no radiance output channel. If things didn't work for you, maybe try again.  
-08/16/2019 - Added docker files for easier installation. Thanks [Seyoung Park](https://github.com/SuperShinyEyes) for the contribution again. Also I significantly improved the [wiki installation guide](https://github.com/BachiLi/redner/wiki).  
-08/13/2019 - Added normal map support. See tests/test_teapot_normal_map.py.  
-08/10/2019 - Significantly simplified the derivatives accumulation code (segmented reduction -> atomics). Also GPU backward pass got 20~30% speedup.  
-08/07/2019 - Fixed a roughness texture bug.  
-07/27/2019 - Tensorflow 1.14 support! Currently only support eager execution. We will support graph execution after tensorflow 2.0 becomes stable. See tests_tensorflow for examples (I recommend starting from tests_tensorflow/test_single_triangle.py). The CMake files should automatically detect tensorflow in python and install corresponding files. Tutorials are work in progress. Lots of thanks go to [Seyoung Park](https://github.com/SuperShinyEyes) for the contribution!  
-06/25/2019 - Added orthographic cameras (see examples/two_d_mesh.py).  
-05/13/2019 - Fixed quite a few bugs related to camera derivatives. If something didn't work for you before, maybe try again.  
-04/28/2019 - Added QMC support (see tests/test_qmc.py and the documentation in pyredner.serialize_scene()).  
-04/01/2019 - Now support multi-GPU (see pyredner.set\_device).  
-03/31/2019 - Brought back the hierarchical edge sampling method in the paper.  
-02/02/2019 - The [wiki](https://github.com/BachiLi/redner/wiki) now contains a series of tutorial. The plan is to further expand the examples.  
+04/01/2021 - Now supports both differentiable rendering methods. Swap between `integrator=pyredner.integrators.EdgeSamplingIntegrator` `integrator=pyredner.integrators.WarpedAreaSampling` to quickly try the different methods.
 
 ## Dependencies
 
@@ -79,23 +57,18 @@ redner depends on a few libraries/systems, which are all included in the reposit
 
 ## Roadmap
 
-The current development plan is to enhance the renderer. Following features will be added in the near future (not listed in any particular order):
-- More BSDFs e.g. glass/GGX
-- Support for edge shared by more than two triangles
-  (The code currently assumes every triangle edge is shared by at most two triangles.
-   If your mesh doesn't satisfy this, you can preprocess it in other mesh processing softwares such as [MeshLab](http://www.meshlab.net))
-- Source-to-source automatic differentiation
-- EWA filtering, covariance tracing
-- Russian roulette
-- Distribution effects: depth of field/motion blur
-- Proper pixel filter (currently only support 1x1 box filter)
-- Volumetric path tracing (e.g. [http://www.cs.cornell.edu/projects/translucency/#acquisition-sa13](http://www.cs.cornell.edu/projects/translucency/#acquisition-sa13))
-- Spectral rendering
-- Gradient visualization
-- Spherical light sources
+The current WAS implementation is restricted to a smaller set of features compared to the master branch, but we intend to expand its capabilities to align with the master branch and eventually merge.
+
+Current roadmap before merging:
+- All reconstruction filters. WAS is currently restricted to using the Gaussian filter (the default for this branch).
+- GPU support. (This implementation is currently CPU-only since it uses some STL classes)
+- Tensorflow support. (This branch will crash with tensorflow since it does not contain the necessary hooks)
+- Windows support. (Not tested)
 
 ## Citation
+Please cite one or both of these papers, if you use this repository.
 
+### Edge-sampling
 ```
 @article{Li:2018:DMC,
     title = {Differentiable Monte Carlo Ray Tracing through Edge Sampling},
@@ -108,4 +81,18 @@ The current development plan is to enhance the renderer. Following features will
 }
 ```
 
-If you have any questions/comments/bug reports, feel free to open a github issue or e-mail to the author Tzu-Mao Li (tzumao@mit.edu)
+### Warped-area sampling
+```
+@article{bangaru2020warpedsampling,
+  title = {Unbiased Warped-Area Sampling for Differentiable Rendering},
+  author = {Bangaru, Sai and Li, Tzu-Mao and Durand, Fr{\'e}do},
+  journal = {ACM Trans. Graph.},
+  volume = {39},
+  number = {6}, 
+  pages = {245:1--245:18},
+  year = {2020},
+  publisher = {ACM},
+}
+```
+
+If you have any questions/comments/bug reports, feel free to open a github issue or e-mail to the authors Tzu-Mao Li (tzumao@mit.edu) and Sai Bangaru (sbangaru@mit.edu)
