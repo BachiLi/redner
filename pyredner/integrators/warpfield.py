@@ -18,7 +18,7 @@ class KernelParameters:
         asymptoteBoundaryTemp = 1.0,
         asymptoteGamma = 2,
         pixelBoundaryMultiplier = 0,
-        numAuxillaryRays = 8,
+        numAuxiliaryRays = 8,
         rrEnable = False,
         rrGeometricP = 0.4,
         batchSize = 4,
@@ -31,7 +31,7 @@ class KernelParameters:
         self.asymptoteBoundaryTemp = asymptoteBoundaryTemp
         self.asymptoteGamma = asymptoteGamma
         self.pixelBoundaryMultiplier = pixelBoundaryMultiplier
-        self.numAuxillaryRays = numAuxillaryRays
+        self.numAuxiliaryRays = numAuxiliaryRays
         self.rrEnable = rrEnable
         self.rrGeometricP = rrGeometricP
         self.batchSize = batchSize
@@ -46,7 +46,7 @@ class KernelParameters:
             self.asymptoteBoundaryTemp,
             self.asymptoteGamma,
             self.pixelBoundaryMultiplier,
-            self.numAuxillaryRays,
+            self.numAuxiliaryRays,
             self.rrEnable,
             self.rrGeometricP,
             self.batchSize,

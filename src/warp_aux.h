@@ -124,7 +124,7 @@ Ray aux_sample_primary( const KernelParameters &kernel_parameters,
                         sample,
                         local_pos);
 
-    // Use the helper function to perform auxillary sampling on the
+    // Use the helper function to perform auxiliary sampling on the
     // pixel surface.
     auto aux_local_pos = aux_primary_local_pos(kernel_parameters, camera, local_pos, aux_sample);
 

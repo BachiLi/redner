@@ -30,7 +30,7 @@ struct Scene;
 
 /*
  * Samples a stopping count 'N' for the 
- * number of auxillary rays to process.
+ * number of auxiliary rays to process.
  * This process is part of the Russian Roulette debiasing method.
  */
 
@@ -49,7 +49,7 @@ int _aux_sample_sample_counts(KernelParameters kernel_parameters,
     int g = kernel_parameters.batch_size; // granularity.
     Real p = kernel_parameters.rr_geometric_p; // Geometric distribution probability
 
-    int max_val = kernel_parameters.numAuxillaryRays;
+    int max_val = kernel_parameters.numAuxiliaryRays;
     
     auto k = static_cast<int>(floor(log(1 - sample.u) / log(1 - p))) + 1;
 

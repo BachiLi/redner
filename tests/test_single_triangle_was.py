@@ -90,7 +90,7 @@ integrator = pyredner.integrators.WarpFieldIntegrator(
                 kernel_parameters = pyredner.integrators.KernelParameters(
                                     vMFConcentration=10000,
                                     auxPrimaryGaussianStddev=0.01,
-                                    numAuxillaryRays=8
+                                    numAuxiliaryRays=8
                                 )
              )
 

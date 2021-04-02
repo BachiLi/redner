@@ -11,8 +11,8 @@ struct aux_sampler {
                                         shading_points[pixel_id],
                                         -incoming_rays[pixel_id].dir, // Flip incoming so it's in correct coords.
                                         primary_rays[pixel_id].dir,
-                                        samples[pixel_id * kernel_parameters.numAuxillaryRays + i]);
-                aux_samples[pixel_id * kernel_parameters.numAuxillaryRays + i] = aux_ray;
+                                        samples[pixel_id * kernel_parameters.numAuxiliaryRays + i]);
+                aux_samples[pixel_id * kernel_parameters.numAuxiliaryRays + i] = aux_ray;
         }
     }
     const KernelParameters kernel_parameters;
@@ -65,8 +65,8 @@ struct primary_aux_sampler {
                                         *camera,
                                         pixel_id,
                                         camera_samples[pixel_id],
-                                        samples[pixel_id * kernel_parameters.numAuxillaryRays + i]);
-            aux_samples[pixel_id * kernel_parameters.numAuxillaryRays + i] = aux_ray;
+                                        samples[pixel_id * kernel_parameters.numAuxiliaryRays + i]);
+            aux_samples[pixel_id * kernel_parameters.numAuxiliaryRays + i] = aux_ray;
         }
     }
 
@@ -106,11 +106,11 @@ void aux_bundle_sample_primary( const KernelParameters& kernel_parameters,
 struct aux_antithetic_pair_generator {
     DEVICE void operator()(int idx) {
         auto pixel_id = active_pixels[idx];
-        for(int i = 0; i < kernel_parameters.numAuxillaryRays; i += 2) {
+        for(int i = 0; i < kernel_parameters.numAuxiliaryRays; i += 2) {
             // For every other aux sample, overwrite it with the
             // anti sample of the previous aux sample.
-            auto source_idx = pixel_id * kernel_parameters.numAuxillaryRays + i;
-            auto target_idx = pixel_id * kernel_parameters.numAuxillaryRays + i + 1;
+            auto source_idx = pixel_id * kernel_parameters.numAuxiliaryRays + i;
+            auto target_idx = pixel_id * kernel_parameters.numAuxiliaryRays + i + 1;
             samples[target_idx] = AuxSample{
                 Vector2(samples[source_idx].uv[0], 
                     (

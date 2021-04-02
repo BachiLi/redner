@@ -22,9 +22,7 @@ struct Scene;
 #include <thrust/binary_search.h>
 #include <thrust/remove.h>
 
-/*
- * TODO: Comment. 
- */
+
 struct warp_derivatives_accumulator {
     DEVICE void operator()(int idx) {
         auto pixel_id = active_pixels[idx];
@@ -39,7 +37,7 @@ struct warp_derivatives_accumulator {
             If using Russian roulette, this is the truncation point used
             to allocate a safe amount of memory.
          */
-        const auto max_aux_rays = kernel_parameters.numAuxillaryRays;
+        const auto max_aux_rays = kernel_parameters.numAuxiliaryRays;
 
         /* 
          * Flag to indicate if we're handling primary or secondary bounce.
@@ -216,8 +214,8 @@ struct warp_derivatives_accumulator {
          * (ii) 'grad_inv_normalization' := derivative of this reciprocal (\int{x'}grad_w(x, x'))/\int_{x'}(w^2(x, x'))
          *
          * This is the main source of bias.
-         * To handle this we provide two modes simple monte carlo (biased) and 
-         * RR (Russian Roulette) (unbiased but higher variance)
+         * To handle this we provide two modes simple Monte Carlo (consistent) and Russian roulette
+         * (unbiased but higher variance)
          */
 
         std::vector<Real> inv_normalization(num_aux_rays, 0);
@@ -398,7 +396,7 @@ struct warp_derivatives_accumulator {
                                       dw_dorg);
             }
 
-            // Compute warp field contribution from this auxillary ray.
+            // Compute warp field contribution from this auxiliary ray.
             // 3x3 (3D vector field in domain, 3 spatial parameters)
             auto vMultiplier = (v_aux_weights.at(i) / v_aux_pdfs.at(i)) * inv_normalization.at(i);
 
@@ -510,7 +508,7 @@ struct warp_derivatives_accumulator {
     const Shape *shapes;
     const int *active_pixels;
 
-    // Common data (primary + auxillary)
+    // Common data (primary + auxiliary)
     const SurfacePoint *shading_points;
     const Intersection *shading_isects;
     
@@ -519,7 +517,7 @@ struct warp_derivatives_accumulator {
     const Intersection *primary_isects;
     const SurfacePoint *primary_points;
 
-    // Auxillary ray(s) data.
+    // Auxiliary ray(s) data.
     const uint *aux_sample_counts;
     const Ray *aux_rays;
     const Intersection *aux_isects;

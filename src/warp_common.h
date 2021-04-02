@@ -18,7 +18,7 @@ struct Scene;
 template <typename T>
 struct TKernelParameters {
     // Concentration of the von Mises-Fisher distribution used 
-    // to sample the auxillary rays.
+    // to sample the auxiliary rays.
     T vMFConcentration;
 
     T auxPrimaryGaussianStddev;
@@ -38,8 +38,8 @@ struct TKernelParameters {
     // Weight multiplier for pixel boundaries
     T pixelBoundaryMultiplier;
 
-    // Maximum number of auxillary rays to trace.
-    int numAuxillaryRays;
+    // Maximum number of auxiliary rays to trace.
+    int numAuxiliaryRays;
 
     // RR options. 
     bool rr_enabled;
@@ -58,7 +58,7 @@ struct TKernelParameters {
         T asymptoteBoundaryTemp,
         int asymptoteGamma,
         T pixelBoundaryMultiplier,
-        int numAuxillaryRays,
+        int numAuxiliaryRays,
         bool rr_enabled,
         T rr_geometric_p,
         int batch_size,
@@ -69,7 +69,7 @@ struct TKernelParameters {
                             asymptoteBoundaryTemp(asymptoteBoundaryTemp),
                             asymptoteGamma(asymptoteGamma),
                             pixelBoundaryMultiplier(pixelBoundaryMultiplier),
-                            numAuxillaryRays(numAuxillaryRays),
+                            numAuxiliaryRays(numAuxiliaryRays),
                             rr_enabled(rr_enabled),
                             rr_geometric_p(rr_geometric_p),
                             batch_size(batch_size),
@@ -169,17 +169,17 @@ Real warp_boundary_term(const KernelParameters& kernel_parameters,
                   const Shape *shapes,
                   const ShapeAdjacency *shape_adjacencies,
                   const Ray &primary,
-                  const Ray &auxillary,
+                  const Ray &auxiliary,
                   const Intersection &aux_isect,
                   const SurfacePoint &aux_point,
                   const SurfacePoint &shading_point,
                   Real& horizon_term) {
 
     auto boundary_term = Real(0.0);
-    if (dot(shading_point.geom_normal, auxillary.dir) * dot(shading_point.geom_normal, primary.dir) < 1e-4) {
+    if (dot(shading_point.geom_normal, auxiliary.dir) * dot(shading_point.geom_normal, primary.dir) < 1e-4) {
         // Outside the horizon ('hit' the black hemispherical occluder)
         horizon_term = 0.0;
-        boundary_term = exp(-abs(dot(shading_point.geom_normal, auxillary.dir)) / kernel_parameters.asymptoteBoundaryTemp);
+        boundary_term = exp(-abs(dot(shading_point.geom_normal, auxiliary.dir)) / kernel_parameters.asymptoteBoundaryTemp);
     } else if (aux_isect.valid()) {
         // Hit a valid surface (and isn't beyond horizon)
         auto vidxs = get_indices(shapes[aux_isect.shape_id], aux_isect.tri_id);
@@ -236,7 +236,7 @@ Real warp_boundary_term(const KernelParameters& kernel_parameters,
 }
 
 /*
-* Computes the asymptotic weight of the auxillary ray's contribution to
+* Computes the asymptotic weight of the auxiliary ray's contribution to
 * the warp field. This is independent of the parameter.
 */
 DEVICE
@@ -245,7 +245,7 @@ Real warp_weight(const KernelParameters& kernel_parameters,
                   const Shape *shapes,
                   const ShapeAdjacency *shape_adjacencies,
                   const Ray &primary,
-                  const Ray &auxillary,
+                  const Ray &auxiliary,
                   const Intersection &aux_isect,
                   const SurfacePoint &aux_point,
                   const SurfacePoint &shading_point,
@@ -254,14 +254,14 @@ Real warp_weight(const KernelParameters& kernel_parameters,
 
     if(kernel_parameters.isBasicNormal) {
         const auto k = kernel_parameters.vMFConcentration;
-        return (k * exp(k * (dot(primary.dir, auxillary.dir) - 1))) / (2.0 * M_PI * (1 - exp(-2 * k)));
+        return (k * exp(k * (dot(primary.dir, auxiliary.dir) - 1))) / (2.0 * M_PI * (1 - exp(-2 * k)));
     }
 
     boundary_term = warp_boundary_term(kernel_parameters,
                  shapes,
                  shape_adjacencies,
                  primary,
-                 auxillary,
+                 auxiliary,
                  aux_isect,
                  aux_point,
                  shading_point,
@@ -269,7 +269,7 @@ Real warp_weight(const KernelParameters& kernel_parameters,
     
     const auto gamma = kernel_parameters.asymptoteGamma;
     const auto k = kernel_parameters.vMFConcentration / gamma;
-    auto gauss = exp(k * (dot(primary.dir, auxillary.dir) - 1));
+    auto gauss = exp(k * (dot(primary.dir, auxiliary.dir) - 1));
 
     // Compute the harmonic weight.
     auto harmonic = pow(gauss, gamma) / pow(1 - gauss * boundary_term, gamma);
@@ -279,7 +279,7 @@ Real warp_weight(const KernelParameters& kernel_parameters,
 }
 
 /*
- * Computes the asymptotic weight of the auxillary ray's contribution to
+ * Computes the asymptotic weight of the auxiliary ray's contribution to
  * the warp field. This is independent of the parameter.
  */
 DEVICE
@@ -289,7 +289,7 @@ Real warp_weight_primary( const KernelParameters& kernel_parameters,
                   const Shape* shapes,
                   const ShapeAdjacency *shape_adjacencies,
                   const Ray &primary,
-                  const Ray &auxillary,
+                  const Ray &auxiliary,
                   const Vector2 &local_sample,
                   const Vector2 &local_aux_sample,
                   const Intersection &aux_isect,
@@ -312,7 +312,7 @@ Real warp_weight_primary( const KernelParameters& kernel_parameters,
                  shapes,
                  shape_adjacencies,
                  primary,
-                 auxillary,
+                 auxiliary,
                  aux_isect,
                  aux_point,
                  shading_point,
@@ -330,7 +330,7 @@ Real warp_weight_primary( const KernelParameters& kernel_parameters,
 
 /*
  * Computes the derivative of the asymptotic weight of the 
- * auxillary ray's contribution to
+ * auxiliary ray's contribution to
  * the warp field. This is independent of the parameter.
  */
 DEVICE
@@ -340,14 +340,14 @@ Vector3 warp_weight_grad(
                   const Shape* shapes,
                   const ShapeAdjacency *shape_adjacencies,
                   const Ray &primary,
-                  const Ray &auxillary,
+                  const Ray &auxiliary,
                   const Intersection &aux_isect,
                   const SurfacePoint &aux_point,
                   const SurfacePoint &shading_point) {
 
     if(kernel_parameters.isBasicNormal) {
         const auto k = kernel_parameters.vMFConcentration;
-        return (k * k * exp(k * (dot(primary.dir, auxillary.dir) - 1)) * cross(primary.dir,cross(primary.dir, auxillary.dir)) ) / (2.0 * M_PI * (1 - exp(-2 * k)));
+        return (k * k * exp(k * (dot(primary.dir, auxiliary.dir) - 1)) * cross(primary.dir,cross(primary.dir, auxiliary.dir)) ) / (2.0 * M_PI * (1 - exp(-2 * k)));
     }
 
     // Compute the boundary term S(x). 
@@ -358,22 +358,22 @@ Vector3 warp_weight_grad(
                  shapes,
                  shape_adjacencies,
                  primary,
-                 auxillary,
+                 auxiliary,
                  aux_isect,
                  aux_point,
                  shading_point,
                  horizon_term);
 
     // Compute the inverse gaussian term.
-    //auto inv_gauss = exp(square(1 - dot(primary.dir, auxillary.dir)) / asymptoteInvGaussSigma);
+    //auto inv_gauss = exp(square(1 - dot(primary.dir, auxiliary.dir)) / asymptoteInvGaussSigma);
     const auto gamma = kernel_parameters.asymptoteGamma;
     const auto k = kernel_parameters.vMFConcentration / gamma;
 
-    //auto gauss = exp(-square(1 - dot(primary.dir, auxillary.dir)) / kernel_parameters.asymptoteInvGaussSigma);
-    auto gauss = exp(k * (dot(primary.dir, auxillary.dir) - 1));
+    //auto gauss = exp(-square(1 - dot(primary.dir, auxiliary.dir)) / kernel_parameters.asymptoteInvGaussSigma);
+    auto gauss = exp(k * (dot(primary.dir, auxiliary.dir) - 1));
 
     // Gradient of inverse gaussian.
-    auto inv_gauss_grad = exp(k * (1 - dot(primary.dir, auxillary.dir))) * k * cross(primary.dir,cross(primary.dir, auxillary.dir));
+    auto inv_gauss_grad = exp(k * (1 - dot(primary.dir, auxiliary.dir))) * k * cross(primary.dir,cross(primary.dir, auxiliary.dir));
 
     // Compute the harmonic weight.
     auto harmonic = -gamma * pow(gauss, gamma + 1) / pow(1 - boundary_term * gauss, gamma + 1);
@@ -388,7 +388,7 @@ Vector3 warp_weight_grad(
 
 /*
  * Computes the derivative of the asymptotic weight of the 
- * auxillary ray's contribution to
+ * auxiliary ray's contribution to
  * the warp field. This is independent of the parameter.
  */
 DEVICE
@@ -398,7 +398,7 @@ Vector3 warp_weight_grad_primary( const KernelParameters& kernel_parameters,
                   const Shape* shapes,
                   const ShapeAdjacency *shape_adjacencies,
                   const Ray &primary,
-                  const Ray &auxillary,
+                  const Ray &auxiliary,
                   const Vector2 &local_pos,
                   const Vector2 &aux_local_pos,
                   const Intersection &aux_isect,
@@ -421,7 +421,7 @@ Vector3 warp_weight_grad_primary( const KernelParameters& kernel_parameters,
                  shapes,
                  shape_adjacencies,
                  primary,
-                 auxillary,
+                 auxiliary,
                  aux_isect,
                  aux_point,
                  shading_point,
@@ -474,7 +474,7 @@ void warp_jacobian(const KernelParameters& kernel_parameters,
         return;
     }
 
-    // Compute distance vector from current point to the auxillary intersection.
+    // Compute distance vector from current point to the auxiliary intersection.
     auto aux_vector = aux_point.position - shading_point.position;
 
     auto dist = length(aux_vector);

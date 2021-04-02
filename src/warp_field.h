@@ -31,7 +31,7 @@ struct Scene;
 
 
 /*
- * Computes the boundary term for the auxillary ray weight.
+ * Computes the boundary term for the auxiliary ray weight.
  */
 DEVICE
 inline
@@ -39,7 +39,7 @@ Real warp_boundary_term( const KernelParameters &kernel_parameters,
                   const Shape *shapes,
                   const ShapeAdjacency *shape_adjacencies,
                   const Ray &primary,
-                  const Ray &auxillary,
+                  const Ray &auxiliary,
                   const Intersection &aux_isect,
                   const SurfacePoint &aux_point,
                   const SurfacePoint &shading_point,
@@ -60,7 +60,7 @@ Real warp_horizon_term(const KernelParameters &kernel_parameters,
 
 
 /*
- * Computes the asymptotic weight of the auxillary ray's contribution to
+ * Computes the asymptotic weight of the auxiliary ray's contribution to
  * the warp field. This is independent of the parameter being differentiated against.
  */
 DEVICE
@@ -69,7 +69,7 @@ Real warp_weight( const KernelParameters &kernel_parameters,
                   const Shape *shapes,
                   const ShapeAdjacency *shape_adjacencies,
                   const Ray &primary,
-                  const Ray &auxillary,
+                  const Ray &auxiliary,
                   const Intersection &aux_isect,
                   const SurfacePoint &aux_point,
                   const SurfacePoint &shading_point,
@@ -79,7 +79,7 @@ Real warp_weight( const KernelParameters &kernel_parameters,
 
 /*
  * Computes the derivative of the asymptotic weight of the 
- * auxillary ray's contribution to
+ * auxiliary ray's contribution to
  * the warp field. This is independent of the parameter.
  */
 DEVICE
@@ -88,7 +88,7 @@ Vector3 warp_weight_grad( const KernelParameters &kernel_parameters,
                   const Shape *shapes,
                   const ShapeAdjacency *shape_adjacencies,
                   const Ray &primary,
-                  const Ray &auxillary,
+                  const Ray &auxiliary,
                   const Intersection &aux_isect,
                   const SurfacePoint &aux_point,
                   const SurfacePoint &shading_point );
@@ -117,7 +117,7 @@ void accumulate_warp_derivatives(const Scene &scene,
                                  const ChannelInfo channel_info,
                                  const KernelParameters &kernel_parameters,
                                  const float* d_rendered_image,
-                                 const bool enable_control_variates, // auxillary control variates
+                                 const bool enable_control_variates, // auxiliary control variates
                                  BufferView<SurfacePoint> d_shading_points,
                                  BufferView<DShape> d_shapes,
                                  BufferView<CameraSample> camera_samples,

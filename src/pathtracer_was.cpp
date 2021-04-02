@@ -127,7 +127,7 @@ namespace vfield {
             control_sample_covariance = Buffer<Matrix3x3>(use_gpu, num_pixels);
 
             // Per-path contribs required to compute second warp component.
-            // Note that only the primary-ray contrib is required. The auxillary rays
+            // Note that only the primary-ray contrib is required. The auxiliary rays
             // don't have to be path traced.
             primary_contribs = Buffer<Vector3>(use_gpu, (max_bounces + 1) * num_pixels);
             nee_contribs = Buffer<Vector3>(use_gpu, (max_bounces + 1) * num_pixels);
@@ -407,7 +407,7 @@ namespace vfield {
                                  scene.max_generic_texture_dimension);
 
         KernelParameters kernel_parameters = options.kernel_parameters;
-        const int numAuxillaryRays = kernel_parameters.numAuxillaryRays;
+        const int numAuxiliaryRays = kernel_parameters.numAuxiliaryRays;
         const int numControlRays = options.variance_reduction_mode.num_control_samples;
 
         // Some common variables
@@ -425,7 +425,7 @@ namespace vfield {
         // tracer is that we need to store all the intermediate states
         // for later computation of derivatives.
         // Therefore we allocate a big buffer here for the storage.
-        PathBuffer path_buffer(max_bounces, num_pixels, numAuxillaryRays, numControlRays, scene.use_gpu, channel_info);
+        PathBuffer path_buffer(max_bounces, num_pixels, numAuxiliaryRays, numControlRays, scene.use_gpu, channel_info);
         auto num_active_pixels = std::vector<int>((max_bounces + 1) * num_pixels, 0);
         std::unique_ptr<Sampler> sampler, edge_sampler, aux_sampler;
         switch (options.sampler_type) {
@@ -434,14 +434,14 @@ namespace vfield {
                 edge_sampler = std::unique_ptr<Sampler>(
                     new PCGSampler(scene.use_gpu, options.seed + 131071U, num_pixels));
                 aux_sampler = std::unique_ptr<Sampler>(
-                    new PCGSampler(scene.use_gpu, options.seed + 131071U, num_pixels * numAuxillaryRays));
+                    new PCGSampler(scene.use_gpu, options.seed + 131071U, num_pixels * numAuxiliaryRays));
                 break;
             } case SamplerType::sobol: {
                 sampler = std::unique_ptr<Sampler>(new SobolSampler(scene.use_gpu, options.seed, num_pixels));
                 edge_sampler = std::unique_ptr<Sampler>(
                     new SobolSampler(scene.use_gpu, options.seed + 131071U, num_pixels));
                 aux_sampler = std::unique_ptr<Sampler>(
-                    new SobolSampler(scene.use_gpu, options.seed + 131071U, num_pixels * numAuxillaryRays));
+                    new SobolSampler(scene.use_gpu, options.seed + 131071U, num_pixels * numAuxiliaryRays));
                 break;
             } default: {
                 assert(false);
@@ -769,20 +769,20 @@ namespace vfield {
                     auto aux_bsdf_counts = path_buffer.aux_bsdf_counts.view(0, num_pixels);
                     auto aux_nee_count_samples = path_buffer.aux_nee_count_samples.view(0, num_pixels);
                     auto aux_bsdf_count_samples = path_buffer.aux_bsdf_count_samples.view(0, num_pixels);
-                    auto aux_nee_samples = path_buffer.aux_nee_samples.view(0, numAuxillaryRays * num_pixels);
-                    auto aux_bsdf_samples = path_buffer.aux_bsdf_samples.view(0, numAuxillaryRays * num_pixels);
-                    auto aux_nee_rays = path_buffer.aux_nee_rays.view(0, numAuxillaryRays * num_pixels);
-                    auto aux_bsdf_rays = path_buffer.aux_bsdf_rays.view(0, numAuxillaryRays * num_pixels);
-                    auto aux_nee_isects = path_buffer.aux_nee_isects.view(0, numAuxillaryRays * num_pixels);
-                    auto aux_bsdf_isects = path_buffer.aux_bsdf_isects.view(0, numAuxillaryRays * num_pixels);
-                    auto aux_nee_points = path_buffer.aux_nee_points.view(0, numAuxillaryRays * num_pixels);
-                    auto aux_bsdf_points = path_buffer.aux_bsdf_points.view(0, numAuxillaryRays * num_pixels);
-                    auto aux_ray_differentials = path_buffer.aux_ray_differentials.view(0, numAuxillaryRays * num_pixels);
-                    auto aux_active_pixels = path_buffer.aux_active_pixels.view(0, numAuxillaryRays * num_pixels);
+                    auto aux_nee_samples = path_buffer.aux_nee_samples.view(0, numAuxiliaryRays * num_pixels);
+                    auto aux_bsdf_samples = path_buffer.aux_bsdf_samples.view(0, numAuxiliaryRays * num_pixels);
+                    auto aux_nee_rays = path_buffer.aux_nee_rays.view(0, numAuxiliaryRays * num_pixels);
+                    auto aux_bsdf_rays = path_buffer.aux_bsdf_rays.view(0, numAuxiliaryRays * num_pixels);
+                    auto aux_nee_isects = path_buffer.aux_nee_isects.view(0, numAuxiliaryRays * num_pixels);
+                    auto aux_bsdf_isects = path_buffer.aux_bsdf_isects.view(0, numAuxiliaryRays * num_pixels);
+                    auto aux_nee_points = path_buffer.aux_nee_points.view(0, numAuxiliaryRays * num_pixels);
+                    auto aux_bsdf_points = path_buffer.aux_bsdf_points.view(0, numAuxiliaryRays * num_pixels);
+                    auto aux_ray_differentials = path_buffer.aux_ray_differentials.view(0, numAuxiliaryRays * num_pixels);
+                    auto aux_active_pixels = path_buffer.aux_active_pixels.view(0, numAuxiliaryRays * num_pixels);
                     
                     // RR-specific buffers.
-                    auto aux_bsdf_active_pixels = path_buffer.aux_bsdf_active_pixels.view(0, numAuxillaryRays * num_pixels);
-                    auto aux_nee_active_pixels = path_buffer.aux_nee_active_pixels.view(0, numAuxillaryRays * num_pixels);
+                    auto aux_bsdf_active_pixels = path_buffer.aux_bsdf_active_pixels.view(0, numAuxiliaryRays * num_pixels);
+                    auto aux_nee_active_pixels = path_buffer.aux_nee_active_pixels.view(0, numAuxiliaryRays * num_pixels);
 
                     auto d_throughputs = path_buffer.d_throughputs.view(0, num_pixels);
                     auto d_rays = path_buffer.d_rays.view(0, num_pixels);
@@ -898,12 +898,12 @@ namespace vfield {
                                     thrust::fill, 
                                     aux_nee_counts.begin(),
                                     aux_nee_counts.end(),
-                                    static_cast<uint>(numAuxillaryRays));
+                                    static_cast<uint>(numAuxiliaryRays));
                             DISPATCH(scene.use_gpu, 
                                     thrust::fill, 
                                     aux_bsdf_counts.begin(),
                                     aux_bsdf_counts.end(),
-                                    static_cast<uint>(numAuxillaryRays));
+                                    static_cast<uint>(numAuxiliaryRays));
                         }
 
                         // Compute perturbed ray bundle around the bsdf ray
@@ -934,22 +934,22 @@ namespace vfield {
                         parallel_for(aux_expand_x<int>{
                             active_pixels.begin(),
                             aux_active_pixels.begin(),
-                            kernel_parameters.numAuxillaryRays}, active_pixels.size(), scene.use_gpu);
+                            kernel_parameters.numAuxiliaryRays}, active_pixels.size(), scene.use_gpu);
     
                         aux_active_pixels.count = 
-                            active_pixels.count * kernel_parameters.numAuxillaryRays;
+                            active_pixels.count * kernel_parameters.numAuxiliaryRays;
                         
                         if( kernel_parameters.rr_enabled ){
                             // Updates active-flag for auxiliary rays based on
                             // Russian roulette stopping condition.
                             update_aux_active_pixels(aux_active_pixels,
                                                     aux_bsdf_counts,
-                                                    kernel_parameters.numAuxillaryRays,
+                                                    kernel_parameters.numAuxiliaryRays,
                                                     aux_bsdf_active_pixels,
                                                     scene.use_gpu);
                             update_aux_active_pixels(aux_active_pixels,
                                                     aux_nee_counts,
-                                                    kernel_parameters.numAuxillaryRays,
+                                                    kernel_parameters.numAuxiliaryRays,
                                                     aux_nee_active_pixels,
                                                     scene.use_gpu);
                         }
@@ -1097,13 +1097,13 @@ namespace vfield {
 
                     auto aux_bsdf_counts = path_buffer.aux_bsdf_counts.view(0, num_pixels);
                     auto aux_bsdf_count_samples = path_buffer.aux_bsdf_count_samples.view(0, num_pixels);
-                    auto aux_bsdf_samples = path_buffer.aux_bsdf_samples.view(0, numAuxillaryRays * num_pixels);
-                    auto aux_bsdf_points = path_buffer.aux_bsdf_points.view(0, numAuxillaryRays * num_pixels);
-                    auto aux_bsdf_rays = path_buffer.aux_bsdf_rays.view(0, numAuxillaryRays * num_pixels);
-                    auto aux_bsdf_isects = path_buffer.aux_bsdf_isects.view(0, numAuxillaryRays * num_pixels);
-                    auto aux_ray_differentials = path_buffer.aux_ray_differentials.view(0, numAuxillaryRays * num_pixels);
-                    auto aux_active_pixels = path_buffer.aux_active_pixels.view(0, numAuxillaryRays * num_pixels);
-                    auto aux_bsdf_active_pixels = path_buffer.aux_bsdf_active_pixels.view(0, numAuxillaryRays * num_pixels);
+                    auto aux_bsdf_samples = path_buffer.aux_bsdf_samples.view(0, numAuxiliaryRays * num_pixels);
+                    auto aux_bsdf_points = path_buffer.aux_bsdf_points.view(0, numAuxiliaryRays * num_pixels);
+                    auto aux_bsdf_rays = path_buffer.aux_bsdf_rays.view(0, numAuxiliaryRays * num_pixels);
+                    auto aux_bsdf_isects = path_buffer.aux_bsdf_isects.view(0, numAuxiliaryRays * num_pixels);
+                    auto aux_ray_differentials = path_buffer.aux_ray_differentials.view(0, numAuxiliaryRays * num_pixels);
+                    auto aux_active_pixels = path_buffer.aux_active_pixels.view(0, numAuxiliaryRays * num_pixels);
+                    auto aux_bsdf_active_pixels = path_buffer.aux_bsdf_active_pixels.view(0, numAuxiliaryRays * num_pixels);
 
                     auto control_mean_grad_contrib = path_buffer.control_mean_grad_contrib.view(0, num_pixels);
                     auto control_mean_contrib = path_buffer.control_mean_contrib.view(0, num_pixels);
@@ -1172,7 +1172,7 @@ namespace vfield {
                                     thrust::fill, 
                                     aux_bsdf_counts.begin(),
                                     aux_bsdf_counts.end(),
-                                    static_cast<uint>(numAuxillaryRays));
+                                    static_cast<uint>(numAuxiliaryRays));
                         }
 
                         // Compute perturbed ray bundle around the bsdf ray
@@ -1190,13 +1190,13 @@ namespace vfield {
                         parallel_for(aux_expand_x<int>{
                             primary_active_pixels.begin(),
                             aux_active_pixels.begin(),
-                            numAuxillaryRays}, primary_active_pixels.size(), scene.use_gpu);
-                        aux_active_pixels.count = primary_active_pixels.count * numAuxillaryRays;
+                            numAuxiliaryRays}, primary_active_pixels.size(), scene.use_gpu);
+                        aux_active_pixels.count = primary_active_pixels.count * numAuxiliaryRays;
 
                         if( kernel_parameters.rr_enabled ){
                             update_aux_active_pixels(aux_active_pixels, 
                                                     aux_bsdf_counts, 
-                                                    kernel_parameters.numAuxillaryRays,
+                                                    kernel_parameters.numAuxiliaryRays,
                                                     aux_bsdf_active_pixels,
                                                     scene.use_gpu);
                         }
