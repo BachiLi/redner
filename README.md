@@ -24,7 +24,7 @@ The following files contain the implementation of the paper:
  - `warp_rr.h` Russian roulette computation.
 
 Additional features:
- - `vmf.h` von-Mises Fisher lights (soft, differentiable directional lighting)
+ - `vmf.h` von-Mises Fisher lights for soft, differentiable directional lighting. (Heavily relies on this excellent document: https://www.mitsuba-renderer.org/~wenzel/files/vmf.pdf)
 
 ### Performance & Stability considerations
  - Meshes must contain atleast 1 interior vertex for the boundary term to work. For example, for a flat square, use 4 faces with a vertex at the center rather than 2 faces.
