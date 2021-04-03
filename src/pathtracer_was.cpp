@@ -873,9 +873,11 @@ namespace vfield {
                         }
 
                         if (kernel_parameters.rr_enabled) {
-                            // Sample the number of samples for Russian roulette.
-                            // More info on the generalized Russian roulette de-biasing method here:
-                            // https://arxiv.org/abs/1005.2228
+                            /* 
+                             * Sample the number of samples for Russian roulette.
+                             * More info on the generalized Russian roulette de-biasing method here:
+                             * https://arxiv.org/abs/1005.2228
+                             */
                             aux_sampler->next_aux_count_samples(aux_bsdf_count_samples);
                             aux_sampler->next_aux_count_samples(aux_nee_count_samples);
 
