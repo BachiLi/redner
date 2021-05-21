@@ -105,7 +105,7 @@ class RenderFunction(torch.autograd.Function):
                               integrator: pyredner.integrators.Integrator = pyredner.integrators.EdgeSamplingIntegrator(),
                               device: Optional[torch.device] = None):
         """
-            Given a pyredner scene & rendering options, convert them to a linear list of argument,
+            Given a pyredner scene & integrator, converts them into a linear list of parameters,
             so that we can use it in PyTorch.
 
             Args
@@ -115,43 +115,6 @@ class RenderFunction(torch.autograd.Function):
                 | Redner supports two integrators capable of edge-aware differentiable rendering. Use 
                 | pyredner.integrators.EdgeSamplingIntegrator for the edge-sampling method and
                 | pyredner.integrators.WarpFieldIntegrator for the warped-area sampling technique
-            channels: List[redner.channels]
-                | A list of channels that should present in the output image
-                | following channels are supported\:
-                | redner.channels.radiance,
-                | redner.channels.alpha,
-                | redner.channels.depth,
-                | redner.channels.position,
-                | redner.channels.geometry_normal,
-                | redner.channels.shading_normal,
-                | redner.channels.uv,
-                | redner.channels.barycentric_coordinates,
-                | redner.channels.diffuse_reflectance,
-                | redner.channels.specular_reflectance,
-                | redner.channels.vertex_color,
-                | redner.channels.roughness,
-                | redner.channels.generic_texture,
-                | redner.channels.shape_id,
-                | redner.channels.triangle_id,
-                | redner.channels.material_id
-                | all channels, except for shape id, triangle id, and material id, are differentiable
-            sampler_type: redner.SamplerType
-                | Which sampling pattern to use?
-                | see `Chapter 7 of the PBRT book <http://www.pbr-book.org/3ed-2018/Sampling_and_Reconstruction.html>`
-                  for an explanation of the difference between different samplers.
-                | Following samplers are supported:
-                | redner.SamplerType.independent
-                | redner.SamplerType.sobol
-            use_primary_edge_sampling: bool
-
-            use_secondary_edge_sampling: bool
-
-            sample_pixel_center: bool
-                Always sample at the pixel center when rendering.
-                This trades noise with aliasing.
-                If this option is activated, the rendering becomes non-differentiable
-                (since there is no antialiasing integral),
-                and redner's edge sampling becomes an approximation to the gradients of the aliased rendering.
 
             device: Optional[torch.device]
                 Which device should we store the data in.
@@ -1093,6 +1056,7 @@ class RenderFunction(torch.autograd.Function):
             Given a serialized scene and output an 2-channel image,
             which visualizes the derivatives of pixel color with respect to 
             the screen space coordinates.
+            This version supports different integrators using the 'integrator' argument.
 
             Args
             ====
@@ -1101,7 +1065,7 @@ class RenderFunction(torch.autograd.Function):
                 what this means just give None
             seed: int
                 seed for the Monte Carlo random samplers
-            See serialize_scene for the explanation of the rest of the arguments.
+            See serialize_scene_class for the explanation of the rest of the arguments.
         """
 
         args = RenderFunction.serialize_scene_class(\
@@ -1152,7 +1116,11 @@ class RenderFunction(torch.autograd.Function):
         """
             Given a serialized scene and output an 2-channel image,
             which visualizes the derivatives of pixel color with respect to 
-            the screen space coordinates.
+            the translation of a specific object in the scene (defined by index at SHAPE_SELECT)
+            along a specific axis (defined by DIM_SELECT).
+            This is a debugging routine to visualize the per-pixel derivative and requires
+            changing C definitions for SHAPE_SELECT and DIM_SELECT in src/redner.h, in order
+            to modify its output.
 
             Args
             ====
@@ -1161,7 +1129,7 @@ class RenderFunction(torch.autograd.Function):
                 what this means just give None
             seed: int
                 seed for the Monte Carlo random samplers
-            See serialize_scene for the explanation of the rest of the arguments.
+            See serialize_scene_class for the explanation of the rest of the arguments.
         """
 
         args = RenderFunction.serialize_scene_class(\
