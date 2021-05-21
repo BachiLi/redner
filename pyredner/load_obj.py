@@ -193,7 +193,7 @@ def load_obj(filename: str,
                         roughness = torch.tensor([2.0 / (m.Ns + 2.0)],
                             dtype = torch.float32, device = device)
                     else:
-                        roughness = 2.0 / (pyredner.imread(m.map_Ks) + 2.0)
+                        roughness = 2.0 / (pyredner.imread(m.map_Ns) + 2.0)
                         roughness = roughness.to(device)
                     if m.Ke != (0.0, 0.0, 0.0):
                         light_map[mtl_name] = torch.tensor(m.Ke, dtype = torch.float32)
