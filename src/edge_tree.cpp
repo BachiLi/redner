@@ -764,7 +764,7 @@ EdgeTree::EdgeTree(bool use_gpu,
         thrust::transform_reduce, edge_ids.begin(), edge_ids.end(),
         id_to_edge_pt_sum{shapes.begin(), edges.begin()},
         Vector3{0, 0, 0}, sum_vec3{});
-    edge_pt_mean /= Real(edge_ids.size());
+    edge_pt_mean /= 2. * Real(edge_ids.size());
     auto edge_pt_mad = DISPATCH(use_gpu,
         thrust::transform_reduce, edge_ids.begin(), edge_ids.end(),
         id_to_edge_pt_abs{shapes.begin(), edges.begin(), edge_pt_mean},
