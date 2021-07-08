@@ -56,7 +56,7 @@ def SH_reconstruct(coeffs, res):
             result = result + sh_factor.view(sh_factor.shape[0], sh_factor.shape[1], 1) * coeffs[:, i]
             i += 1
     result = torch.max(result,
-        torch.zeros(res[1], res[0], coeffs.shape[0], device = coeffs.device))
+        torch.zeros(res[0], res[1], coeffs.shape[0], device = coeffs.device))
     return result
 #######################################################################################
 
