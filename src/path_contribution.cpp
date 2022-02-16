@@ -355,7 +355,7 @@ struct d_path_contribs_accumulator {
                 // Initialize bsdf vertex derivatives
                 Vector3 d_bsdf_v_p[3] = {Vector3{0, 0, 0}, Vector3{0, 0, 0}, Vector3{0, 0, 0}};
                 Vector3 d_bsdf_v_n[3] = {Vector3{0, 0, 0}, Vector3{0, 0, 0}, Vector3{0, 0, 0}};
-                Vector2 d_bsdf_v_uv[3] = {Vector2{0, 0}, Vector2{0, 0}};
+                Vector2 d_bsdf_v_uv[3] = {Vector2{0, 0}, Vector2{0, 0}, Vector2{0, 0}};
                 Vector3 d_bsdf_v_c[3] = {Vector3{0, 0, 0}, Vector3{0, 0, 0}, Vector3{0, 0, 0}};
 
                 auto bsdf_val = bsdf(material, shading_point, wi, wo, min_rough);
