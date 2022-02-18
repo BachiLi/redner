@@ -266,6 +266,15 @@ inline Real envmap_pdf(const EnvironmentMap &envmap, const Vector3 &dir) {
     auto yci = modulo(yfi + 1, h);
     auto dx = x - xfi;
     auto dy = y - yfi;
+    if (dx < 0)
+        dx += w;
+    if (dy < 0)
+        dy += h;
+    // Allowing dx and dy to be up to 1e-3 outside the 0-1 range is
+    // probably generous, but I don't want the assert to fail
+    // unnecessarily.
+    assert (dx > -1e-3 && dx < 1.0 + 1e-3);
+    assert (dy > -1e-3 && dy < 1.0 + 1e-3);
     auto texels = envmap.values.texels[0];
     auto lum_ff = luminance(
         Vector3f{texels[3 * (yfi * w + xfi) + 0],
