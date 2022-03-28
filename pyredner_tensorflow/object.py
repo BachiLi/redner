@@ -47,6 +47,9 @@ class Object:
         colors: Optional[tf.Tensor]
             optional per-vertex color
             float32 tensor with size num_vertices x 3
+        directly_visible: boolean
+            optional setting to see if object is visible to camera
+            during rendering.
     """
     def __init__(self,
                  vertices: tf.Tensor,
@@ -58,7 +61,8 @@ class Object:
                  normals: Optional[tf.Tensor] = None,
                  uv_indices: Optional[tf.Tensor] = None,
                  normal_indices: Optional[tf.Tensor] = None,
-                 colors: Optional[tf.Tensor] = None):
+                 colors: Optional[tf.Tensor] = None,
+                 directly_visible: bool = True):
         assert(vertices.dtype == tf.float32)
         assert(indices.dtype == tf.int32)
         if uvs is not None:
@@ -82,3 +86,4 @@ class Object:
         self.material = material
         self.light_intensity = light_intensity
         self.light_two_sided = light_two_sided
+        self.directly_visible = directly_visible

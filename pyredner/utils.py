@@ -160,7 +160,7 @@ def generate_quad_light(position: torch.Tensor,
                         look_at: torch.Tensor,
                         size: torch.Tensor,
                         intensity: torch.Tensor,
-                        directly_visible: Optional[bool] = None):
+                        directly_visible: bool = True):
     """
         Generate a pyredner.Object that is a quad light source.
 
@@ -174,7 +174,7 @@ def generate_quad_light(position: torch.Tensor,
             1-d tensor of size 2
         intensity: torch.Tensor
             1-d tensor of size 3
-        directly_visible: Optional[bool]
+        directly_visible: boolean
             Can the camera see the light source directly?
 
         Returns

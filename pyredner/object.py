@@ -47,7 +47,7 @@ class Object:
         colors: Optional[torch.Tensor]
             optional per-vertex color
             float32 tensor with size num_vertices x 3
-        directly_visible: Optional[bool]
+        directly_visible: boolean
             optional setting to see if object is visible to camera
             during rendering.
     """
@@ -62,7 +62,7 @@ class Object:
                  uv_indices: Optional[torch.Tensor] = None,
                  normal_indices: Optional[torch.Tensor] = None,
                  colors: Optional[torch.Tensor] = None,
-                 directly_visible: Optional[bool] = None):
+                 directly_visible: bool = True):
         self.vertices = vertices
         self.indices = indices
         self.uvs = uvs

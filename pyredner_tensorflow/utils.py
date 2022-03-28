@@ -152,7 +152,8 @@ def generate_sphere(theta_steps: int,
 def generate_quad_light(position: tf.Tensor,
                         look_at: tf.Tensor,
                         size: tf.Tensor,
-                        intensity: tf.Tensor):
+                        intensity: tf.Tensor,
+                        directly_visible: bool = True):
     """
         Generate a pyredner.Object that is a quad light source.
 
@@ -194,7 +195,8 @@ def generate_quad_light(position: tf.Tensor,
     return pyredner.Object(vertices = vertices,
                            indices = indices,
                            material = m,
-                           light_intensity = intensity)
+                           light_intensity = intensity,
+                           directly_visible = directly_visible)
 
 ############################################3
 def read_tensor(filename, shape):
