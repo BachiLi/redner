@@ -130,7 +130,7 @@ elif sys.platform == 'win32':
     dynamic_libraries.append('redner-dependencies/embree/bin/tbb.dll')
     dynamic_libraries.append('redner-dependencies/embree/bin/tbbmalloc.dll')
     if build_with_cuda:
-        dynamic_libraries.append('redner-dependencies/optix/bin64/optix_prime.1.dll')
+        dynamic_libraries.append('optix/bin64/optix_prime.6.5.0.dll')
 
 project_name = 'redner'
 if 'PROJECT_NAME' in os.environ:
