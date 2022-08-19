@@ -100,7 +100,7 @@ if torch_spec is not None:
     import torch
     if torch.cuda.is_available():
         build_with_cuda = True
-if tf_spec is not None and sys.platform != 'win32':
+if tf_spec is not None:
     packages.append('pyredner_tensorflow')
     if not build_with_cuda:
         import tensorflow as tf
