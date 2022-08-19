@@ -72,7 +72,7 @@ pyredner.imwrite(normal, 'results/test_g_buffer/target_normal.exr')
 pyredner.imwrite(normal, 'results/test_g_buffer/target_normal.png', normalize = True)
 # Read the target image we just saved.
 target_depth = pyredner.imread('results/test_g_buffer/target_depth.exr')
-target_depth = target_depth[:, :, 0]
+# target_depth = target_depth[:, :, 0]
 target_normal = pyredner.imread('results/test_g_buffer/target_normal.exr')
 
 with tf.device(pyredner.get_device_name()):
